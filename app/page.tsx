@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function Home() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-black">
@@ -11,6 +13,12 @@ export default function Home() {
         <div className="mt-4 rounded-full border border-zinc-300 px-6 py-3 text-sm font-medium text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
           곧 오픈 예정
         </div>
+        <Link
+          href="/blog"
+          className="text-sm text-zinc-500 underline underline-offset-4 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+        >
+          블로그 보기
+        </Link>
       </main>
     </div>
   );
