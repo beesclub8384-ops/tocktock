@@ -101,7 +101,7 @@ export function StockSearch({ currentSymbol }: StockSearchProps) {
           onChange={(e) => { setQuery(e.target.value); setIsOpen(true); }}
           onFocus={() => { if (query.length > 0) setIsOpen(true); }}
           onKeyDown={handleKeyDown}
-          placeholder={`${currentSymbol} 종목 검색`}
+          placeholder="종목 검색"
           className="bg-transparent text-sm text-zinc-100 outline-none placeholder:text-zinc-500 w-44"
         />
       </div>
