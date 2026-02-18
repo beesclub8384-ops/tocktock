@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { ChartContainer } from "./chart-container";
+import { ChartContainer, type ChartContainerHandle } from "./chart-container";
+import { DrawingToolbar } from "./drawing-toolbar";
+import { DrawingContextMenu } from "./drawing-context-menu";
 import type {
   ChartInterval,
   OHLCData,
@@ -10,6 +12,7 @@ import type {
   ChannelData,
   TrendlineResponse,
 } from "@/lib/types/stock";
+import type { DrawingToolType } from "@/lib/types/drawing";
 
 const INTERVALS: { value: ChartInterval; label: string }[] = [
   { value: "1d", label: "일봉" },
@@ -35,6 +38,12 @@ export function StockChart({ symbol }: StockChartProps) {
   const [showTrendlines, setShowTrendlines] = useState(true);
   const [showTunnels, setShowTunnels] = useState(true);
 
+  // 드로잉 상태
+  const [activeTool, setActiveTool] = useState<DrawingToolType>(null);
+  const [selectedDrawingId, setSelectedDrawingId] = useState<string | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; id: string } | null>(null);
+
+  const chartRef = useRef<ChartContainerHandle>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const fetchData = useCallback(async () => {
@@ -80,6 +89,30 @@ export function StockChart({ symbol }: StockChartProps) {
     return () => clearTimeout(debounceRef.current);
   }, [data.length, fetchTrendlines, interval]);
 
+  // Delete 키로 선택된 드로잉 삭제
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.key === "Delete" || e.key === "Backspace") && selectedDrawingId) {
+        chartRef.current?.deleteDrawing(selectedDrawingId);
+        setSelectedDrawingId(null);
+      }
+      if (e.key === "Escape") {
+        setActiveTool(null);
+        setContextMenu(null);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [selectedDrawingId]);
+
+  const handleSelectionChange = useCallback((id: string | null) => {
+    setSelectedDrawingId(id);
+  }, []);
+
+  const handleContextMenu = useCallback((x: number, y: number, id: string) => {
+    setContextMenu({ x, y, id });
+  }, []);
+
   const lastPrice = data.length > 0 ? data[data.length - 1] : null;
   const prevClose = data.length > 1 ? data[data.length - 2].close : null;
   const change = lastPrice && prevClose ? lastPrice.close - prevClose : null;
@@ -119,7 +152,7 @@ export function StockChart({ symbol }: StockChartProps) {
         </div>
       </div>
 
-      {/* 차트 */}
+      {/* 차트 + 드로잉 툴바 */}
       {error ? (
         <div className="flex h-[500px] items-center justify-center rounded-lg border border-zinc-800 text-red-400">
           {error}
@@ -129,11 +162,35 @@ export function StockChart({ symbol }: StockChartProps) {
           차트 로딩 중...
         </div>
       ) : (
-        <ChartContainer
-          data={data}
-          channels={channels}
-          showTrendlines={showTrendlines}
-          showTunnels={showTunnels}
+        <div className="flex gap-2">
+          <DrawingToolbar activeTool={activeTool} onToolChange={setActiveTool} />
+          <div className="flex-1">
+            <ChartContainer
+              ref={chartRef}
+              data={data}
+              channels={channels}
+              showTrendlines={showTrendlines}
+              showTunnels={showTunnels}
+              symbol={symbol}
+              activeTool={activeTool}
+              onSelectionChange={handleSelectionChange}
+              onContextMenu={handleContextMenu}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* 우클릭 컨텍스트 메뉴 */}
+      {contextMenu && (
+        <DrawingContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onChangeColor={(color) => chartRef.current?.changeColor(contextMenu.id, color)}
+          onDelete={() => {
+            chartRef.current?.deleteDrawing(contextMenu.id);
+            setSelectedDrawingId(null);
+          }}
+          onClose={() => setContextMenu(null)}
         />
       )}
 
