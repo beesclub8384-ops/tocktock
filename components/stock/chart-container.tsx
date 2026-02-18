@@ -131,13 +131,11 @@ export function ChartContainer({ data, trendlines = [] }: ChartContainerProps) {
 
     for (const tl of trendlines) {
       const color = TRENDLINE_COLORS[tl.direction] ?? "#a1a1aa";
-      // 지지선: 실선, 저항선: 점선, 크로스: 대시
-      const lineStyle = tl.direction === "support" ? 0 : tl.direction === "resistance" ? 2 : 1;
 
       const series = chart.addSeries(LineSeries, {
         color,
-        lineWidth: 2,
-        lineStyle,
+        lineWidth: 1,
+        lineStyle: 0,
         crosshairMarkerVisible: false,
         priceLineVisible: false,
         lastValueVisible: false,

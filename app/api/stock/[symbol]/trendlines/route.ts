@@ -43,19 +43,26 @@ export async function GET(
     const startIdx = data.findIndex((d) => d.time >= "2020-01-27");
     const analysisData = startIdx >= 0 ? data.slice(startIdx) : data;
 
-    const all = findBestTrendlines(analysisData, { topN: 50 });
+    const all = findBestTrendlines(analysisData, { topN: 50, tolerance: 0.01 });
+
+    // 마지막 데이터로부터 26주(약 6개월) 미래까지 연장
+    const futureWeeks = 26;
+    const lastDate = new Date(analysisData[analysisData.length - 1].time);
+    const futureDate = new Date(lastDate);
+    futureDate.setDate(futureDate.getDate() + futureWeeks * 7);
+    const futureTime = futureDate.toISOString().split("T")[0];
 
     const toLineData = (t: typeof all[number], dir: "support" | "resistance" | "cross"): TrendlineData => {
       const priceKey = t.direction === "support" ? "low" : "high";
       const price1 = analysisData[t.anchor1][priceKey];
-      const lastIdx = analysisData.length - 1;
-      const lastValue = price1 + t.slope * (lastIdx - t.anchor1);
+      const futureIdx = analysisData.length - 1 + futureWeeks;
+      const futureValue = price1 + t.slope * (futureIdx - t.anchor1);
       return {
         direction: dir,
         touchCount: t.touchCount,
         points: [
           { time: analysisData[t.anchor1].time, value: Math.round(price1 * 100) / 100 },
-          { time: analysisData[lastIdx].time, value: Math.round(lastValue * 100) / 100 },
+          { time: futureTime, value: Math.round(futureValue * 100) / 100 },
         ],
       };
     };
