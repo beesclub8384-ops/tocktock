@@ -3,7 +3,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ChartContainer } from "./chart-container";
-import type { ChartInterval, OHLCData, StockChartResponse } from "@/lib/types/stock";
+import type {
+  ChartInterval,
+  OHLCData,
+  StockChartResponse,
+  TrendlineData,
+  TrendlineResponse,
+} from "@/lib/types/stock";
 
 const INTERVALS: { value: ChartInterval; label: string }[] = [
   { value: "1d", label: "일봉" },
@@ -16,19 +22,29 @@ interface StockChartProps {
 }
 
 export function StockChart({ symbol }: StockChartProps) {
-  const [interval, setInterval] = useState<ChartInterval>("1d");
+  const [interval, setInterval] = useState<ChartInterval>("1wk");
   const [data, setData] = useState<OHLCData[]>([]);
+  const [trendlines, setTrendlines] = useState<TrendlineData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setTrendlines([]);
     try {
       const res = await fetch(`/api/stock/${symbol}/chart?interval=${interval}`);
       if (!res.ok) throw new Error("Failed to fetch");
       const json: StockChartResponse = await res.json();
       setData(json.data);
+
+      // 주봉/월봉일 때 추세선 로드
+      if (interval === "1wk" || interval === "1mo") {
+        fetch(`/api/stock/${symbol}/trendlines`)
+          .then((r) => r.json())
+          .then((json: TrendlineResponse) => setTrendlines(json.trendlines))
+          .catch(() => {});
+      }
     } catch {
       setError("데이터를 불러오는데 실패했습니다.");
     } finally {
@@ -94,7 +110,7 @@ export function StockChart({ symbol }: StockChartProps) {
           차트 로딩 중...
         </div>
       ) : (
-        <ChartContainer data={data} />
+        <ChartContainer data={data} trendlines={trendlines} />
       )}
     </div>
   );

@@ -6,23 +6,32 @@ import {
   ColorType,
   CandlestickSeries,
   HistogramSeries,
+  LineSeries,
   type IChartApi,
   type ISeriesApi,
   type CandlestickData,
   type HistogramData,
+  type LineData,
   type Time,
 } from "lightweight-charts";
-import type { OHLCData } from "@/lib/types/stock";
+import type { OHLCData, TrendlineData } from "@/lib/types/stock";
+
+const TRENDLINE_COLORS = {
+  support: ["#3b82f6", "#8b5cf6", "#06b6d4", "#10b981", "#f59e0b"],
+  resistance: ["#ef4444", "#f97316", "#ec4899", "#e11d48", "#dc2626"],
+};
 
 interface ChartContainerProps {
   data: OHLCData[];
+  trendlines?: TrendlineData[];
 }
 
-export function ChartContainer({ data }: ChartContainerProps) {
+export function ChartContainer({ data, trendlines = [] }: ChartContainerProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const candleSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const volumeSeriesRef = useRef<ISeriesApi<"Histogram"> | null>(null);
+  const trendlineSeriesRefs = useRef<ISeriesApi<"Line">[]>([]);
 
   useEffect(() => {
     const container = chartContainerRef.current;
@@ -108,6 +117,43 @@ export function ChartContainer({ data }: ChartContainerProps) {
     volumeSeriesRef.current.setData(volumeData);
     chartRef.current?.timeScale().fitContent();
   }, [data]);
+
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart || trendlines.length === 0) return;
+
+    // 기존 추세선 제거
+    for (const series of trendlineSeriesRefs.current) {
+      chart.removeSeries(series);
+    }
+    trendlineSeriesRefs.current = [];
+
+    let supportIdx = 0;
+    let resistanceIdx = 0;
+
+    for (const tl of trendlines) {
+      const colors = TRENDLINE_COLORS[tl.direction];
+      const colorIdx = tl.direction === "support" ? supportIdx++ : resistanceIdx++;
+      const color = colors[colorIdx % colors.length];
+
+      const series = chart.addSeries(LineSeries, {
+        color,
+        lineWidth: 2,
+        lineStyle: tl.direction === "support" ? 0 : 2, // 지지선: 실선, 저항선: 점선
+        crosshairMarkerVisible: false,
+        priceLineVisible: false,
+        lastValueVisible: false,
+      });
+
+      const lineData: LineData<Time>[] = tl.points.map((p) => ({
+        time: p.time as Time,
+        value: p.value,
+      }));
+
+      series.setData(lineData);
+      trendlineSeriesRefs.current.push(series);
+    }
+  }, [trendlines]);
 
   return (
     <div

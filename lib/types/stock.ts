@@ -14,3 +14,19 @@ export interface StockChartResponse {
   interval: ChartInterval;
   data: OHLCData[];
 }
+
+export interface TrendlinePoint {
+  time: string;
+  value: number;
+}
+
+export interface TrendlineData {
+  direction: "support" | "resistance";
+  touchCount: number;
+  points: TrendlinePoint[];
+}
+
+export interface TrendlineResponse {
+  symbol: string;
+  trendlines: TrendlineData[];
+}
