@@ -16,6 +16,9 @@ export function Navbar() {
           <Button variant="ghost" size="sm" asChild>
             <Link href="/blog">블로그</Link>
           </Button>
+          <Button variant="ghost" size="sm" asChild>
+            <Link href="/stock/TSLA">차트</Link>
+          </Button>
         </nav>
 
         <Button size="sm" asChild>

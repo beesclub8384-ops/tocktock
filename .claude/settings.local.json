@@ -9,7 +9,26 @@
       "Bash(export PATH=\"/c/Program Files/GitHub CLI:$PATH\")",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(gh repo create:*)"
+      "Bash(gh repo create:*)",
+      "Bash(gh api:*)",
+      "Bash(git config:*)",
+      "Bash(npm run dev:*)",
+      "Bash(npx vercel:*)",
+      "Bash(git push:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run build:*)",
+      "Bash(npx shadcn@latest init:*)",
+      "Bash(npx shadcn@latest add:*)",
+      "Bash(timeout 8 bash:*)",
+      "Bash(curl:*)",
+      "Bash(timeout 10 bash -c 'while ! curl -s http://localhost:3000 > /dev/null 2>&1; do sleep 1; done')",
+      "WebSearch",
+      "WebFetch(domain:tradingview.github.io)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:www.omi.me)",
+      "Bash(npm ls:*)",
+      "Bash(node:*)",
+      "Bash(taskkill:*)"
     ]
   }
 }
