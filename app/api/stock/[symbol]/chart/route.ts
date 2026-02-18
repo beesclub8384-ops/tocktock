@@ -13,10 +13,10 @@ interface ChartQuote {
   volume: number | null;
 }
 
-const INTERVAL_CONFIG: Record<ChartInterval, { months: number }> = {
-  "1d": { months: 6 },
-  "1wk": { months: 24 },
-  "1mo": { months: 60 },
+const INTERVAL_CONFIG: Record<ChartInterval, { period1: Date }> = {
+  "1d": { period1: (() => { const d = new Date(); d.setMonth(d.getMonth() - 6); return d; })() },
+  "1wk": { period1: new Date("1970-01-01") },
+  "1mo": { period1: new Date("1970-01-01") },
 };
 
 export async function GET(
@@ -34,9 +34,7 @@ export async function GET(
     );
   }
 
-  const { months } = INTERVAL_CONFIG[interval];
-  const period1 = new Date();
-  period1.setMonth(period1.getMonth() - months);
+  const { period1 } = INTERVAL_CONFIG[interval];
 
   try {
     const result = await yahooFinance.chart(symbol.toUpperCase(), {
