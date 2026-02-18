@@ -1,204 +1,149 @@
 import type { OHLCData } from "@/lib/types/stock";
 
-export type TrendlineDirection = "support" | "resistance";
-
-export interface TrendlineTouch {
-  index: number;
-  time: string;
-  lineValue: number;
-  touchPrice: number; // high 또는 low 중 더 가까운 값
-  type: "high" | "low";
-}
-
 export interface TrendlineResult {
-  /** 두 기준점의 인덱스 */
   anchor1: number;
   anchor2: number;
-  /** 기울기 (1캔들당 가격 변화) */
+  price1: number;
+  price2: number;
   slope: number;
-  /** 터치한 캔들 수 (기준점 2개 제외) */
   touchCount: number;
-  /** 터치 상세 정보 */
-  touches: TrendlineTouch[];
-  /** 지지선 / 저항선 */
-  direction: TrendlineDirection;
+  direction: "support" | "resistance" | "cross";
 }
 
-export interface FindTrendlineOptions {
-  /** 피봇 판정 윈도우 크기 (기본값 5: 좌우 5개 캔들 비교) */
-  pivotWindow?: number;
-  /** 터치 판정 허용 비율 (기본값 0.02 = ±2%) */
-  tolerance?: number;
-  /** 두 기준점 사이 최소 간격 (기본값 10캔들) */
-  minSpan?: number;
-  /** 반환할 추세선 수 (기본값 5) */
-  topN?: number;
+interface Best {
+  idx1: number;
+  idx2: number;
+  p1: number;
+  p2: number;
+  slope: number;
+  count: number;
 }
+
+const EMPTY: Best = { idx1: 0, idx2: 0, p1: 0, p2: 0, slope: 0, count: -1 };
 
 /**
- * 주어진 인덱스에서의 추세선 가격을 계산한다.
- */
-function getLineValue(
-  anchorIdx1: number,
-  price1: number,
-  slope: number,
-  targetIdx: number
-): number {
-  return price1 + slope * (targetIdx - anchorIdx1);
-}
-
-/**
- * 가격이 추세선 값의 ±tolerance(비율) 이내인지 판정한다.
- */
-function isWithinTolerance(
-  price: number,
-  lineValue: number,
-  tolerance: number
-): boolean {
-  return Math.abs(price - lineValue) / lineValue <= tolerance;
-}
-
-/**
- * 두 캔들을 연결하는 직선을 긋고, 나머지 캔들 중 몇 개가
- * 해당 직선을 터치하는지 카운트한다.
+ * 모든 캔들의 고점/저점을 직접 사용하여 최적 추세선 3개를 찾는다.
  *
- * @param data - OHLC 주봉 데이터 배열
- * @param idx1 - 첫 번째 기준점 인덱스
- * @param idx2 - 두 번째 기준점 인덱스
- * @param priceKey - 기준점의 가격 기준 ("high" | "low")
- * @param tolerance - 터치 판정 허용 비율 (기본값 0.02 = ±2%)
- */
-export function countTrendlineTouches(
-  data: OHLCData[],
-  idx1: number,
-  idx2: number,
-  priceKey: "high" | "low",
-  tolerance: number = 0.02
-): TrendlineResult {
-  const price1 = data[idx1][priceKey];
-  const price2 = data[idx2][priceKey];
-  const slope = (price2 - price1) / (idx2 - idx1);
-
-  const touches: TrendlineTouch[] = [];
-
-  for (let i = 0; i < data.length; i++) {
-    // 기준점 자체는 제외
-    if (i === idx1 || i === idx2) continue;
-
-    const lineValue = getLineValue(idx1, price1, slope, i);
-    if (lineValue <= 0) continue;
-
-    const candle = data[i];
-    const highDist = Math.abs(candle.high - lineValue) / lineValue;
-    const lowDist = Math.abs(candle.low - lineValue) / lineValue;
-
-    const highTouch = highDist <= tolerance;
-    const lowTouch = lowDist <= tolerance;
-
-    if (highTouch || lowTouch) {
-      const type = !highTouch ? "low" : !lowTouch ? "high" : highDist <= lowDist ? "high" : "low";
-      touches.push({
-        index: i,
-        time: candle.time,
-        lineValue: Math.round(lineValue * 100) / 100,
-        touchPrice: type === "high" ? candle.high : candle.low,
-        type,
-      });
-    }
-  }
-
-  return {
-    anchor1: idx1,
-    anchor2: idx2,
-    slope: Math.round(slope * 10000) / 10000,
-    touchCount: touches.length,
-    touches,
-    direction: priceKey === "low" ? "support" : "resistance",
-  };
-}
-
-/**
- * 로컬 피봇 포인트(극값)를 찾는다.
- * window 크기만큼 좌우를 비교하여 가장 높거나 낮은 캔들을 선별.
- */
-function findPivots(
-  data: OHLCData[],
-  priceKey: "high" | "low",
-  window: number
-): number[] {
-  const pivots: number[] = [];
-  const isHigh = priceKey === "high";
-
-  for (let i = window; i < data.length - window; i++) {
-    let isPivot = true;
-    const val = data[i][priceKey];
-
-    for (let j = 1; j <= window; j++) {
-      const left = data[i - j][priceKey];
-      const right = data[i + j][priceKey];
-      if (isHigh ? (left > val || right > val) : (left < val || right < val)) {
-        isPivot = false;
-        break;
-      }
-    }
-
-    if (isPivot) pivots.push(i);
-  }
-
-  return pivots;
-}
-
-/**
- * 주봉 데이터에서 최적의 추세선을 자동으로 찾는다.
+ * 1. 저항선: 고점 2개를 연결, 다른 고점 터치 최다
+ * 2. 지지선: 저점 2개를 연결, 다른 저점 터치 최다
+ * 3. 크로스: 고점/저점 어느 2개든 연결, 고점+저점 전체 터치 최다
  *
- * 알고리즘:
- * 1. 피봇 고점/저점을 찾는다
- * 2. 피봇 쌍마다 추세선을 긋고 터치 수를 센다
- * 3. 터치 수 기준 상위 N개를 반환한다
+ * @param tolerance 터치 판정 오차 (기본 0.005 = ±0.5%)
+ * @param minSpan 두 기준점 사이 최소 캔들 간격 (기본 10)
  */
 export function findBestTrendlines(
   data: OHLCData[],
-  options: FindTrendlineOptions = {}
-): TrendlineResult[] {
-  const {
-    pivotWindow = 5,
-    tolerance = 0.02,
-    minSpan = 10,
-    topN = 5,
-  } = options;
+  options: { tolerance?: number; minSpan?: number } = {}
+): { support: TrendlineResult | null; resistance: TrendlineResult | null; cross: TrendlineResult | null } {
+  const { tolerance = 0.005, minSpan = 10 } = options;
+  const n = data.length;
 
-  const pivotHighs = findPivots(data, "high", pivotWindow);
-  const pivotLows = findPivots(data, "low", pivotWindow);
+  let bestResistance: Best = { ...EMPTY };
+  let bestSupport: Best = { ...EMPTY };
+  let bestCross: Best = { ...EMPTY };
 
-  const candidates: TrendlineResult[] = [];
+  for (let i = 0; i < n; i++) {
+    for (let j = i + minSpan; j < n; j++) {
+      // --- 고점-고점 직선 ---
+      const hP1 = data[i].high, hP2 = data[j].high;
+      const hSlope = (hP2 - hP1) / (j - i);
+      let highCount = 0;
+      let crossCountHH = 0;
 
-  // 저항선: 피봇 고점 쌍
-  for (let i = 0; i < pivotHighs.length; i++) {
-    for (let j = i + 1; j < pivotHighs.length; j++) {
-      if (pivotHighs[j] - pivotHighs[i] < minSpan) continue;
-      const result = countTrendlineTouches(
-        data, pivotHighs[i], pivotHighs[j], "high", tolerance
-      );
-      if (result.touchCount >= 1) candidates.push(result);
+      for (let k = 0; k < n; k++) {
+        if (k === i || k === j) continue;
+        const lv = hP1 + hSlope * (k - i);
+        if (lv <= 0) continue;
+        const hDist = Math.abs(data[k].high - lv) / lv;
+        const lDist = Math.abs(data[k].low - lv) / lv;
+        if (hDist <= tolerance) { highCount++; crossCountHH++; }
+        else if (lDist <= tolerance) { crossCountHH++; }
+      }
+
+      if (highCount > bestResistance.count) {
+        bestResistance = { idx1: i, idx2: j, p1: hP1, p2: hP2, slope: hSlope, count: highCount };
+      }
+      if (crossCountHH > bestCross.count) {
+        bestCross = { idx1: i, idx2: j, p1: hP1, p2: hP2, slope: hSlope, count: crossCountHH };
+      }
+
+      // --- 저점-저점 직선 ---
+      const lP1 = data[i].low, lP2 = data[j].low;
+      const lSlope = (lP2 - lP1) / (j - i);
+      let lowCount = 0;
+      let crossCountLL = 0;
+
+      for (let k = 0; k < n; k++) {
+        if (k === i || k === j) continue;
+        const lv = lP1 + lSlope * (k - i);
+        if (lv <= 0) continue;
+        const hDist = Math.abs(data[k].high - lv) / lv;
+        const lDist = Math.abs(data[k].low - lv) / lv;
+        if (lDist <= tolerance) { lowCount++; crossCountLL++; }
+        else if (hDist <= tolerance) { crossCountLL++; }
+      }
+
+      if (lowCount > bestSupport.count) {
+        bestSupport = { idx1: i, idx2: j, p1: lP1, p2: lP2, slope: lSlope, count: lowCount };
+      }
+      if (crossCountLL > bestCross.count) {
+        bestCross = { idx1: i, idx2: j, p1: lP1, p2: lP2, slope: lSlope, count: crossCountLL };
+      }
+
+      // --- 고점-저점 직선 (크로스 전용) ---
+      const hlP1 = data[i].high, hlP2 = data[j].low;
+      const hlSlope = (hlP2 - hlP1) / (j - i);
+      let crossCountHL = 0;
+
+      for (let k = 0; k < n; k++) {
+        if (k === i || k === j) continue;
+        const lv = hlP1 + hlSlope * (k - i);
+        if (lv <= 0) continue;
+        if (Math.abs(data[k].high - lv) / lv <= tolerance || Math.abs(data[k].low - lv) / lv <= tolerance) {
+          crossCountHL++;
+        }
+      }
+
+      if (crossCountHL > bestCross.count) {
+        bestCross = { idx1: i, idx2: j, p1: hlP1, p2: hlP2, slope: hlSlope, count: crossCountHL };
+      }
+
+      // --- 저점-고점 직선 (크로스 전용) ---
+      const lhP1 = data[i].low, lhP2 = data[j].high;
+      const lhSlope = (lhP2 - lhP1) / (j - i);
+      let crossCountLH = 0;
+
+      for (let k = 0; k < n; k++) {
+        if (k === i || k === j) continue;
+        const lv = lhP1 + lhSlope * (k - i);
+        if (lv <= 0) continue;
+        if (Math.abs(data[k].high - lv) / lv <= tolerance || Math.abs(data[k].low - lv) / lv <= tolerance) {
+          crossCountLH++;
+        }
+      }
+
+      if (crossCountLH > bestCross.count) {
+        bestCross = { idx1: i, idx2: j, p1: lhP1, p2: lhP2, slope: lhSlope, count: crossCountLH };
+      }
     }
   }
 
-  // 지지선: 피봇 저점 쌍
-  for (let i = 0; i < pivotLows.length; i++) {
-    for (let j = i + 1; j < pivotLows.length; j++) {
-      if (pivotLows[j] - pivotLows[i] < minSpan) continue;
-      const result = countTrendlineTouches(
-        data, pivotLows[i], pivotLows[j], "low", tolerance
-      );
-      if (result.touchCount >= 1) candidates.push(result);
-    }
-  }
+  const toResult = (b: Best, dir: "support" | "resistance" | "cross"): TrendlineResult | null => {
+    if (b.count <= 0) return null;
+    return {
+      anchor1: b.idx1,
+      anchor2: b.idx2,
+      price1: Math.round(b.p1 * 100) / 100,
+      price2: Math.round(b.p2 * 100) / 100,
+      slope: b.slope,
+      touchCount: b.count,
+      direction: dir,
+    };
+  };
 
-  // 터치 수 내림차순 정렬, 동일하면 span이 긴 것 우선
-  candidates.sort((a, b) => {
-    if (b.touchCount !== a.touchCount) return b.touchCount - a.touchCount;
-    return (b.anchor2 - b.anchor1) - (a.anchor2 - a.anchor1);
-  });
-
-  return candidates.slice(0, topN);
+  return {
+    support: toResult(bestSupport, "support"),
+    resistance: toResult(bestResistance, "resistance"),
+    cross: toResult(bestCross, "cross"),
+  };
 }
