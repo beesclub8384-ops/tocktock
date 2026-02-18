@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import YahooFinance from "yahoo-finance2";
-import { findBestTrendlines, type TrendlineResult } from "@/lib/trendline";
-import type { OHLCData, TrendlineData, TrendlineResponse } from "@/lib/types/stock";
+import { findChannels, type ChannelResult } from "@/lib/trendline";
+import type { OHLCData, ChannelData, TrendlineResponse } from "@/lib/types/stock";
 
 const yahooFinance = new YahooFinance();
 
@@ -15,10 +15,15 @@ interface ChartQuote {
 }
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ symbol: string }> }
 ) {
   const { symbol } = await params;
+  const { searchParams } = request.nextUrl;
+
+  const pivotN = Number(searchParams.get("pivotN")) || 10;
+  const dropThreshold = (Number(searchParams.get("dropThreshold")) || -30) / 100;
+  const tunnelTolerance = (Number(searchParams.get("tunnelTolerance")) || 2) / 100;
 
   try {
     const result = await yahooFinance.chart(symbol.toUpperCase(), {
@@ -43,36 +48,46 @@ export async function GET(
     const startIdx = data.findIndex((d) => d.time >= "2020-01-27");
     const analysisData = startIdx >= 0 ? data.slice(startIdx) : data;
 
-    const { support, resistance, cross } = findBestTrendlines(analysisData);
+    const { uptrend, downtrend } = findChannels(analysisData, {
+      pivotN,
+      dropThreshold,
+      tunnelTolerance,
+    });
 
-    // 마지막 데이터로부터 26주 미래까지 연장
     const futureWeeks = 26;
     const lastDate = new Date(analysisData[analysisData.length - 1].time);
     const futureDate = new Date(lastDate);
     futureDate.setDate(futureDate.getDate() + futureWeeks * 7);
     const futureTime = futureDate.toISOString().split("T")[0];
 
-    const toLineData = (t: TrendlineResult): TrendlineData => {
+    const toChannelData = (ch: ChannelResult, dir: "uptrend" | "downtrend"): ChannelData => {
       const futureIdx = analysisData.length - 1 + futureWeeks;
-      const futureValue = t.price1 + t.slope * (futureIdx - t.anchor1);
+      const mainFutureValue = ch.price1 + ch.slope * (futureIdx - ch.anchor1);
+      const tunnelStartValue = ch.price1 + ch.tunnelOffset;
+      const tunnelFutureValue = mainFutureValue + ch.tunnelOffset;
+
       return {
-        direction: t.direction,
-        touchCount: t.touchCount,
-        points: [
-          { time: analysisData[t.anchor1].time, value: t.price1 },
-          { time: futureTime, value: Math.round(futureValue * 100) / 100 },
+        direction: dir,
+        mainLine: [
+          { time: analysisData[ch.anchor1].time, value: Math.round(ch.price1 * 100) / 100 },
+          { time: futureTime, value: Math.round(mainFutureValue * 100) / 100 },
         ],
+        mainTouchCount: ch.touchCount,
+        tunnelLine: [
+          { time: analysisData[ch.anchor1].time, value: Math.round(tunnelStartValue * 100) / 100 },
+          { time: futureTime, value: Math.round(tunnelFutureValue * 100) / 100 },
+        ],
+        tunnelTouchCount: ch.tunnelTouchCount,
       };
     };
 
-    const trendlines: TrendlineData[] = [];
-    if (support) trendlines.push(toLineData(support));
-    if (resistance) trendlines.push(toLineData(resistance));
-    if (cross) trendlines.push(toLineData(cross));
+    const channels: ChannelData[] = [];
+    if (uptrend) channels.push(toChannelData(uptrend, "uptrend"));
+    if (downtrend) channels.push(toChannelData(downtrend, "downtrend"));
 
     const response: TrendlineResponse = {
       symbol: symbol.toUpperCase(),
-      trendlines,
+      channels,
     };
 
     return NextResponse.json(response);

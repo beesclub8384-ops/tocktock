@@ -20,13 +20,15 @@ export interface TrendlinePoint {
   value: number;
 }
 
-export interface TrendlineData {
-  direction: "support" | "resistance" | "cross";
-  touchCount: number;
-  points: TrendlinePoint[];
+export interface ChannelData {
+  direction: "uptrend" | "downtrend";
+  mainLine: TrendlinePoint[];
+  mainTouchCount: number;
+  tunnelLine: TrendlinePoint[];
+  tunnelTouchCount: number;
 }
 
 export interface TrendlineResponse {
   symbol: string;
-  trendlines: TrendlineData[];
+  channels: ChannelData[];
 }

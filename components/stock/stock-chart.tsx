@@ -1,13 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ChartContainer } from "./chart-container";
 import type {
   ChartInterval,
   OHLCData,
   StockChartResponse,
-  TrendlineData,
+  ChannelData,
   TrendlineResponse,
 } from "@/lib/types/stock";
 
@@ -24,27 +24,28 @@ interface StockChartProps {
 export function StockChart({ symbol }: StockChartProps) {
   const [interval, setInterval] = useState<ChartInterval>("1wk");
   const [data, setData] = useState<OHLCData[]>([]);
-  const [trendlines, setTrendlines] = useState<TrendlineData[]>([]);
+  const [channels, setChannels] = useState<ChannelData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // UI 컨트롤
+  const [pivotN, setPivotN] = useState(10);
+  const [dropThreshold, setDropThreshold] = useState(-30);
+  const [tunnelTolerance, setTunnelTolerance] = useState(2);
+  const [showTrendlines, setShowTrendlines] = useState(true);
+  const [showTunnels, setShowTunnels] = useState(true);
+
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
-    setTrendlines([]);
+    setChannels([]);
     try {
       const res = await fetch(`/api/stock/${symbol}/chart?interval=${interval}`);
       if (!res.ok) throw new Error("Failed to fetch");
       const json: StockChartResponse = await res.json();
       setData(json.data);
-
-      // 주봉/월봉일 때 추세선 로드
-      if (interval === "1wk" || interval === "1mo") {
-        fetch(`/api/stock/${symbol}/trendlines`)
-          .then((r) => r.json())
-          .then((json: TrendlineResponse) => setTrendlines(json.trendlines))
-          .catch(() => {});
-      }
     } catch {
       setError("데이터를 불러오는데 실패했습니다.");
     } finally {
@@ -52,9 +53,32 @@ export function StockChart({ symbol }: StockChartProps) {
     }
   }, [symbol, interval]);
 
+  const fetchTrendlines = useCallback(async () => {
+    if (interval === "1d") { setChannels([]); return; }
+    try {
+      const params = new URLSearchParams({
+        pivotN: String(pivotN),
+        dropThreshold: String(dropThreshold),
+        tunnelTolerance: String(tunnelTolerance),
+      });
+      const res = await fetch(`/api/stock/${symbol}/trendlines?${params}`);
+      if (!res.ok) throw new Error("Failed");
+      const json: TrendlineResponse = await res.json();
+      setChannels(json.channels);
+    } catch {
+      setChannels([]);
+    }
+  }, [symbol, interval, pivotN, dropThreshold, tunnelTolerance]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  // 슬라이더 변경 시 디바운스 적용 (500ms)
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    if (data.length === 0 || interval === "1d") return;
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(fetchTrendlines, 500);
+    return () => clearTimeout(debounceRef.current);
+  }, [data.length, fetchTrendlines, interval]);
 
   const lastPrice = data.length > 0 ? data[data.length - 1] : null;
   const prevClose = data.length > 1 ? data[data.length - 2].close : null;
@@ -63,6 +87,7 @@ export function StockChart({ symbol }: StockChartProps) {
 
   return (
     <div className="space-y-4">
+      {/* 헤더 */}
       <div className="flex items-end justify-between">
         <div>
           <h1 className="text-3xl font-bold">{symbol}</h1>
@@ -72,20 +97,13 @@ export function StockChart({ symbol }: StockChartProps) {
                 ${lastPrice.close.toFixed(2)}
               </span>
               {change !== null && changePercent !== null && (
-                <span
-                  className={`text-sm font-medium ${
-                    change >= 0 ? "text-green-500" : "text-red-500"
-                  }`}
-                >
-                  {change >= 0 ? "+" : ""}
-                  {change.toFixed(2)} ({changePercent >= 0 ? "+" : ""}
-                  {changePercent.toFixed(2)}%)
+                <span className={`text-sm font-medium ${change >= 0 ? "text-green-500" : "text-red-500"}`}>
+                  {change >= 0 ? "+" : ""}{change.toFixed(2)} ({changePercent >= 0 ? "+" : ""}{changePercent.toFixed(2)}%)
                 </span>
               )}
             </div>
           )}
         </div>
-
         <div className="flex gap-1">
           {INTERVALS.map((item) => (
             <Button
@@ -101,6 +119,7 @@ export function StockChart({ symbol }: StockChartProps) {
         </div>
       </div>
 
+      {/* 차트 */}
       {error ? (
         <div className="flex h-[500px] items-center justify-center rounded-lg border border-zinc-800 text-red-400">
           {error}
@@ -110,7 +129,87 @@ export function StockChart({ symbol }: StockChartProps) {
           차트 로딩 중...
         </div>
       ) : (
-        <ChartContainer data={data} trendlines={trendlines} />
+        <ChartContainer
+          data={data}
+          channels={channels}
+          showTrendlines={showTrendlines}
+          showTunnels={showTunnels}
+        />
+      )}
+
+      {/* 컨트롤 패널 */}
+      {interval !== "1d" && (
+        <div className="rounded-lg border border-zinc-800 p-4 space-y-3">
+          {/* 토글 */}
+          <div className="flex items-center gap-4">
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showTrendlines}
+                onChange={(e) => setShowTrendlines(e.target.checked)}
+                className="accent-blue-500"
+              />
+              추세선
+            </label>
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showTunnels}
+                onChange={(e) => setShowTunnels(e.target.checked)}
+                className="accent-blue-500"
+              />
+              터널
+            </label>
+          </div>
+
+          {/* 슬라이더 */}
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <label className="text-xs text-zinc-400 block mb-1">
+                N값 (감도): {pivotN}
+              </label>
+              <input
+                type="range" min={3} max={30} value={pivotN}
+                onChange={(e) => setPivotN(Number(e.target.value))}
+                className="w-full accent-blue-500"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-zinc-400 block mb-1">
+                낙폭 기준: {dropThreshold}%
+              </label>
+              <input
+                type="range" min={-70} max={-10} value={dropThreshold}
+                onChange={(e) => setDropThreshold(Number(e.target.value))}
+                className="w-full accent-blue-500"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-zinc-400 block mb-1">
+                터널 오차: ±{tunnelTolerance}%
+              </label>
+              <input
+                type="range" min={0.5} max={5} step={0.5} value={tunnelTolerance}
+                onChange={(e) => setTunnelTolerance(Number(e.target.value))}
+                className="w-full accent-blue-500"
+              />
+            </div>
+          </div>
+
+          {/* 접점 표시 */}
+          {channels.length > 0 && (
+            <div className="flex gap-4 text-xs">
+              {channels.map((ch) => (
+                <span
+                  key={ch.direction}
+                  className={ch.direction === "uptrend" ? "text-blue-400" : "text-red-400"}
+                >
+                  {ch.direction === "uptrend" ? "상승" : "하강"} 채널: 추세선 {ch.mainTouchCount + 2}점 / 터널 {ch.tunnelTouchCount}점
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

@@ -1,149 +1,182 @@
 import type { OHLCData } from "@/lib/types/stock";
 
-export interface TrendlineResult {
+export interface ChannelResult {
   anchor1: number;
   anchor2: number;
   price1: number;
   price2: number;
   slope: number;
   touchCount: number;
-  direction: "support" | "resistance" | "cross";
+  tunnelOffset: number;
+  tunnelTouchCount: number;
 }
 
-interface Best {
-  idx1: number;
-  idx2: number;
-  p1: number;
-  p2: number;
-  slope: number;
-  count: number;
+export interface FindChannelsConfig {
+  pivotN?: number;
+  dropThreshold?: number;
+  tolerance?: number;
+  tunnelTolerance?: number;
+  minSpan?: number;
 }
 
-const EMPTY: Best = { idx1: 0, idx2: 0, p1: 0, p2: 0, slope: 0, count: -1 };
+function findPeaks(data: OHLCData[], n: number): number[] {
+  const peaks: number[] = [];
+  for (let i = n; i < data.length - n; i++) {
+    let isPeak = true;
+    for (let j = 1; j <= n; j++) {
+      if (data[i - j].high >= data[i].high || data[i + j].high >= data[i].high) {
+        isPeak = false;
+        break;
+      }
+    }
+    if (isPeak) peaks.push(i);
+  }
+  return peaks;
+}
 
-/**
- * 모든 캔들의 고점/저점을 직접 사용하여 최적 추세선 3개를 찾는다.
- *
- * 1. 저항선: 고점 2개를 연결, 다른 고점 터치 최다
- * 2. 지지선: 저점 2개를 연결, 다른 저점 터치 최다
- * 3. 크로스: 고점/저점 어느 2개든 연결, 고점+저점 전체 터치 최다
- *
- * @param tolerance 터치 판정 오차 (기본 0.005 = ±0.5%)
- * @param minSpan 두 기준점 사이 최소 캔들 간격 (기본 10)
- */
-export function findBestTrendlines(
+function findValleys(data: OHLCData[], n: number): number[] {
+  const valleys: number[] = [];
+  for (let i = n; i < data.length - n; i++) {
+    let isValley = true;
+    for (let j = 1; j <= n; j++) {
+      if (data[i - j].low <= data[i].low || data[i + j].low <= data[i].low) {
+        isValley = false;
+        break;
+      }
+    }
+    if (isValley) valleys.push(i);
+  }
+  return valleys;
+}
+
+function filterHistoricalPeaks(
   data: OHLCData[],
-  options: { tolerance?: number; minSpan?: number } = {}
-): { support: TrendlineResult | null; resistance: TrendlineResult | null; cross: TrendlineResult | null } {
-  const { tolerance = 0.005, minSpan = 10 } = options;
-  const n = data.length;
+  peaks: number[],
+  dropThreshold: number
+): number[] {
+  return peaks.filter((peakIdx, i) => {
+    const peakHigh = data[peakIdx].high;
+    const end = i < peaks.length - 1 ? peaks[i + 1] : data.length - 1;
+    let minLow = Infinity;
+    for (let j = peakIdx + 1; j <= end; j++) {
+      if (data[j].low < minLow) minLow = data[j].low;
+    }
+    return (minLow / peakHigh - 1) <= dropThreshold;
+  });
+}
 
-  let bestResistance: Best = { ...EMPTY };
-  let bestSupport: Best = { ...EMPTY };
-  let bestCross: Best = { ...EMPTY };
+function findBestLine(
+  data: OHLCData[],
+  pivots: number[],
+  priceKey: "high" | "low",
+  tolerance: number,
+  minSpan: number
+): ChannelResult | null {
+  let best: ChannelResult | null = null;
 
-  for (let i = 0; i < n; i++) {
-    for (let j = i + minSpan; j < n; j++) {
-      // --- 고점-고점 직선 ---
-      const hP1 = data[i].high, hP2 = data[j].high;
-      const hSlope = (hP2 - hP1) / (j - i);
-      let highCount = 0;
-      let crossCountHH = 0;
+  for (let i = 0; i < pivots.length; i++) {
+    for (let j = i + 1; j < pivots.length; j++) {
+      const idx1 = pivots[i], idx2 = pivots[j];
+      if (idx2 - idx1 < minSpan) continue;
 
-      for (let k = 0; k < n; k++) {
+      const p1 = data[idx1][priceKey], p2 = data[idx2][priceKey];
+      const slope = (p2 - p1) / (idx2 - idx1);
+
+      let count = 0;
+      for (let k = 0; k < pivots.length; k++) {
         if (k === i || k === j) continue;
-        const lv = hP1 + hSlope * (k - i);
-        if (lv <= 0) continue;
-        const hDist = Math.abs(data[k].high - lv) / lv;
-        const lDist = Math.abs(data[k].low - lv) / lv;
-        if (hDist <= tolerance) { highCount++; crossCountHH++; }
-        else if (lDist <= tolerance) { crossCountHH++; }
+        const idx = pivots[k];
+        const lv = p1 + slope * (idx - idx1);
+        if (lv > 0 && Math.abs(data[idx][priceKey] - lv) / lv <= tolerance) count++;
       }
 
-      if (highCount > bestResistance.count) {
-        bestResistance = { idx1: i, idx2: j, p1: hP1, p2: hP2, slope: hSlope, count: highCount };
-      }
-      if (crossCountHH > bestCross.count) {
-        bestCross = { idx1: i, idx2: j, p1: hP1, p2: hP2, slope: hSlope, count: crossCountHH };
-      }
-
-      // --- 저점-저점 직선 ---
-      const lP1 = data[i].low, lP2 = data[j].low;
-      const lSlope = (lP2 - lP1) / (j - i);
-      let lowCount = 0;
-      let crossCountLL = 0;
-
-      for (let k = 0; k < n; k++) {
-        if (k === i || k === j) continue;
-        const lv = lP1 + lSlope * (k - i);
-        if (lv <= 0) continue;
-        const hDist = Math.abs(data[k].high - lv) / lv;
-        const lDist = Math.abs(data[k].low - lv) / lv;
-        if (lDist <= tolerance) { lowCount++; crossCountLL++; }
-        else if (hDist <= tolerance) { crossCountLL++; }
-      }
-
-      if (lowCount > bestSupport.count) {
-        bestSupport = { idx1: i, idx2: j, p1: lP1, p2: lP2, slope: lSlope, count: lowCount };
-      }
-      if (crossCountLL > bestCross.count) {
-        bestCross = { idx1: i, idx2: j, p1: lP1, p2: lP2, slope: lSlope, count: crossCountLL };
-      }
-
-      // --- 고점-저점 직선 (크로스 전용) ---
-      const hlP1 = data[i].high, hlP2 = data[j].low;
-      const hlSlope = (hlP2 - hlP1) / (j - i);
-      let crossCountHL = 0;
-
-      for (let k = 0; k < n; k++) {
-        if (k === i || k === j) continue;
-        const lv = hlP1 + hlSlope * (k - i);
-        if (lv <= 0) continue;
-        if (Math.abs(data[k].high - lv) / lv <= tolerance || Math.abs(data[k].low - lv) / lv <= tolerance) {
-          crossCountHL++;
-        }
-      }
-
-      if (crossCountHL > bestCross.count) {
-        bestCross = { idx1: i, idx2: j, p1: hlP1, p2: hlP2, slope: hlSlope, count: crossCountHL };
-      }
-
-      // --- 저점-고점 직선 (크로스 전용) ---
-      const lhP1 = data[i].low, lhP2 = data[j].high;
-      const lhSlope = (lhP2 - lhP1) / (j - i);
-      let crossCountLH = 0;
-
-      for (let k = 0; k < n; k++) {
-        if (k === i || k === j) continue;
-        const lv = lhP1 + lhSlope * (k - i);
-        if (lv <= 0) continue;
-        if (Math.abs(data[k].high - lv) / lv <= tolerance || Math.abs(data[k].low - lv) / lv <= tolerance) {
-          crossCountLH++;
-        }
-      }
-
-      if (crossCountLH > bestCross.count) {
-        bestCross = { idx1: i, idx2: j, p1: lhP1, p2: lhP2, slope: lhSlope, count: crossCountLH };
+      if (!best || count > best.touchCount ||
+          (count === best.touchCount && (idx2 - idx1) > (best.anchor2 - best.anchor1))) {
+        best = {
+          anchor1: idx1, anchor2: idx2,
+          price1: p1, price2: p2,
+          slope, touchCount: count,
+          tunnelOffset: 0, tunnelTouchCount: 0,
+        };
       }
     }
   }
 
-  const toResult = (b: Best, dir: "support" | "resistance" | "cross"): TrendlineResult | null => {
-    if (b.count <= 0) return null;
-    return {
-      anchor1: b.idx1,
-      anchor2: b.idx2,
-      price1: Math.round(b.p1 * 100) / 100,
-      price2: Math.round(b.p2 * 100) / 100,
-      slope: b.slope,
-      touchCount: b.count,
-      direction: dir,
-    };
-  };
+  return best;
+}
 
-  return {
-    support: toResult(bestSupport, "support"),
-    resistance: toResult(bestResistance, "resistance"),
-    cross: toResult(bestCross, "cross"),
-  };
+function findBestTunnelOffset(
+  data: OHLCData[],
+  anchor1: number,
+  price1: number,
+  slope: number,
+  priceKey: "high" | "low",
+  tunnelTolerance: number
+): { offset: number; touchCount: number } {
+  const n = data.length;
+  let bestOffset = 0;
+  let bestCount = 0;
+
+  for (let i = 0; i < n; i++) {
+    const mainValue = price1 + slope * (i - anchor1);
+    const offset = data[i][priceKey] - mainValue;
+
+    // 하향 터널: offset < 0 (메인 아래), 상승 터널: offset > 0 (메인 위)
+    if (priceKey === "low" && offset >= 0) continue;
+    if (priceKey === "high" && offset <= 0) continue;
+
+    let count = 0;
+    for (let k = 0; k < n; k++) {
+      const tlv = price1 + slope * (k - anchor1) + offset;
+      if (tlv <= 0) continue;
+      if (Math.abs(data[k][priceKey] - tlv) / tlv <= tunnelTolerance) count++;
+    }
+
+    if (count > bestCount) {
+      bestCount = count;
+      bestOffset = offset;
+    }
+  }
+
+  return { offset: bestOffset, touchCount: bestCount };
+}
+
+export function findChannels(
+  data: OHLCData[],
+  config: FindChannelsConfig = {}
+): { uptrend: ChannelResult | null; downtrend: ChannelResult | null } {
+  const {
+    pivotN = 10,
+    dropThreshold = -0.30,
+    tolerance = 0.005,
+    tunnelTolerance = 0.02,
+    minSpan = 10,
+  } = config;
+
+  const peaks = findPeaks(data, pivotN);
+  const historicalPeaks = filterHistoricalPeaks(data, peaks, dropThreshold);
+  const valleys = findValleys(data, pivotN);
+
+  const downtrend = findBestLine(data, historicalPeaks, "high", tolerance, minSpan);
+  const uptrend = findBestLine(data, valleys, "low", tolerance, minSpan);
+
+  if (downtrend) {
+    const tunnel = findBestTunnelOffset(
+      data, downtrend.anchor1, downtrend.price1, downtrend.slope,
+      "low", tunnelTolerance
+    );
+    downtrend.tunnelOffset = tunnel.offset;
+    downtrend.tunnelTouchCount = tunnel.touchCount;
+  }
+
+  if (uptrend) {
+    const tunnel = findBestTunnelOffset(
+      data, uptrend.anchor1, uptrend.price1, uptrend.slope,
+      "high", tunnelTolerance
+    );
+    uptrend.tunnelOffset = tunnel.offset;
+    uptrend.tunnelTouchCount = tunnel.touchCount;
+  }
+
+  return { uptrend, downtrend };
 }
