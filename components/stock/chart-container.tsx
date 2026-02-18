@@ -16,9 +16,10 @@ import {
 } from "lightweight-charts";
 import type { OHLCData, TrendlineData } from "@/lib/types/stock";
 
-const TRENDLINE_COLORS = {
-  support: ["#3b82f6", "#8b5cf6", "#06b6d4", "#10b981", "#f59e0b"],
-  resistance: ["#ef4444", "#f97316", "#ec4899", "#e11d48", "#dc2626"],
+const TRENDLINE_COLORS: Record<string, string> = {
+  support: "#3b82f6",
+  resistance: "#ef4444",
+  cross: "#f59e0b",
 };
 
 interface ChartContainerProps {
@@ -128,18 +129,15 @@ export function ChartContainer({ data, trendlines = [] }: ChartContainerProps) {
     }
     trendlineSeriesRefs.current = [];
 
-    let supportIdx = 0;
-    let resistanceIdx = 0;
-
     for (const tl of trendlines) {
-      const colors = TRENDLINE_COLORS[tl.direction];
-      const colorIdx = tl.direction === "support" ? supportIdx++ : resistanceIdx++;
-      const color = colors[colorIdx % colors.length];
+      const color = TRENDLINE_COLORS[tl.direction] ?? "#a1a1aa";
+      // 지지선: 실선, 저항선: 점선, 크로스: 대시
+      const lineStyle = tl.direction === "support" ? 0 : tl.direction === "resistance" ? 2 : 1;
 
       const series = chart.addSeries(LineSeries, {
         color,
         lineWidth: 2,
-        lineStyle: tl.direction === "support" ? 0 : 2, // 지지선: 실선, 저항선: 점선
+        lineStyle,
         crosshairMarkerVisible: false,
         priceLineVisible: false,
         lastValueVisible: false,

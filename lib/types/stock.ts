@@ -21,7 +21,7 @@ export interface TrendlinePoint {
 }
 
 export interface TrendlineData {
-  direction: "support" | "resistance";
+  direction: "support" | "resistance" | "cross";
   touchCount: number;
   points: TrendlinePoint[];
 }

@@ -43,22 +43,36 @@ export async function GET(
     const startIdx = data.findIndex((d) => d.time >= "2020-01-27");
     const analysisData = startIdx >= 0 ? data.slice(startIdx) : data;
 
-    const best = findBestTrendlines(analysisData, { topN: 5 });
+    const all = findBestTrendlines(analysisData, { topN: 50 });
 
-    const trendlines: TrendlineData[] = best.map((t) => {
-      const price1 = analysisData[t.anchor1][t.direction === "support" ? "low" : "high"];
+    const toLineData = (t: typeof all[number], dir: "support" | "resistance" | "cross"): TrendlineData => {
+      const priceKey = t.direction === "support" ? "low" : "high";
+      const price1 = analysisData[t.anchor1][priceKey];
       const lastIdx = analysisData.length - 1;
       const lastValue = price1 + t.slope * (lastIdx - t.anchor1);
-
       return {
-        direction: t.direction,
+        direction: dir,
         touchCount: t.touchCount,
         points: [
           { time: analysisData[t.anchor1].time, value: Math.round(price1 * 100) / 100 },
           { time: analysisData[lastIdx].time, value: Math.round(lastValue * 100) / 100 },
         ],
       };
-    });
+    };
+
+    const trendlines: TrendlineData[] = [];
+
+    // 상승 추세선: 지지선(low) 중 slope > 0, 터치 최다
+    const uptrend = all.find((t) => t.direction === "support" && t.slope > 0);
+    if (uptrend) trendlines.push(toLineData(uptrend, "support"));
+
+    // 하락 추세선: 저항선(high) 중 slope < 0, 터치 최다
+    const downtrend = all.find((t) => t.direction === "resistance" && t.slope < 0);
+    if (downtrend) trendlines.push(toLineData(downtrend, "resistance"));
+
+    // 크로스 선: 전체(지지+저항) 중 터치 최다 (위 2개와 중복 제외)
+    const cross = all.find((t) => t !== uptrend && t !== downtrend);
+    if (cross) trendlines.push(toLineData(cross, "cross"));
 
     const response: TrendlineResponse = {
       symbol: symbol.toUpperCase(),
