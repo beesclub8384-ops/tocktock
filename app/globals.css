@@ -130,6 +130,25 @@
   margin-bottom: 1.25rem;
 }
 
+.prose-custom table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1.25rem;
+  font-size: 0.875rem;
+}
+
+.prose-custom th,
+.prose-custom td {
+  border: 1px solid var(--border);
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+}
+
+.prose-custom th {
+  font-weight: 600;
+  background-color: var(--muted);
+}
+
 .prose-custom hr {
   border-color: var(--border);
   margin: 2rem 0;
