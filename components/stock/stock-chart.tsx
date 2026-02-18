@@ -113,6 +113,10 @@ export function StockChart({ symbol }: StockChartProps) {
     setContextMenu({ x, y, id });
   }, []);
 
+  const handleToolReset = useCallback(() => {
+    setActiveTool(null);
+  }, []);
+
   const lastPrice = data.length > 0 ? data[data.length - 1] : null;
   const prevClose = data.length > 1 ? data[data.length - 2].close : null;
   const change = lastPrice && prevClose ? lastPrice.close - prevClose : null;
@@ -175,6 +179,7 @@ export function StockChart({ symbol }: StockChartProps) {
               activeTool={activeTool}
               onSelectionChange={handleSelectionChange}
               onContextMenu={handleContextMenu}
+              onToolReset={handleToolReset}
             />
           </div>
         </div>

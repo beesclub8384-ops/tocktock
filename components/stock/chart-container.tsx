@@ -31,6 +31,7 @@ interface ChartContainerProps {
   activeTool: DrawingToolType;
   onSelectionChange: (id: string | null) => void;
   onContextMenu: (x: number, y: number, id: string) => void;
+  onToolReset: () => void;
 }
 
 export interface ChartContainerHandle {
@@ -49,6 +50,7 @@ export const ChartContainer = forwardRef<ChartContainerHandle, ChartContainerPro
       activeTool,
       onSelectionChange,
       onContextMenu,
+      onToolReset,
     },
     ref
   ) {
@@ -57,8 +59,8 @@ export const ChartContainer = forwardRef<ChartContainerHandle, ChartContainerPro
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const seriesRefs = useRef<ISeriesApi<any>[]>([]);
     const managerRef = useRef<DrawingManager | null>(null);
-    const callbacksRef = useRef({ onSelectionChange, onContextMenu });
-    callbacksRef.current = { onSelectionChange, onContextMenu };
+    const callbacksRef = useRef({ onSelectionChange, onContextMenu, onToolReset });
+    callbacksRef.current = { onSelectionChange, onContextMenu, onToolReset };
 
     useImperativeHandle(ref, () => ({
       deleteDrawing: (id: string) => managerRef.current?.deleteDrawing(id),
@@ -206,6 +208,7 @@ export const ChartContainer = forwardRef<ChartContainerHandle, ChartContainerPro
           callbacks: {
             onSelectionChange: (id) => callbacksRef.current.onSelectionChange(id),
             onContextMenu: (x, y, id) => callbacksRef.current.onContextMenu(x, y, id),
+            onToolReset: () => callbacksRef.current.onToolReset(),
           },
         });
       } else {
