@@ -233,3 +233,522 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* ==========================================
+   Korean Mart Flyer (전단지) Styles
+   ========================================== */
+
+/* Animations */
+@keyframes flyer-scroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+@keyframes flyer-scroll-reverse {
+  0% { transform: translateX(-50%); }
+  100% { transform: translateX(0); }
+}
+
+@keyframes flyer-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+@keyframes flyer-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+@keyframes flyer-spin-slow {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes flyer-shake {
+  0%, 100% { transform: rotate(-3deg); }
+  50% { transform: rotate(3deg); }
+}
+
+@keyframes flyer-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes flyer-twinkle {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.3); }
+}
+
+/* Page container */
+.flyer-page {
+  overflow-x: hidden;
+  background: #fff9c4;
+  background-image:
+    radial-gradient(circle at 20% 50%, rgba(255, 0, 0, 0.03) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(255, 215, 0, 0.05) 0%, transparent 50%);
+}
+
+/* Ticker banner */
+.flyer-ticker {
+  background: linear-gradient(90deg, #d32f2f, #f44336, #d32f2f);
+  color: #ffeb3b;
+  font-weight: 900;
+  font-size: 0.875rem;
+  padding: 0.5rem 0;
+  overflow: hidden;
+  white-space: nowrap;
+  border-bottom: 3px dashed #ffeb3b;
+}
+
+.flyer-ticker-bottom {
+  border-bottom: none;
+  border-top: 3px dashed #ffeb3b;
+}
+
+.flyer-ticker-inner {
+  display: inline-block;
+  animation: flyer-scroll 20s linear infinite;
+}
+
+.flyer-ticker-reverse {
+  animation: flyer-scroll-reverse 20s linear infinite;
+}
+
+/* Hero Section */
+.flyer-hero {
+  position: relative;
+  background:
+    repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 20px,
+      rgba(255, 235, 59, 0.08) 20px,
+      rgba(255, 235, 59, 0.08) 40px
+    ),
+    linear-gradient(180deg, #fff9c4 0%, #fff176 50%, #fff9c4 100%);
+  padding: 4rem 1.5rem;
+  text-align: center;
+  border-bottom: 6px dashed #d32f2f;
+  overflow: hidden;
+}
+
+/* Starbursts */
+.flyer-starburst {
+  position: absolute;
+  font-size: 2rem;
+  color: #f44336;
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+.flyer-starburst-1 { top: 8%; left: 5%; animation: flyer-twinkle 2s ease-in-out infinite; }
+.flyer-starburst-2 { top: 15%; right: 8%; animation: flyer-twinkle 2.5s ease-in-out infinite 0.3s; font-size: 1.5rem; }
+.flyer-starburst-3 { bottom: 20%; left: 10%; animation: flyer-twinkle 1.8s ease-in-out infinite 0.6s; }
+.flyer-starburst-4 { top: 40%; right: 5%; animation: flyer-twinkle 2.2s ease-in-out infinite 0.9s; font-size: 1.5rem; }
+.flyer-starburst-5 { bottom: 10%; right: 15%; animation: flyer-twinkle 2s ease-in-out infinite 1.2s; }
+.flyer-starburst-6 { top: 60%; left: 3%; animation: flyer-twinkle 2.3s ease-in-out infinite 0.5s; font-size: 1.5rem; }
+
+/* Rotating badges */
+.flyer-badge-rotate {
+  position: absolute;
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  font-size: 1rem;
+  line-height: 1.2;
+  text-align: center;
+  z-index: 10;
+  border: 3px dashed rgba(255, 255, 255, 0.6);
+  animation: flyer-pulse 1.5s ease-in-out infinite;
+}
+
+.flyer-badge-top-left {
+  top: 1rem;
+  left: 1rem;
+  background: #d32f2f;
+  color: #ffeb3b;
+  transform: rotate(-15deg);
+  box-shadow: 0 4px 15px rgba(211, 47, 47, 0.5);
+}
+
+.flyer-badge-top-right {
+  top: 1rem;
+  right: 1rem;
+  background: #ff6f00;
+  color: #fff;
+  transform: rotate(15deg);
+  box-shadow: 0 4px 15px rgba(255, 111, 0, 0.5);
+}
+
+.flyer-hero-inner {
+  position: relative;
+  z-index: 5;
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+/* Bomb badge */
+.flyer-bomb-badge {
+  display: inline-block;
+  background: #d32f2f;
+  color: #ffeb3b;
+  padding: 0.4rem 2rem;
+  border-radius: 999px;
+  font-weight: 900;
+  font-size: 1.1rem;
+  letter-spacing: 0.15em;
+  border: 3px solid #ffeb3b;
+  animation: flyer-shake 0.5s ease-in-out infinite;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 4px 20px rgba(211, 47, 47, 0.4);
+}
+
+.flyer-bomb-text {
+  animation: flyer-blink 1s ease-in-out infinite;
+}
+
+/* Title */
+.flyer-title {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.flyer-title-sub {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #d32f2f;
+  letter-spacing: 0.2em;
+  animation: flyer-blink 2s ease-in-out infinite;
+}
+
+.flyer-title-main {
+  font-size: 2.5rem;
+  font-weight: 900;
+  color: #1a1a1a;
+  text-shadow:
+    3px 3px 0 #ffeb3b,
+    -1px -1px 0 #ffeb3b,
+    1px -1px 0 #ffeb3b,
+    -1px 1px 0 #ffeb3b;
+  line-height: 1.2;
+}
+
+@media (min-width: 640px) {
+  .flyer-title-main {
+    font-size: 3.5rem;
+  }
+}
+
+.flyer-title-highlight {
+  color: #d32f2f;
+  text-shadow:
+    3px 3px 0 #ffeb3b,
+    -1px -1px 0 #ffeb3b;
+}
+
+.flyer-title-bottom {
+  font-size: 1.5rem;
+  font-weight: 900;
+  color: #d32f2f;
+  letter-spacing: 0.3em;
+}
+
+/* Subtitle */
+.flyer-subtitle {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 2rem;
+  letter-spacing: 0.05em;
+}
+
+/* Price tag */
+.flyer-price-tag {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+}
+
+.flyer-price-before {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #999;
+  text-decoration: line-through;
+  text-decoration-color: #d32f2f;
+  text-decoration-thickness: 3px;
+}
+
+.flyer-price-arrow {
+  font-size: 1.5rem;
+  color: #d32f2f;
+  font-weight: 900;
+  animation: flyer-blink 0.8s ease-in-out infinite;
+}
+
+.flyer-price-now {
+  font-size: 2rem;
+  font-weight: 900;
+  color: #d32f2f;
+  background: #ffeb3b;
+  padding: 0.25rem 1rem;
+  border: 3px solid #d32f2f;
+  border-radius: 8px;
+  animation: flyer-pulse 1s ease-in-out infinite;
+}
+
+/* CTA */
+.flyer-cta-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.flyer-cta-btn {
+  display: inline-block;
+  background: linear-gradient(180deg, #f44336, #c62828);
+  color: #ffeb3b;
+  font-size: 1.3rem;
+  font-weight: 900;
+  padding: 1rem 2.5rem;
+  border-radius: 12px;
+  border: 4px solid #ffeb3b;
+  text-decoration: none;
+  letter-spacing: 0.1em;
+  box-shadow:
+    0 6px 20px rgba(211, 47, 47, 0.5),
+    inset 0 2px 4px rgba(255, 255, 255, 0.2);
+  transition: transform 0.15s, box-shadow 0.15s;
+  animation: flyer-bounce 1.5s ease-in-out infinite;
+}
+
+.flyer-cta-btn:hover {
+  transform: scale(1.05) translateY(-2px);
+  box-shadow: 0 8px 30px rgba(211, 47, 47, 0.6);
+}
+
+.flyer-cta-sub {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #d32f2f;
+  animation: flyer-blink 1.2s ease-in-out infinite;
+}
+
+/* Features Section */
+.flyer-section-features {
+  background:
+    repeating-linear-gradient(
+      -45deg,
+      #fff,
+      #fff 15px,
+      #fff9c4 15px,
+      #fff9c4 30px
+    );
+  padding: 3rem 1.5rem;
+  border-bottom: 6px dashed #ff6f00;
+}
+
+.flyer-section-header {
+  text-align: center;
+  margin-bottom: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.flyer-section-deco {
+  color: #ff6f00;
+  font-size: 1rem;
+  letter-spacing: 0.2em;
+}
+
+.flyer-section-title {
+  font-size: 2rem;
+  font-weight: 900;
+  color: #d32f2f;
+  text-shadow: 2px 2px 0 #ffeb3b;
+}
+
+/* Cards */
+.flyer-cards {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+@media (min-width: 640px) {
+  .flyer-cards {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.flyer-card {
+  position: relative;
+  background: #fff;
+  border: 4px solid #d32f2f;
+  border-radius: 12px;
+  padding: 2rem 1.5rem 1.5rem;
+  text-align: center;
+  box-shadow: 4px 4px 0 #d32f2f;
+  transition: transform 0.2s;
+}
+
+.flyer-card:hover {
+  transform: translateY(-4px) rotate(-1deg);
+}
+
+.flyer-card-2 {
+  border-color: #1565c0;
+  box-shadow: 4px 4px 0 #1565c0;
+}
+
+.flyer-card-3 {
+  border-color: #2e7d32;
+  box-shadow: 4px 4px 0 #2e7d32;
+}
+
+.flyer-card-badge {
+  position: absolute;
+  top: -14px;
+  right: -10px;
+  background: #d32f2f;
+  color: #fff;
+  font-weight: 900;
+  font-size: 0.85rem;
+  padding: 0.3rem 0.8rem;
+  border-radius: 999px;
+  border: 2px solid #ffeb3b;
+  transform: rotate(12deg);
+  animation: flyer-pulse 1.2s ease-in-out infinite;
+}
+
+.flyer-card-badge-blue {
+  background: #1565c0;
+}
+
+.flyer-card-badge-green {
+  background: #2e7d32;
+}
+
+.flyer-card-icon {
+  font-size: 3rem;
+  margin-bottom: 0.75rem;
+}
+
+.flyer-card-title {
+  font-size: 1.2rem;
+  font-weight: 900;
+  color: #1a1a1a;
+  margin-bottom: 0.5rem;
+}
+
+.flyer-card-desc {
+  font-size: 0.85rem;
+  color: #555;
+  line-height: 1.5;
+  margin-bottom: 1rem;
+}
+
+.flyer-card-price {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.flyer-card-price-old {
+  font-size: 0.9rem;
+  color: #999;
+  text-decoration: line-through;
+  text-decoration-color: #d32f2f;
+  text-decoration-thickness: 2px;
+}
+
+.flyer-card-price-new {
+  font-size: 1.3rem;
+  font-weight: 900;
+  color: #d32f2f;
+}
+
+/* Bottom CTA */
+.flyer-bottom-cta {
+  background: linear-gradient(180deg, #d32f2f 0%, #b71c1c 100%);
+  padding: 3rem 1.5rem;
+  text-align: center;
+}
+
+.flyer-bottom-inner {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.flyer-bottom-stars {
+  font-size: 1.5rem;
+  color: #ffeb3b;
+  margin-bottom: 1rem;
+  letter-spacing: 0.3em;
+  animation: flyer-blink 1.5s ease-in-out infinite;
+}
+
+.flyer-bottom-title {
+  font-size: 1.8rem;
+  font-weight: 900;
+  color: #ffeb3b;
+  margin-bottom: 0.75rem;
+  text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.3);
+  animation: flyer-shake 2s ease-in-out infinite;
+}
+
+@media (min-width: 640px) {
+  .flyer-bottom-title {
+    font-size: 2.2rem;
+  }
+}
+
+.flyer-bottom-desc {
+  font-size: 1rem;
+  color: #fff;
+  margin-bottom: 1.5rem;
+  font-weight: 700;
+  animation: flyer-blink 1s ease-in-out infinite;
+}
+
+.flyer-bottom-btn {
+  display: inline-block;
+  background: #ffeb3b;
+  color: #d32f2f;
+  font-size: 1.3rem;
+  font-weight: 900;
+  padding: 1rem 2.5rem;
+  border-radius: 12px;
+  border: 4px solid #fff;
+  text-decoration: none;
+  letter-spacing: 0.05em;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+  transition: transform 0.15s;
+  animation: flyer-bounce 1.5s ease-in-out infinite 0.5s;
+}
+
+.flyer-bottom-btn:hover {
+  transform: scale(1.05);
+}
+
+.flyer-bottom-fine {
+  margin-top: 1.5rem;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.6);
+  line-height: 1.8;
+}
