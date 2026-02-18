@@ -40,19 +40,22 @@ export async function GET(
         volume: q.volume ?? 0,
       }));
 
-    const best = findBestTrendlines(data, { topN: 5 });
+    const startIdx = data.findIndex((d) => d.time >= "2020-01-27");
+    const analysisData = startIdx >= 0 ? data.slice(startIdx) : data;
+
+    const best = findBestTrendlines(analysisData, { topN: 5 });
 
     const trendlines: TrendlineData[] = best.map((t) => {
-      const price1 = data[t.anchor1][t.direction === "support" ? "low" : "high"];
-      const lastIdx = data.length - 1;
+      const price1 = analysisData[t.anchor1][t.direction === "support" ? "low" : "high"];
+      const lastIdx = analysisData.length - 1;
       const lastValue = price1 + t.slope * (lastIdx - t.anchor1);
 
       return {
         direction: t.direction,
         touchCount: t.touchCount,
         points: [
-          { time: data[t.anchor1].time, value: Math.round(price1 * 100) / 100 },
-          { time: data[lastIdx].time, value: Math.round(lastValue * 100) / 100 },
+          { time: analysisData[t.anchor1].time, value: Math.round(price1 * 100) / 100 },
+          { time: analysisData[lastIdx].time, value: Math.round(lastValue * 100) / 100 },
         ],
       };
     });
