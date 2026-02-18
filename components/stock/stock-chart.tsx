@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ChartContainer, type ChartContainerHandle } from "./chart-container";
 import { DrawingToolbar } from "./drawing-toolbar";
 import { DrawingContextMenu } from "./drawing-context-menu";
+import { StockSearch } from "./stock-search";
 import type {
   ChartInterval,
   OHLCData,
@@ -126,20 +127,25 @@ export function StockChart({ symbol }: StockChartProps) {
     <div className="space-y-4">
       {/* 헤더 */}
       <div className="flex items-end justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">{symbol}</h1>
-          {lastPrice && (
-            <div className="flex items-baseline gap-3 mt-1">
-              <span className="text-2xl font-semibold">
-                ${lastPrice.close.toFixed(2)}
-              </span>
-              {change !== null && changePercent !== null && (
-                <span className={`text-sm font-medium ${change >= 0 ? "text-green-500" : "text-red-500"}`}>
-                  {change >= 0 ? "+" : ""}{change.toFixed(2)} ({changePercent >= 0 ? "+" : ""}{changePercent.toFixed(2)}%)
-                </span>
-              )}
+        <div className="flex items-center gap-4">
+          <div>
+            <div className="flex items-center gap-3">
+              <h1 className="text-3xl font-bold">{symbol}</h1>
+              <StockSearch currentSymbol={symbol} />
             </div>
-          )}
+            {lastPrice && (
+              <div className="flex items-baseline gap-3 mt-1">
+                <span className="text-2xl font-semibold">
+                  {lastPrice.close.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+                {change !== null && changePercent !== null && (
+                  <span className={`text-sm font-medium ${change >= 0 ? "text-green-500" : "text-red-500"}`}>
+                    {change >= 0 ? "+" : ""}{change.toFixed(2)} ({changePercent >= 0 ? "+" : ""}{changePercent.toFixed(2)}%)
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
         </div>
         <div className="flex gap-1">
           {INTERVALS.map((item) => (
