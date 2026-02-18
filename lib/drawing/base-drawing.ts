@@ -46,4 +46,5 @@ export abstract class BaseDrawing implements ISeriesPrimitive<Time> {
   abstract updateAllViews(): void;
   abstract paneViews(): readonly IPrimitivePaneView[];
   abstract hitTest(x: number, y: number): PrimitiveHoveredItem | null;
+  abstract getAnchors(): { key: string; x: number; y: number }[];
 }

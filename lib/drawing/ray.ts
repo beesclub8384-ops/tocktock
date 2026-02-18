@@ -55,13 +55,15 @@ export class RayDrawing extends BaseDrawing {
       ctx.stroke();
 
       if (this.selected) {
-        ctx.beginPath();
-        ctx.arc(c.x1, c.y1, 5, 0, Math.PI * 2);
-        ctx.fillStyle = this.data.color;
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(c.x2, c.y2, 5, 0, Math.PI * 2);
-        ctx.fill();
+        for (const pt of [{ x: c.x1, y: c.y1 }, { x: c.x2, y: c.y2 }]) {
+          ctx.beginPath();
+          ctx.arc(pt.x, pt.y, 5, 0, Math.PI * 2);
+          ctx.fillStyle = this.data.color;
+          ctx.fill();
+          ctx.strokeStyle = "#fff";
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+        }
       }
     });
   }
@@ -76,11 +78,26 @@ export class RayDrawing extends BaseDrawing {
     return this._paneViews;
   }
 
+  getAnchors(): { key: string; x: number; y: number }[] {
+    if (!this._coords) return [];
+    return [
+      { key: "p1", x: this._coords.x1, y: this._coords.y1 },
+      { key: "p2", x: this._coords.x2, y: this._coords.y2 },
+    ];
+  }
+
   hitTest(x: number, y: number): PrimitiveHoveredItem | null {
     const c = this._coords;
     if (!c) return null;
+    if (this.selected) {
+      for (const pt of [{ x: c.x1, y: c.y1 }, { x: c.x2, y: c.y2 }]) {
+        if (Math.hypot(x - pt.x, y - pt.y) <= 8) {
+          return { cursorStyle: "grab", externalId: this.data.id, zOrder: "top" };
+        }
+      }
+    }
     if (isHit(pointToRayDist(x, y, c.x1, c.y1, c.x2, c.y2))) {
-      return { cursorStyle: "pointer", externalId: this.data.id, zOrder: "top" };
+      return { cursorStyle: this.selected ? "move" : "pointer", externalId: this.data.id, zOrder: "top" };
     }
     return null;
   }

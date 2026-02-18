@@ -46,6 +46,9 @@ export class HorizontalLineDrawing extends BaseDrawing {
         ctx.arc(40, y, 5, 0, Math.PI * 2);
         ctx.fillStyle = this.data.color;
         ctx.fill();
+        ctx.strokeStyle = "#fff";
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
       }
     });
   }
@@ -58,9 +61,19 @@ export class HorizontalLineDrawing extends BaseDrawing {
     return this._paneViews;
   }
 
+  getAnchors(): { key: string; x: number; y: number }[] {
+    if (this._y === null) return [];
+    return [{ key: "price", x: 40, y: this._y }];
+  }
+
   hitTest(x: number, y: number): PrimitiveHoveredItem | null {
-    if (this._y !== null && isHit(Math.abs(y - this._y))) {
-      return { cursorStyle: "pointer", externalId: this.data.id, zOrder: "top" };
+    if (this._y === null) return null;
+    // 선택 상태: 앵커 우선 감지
+    if (this.selected && Math.hypot(x - 40, y - this._y) <= 8) {
+      return { cursorStyle: "grab", externalId: this.data.id, zOrder: "top" };
+    }
+    if (isHit(Math.abs(y - this._y))) {
+      return { cursorStyle: this.selected ? "move" : "pointer", externalId: this.data.id, zOrder: "top" };
     }
     return null;
   }

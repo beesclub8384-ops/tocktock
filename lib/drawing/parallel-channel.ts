@@ -63,15 +63,30 @@ export class ParallelChannelDrawing extends BaseDrawing {
       ctx.setLineDash([]);
 
       if (this.selected) {
-        for (const pt of [
-          { x: c.x1, y: c.y1 }, { x: c.x2, y: c.y2 },
-          { x: c.x3, y: c.y3 }, { x: c.x4, y: c.y4 },
-        ]) {
+        // 메인 라인 앵커 (p1, p2)
+        for (const pt of [{ x: c.x1, y: c.y1 }, { x: c.x2, y: c.y2 }]) {
           ctx.beginPath();
           ctx.arc(pt.x, pt.y, 5, 0, Math.PI * 2);
           ctx.fillStyle = this.data.color;
           ctx.fill();
+          ctx.strokeStyle = "#fff";
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
         }
+        // 오프셋 핸들 (평행선 중간점) — 다이아몬드 모양
+        const mx = (c.x3 + c.x4) / 2;
+        const my = (c.y3 + c.y4) / 2;
+        ctx.beginPath();
+        ctx.moveTo(mx, my - 6);
+        ctx.lineTo(mx + 6, my);
+        ctx.lineTo(mx, my + 6);
+        ctx.lineTo(mx - 6, my);
+        ctx.closePath();
+        ctx.fillStyle = this.data.color;
+        ctx.fill();
+        ctx.strokeStyle = "#fff";
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
       }
     });
   }
@@ -90,13 +105,32 @@ export class ParallelChannelDrawing extends BaseDrawing {
     return this._paneViews;
   }
 
+  getAnchors(): { key: string; x: number; y: number }[] {
+    const c = this._coords;
+    if (!c) return [];
+    return [
+      { key: "p1", x: c.x1, y: c.y1 },
+      { key: "p2", x: c.x2, y: c.y2 },
+      { key: "offset", x: (c.x3 + c.x4) / 2, y: (c.y3 + c.y4) / 2 },
+    ];
+  }
+
   hitTest(x: number, y: number): PrimitiveHoveredItem | null {
     const c = this._coords;
     if (!c) return null;
+    // 선택 상태: 앵커 우선 감지
+    if (this.selected) {
+      const anchors = this.getAnchors();
+      for (const a of anchors) {
+        if (Math.hypot(x - a.x, y - a.y) <= 8) {
+          return { cursorStyle: "grab", externalId: this.data.id, zOrder: "top" };
+        }
+      }
+    }
     const d1 = pointToSegmentDist(x, y, c.x1, c.y1, c.x2, c.y2);
     const d2 = pointToSegmentDist(x, y, c.x3, c.y3, c.x4, c.y4);
     if (isHit(Math.min(d1, d2))) {
-      return { cursorStyle: "pointer", externalId: this.data.id, zOrder: "top" };
+      return { cursorStyle: this.selected ? "move" : "pointer", externalId: this.data.id, zOrder: "top" };
     }
     return null;
   }
