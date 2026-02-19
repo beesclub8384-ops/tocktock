@@ -1,4 +1,5 @@
 import { VixGaugeWidget } from "@/components/vix-gauge-widget";
+import { MarketIndices } from "@/components/market-indices";
 
 export const metadata = {
   title: "지수 - TockTock",
@@ -15,7 +16,13 @@ export default function IndicesPage() {
         </p>
       </header>
 
-      <VixGaugeWidget />
+      <div className="space-y-8">
+        <VixGaugeWidget />
+        <section>
+          <h2 className="mb-4 text-lg font-semibold">주요 시장 지수</h2>
+          <MarketIndices />
+        </section>
+      </div>
     </div>
   );
 }
