@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { BarChart3, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { GrowthScorePanel } from "@/components/growth-score-panel";
+import { DollarIndexWidget } from "@/components/dollar-index-widget";
 
 export function Sidebar() {
   const [open, setOpen] = useState(false);
@@ -48,7 +49,7 @@ export function Sidebar() {
       {/* 사이드바 */}
       <aside
         className={`
-          fixed top-16 left-0 z-50 h-[calc(100vh-4rem)] w-72 shrink-0 overflow-y-auto border-r border-border/40 bg-background p-3 transition-transform duration-200
+          fixed top-16 left-0 z-50 h-[calc(100vh-4rem)] w-60 shrink-0 overflow-y-auto border-r border-border/40 bg-background p-3 transition-transform duration-200
           ${open ? "translate-x-0" : "-translate-x-full"}
           lg:sticky lg:translate-x-0 lg:transition-none
         `}
@@ -63,6 +64,9 @@ export function Sidebar() {
         </button>
 
         <GrowthScorePanel />
+        <div className="mt-3">
+          <DollarIndexWidget />
+        </div>
       </aside>
     </>
   );

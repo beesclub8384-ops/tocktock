@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { DollarIndexWidget } from "@/components/dollar-index-widget";
 import { InvestmentQuoteBanner } from "@/components/investment-quote-banner";
 
 export function Navbar() {
@@ -12,7 +11,6 @@ export function Navbar() {
           <Link href="/" className="text-xl font-bold tracking-tight">
             TockTock
           </Link>
-          <DollarIndexWidget />
         </div>
 
         <nav className="flex items-center gap-1">
