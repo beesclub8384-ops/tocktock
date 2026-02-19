@@ -633,9 +633,18 @@ export function GrowthScorePanel() {
 
       {/* 초기 상태 */}
       {!scoreLoading && !scoreResult && (
-        <p className="py-8 text-center text-sm text-muted-foreground">
-          종목을 검색하면 5가지 재무 지표 기반 성장성 점수를 확인할 수 있습니다.
-        </p>
+        <div className="py-8 text-center">
+          <p className="text-sm text-muted-foreground">
+            종목을 검색하면 5가지 재무 지표 기반 성장성 점수를 확인할 수 있습니다.
+          </p>
+          <button
+            onClick={() => setGuideOpen(true)}
+            className="mt-3 inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          >
+            <HelpCircle size={13} />
+            종합점수 보는 법
+          </button>
+        </div>
       )}
 
       {/* 가이드 모달 */}
