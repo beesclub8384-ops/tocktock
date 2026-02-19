@@ -17,6 +17,9 @@ export function Navbar() {
             <Link href="/stock-analysis">종목분석</Link>
           </Button>
           <Button variant="ghost" size="sm" asChild>
+            <Link href="/fed-rate">연준과 금리</Link>
+          </Button>
+          <Button variant="ghost" size="sm" asChild>
             <Link href="/economics">경제공부</Link>
           </Button>
           <Button variant="ghost" size="sm" asChild>

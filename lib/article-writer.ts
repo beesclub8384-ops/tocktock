@@ -172,7 +172,7 @@ export async function generateAndSave(): Promise<string> {
   const article = await generateArticle();
 
   const slug = slugify("");
-  const outPath = path.join(process.cwd(), "posts", "macro", `${slug}.md`);
+  const outPath = path.join(process.cwd(), "posts", "fed-rate", `${slug}.md`);
   const outDir = path.dirname(outPath);
 
   if (!fs.existsSync(outDir)) {

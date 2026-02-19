@@ -1,0 +1,39 @@
+import Link from "next/link";
+import { getSortedPostsData } from "@/lib/posts";
+
+export const metadata = {
+  title: "연준과 금리 - TockTock",
+  description: "TockTock 연준과 금리 - 연준 정책과 금리 동향 분석",
+};
+
+export default function FedRatePage() {
+  const posts = getSortedPostsData("fed-rate");
+
+  return (
+    <div className="mx-auto max-w-2xl px-6 py-20">
+      <header className="mb-16">
+        <h1 className="text-4xl font-bold tracking-tight">연준과 금리</h1>
+      </header>
+
+      {posts.length === 0 ? (
+        <p className="text-muted-foreground">아직 작성된 글이 없습니다.</p>
+      ) : (
+        <div className="flex flex-col gap-10">
+          {posts.map((post) => (
+            <article key={post.slug}>
+              <Link href={`/fed-rate/${post.slug}`} className="group block">
+                <time className="text-sm text-muted-foreground">
+                  {post.date}
+                </time>
+                <h2 className="mt-1 text-xl font-semibold group-hover:text-muted-foreground transition-colors">
+                  {post.title}
+                </h2>
+                <p className="mt-2 text-muted-foreground">{post.summary}</p>
+              </Link>
+            </article>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
