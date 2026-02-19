@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { DollarIndexWidget } from "@/components/dollar-index-widget";
+import { InvestmentQuoteBanner } from "@/components/investment-quote-banner";
 
 export function Navbar() {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <InvestmentQuoteBanner />
       <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-6">
         <div className="flex items-center gap-3">
           <Link href="/" className="text-xl font-bold tracking-tight">
