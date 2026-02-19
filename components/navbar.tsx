@@ -24,9 +24,6 @@ export function Navbar() {
           </Button>
         </nav>
 
-        <Button size="sm" asChild>
-          <Link href="/blog">시작하기</Link>
-        </Button>
       </div>
     </header>
   );
