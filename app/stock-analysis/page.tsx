@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getSortedPostsData } from "@/lib/posts";
+import { GrowthScorePanel } from "@/components/growth-score-panel";
 
 export const metadata = {
   title: "종목분석 - TockTock",
@@ -14,6 +15,10 @@ export default function StockAnalysisPage() {
       <header className="mb-16">
         <h1 className="text-4xl font-bold tracking-tight">종목분석</h1>
       </header>
+
+      <section className="mb-16">
+        <GrowthScorePanel />
+      </section>
 
       {posts.length === 0 ? (
         <p className="text-muted-foreground">아직 작성된 글이 없습니다.</p>
