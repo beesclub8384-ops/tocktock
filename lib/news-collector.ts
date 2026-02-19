@@ -34,6 +34,10 @@ const RSS_FEEDS = [
     name: "Federal Reserve",
     url: "https://www.federalreserve.gov/feeds/press_monetary.xml",
   },
+  {
+    name: "Fed Speeches",
+    url: "https://www.federalreserve.gov/feeds/speeches.xml",
+  },
 ];
 
 const RATE_KEYWORDS = [
