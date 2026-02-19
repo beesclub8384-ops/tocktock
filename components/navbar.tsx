@@ -17,6 +17,12 @@ export function Navbar() {
             <Link href="/blog">거시전망</Link>
           </Button>
           <Button variant="ghost" size="sm" asChild>
+            <Link href="/stock-analysis">종목분석</Link>
+          </Button>
+          <Button variant="ghost" size="sm" asChild>
+            <Link href="/economics">경제공부</Link>
+          </Button>
+          <Button variant="ghost" size="sm" asChild>
             <Link href="/stock/TSLA">차트</Link>
           </Button>
         </nav>

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { getPostData, getAllPostSlugs } from "@/lib/posts";
 
 export async function generateStaticParams() {
-  const slugs = getAllPostSlugs("macro");
+  const slugs = getAllPostSlugs("economics");
   return slugs.map((slug) => ({ slug }));
 }
 
@@ -12,9 +12,9 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const post = await getPostData("macro", slug);
+  const post = await getPostData("economics", slug);
   return {
-    title: `${post.title} - TockTock 거시전망`,
+    title: `${post.title} - TockTock 경제공부`,
     description: post.summary,
   };
 }
@@ -25,16 +25,16 @@ export default async function PostPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const post = await getPostData("macro", slug);
+  const post = await getPostData("economics", slug);
 
   return (
     <article className="mx-auto max-w-2xl px-6 py-20">
       <nav className="mb-10">
         <Link
-          href="/blog"
+          href="/economics"
           className="text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
-          &larr; 거시전망 목록
+          &larr; 경제공부 목록
         </Link>
       </nav>
 

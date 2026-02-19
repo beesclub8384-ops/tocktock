@@ -2,17 +2,17 @@ import Link from "next/link";
 import { getSortedPostsData } from "@/lib/posts";
 
 export const metadata = {
-  title: "거시전망 - TockTock",
-  description: "TockTock 거시전망 - 거시경제 분석과 전망",
+  title: "종목분석 - TockTock",
+  description: "TockTock 종목분석 - 개별 종목 심층 분석",
 };
 
-export default function BlogPage() {
-  const posts = getSortedPostsData("macro");
+export default function StockAnalysisPage() {
+  const posts = getSortedPostsData("stock-analysis");
 
   return (
     <div className="mx-auto max-w-2xl px-6 py-20">
       <header className="mb-16">
-        <h1 className="text-4xl font-bold tracking-tight">거시전망</h1>
+        <h1 className="text-4xl font-bold tracking-tight">종목분석</h1>
       </header>
 
       {posts.length === 0 ? (
@@ -21,7 +21,7 @@ export default function BlogPage() {
         <div className="flex flex-col gap-10">
           {posts.map((post) => (
             <article key={post.slug}>
-              <Link href={`/blog/${post.slug}`} className="group block">
+              <Link href={`/stock-analysis/${post.slug}`} className="group block">
                 <time className="text-sm text-muted-foreground">
                   {post.date}
                 </time>
