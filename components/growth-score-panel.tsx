@@ -576,7 +576,7 @@ export function GrowthScorePanel() {
                 <p className="mt-1 text-xs text-muted-foreground">/ 100</p>
                 <button
                   onClick={() => setGuideOpen(true)}
-                  className="mt-3 inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                  className="mt-3 inline-flex items-center gap-1 rounded-md border border-blue-400/30 bg-blue-500/10 px-2.5 py-1 text-xs text-blue-400 transition-all hover:bg-blue-500/20 hover:text-blue-300 hover:shadow-[0_0_8px_rgba(59,130,246,0.25)]"
                 >
                   <HelpCircle size={13} />
                   종합점수 보는 법
@@ -639,7 +639,7 @@ export function GrowthScorePanel() {
           </p>
           <button
             onClick={() => setGuideOpen(true)}
-            className="mt-3 inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            className="mt-3 inline-flex items-center gap-1 rounded-md border border-blue-400/30 bg-blue-500/10 px-2.5 py-1 text-xs text-blue-400 transition-all hover:bg-blue-500/20 hover:text-blue-300 hover:shadow-[0_0_8px_rgba(59,130,246,0.25)]"
           >
             <HelpCircle size={13} />
             종합점수 보는 법
