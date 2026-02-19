@@ -6,27 +6,17 @@ import {
   ColorType,
   CandlestickSeries,
   HistogramSeries,
-  LineSeries,
-  AreaSeries,
   type IChartApi,
   type ISeriesApi,
   type SeriesType,
   type Time,
 } from "lightweight-charts";
-import type { OHLCData, ChannelData } from "@/lib/types/stock";
+import type { OHLCData } from "@/lib/types/stock";
 import type { DrawingToolType } from "@/lib/types/drawing";
 import { DrawingManager } from "@/lib/drawing/drawing-manager";
 
-const CHANNEL_STYLES = {
-  uptrend: { line: "#3b82f6", fill: "rgba(59, 130, 246, 0.12)", bg: "#0a0a0a" },
-  downtrend: { line: "#ef4444", fill: "rgba(239, 68, 68, 0.12)", bg: "#0a0a0a" },
-};
-
 interface ChartContainerProps {
   data: OHLCData[];
-  channels?: ChannelData[];
-  showTrendlines?: boolean;
-  showTunnels?: boolean;
   symbol: string;
   activeTool: DrawingToolType;
   onSelectionChange: (id: string | null) => void;
@@ -43,9 +33,6 @@ export const ChartContainer = forwardRef<ChartContainerHandle, ChartContainerPro
   function ChartContainer(
     {
       data,
-      channels = [],
-      showTrendlines = true,
-      showTunnels = true,
       symbol,
       activeTool,
       onSelectionChange,
@@ -126,33 +113,7 @@ export const ChartContainer = forwardRef<ChartContainerHandle, ChartContainerPro
       }
       seriesRefs.current = [];
 
-      // 1) 터널 채우기 영역 (가장 뒤)
-      if (showTunnels) {
-        for (const ch of channels) {
-          const style = CHANNEL_STYLES[ch.direction];
-          const isUp = ch.direction === "uptrend";
-          const upperPts = isUp ? ch.tunnelLine : ch.mainLine;
-          const lowerPts = isUp ? ch.mainLine : ch.tunnelLine;
-
-          const upperFill = chart.addSeries(AreaSeries, {
-            topColor: style.fill, bottomColor: style.fill,
-            lineColor: "transparent", lineWidth: 1,
-            crosshairMarkerVisible: false, priceLineVisible: false, lastValueVisible: false,
-          });
-          upperFill.setData(upperPts.map((p) => ({ time: p.time as Time, value: p.value })));
-          seriesRefs.current.push(upperFill);
-
-          const lowerMask = chart.addSeries(AreaSeries, {
-            topColor: style.bg, bottomColor: style.bg,
-            lineColor: "transparent", lineWidth: 1,
-            crosshairMarkerVisible: false, priceLineVisible: false, lastValueVisible: false,
-          });
-          lowerMask.setData(lowerPts.map((p) => ({ time: p.time as Time, value: p.value })));
-          seriesRefs.current.push(lowerMask);
-        }
-      }
-
-      // 2) 캔들
+      // 1) 캔들
       const candles = chart.addSeries(CandlestickSeries, {
         upColor: "#22c55e", downColor: "#ef4444",
         borderDownColor: "#ef4444", borderUpColor: "#22c55e",
@@ -163,7 +124,7 @@ export const ChartContainer = forwardRef<ChartContainerHandle, ChartContainerPro
       })));
       seriesRefs.current.push(candles);
 
-      // 3) 거래량
+      // 2) 거래량
       const volume = chart.addSeries(HistogramSeries, {
         priceFormat: { type: "volume" }, priceScaleId: "volume",
       });
@@ -173,30 +134,6 @@ export const ChartContainer = forwardRef<ChartContainerHandle, ChartContainerPro
         color: d.close >= d.open ? "#22c55e80" : "#ef444480",
       })));
       seriesRefs.current.push(volume);
-
-      // 4) 메인 추세선 (실선)
-      if (showTrendlines) {
-        for (const ch of channels) {
-          const line = chart.addSeries(LineSeries, {
-            color: CHANNEL_STYLES[ch.direction].line, lineWidth: 1, lineStyle: 0,
-            crosshairMarkerVisible: false, priceLineVisible: false, lastValueVisible: false,
-          });
-          line.setData(ch.mainLine.map((p) => ({ time: p.time as Time, value: p.value })));
-          seriesRefs.current.push(line);
-        }
-      }
-
-      // 5) 터널선 (점선)
-      if (showTunnels) {
-        for (const ch of channels) {
-          const line = chart.addSeries(LineSeries, {
-            color: CHANNEL_STYLES[ch.direction].line, lineWidth: 1, lineStyle: 2,
-            crosshairMarkerVisible: false, priceLineVisible: false, lastValueVisible: false,
-          });
-          line.setData(ch.tunnelLine.map((p) => ({ time: p.time as Time, value: p.value })));
-          seriesRefs.current.push(line);
-        }
-      }
 
       // DrawingManager 초기화 또는 reattach
       if (!managerRef.current) {
@@ -216,7 +153,7 @@ export const ChartContainer = forwardRef<ChartContainerHandle, ChartContainerPro
       }
 
       chart.timeScale().fitContent();
-    }, [data, channels, showTrendlines, showTunnels, symbol]);
+    }, [data, symbol]);
 
     useEffect(() => {
       rebuildSeries();
