@@ -9,6 +9,19 @@ function getPostsDirectory(category: string): string {
   return path.join(process.cwd(), "posts", category);
 }
 
+const POST_EXTENSIONS = [".md", ".html"];
+
+function isPostFile(fileName: string): boolean {
+  return POST_EXTENSIONS.some((ext) => fileName.endsWith(ext));
+}
+
+function stripExtension(fileName: string): string {
+  for (const ext of POST_EXTENSIONS) {
+    if (fileName.endsWith(ext)) return fileName.slice(0, -ext.length);
+  }
+  return fileName;
+}
+
 export interface PostMeta {
   slug: string;
   title: string;
@@ -25,9 +38,9 @@ export function getSortedPostsData(category: string): PostMeta[] {
   if (!fs.existsSync(dir)) return [];
   const fileNames = fs.readdirSync(dir);
   const allPostsData: PostMeta[] = fileNames
-    .filter((fileName) => fileName.endsWith(".md"))
+    .filter(isPostFile)
     .map((fileName) => {
-      const slug = fileName.replace(/\.md$/, "");
+      const slug = stripExtension(fileName);
       const fullPath = path.join(dir, fileName);
       const fileContents = fs.readFileSync(fullPath, "utf8");
       const matterResult = matter(fileContents);
@@ -47,24 +60,38 @@ export function getAllPostSlugs(category: string): string[] {
   const dir = getPostsDirectory(category);
   if (!fs.existsSync(dir)) return [];
   const fileNames = fs.readdirSync(dir);
-  return fileNames
-    .filter((fileName) => fileName.endsWith(".md"))
-    .map((fileName) => fileName.replace(/\.md$/, ""));
+  return fileNames.filter(isPostFile).map(stripExtension);
+}
+
+function findPostFile(dir: string, slug: string): string | null {
+  for (const ext of POST_EXTENSIONS) {
+    const fullPath = path.join(dir, `${slug}${ext}`);
+    if (fs.existsSync(fullPath)) return fullPath;
+  }
+  return null;
 }
 
 export async function getPostData(
   category: string,
   slug: string
 ): Promise<Post> {
-  const fullPath = path.join(getPostsDirectory(category), `${slug}.md`);
+  const dir = getPostsDirectory(category);
+  const fullPath = findPostFile(dir, slug);
+  if (!fullPath) throw new Error(`Post not found: ${category}/${slug}`);
+
   const fileContents = fs.readFileSync(fullPath, "utf8");
   const matterResult = matter(fileContents);
 
-  const processedContent = await remark()
-    .use(remarkGfm)
-    .use(html)
-    .process(matterResult.content);
-  const contentHtml = processedContent.toString();
+  let contentHtml: string;
+  if (fullPath.endsWith(".html")) {
+    contentHtml = matterResult.content;
+  } else {
+    const processedContent = await remark()
+      .use(remarkGfm)
+      .use(html)
+      .process(matterResult.content);
+    contentHtml = processedContent.toString();
+  }
 
   return {
     slug,
