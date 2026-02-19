@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Search, Loader2 } from "lucide-react";
+import { Search, Loader2, HelpCircle, X } from "lucide-react";
 import type { GrowthScoreResult } from "@/lib/stock-score";
 
 interface SearchResult {
@@ -23,6 +23,345 @@ function barColor(score: number): string {
   return "bg-red-500";
 }
 
+/* ────────────────────────────────────────────
+   가이드 모달
+   ──────────────────────────────────────────── */
+function ScoreGuideModal({ onClose }: { onClose: () => void }) {
+  // ESC 키로 닫기
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  // 모달 열릴 때 배경 스크롤 방지
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, []);
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="relative max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-border bg-card p-6 shadow-2xl sm:p-8">
+        {/* 닫기 버튼 */}
+        <button
+          onClick={onClose}
+          className="absolute right-4 top-4 rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+        >
+          <X size={20} />
+        </button>
+
+        <h2 className="mb-6 text-xl font-bold">종합 성장 점수 보는 법</h2>
+
+        {/* 섹션1 */}
+        <section className="mb-6">
+          <h3 className="mb-2 text-base font-semibold">종합 성장 점수란?</h3>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            기업이 &ldquo;얼마나 건강하게 성장하고 있는가&rdquo;를 100점 만점으로
+            보여주는 지표입니다. 단순히 주가가 올랐는지가 아니라, 기업의 실제
+            재무 데이터를 기반으로 &ldquo;이 회사가 진짜 성장하고
+            있는가?&rdquo;를 판단합니다.
+          </p>
+        </section>
+
+        <hr className="my-5 border-border" />
+
+        {/* 섹션2 */}
+        <section className="mb-6">
+          <h3 className="mb-2 text-base font-semibold">
+            어떤 데이터를 쓰나요?
+          </h3>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            Yahoo Finance에서 제공하는 해당 기업의 최근 2개년 연간
+            재무제표(손익계산서, 대차대조표, 현금흐름표)를 사용합니다. 전년 대비
+            올해가 어떻게 변했는지를 봅니다.
+          </p>
+        </section>
+
+        <hr className="my-5 border-border" />
+
+        {/* 섹션3 */}
+        <section className="mb-6">
+          <h3 className="mb-3 text-base font-semibold">
+            5가지 지표 상세 설명
+          </h3>
+
+          <div className="space-y-5">
+            {/* ① */}
+            <div className="rounded-lg border border-border bg-muted/30 p-4">
+              <h4 className="mb-1.5 text-sm font-semibold">
+                ① 매출 성장률{" "}
+                <span className="font-normal text-muted-foreground">
+                  (가중치 30% — 가장 중요)
+                </span>
+              </h4>
+              <ul className="space-y-1 text-sm leading-relaxed text-muted-foreground">
+                <li>
+                  <strong className="text-foreground">의미:</strong> 전년 대비
+                  매출(총 매출액)이 몇 % 늘었는가
+                </li>
+                <li>
+                  <strong className="text-foreground">왜 중요한가:</strong> 매출이
+                  안 늘면 아무리 효율적이어도 기업은 커지지 않습니다. 투자자들이
+                  가장 먼저 보는 숫자입니다.
+                </li>
+                <li>
+                  <strong className="text-foreground">예시:</strong> 오라클 8.4%
+                  &rarr; &ldquo;작년보다 8.4% 더 벌었다&rdquo;는 뜻. 테크
+                  기업치고는 느린 편입니다.
+                </li>
+                <li>
+                  <strong className="text-foreground">점수 기준:</strong> 0% 이하
+                  &rarr; 0점, 30% 이상 &rarr; 100점, 그 사이는 비례 배분
+                </li>
+              </ul>
+            </div>
+
+            {/* ② */}
+            <div className="rounded-lg border border-border bg-muted/30 p-4">
+              <h4 className="mb-1.5 text-sm font-semibold">
+                ② 영업이익률 변화{" "}
+                <span className="font-normal text-muted-foreground">
+                  (가중치 25%)
+                </span>
+              </h4>
+              <ul className="space-y-1 text-sm leading-relaxed text-muted-foreground">
+                <li>
+                  <strong className="text-foreground">의미:</strong> 매출에서
+                  원가와 운영비를 빼고 남는 비율이 전년 대비 얼마나
+                  개선되었는가
+                </li>
+                <li>
+                  <strong className="text-foreground">왜 중요한가:</strong> 매출이
+                  늘어도 남는 게 없으면 의미가 없습니다. &ldquo;장사해서 남는
+                  돈이 늘고 있는가?&rdquo;를 봅니다.
+                </li>
+                <li>
+                  <strong className="text-foreground">예시:</strong> 오라클 30.3%
+                  &rarr; 31.5% (1.1%p 개선) &rarr; &ldquo;100원 벌면 31.5원
+                  남는다. 작년보다 1.1원 더 남게 됐다&rdquo;
+                </li>
+                <li>
+                  <strong className="text-foreground">점수 기준:</strong> -5%p
+                  이하 &rarr; 0점, +5%p 이상 &rarr; 100점
+                </li>
+              </ul>
+            </div>
+
+            {/* ③ */}
+            <div className="rounded-lg border border-border bg-muted/30 p-4">
+              <h4 className="mb-1.5 text-sm font-semibold">
+                ③ R&D 집중도 변화{" "}
+                <span className="font-normal text-muted-foreground">
+                  (가중치 20%)
+                </span>
+              </h4>
+              <ul className="space-y-1 text-sm leading-relaxed text-muted-foreground">
+                <li>
+                  <strong className="text-foreground">의미:</strong> 매출 중
+                  연구개발(R&D)에 쓰는 비율이 전년 대비 늘었는가
+                </li>
+                <li>
+                  <strong className="text-foreground">왜 중요한가:</strong>{" "}
+                  오늘의 R&D가 내일의 매출입니다. R&D를 줄이면 단기 이익은
+                  좋아지지만 미래 경쟁력을 잃습니다.
+                </li>
+                <li>
+                  <strong className="text-foreground">예시:</strong> 오라클 16.8%
+                  &rarr; 17.2% (0.3%p 증가) &rarr; &ldquo;미래 투자를 살짝
+                  늘렸다&rdquo;
+                </li>
+                <li>
+                  <strong className="text-foreground">점수 기준:</strong> -3%p
+                  이하 &rarr; 0점, +3%p 이상 &rarr; 100점
+                </li>
+              </ul>
+            </div>
+
+            {/* ④ */}
+            <div className="rounded-lg border border-border bg-muted/30 p-4">
+              <h4 className="mb-1.5 text-sm font-semibold">
+                ④ 인당 매출액 변화{" "}
+                <span className="font-normal text-muted-foreground">
+                  (가중치 15%)
+                </span>
+              </h4>
+              <ul className="space-y-1 text-sm leading-relaxed text-muted-foreground">
+                <li>
+                  <strong className="text-foreground">의미:</strong> 직원 1명이
+                  벌어오는 매출이 전년 대비 몇 % 늘었는가
+                </li>
+                <li>
+                  <strong className="text-foreground">왜 중요한가:</strong> 직원을
+                  2배로 늘려서 매출이 2배가 된 건 진짜 성장이 아닙니다. 같은
+                  인원으로 더 많이 벌어야 효율적 성장입니다.
+                </li>
+                <li>
+                  <strong className="text-foreground">예시:</strong> 오라클 8.4%
+                  (직원 162,000명 기준) &rarr; &ldquo;직원 1인당 벌어오는 돈이
+                  8.4% 늘었다&rdquo;
+                </li>
+                <li>
+                  <strong className="text-foreground">점수 기준:</strong> -10%
+                  이하 &rarr; 0점, +30% 이상 &rarr; 100점
+                </li>
+              </ul>
+            </div>
+
+            {/* ⑤ */}
+            <div className="rounded-lg border border-border bg-muted/30 p-4">
+              <h4 className="mb-1.5 text-sm font-semibold">
+                ⑤ Capex 증가율{" "}
+                <span className="font-normal text-muted-foreground">
+                  (가중치 10% — 가장 낮음)
+                </span>
+              </h4>
+              <ul className="space-y-1 text-sm leading-relaxed text-muted-foreground">
+                <li>
+                  <strong className="text-foreground">의미:</strong> 공장, 설비,
+                  데이터센터 등에 대한 투자(자본지출)가 전년 대비 몇 %
+                  늘었는가
+                </li>
+                <li>
+                  <strong className="text-foreground">왜 중요한가:</strong> 미래를
+                  위해 투자하고 있다는 신호이지만, 돈만 태우고 성과가 없을 수도
+                  있어서 가중치가 낮습니다.
+                </li>
+                <li>
+                  <strong className="text-foreground">예시:</strong> 오라클 209%
+                  &rarr; &ldquo;설비 투자를 3배 이상 늘렸다&rdquo; (AI 데이터센터
+                  투자)
+                </li>
+                <li>
+                  <strong className="text-foreground">점수 기준:</strong> -20%
+                  이하 &rarr; 0점, +50% 이상 &rarr; 100점
+                </li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <hr className="my-5 border-border" />
+
+        {/* 섹션4 */}
+        <section className="mb-6">
+          <h3 className="mb-2 text-base font-semibold">
+            가중치는 왜 이렇게 정한 건가요?
+          </h3>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            프로 투자자들의 분석 방법론을 참고했습니다. Meritech Capital의
+            연구에 따르면, 매출 성장률이 기업 밸류에이션에 수익성보다 약 3배 더
+            큰 영향을 미칩니다. 즉, 시장은 &ldquo;얼마나 남기느냐&rdquo;보다
+            &ldquo;얼마나 크고 있느냐&rdquo;에 더 큰 프리미엄을 줍니다. 이 연구
+            결과를 반영해 매출 성장률에 가장 높은 가중치(30%)를 부여했습니다.
+          </p>
+        </section>
+
+        <hr className="my-5 border-border" />
+
+        {/* 섹션5 */}
+        <section className="mb-6">
+          <h3 className="mb-3 text-base font-semibold">점수 구간별 해석</h3>
+          <div className="space-y-2 text-sm">
+            <div className="flex gap-3">
+              <span className="shrink-0 font-semibold text-green-500">
+                80~100점
+              </span>
+              <span className="text-muted-foreground">
+                매우 강한 성장. 매출도 빠르게 늘고, 이익 구조도 개선되는 기업.
+                시장에서 높은 프리미엄을 받을 가능성이 큽니다.
+              </span>
+            </div>
+            <div className="flex gap-3">
+              <span className="shrink-0 font-semibold text-yellow-500">
+                60~79점
+              </span>
+              <span className="text-muted-foreground">
+                양호한 성장. 안정적으로 성장 중이며, 대부분의 지표가 개선되고
+                있는 기업.
+              </span>
+            </div>
+            <div className="flex gap-3">
+              <span className="shrink-0 font-semibold text-orange-500">
+                40~59점
+              </span>
+              <span className="text-muted-foreground">
+                보통. 성장은 있지만 뚜렷하지 않거나, 일부 지표만 좋고 나머지는
+                정체된 기업.
+              </span>
+            </div>
+            <div className="flex gap-3">
+              <span className="shrink-0 font-semibold text-red-500">
+                0~39점
+              </span>
+              <span className="text-muted-foreground">
+                부진. 성장이 정체되거나 후퇴 중인 기업. 구조적 문제가 있을 수
+                있습니다.
+              </span>
+            </div>
+          </div>
+        </section>
+
+        <hr className="my-5 border-border" />
+
+        {/* 섹션6 */}
+        <section className="mb-6">
+          <h3 className="mb-2 text-base font-semibold">
+            실제 예시: 오라클(ORCL) 55.9점
+          </h3>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            오라클은 종합 55.9점으로 &ldquo;보통&rdquo; 구간입니다. Capex
+            증가율이 209%로 100점 만점을 받았는데, 이는 AI 데이터센터에 대규모
+            투자를 하고 있기 때문입니다. 그러나 나머지 4개 지표는 모두
+            40~55점대로, 아직 그 투자가 매출 성장이나 이익 개선으로 충분히
+            이어지지 않고 있습니다. 이런 패턴을 &ldquo;투자 선행, 성과
+            후행&rdquo;이라고 합니다. 지금 돈을 쏟고 있으니 1~2년 뒤에 매출과
+            이익이 따라올 수 있지만, 반대로 투자가 실패하면 점수가 더 떨어질
+            수도 있습니다.
+          </p>
+        </section>
+
+        <hr className="my-5 border-border" />
+
+        {/* 섹션7 */}
+        <section>
+          <h3 className="mb-2 text-base font-semibold">주의사항</h3>
+          <ul className="list-disc space-y-1.5 pl-5 text-sm leading-relaxed text-muted-foreground">
+            <li>
+              이 점수는 &ldquo;과거 재무 데이터 기반&rdquo;입니다. 미래 주가를
+              예측하지 않습니다.
+            </li>
+            <li>
+              업종마다 특성이 다릅니다. 테크 기업과 제조업의 Capex 의미는
+              다릅니다.
+            </li>
+            <li>
+              R&D나 직원 수 데이터가 없는 기업은 해당 지표가 제외되고 나머지로
+              점수를 계산합니다.
+            </li>
+            <li>
+              이 점수만으로 투자 판단을 하는 것은 권장하지 않습니다. 다른
+              분석과 함께 보조 지표로 활용하세요.
+            </li>
+          </ul>
+        </section>
+      </div>
+    </div>
+  );
+}
+
+/* ────────────────────────────────────────────
+   메인 패널
+   ──────────────────────────────────────────── */
 export function GrowthScorePanel() {
   const [query, setQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
@@ -35,6 +374,7 @@ export function GrowthScorePanel() {
   );
   const [scoreLoading, setScoreLoading] = useState(false);
   const [selectedSymbol, setSelectedSymbol] = useState("");
+  const [guideOpen, setGuideOpen] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -234,6 +574,13 @@ export function GrowthScorePanel() {
                   {scoreResult.totalScore!.toFixed(1)}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">/ 100</p>
+                <button
+                  onClick={() => setGuideOpen(true)}
+                  className="mt-3 inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                >
+                  <HelpCircle size={13} />
+                  종합점수 보는 법
+                </button>
               </div>
 
               {/* 지표별 막대그래프 */}
@@ -290,6 +637,9 @@ export function GrowthScorePanel() {
           종목을 검색하면 5가지 재무 지표 기반 성장성 점수를 확인할 수 있습니다.
         </p>
       )}
+
+      {/* 가이드 모달 */}
+      {guideOpen && <ScoreGuideModal onClose={() => setGuideOpen(false)} />}
     </div>
   );
 }
