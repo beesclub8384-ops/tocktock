@@ -1,0 +1,46 @@
+name: Weekly Macro Article
+
+on:
+  schedule:
+    # 매주 토요일 한국시간 오전 9시 = UTC 0시
+    - cron: '0 0 * * 6'
+  workflow_dispatch: # 수동 실행 가능
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Collect news & FRED data
+        run: npx tsx lib/news-collector.ts
+        env:
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+
+      - name: Generate macro article
+        run: npx tsx lib/article-writer.ts
+        env:
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add posts/macro/ data/
+          if git diff --staged --quiet; then
+            echo "No new articles to commit"
+          else
+            git commit -m "Auto-generate weekly macro article $(date +%Y-%m-%d)"
+            git push
+          fi
