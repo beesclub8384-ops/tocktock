@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
+import { GrowthScorePanel } from "@/components/growth-score-panel";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -30,7 +31,12 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <Navbar />
-        <main className="min-h-screen">{children}</main>
+        <div className="flex">
+          <aside className="hidden lg:block w-72 shrink-0 sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto border-r border-border/40 p-3">
+            <GrowthScorePanel />
+          </aside>
+          <main className="min-h-screen flex-1">{children}</main>
+        </div>
         <Footer />
       </body>
     </html>
