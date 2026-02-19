@@ -21,6 +21,7 @@ interface ManagerCallbacks {
   onSelectionChange: (id: string | null) => void;
   onContextMenu: (x: number, y: number, id: string) => void;
   onToolReset: () => void;
+  onSave?: (drawings: DrawingData[]) => void;
 }
 
 export class DrawingManager {
@@ -35,6 +36,7 @@ export class DrawingManager {
   private pendingP1P2: { p1: DrawingAnchor; p2: DrawingAnchor } | null = null;
   private previewDrawing: BaseDrawing | null = null;
   private callbacks: ManagerCallbacks;
+  private readOnly: boolean;
   private isDragging = false;
   private dragMode: "move" | "anchor" = "move";
   private dragAnchorKey: string | null = null;
@@ -56,12 +58,15 @@ export class DrawingManager {
     symbol: string;
     containerEl: HTMLElement;
     callbacks: ManagerCallbacks;
+    initialDrawings?: DrawingData[];
+    readOnly?: boolean;
   }) {
     this.chart = params.chart;
     this.series = params.series;
     this.symbol = params.symbol;
     this.containerEl = params.containerEl;
     this.callbacks = params.callbacks;
+    this.readOnly = params.readOnly ?? false;
 
     this.clickHandler = this.handleClick.bind(this);
     this.crosshairHandler = this.handleCrosshair.bind(this);
@@ -75,13 +80,21 @@ export class DrawingManager {
     this.containerEl.addEventListener("mousedown", this.mouseDownHandler);
     this.containerEl.addEventListener("contextmenu", this.contextMenuHandler);
 
-    this.loadFromStorage();
+    // 서버에서 받은 초기 드로잉 로드
+    if (params.initialDrawings) {
+      for (const data of params.initialDrawings) {
+        const drawing = this.createPrimitive(data);
+        this.series.attachPrimitive(drawing);
+        this.drawings.set(data.id, drawing);
+      }
+    }
   }
 
   /* ──────────── 도구 활성화 ──────────── */
 
   /** React에서 호출: 도구 변경 */
   setActiveTool(tool: DrawingToolType): void {
+    if (this.readOnly) return;
     this.applyTool(tool);
   }
 
@@ -191,6 +204,9 @@ export class DrawingManager {
       return;
     }
 
+    // readOnly면 드로잉 생성 불가
+    if (this.readOnly) return;
+
     // 수평선: 1클릭 완료
     if (this.activeTool === "horizontal_line") {
       this.createDrawing({
@@ -295,6 +311,7 @@ export class DrawingManager {
   /* ──────────── 드래그 이동 ──────────── */
 
   private onMouseDown(e: MouseEvent): void {
+    if (this.readOnly) return;
     if (e.button !== 0) return;
     if (!this.selectedId || this.activeTool) return;
 
@@ -422,10 +439,11 @@ export class DrawingManager {
       handleScale: true,
     });
 
-    this.saveToStorage();
+    this.persistDrawings();
   }
 
   private onContextMenu(e: MouseEvent): void {
+    if (this.readOnly) return;
     if (!this.lastHoveredId) return;
     e.preventDefault();
     this.selectDrawing(this.lastHoveredId);
@@ -448,23 +466,26 @@ export class DrawingManager {
   }
 
   deleteDrawing(id: string): void {
+    if (this.readOnly) return;
     const drawing = this.drawings.get(id);
     if (!drawing) return;
     this.series.detachPrimitive(drawing);
     this.drawings.delete(id);
     if (this.selectedId === id) this.selectDrawing(null);
-    this.saveToStorage();
+    this.persistDrawings();
   }
 
   changeColor(id: string, color: string): void {
+    if (this.readOnly) return;
     const drawing = this.drawings.get(id);
     if (!drawing) return;
     drawing.data.color = color;
     drawing.requestUpdate();
-    this.saveToStorage();
+    this.persistDrawings();
   }
 
   deleteSelected(): void {
+    if (this.readOnly) return;
     if (this.selectedId) this.deleteDrawing(this.selectedId);
   }
 
@@ -474,7 +495,7 @@ export class DrawingManager {
     const drawing = this.createPrimitive(data);
     this.series.attachPrimitive(drawing);
     this.drawings.set(data.id, drawing);
-    this.saveToStorage();
+    this.persistDrawings();
   }
 
   private createPrimitive(data: DrawingData): BaseDrawing {
@@ -486,26 +507,10 @@ export class DrawingManager {
     }
   }
 
-  private saveToStorage(): void {
+  private persistDrawings(): void {
+    if (this.readOnly) return;
     const items = Array.from(this.drawings.values()).map((d) => d.data);
-    localStorage.setItem(
-      `tocktock-drawings-${this.symbol}`,
-      JSON.stringify({ version: 1, drawings: items })
-    );
-  }
-
-  private loadFromStorage(): void {
-    const raw = localStorage.getItem(`tocktock-drawings-${this.symbol}`);
-    if (!raw) return;
-    try {
-      const parsed = JSON.parse(raw);
-      if (parsed.version !== 1) return;
-      for (const data of parsed.drawings as DrawingData[]) {
-        const drawing = this.createPrimitive(data);
-        this.series.attachPrimitive(drawing);
-        this.drawings.set(data.id, drawing);
-      }
-    } catch { /* ignore corrupt data */ }
+    this.callbacks.onSave?.(items);
   }
 
   destroy(): void {

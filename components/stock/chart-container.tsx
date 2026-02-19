@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from "react";
+import { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from "react";
 import {
   createChart,
   ColorType,
@@ -12,7 +12,7 @@ import {
   type Time,
 } from "lightweight-charts";
 import type { OHLCData } from "@/lib/types/stock";
-import type { DrawingToolType } from "@/lib/types/drawing";
+import type { DrawingToolType, DrawingData } from "@/lib/types/drawing";
 import { DrawingManager } from "@/lib/drawing/drawing-manager";
 
 interface ChartContainerProps {
@@ -22,6 +22,8 @@ interface ChartContainerProps {
   onSelectionChange: (id: string | null) => void;
   onContextMenu: (x: number, y: number, id: string) => void;
   onToolReset: () => void;
+  isAdmin: boolean;
+  adminPassword: string | null;
 }
 
 export interface ChartContainerHandle {
@@ -38,6 +40,8 @@ export const ChartContainer = forwardRef<ChartContainerHandle, ChartContainerPro
       onSelectionChange,
       onContextMenu,
       onToolReset,
+      isAdmin,
+      adminPassword,
     },
     ref
   ) {
@@ -48,6 +52,38 @@ export const ChartContainer = forwardRef<ChartContainerHandle, ChartContainerPro
     const managerRef = useRef<DrawingManager | null>(null);
     const callbacksRef = useRef({ onSelectionChange, onContextMenu, onToolReset });
     callbacksRef.current = { onSelectionChange, onContextMenu, onToolReset };
+
+    const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const adminPasswordRef = useRef(adminPassword);
+    adminPasswordRef.current = adminPassword;
+
+    // 서버에서 드로잉 로드
+    const [initialDrawings, setInitialDrawings] = useState<DrawingData[] | null>(null);
+
+    useEffect(() => {
+      setInitialDrawings(null);
+      fetch(`/api/stock/${encodeURIComponent(symbol)}/drawings`)
+        .then((res) => res.json())
+        .then((data) => setInitialDrawings(data.drawings ?? []))
+        .catch(() => setInitialDrawings([]));
+    }, [symbol]);
+
+    // 디바운스 서버 저장
+    const handleSave = useCallback((drawings: DrawingData[]) => {
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = setTimeout(async () => {
+        try {
+          await fetch(`/api/stock/${encodeURIComponent(symbol)}/drawings`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              "x-admin-password": adminPasswordRef.current ?? "",
+            },
+            body: JSON.stringify({ version: 1, drawings }),
+          });
+        } catch { /* 저장 실패 무시 — 다음 저장 시 재시도 */ }
+      }, 300);
+    }, [symbol]);
 
     useImperativeHandle(ref, () => ({
       deleteDrawing: (id: string) => managerRef.current?.deleteDrawing(id),
@@ -105,7 +141,7 @@ export const ChartContainer = forwardRef<ChartContainerHandle, ChartContainerPro
     const rebuildSeries = useCallback(() => {
       const chart = chartRef.current;
       const el = containerRef.current;
-      if (!chart || !el || data.length === 0) return;
+      if (!chart || !el || data.length === 0 || initialDrawings === null) return;
 
       // 기존 시리즈 제거
       for (const s of seriesRefs.current) {
@@ -146,14 +182,17 @@ export const ChartContainer = forwardRef<ChartContainerHandle, ChartContainerPro
             onSelectionChange: (id) => callbacksRef.current.onSelectionChange(id),
             onContextMenu: (x, y, id) => callbacksRef.current.onContextMenu(x, y, id),
             onToolReset: () => callbacksRef.current.onToolReset(),
+            onSave: isAdmin ? handleSave : undefined,
           },
+          initialDrawings,
+          readOnly: !isAdmin,
         });
       } else {
         managerRef.current.reattachAll(candles as ISeriesApi<SeriesType>);
       }
 
       chart.timeScale().fitContent();
-    }, [data, symbol]);
+    }, [data, symbol, initialDrawings, isAdmin, handleSave]);
 
     useEffect(() => {
       rebuildSeries();
