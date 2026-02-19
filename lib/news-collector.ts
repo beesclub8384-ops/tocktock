@@ -113,8 +113,12 @@ async function fetchFeed(name: string, url: string): Promise<NewsItem[]> {
   try {
     const feed = await parser.parseURL(url);
     const items: NewsItem[] = [];
+    const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
 
     for (const entry of feed.items) {
+      const dateStr = entry.isoDate ?? entry.pubDate ?? "";
+      if (dateStr && new Date(dateStr).getTime() < sevenDaysAgo) continue;
+
       const title = entry.title ?? "";
       const summary = stripHtml(
         entry.contentSnippet ?? entry.content ?? entry.summary ?? ""
@@ -123,7 +127,7 @@ async function fetchFeed(name: string, url: string): Promise<NewsItem[]> {
 
       items.push({
         title,
-        date: entry.isoDate ?? entry.pubDate ?? "",
+        date: dateStr,
         link: entry.link ?? "",
         summary: truncate(summary, 300),
         source: name,
@@ -144,7 +148,7 @@ async function fetchFredSeries(
   label: string,
   apiKey: string
 ): Promise<FredSeries> {
-  const limit = 30;
+  const limit = 14;
   const url =
     `${FRED_BASE}?series_id=${seriesId}` +
     `&api_key=${apiKey}` +
