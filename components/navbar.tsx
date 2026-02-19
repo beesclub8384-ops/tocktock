@@ -11,9 +11,6 @@ export function Navbar() {
 
         <nav className="flex items-center gap-1">
           <Button variant="ghost" size="sm" asChild>
-            <Link href="/">홈</Link>
-          </Button>
-          <Button variant="ghost" size="sm" asChild>
             <Link href="/blog">거시전망</Link>
           </Button>
           <Button variant="ghost" size="sm" asChild>
