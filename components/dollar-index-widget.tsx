@@ -48,7 +48,7 @@ export function DollarIndexWidget() {
 
   if (!quote) {
     return (
-      <div className="flex items-center gap-1.5 rounded-md border border-border/60 px-2.5 py-1 text-xs text-muted-foreground">
+      <div className="flex items-center gap-1.5 rounded-md border-2 border-foreground/40 px-2.5 py-1 text-xs text-muted-foreground">
         <span className="font-mono">DXY —</span>
       </div>
     );
@@ -60,7 +60,7 @@ export function DollarIndexWidget() {
   return (
     <Link
       href={`/stock/${SYMBOL}`}
-      className="group flex flex-col items-start rounded-md border border-border/60 px-2.5 py-1 transition-colors hover:bg-accent"
+      className="group flex flex-col items-start rounded-md border-2 border-foreground/40 px-2.5 py-1 transition-colors hover:bg-accent"
     >
       <div className="flex items-center gap-1.5">
         <span className="text-[10px] font-medium text-muted-foreground">DXY</span>
