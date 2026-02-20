@@ -28,7 +28,14 @@
       "WebFetch(domain:www.omi.me)",
       "Bash(npm ls:*)",
       "Bash(node:*)",
-      "Bash(taskkill:*)"
+      "Bash(taskkill:*)",
+      "Bash(npx next build)",
+      "Bash(npx tsc:*)",
+      "Bash(timeout 15 npx next dev:*)",
+      "Bash(cat:*)",
+      "Bash(ls:*)",
+      "Bash(git mv:*)",
+      "Bash(git revert:*)"
     ]
   }
 }

@@ -27,6 +27,9 @@ export function Navbar() {
             <Link href="/fed-rate">연준과 금리</Link>
           </Button>
           <Button variant="ghost" size="sm" asChild>
+            <Link href="/news">뉴스</Link>
+          </Button>
+          <Button variant="ghost" size="sm" asChild>
             <Link href="/economics">경제공부</Link>
           </Button>
           <Button variant="ghost" size="sm" asChild>
