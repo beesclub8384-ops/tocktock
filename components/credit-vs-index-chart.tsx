@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, Fragment } from "react";
+import { ChevronDown } from "lucide-react";
 import {
   createChart,
   ColorType,
@@ -48,6 +49,7 @@ export function CreditVsIndexChart() {
   const [data, setData] = useState<CreditVsIndexItem[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [guideOpen, setGuideOpen] = useState(false);
 
   useEffect(() => {
     async function fetchData() {
@@ -327,6 +329,102 @@ export function CreditVsIndexChart() {
           className="pointer-events-none absolute z-10 hidden rounded-lg border border-border bg-card/95 px-3 py-2 shadow-lg backdrop-blur-sm"
           style={{ fontSize: "12px", lineHeight: "1.5", minWidth: "220px" }}
         />
+      </div>
+
+      {/* 차트 보는 법 아코디언 */}
+      <div className="mt-4 rounded-lg border border-border">
+        <button
+          onClick={() => setGuideOpen((v) => !v)}
+          className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+        >
+          차트 보는 법
+          <ChevronDown
+            size={16}
+            className={`transition-transform duration-200 ${guideOpen ? "rotate-180" : ""}`}
+          />
+        </button>
+
+        {guideOpen && (
+          <div className="border-t border-border px-4 pb-4 pt-3 text-sm leading-relaxed text-muted-foreground">
+            {/* 라인 색상 안내 */}
+            <div className="mb-4">
+              <p className="mb-2 font-medium text-foreground">라인 색상</p>
+              <div className="space-y-1.5">
+                <p className="flex items-center gap-2">
+                  <span
+                    className="inline-block h-2.5 w-2.5 rounded-full"
+                    style={{ backgroundColor: COLORS.kospi }}
+                  />
+                  <strong className="text-blue-400">파란색</strong> — 코스피 지수
+                </p>
+                <p className="flex items-center gap-2">
+                  <span
+                    className="inline-block h-2.5 w-2.5 rounded-full"
+                    style={{ backgroundColor: COLORS.kosdaq }}
+                  />
+                  <strong className="text-green-400">초록색</strong> — 코스닥 지수
+                </p>
+                <p className="flex items-center gap-2">
+                  <span
+                    className="inline-block h-2.5 w-2.5 rounded-full"
+                    style={{ backgroundColor: COLORS.loan }}
+                  />
+                  <strong className="text-red-400">빨간색</strong> — 전체 신용융자잔고
+                </p>
+              </div>
+            </div>
+
+            <hr className="my-4 border-border" />
+
+            {/* % 변화율 설명 */}
+            <div className="mb-4">
+              <p className="mb-2 font-medium text-foreground">% 변화율이란?</p>
+              <p>
+                기간 시작일을 0%로 놓고, 이후 얼마나 올랐는지/내렸는지를
+                보여줍니다. 서로 단위가 다른 지수(포인트)와 융자잔고(억원)를 한
+                차트에서 비교할 수 있습니다.
+              </p>
+            </div>
+
+            <hr className="my-4 border-border" />
+
+            {/* 핵심 해석법 */}
+            <div>
+              <p className="mb-3 font-medium text-foreground">핵심 해석법</p>
+              <div className="space-y-3">
+                <div className="rounded-lg border border-border bg-muted/30 p-3">
+                  <p className="mb-1 text-sm font-semibold text-green-400">
+                    동반 상승
+                  </p>
+                  <p>
+                    빨간색(융자잔고)이 올라갈 때 파란/초록(지수)도 같이 오르면
+                    &rarr; 빚투와 시장이 동반 상승 중입니다. 상승장에서 자주
+                    나타나는 패턴입니다.
+                  </p>
+                </div>
+                <div className="rounded-lg border border-border bg-muted/30 p-3">
+                  <p className="mb-1 text-sm font-semibold text-yellow-400">
+                    위험 신호
+                  </p>
+                  <p>
+                    빨간색은 계속 오르는데 파란/초록이 먼저 꺾이면 &rarr; 위험
+                    신호입니다. 시장은 이미 하락 전환했는데 빚투는 아직 줄지 않은
+                    상태로, 과열 후 조정이 올 수 있습니다.
+                  </p>
+                </div>
+                <div className="rounded-lg border border-border bg-muted/30 p-3">
+                  <p className="mb-1 text-sm font-semibold text-red-400">
+                    하락 가속 주의
+                  </p>
+                  <p>
+                    빨간색이 꺾이기 시작하면 &rarr; 투매(강제청산) 가능성이
+                    있습니다. 반대매매로 주가가 더 떨어지는 악순환에 주의하세요.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
