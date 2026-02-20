@@ -367,7 +367,7 @@ export function CreditBalanceChart() {
     const totalSeries = chart.addSeries(LineSeries, {
       color: LINE_COLORS.total,
       lineWidth: 2,
-      title: "전체",
+      title: "",
     });
     totalSeries.setData(
       data.map((d) => ({ time: d.date as Time, value: d.totalLoan }))
@@ -377,7 +377,7 @@ export function CreditBalanceChart() {
     const kospiSeries = chart.addSeries(LineSeries, {
       color: LINE_COLORS.kospi,
       lineWidth: 2,
-      title: "KOSPI",
+      title: "",
     });
     kospiSeries.setData(
       data.map((d) => ({ time: d.date as Time, value: d.kospiLoan }))
@@ -387,7 +387,7 @@ export function CreditBalanceChart() {
     const kosdaqSeries = chart.addSeries(LineSeries, {
       color: LINE_COLORS.kosdaq,
       lineWidth: 2,
-      title: "KOSDAQ",
+      title: "",
     });
     kosdaqSeries.setData(
       data.map((d) => ({ time: d.date as Time, value: d.kosdaqLoan }))

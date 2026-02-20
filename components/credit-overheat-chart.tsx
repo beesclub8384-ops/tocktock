@@ -353,7 +353,7 @@ export function CreditOverheatChart() {
     const series = chart.addSeries(LineSeries, {
       color: "#a855f7",
       lineWidth: 2,
-      title: "과열지수",
+      title: "",
       priceFormat: {
         type: "custom",
         formatter: (price: number) => price.toFixed(3) + "%",
@@ -371,7 +371,7 @@ export function CreditOverheatChart() {
       lineWidth: 1,
       lineStyle: 1, // dashed
       axisLabelVisible: true,
-      title: "주의",
+      title: "",
     });
 
     // 위험선 (평균 + 1σ)
@@ -381,7 +381,7 @@ export function CreditOverheatChart() {
       lineWidth: 1,
       lineStyle: 1,
       axisLabelVisible: true,
-      title: "위험",
+      title: "",
     });
 
     chart.timeScale().fitContent();
