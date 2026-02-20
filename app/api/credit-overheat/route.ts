@@ -11,17 +11,16 @@ const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
 
 export const revalidate = 3600;
 
+const DATA_START = "2021-11-01";
+
 interface ChartQuote {
   date: Date;
   close: number | null;
 }
 
 async function fetchIndexClose(symbol: string): Promise<Map<string, number>> {
-  const period1 = new Date();
-  period1.setMonth(period1.getMonth() - 6);
-
   const result = await yahooFinance.chart(symbol, {
-    period1,
+    period1: DATA_START,
     interval: "1d",
     return: "array",
   } as Parameters<typeof yahooFinance.chart>[1]);
@@ -43,9 +42,10 @@ async function fetchIndexClose(symbol: string): Promise<Map<string, number>> {
 async function buildFromMarketCap(
   creditData: Awaited<ReturnType<typeof fetchCreditBalanceData>>
 ): Promise<{ joined: OverheatIndexItem[]; source: "marketCap" }> {
+  const mcOptions = { beginBasDt: DATA_START.replace(/-/g, ""), numOfRows: 1200 };
   const [kospiCaps, kosdaqCaps] = await Promise.all([
-    fetchMarketCap("코스피"),
-    fetchMarketCap("코스닥"),
+    fetchMarketCap("코스피", mcOptions),
+    fetchMarketCap("코스닥", mcOptions),
   ]);
 
   // marketCap은 조원 단위 → ×10000으로 억원 환산
@@ -97,7 +97,10 @@ async function buildFromIndexClose(
 
 export async function GET() {
   try {
-    const creditData = await fetchCreditBalanceData();
+    const creditData = await fetchCreditBalanceData({
+      beginBasDt: DATA_START.replace(/-/g, ""),
+      numOfRows: 1200,
+    });
 
     // 1차: 시가총액 기반, 실패 시 2차: 지수 종가 fallback
     let joined: OverheatIndexItem[];

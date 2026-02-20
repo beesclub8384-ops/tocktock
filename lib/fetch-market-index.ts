@@ -40,29 +40,39 @@ function toJoWon(val?: string): number {
   return Math.round(n / 1_000_000_000_000 * 10) / 10; // 원 → 조원 (소수점 1자리)
 }
 
+export interface FetchMarketCapOptions {
+  beginBasDt?: string;  // YYYYMMDD, default: 6개월 전
+  numOfRows?: number;   // default: 200
+}
+
 /**
  * 특정 지수의 일별 상장시가총액을 조회
  * @param idxNm "코스피" 또는 "코스닥"
  */
 export async function fetchMarketCap(
-  idxNm: "코스피" | "코스닥"
+  idxNm: "코스피" | "코스닥",
+  options?: FetchMarketCapOptions
 ): Promise<MarketIndexItem[]> {
   const apiKey = process.env.DATA_GO_KR_API_KEY;
   if (!apiKey) {
     throw new Error("API key not configured");
   }
 
-  const now = new Date();
-  const sixMonthsAgo = new Date(now);
-  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-  const beginBasDt = sixMonthsAgo.toISOString().slice(0, 10).replace(/-/g, "");
+  let beginBasDt = options?.beginBasDt;
+  if (!beginBasDt) {
+    const now = new Date();
+    const sixMonthsAgo = new Date(now);
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    beginBasDt = sixMonthsAgo.toISOString().slice(0, 10).replace(/-/g, "");
+  }
+  const numOfRows = options?.numOfRows ?? 200;
 
   const url = new URL(
     "https://apis.data.go.kr/1160100/service/GetMarketIndexInfoService/getStockMarketIndex"
   );
   url.searchParams.set("serviceKey", apiKey);
   url.searchParams.set("resultType", "json");
-  url.searchParams.set("numOfRows", "200");
+  url.searchParams.set("numOfRows", String(numOfRows));
   url.searchParams.set("beginBasDt", beginBasDt);
   url.searchParams.set("idxNm", idxNm);
 
