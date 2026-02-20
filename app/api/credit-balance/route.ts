@@ -3,11 +3,11 @@ import type { CreditBalanceItem } from "@/lib/types/credit-balance";
 
 interface ApiItem {
   basDt?: string;
-  crdtLnTotAmt?: string;
-  stkmkCrdtLnAmt?: string;
-  kosdaqCrdtLnAmt?: string;
-  lrgscStckBrrwTotAmt?: string;
-  dpstScrtsDpstLnAmt?: string;
+  crdTrFingWhl?: string;       // 신용융자 전체
+  crdTrFingScrs?: string;      // 유가증권 융자
+  crdTrFingKosdaq?: string;    // 코스닥 융자
+  crdTrLndrWhl?: string;       // 대주 전체
+  dpsgScrtMogFing?: string;    // 예탁증권담보융자
 }
 
 interface ApiResponse {
@@ -29,10 +29,11 @@ function formatDate(yyyymmdd: string): string {
   return `${yyyymmdd.slice(0, 4)}-${yyyymmdd.slice(4, 6)}-${yyyymmdd.slice(6, 8)}`;
 }
 
-function parseNumber(val?: string): number {
+function toEok(val?: string): number {
   if (!val) return 0;
   const n = Number(val.replace(/,/g, ""));
-  return isNaN(n) ? 0 : n;
+  if (isNaN(n)) return 0;
+  return Math.round(n / 100_000_000); // 원 → 억원
 }
 
 export async function GET() {
@@ -77,11 +78,11 @@ export async function GET() {
       .filter((item) => item.basDt)
       .map((item) => ({
         date: formatDate(item.basDt!),
-        totalLoan: parseNumber(item.crdtLnTotAmt),
-        kospiLoan: parseNumber(item.stkmkCrdtLnAmt),
-        kosdaqLoan: parseNumber(item.kosdaqCrdtLnAmt),
-        totalShortSell: parseNumber(item.lrgscStckBrrwTotAmt),
-        depositLoan: parseNumber(item.dpstScrtsDpstLnAmt),
+        totalLoan: toEok(item.crdTrFingWhl),
+        kospiLoan: toEok(item.crdTrFingScrs),
+        kosdaqLoan: toEok(item.crdTrFingKosdaq),
+        totalShortSell: toEok(item.crdTrLndrWhl),
+        depositLoan: toEok(item.dpsgScrtMogFing),
       }))
       .sort((a, b) => a.date.localeCompare(b.date));
 
