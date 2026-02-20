@@ -6,17 +6,17 @@ const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
 
 export const revalidate = 3600;
 
+// 신용융자잔고 API 최초 데이터: 2021-11-09
+const DATA_START = "2021-11-01";
+
 interface ChartQuote {
   date: Date;
   close: number | null;
 }
 
 async function fetchIndexClose(symbol: string): Promise<Map<string, number>> {
-  const period1 = new Date();
-  period1.setMonth(period1.getMonth() - 6);
-
   const result = await yahooFinance.chart(symbol, {
-    period1,
+    period1: DATA_START,
     interval: "1d",
     return: "array",
   } as Parameters<typeof yahooFinance.chart>[1]);
@@ -46,7 +46,10 @@ export interface CreditVsIndexItem {
 export async function GET() {
   try {
     const [creditData, kospiMap, kosdaqMap] = await Promise.all([
-      fetchCreditBalanceData(),
+      fetchCreditBalanceData({
+        beginBasDt: DATA_START.replace(/-/g, ""),
+        numOfRows: 1200,
+      }),
       fetchIndexClose("^KS11"),
       fetchIndexClose("^KQ11"),
     ]);

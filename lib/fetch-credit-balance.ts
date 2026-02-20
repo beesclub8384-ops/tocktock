@@ -35,23 +35,34 @@ function toEok(val?: string): number {
   return Math.round(n / 100_000_000);
 }
 
-export async function fetchCreditBalanceData(): Promise<CreditBalanceItem[]> {
+export interface FetchCreditBalanceOptions {
+  beginBasDt?: string;  // YYYYMMDD, default: 6개월 전
+  numOfRows?: number;   // default: 200
+}
+
+export async function fetchCreditBalanceData(
+  options?: FetchCreditBalanceOptions
+): Promise<CreditBalanceItem[]> {
   const apiKey = process.env.DATA_GO_KR_API_KEY;
   if (!apiKey) {
     throw new Error("API key not configured");
   }
 
-  const now = new Date();
-  const sixMonthsAgo = new Date(now);
-  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-  const beginBasDt = sixMonthsAgo.toISOString().slice(0, 10).replace(/-/g, "");
+  let beginBasDt = options?.beginBasDt;
+  if (!beginBasDt) {
+    const now = new Date();
+    const sixMonthsAgo = new Date(now);
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    beginBasDt = sixMonthsAgo.toISOString().slice(0, 10).replace(/-/g, "");
+  }
+  const numOfRows = options?.numOfRows ?? 200;
 
   const url = new URL(
     "https://apis.data.go.kr/1160100/service/GetKofiaStatisticsInfoService/getGrantingOfCreditBalanceInfo"
   );
   url.searchParams.set("serviceKey", apiKey);
   url.searchParams.set("resultType", "json");
-  url.searchParams.set("numOfRows", "200");
+  url.searchParams.set("numOfRows", String(numOfRows));
   url.searchParams.set("beginBasDt", beginBasDt);
 
   const res = await fetch(url.toString(), { next: { revalidate: 3600 } });
