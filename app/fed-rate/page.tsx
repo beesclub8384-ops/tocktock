@@ -10,7 +10,7 @@ export default function FedRatePage() {
   const posts = getSortedPostsData("fed-rate");
 
   return (
-    <div className="mx-auto max-w-2xl px-6 py-20">
+    <div className="max-w-3xl px-8 py-20">
       <header className="mb-16">
         <h1 className="text-4xl font-bold tracking-tight">연준과 금리</h1>
       </header>

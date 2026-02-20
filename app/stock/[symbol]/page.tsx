@@ -8,7 +8,7 @@ export default async function StockPage({
   const { symbol } = await params;
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-10">
+    <div className="max-w-5xl px-8 py-10">
       <StockChart symbol={symbol.toUpperCase()} />
     </div>
   );

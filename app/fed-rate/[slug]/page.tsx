@@ -28,7 +28,7 @@ export default async function PostPage({
   const post = await getPostData("fed-rate", slug);
 
   return (
-    <article className="mx-auto max-w-2xl px-6 py-20">
+    <article className="max-w-3xl px-8 py-20">
       <nav className="mb-10">
         <Link
           href="/fed-rate"
