@@ -36,7 +36,9 @@
       "Bash(ls:*)",
       "Bash(git mv:*)",
       "Bash(git revert:*)",
-      "Bash(npx tsx:*)"
+      "Bash(npx tsx:*)",
+      "WebFetch(domain:www.data.go.kr)",
+      "WebFetch(domain:freesis.kofia.or.kr)"
     ]
   }
 }
