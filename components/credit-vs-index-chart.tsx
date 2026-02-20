@@ -6,29 +6,48 @@ import {
   ColorType,
   LineSeries,
   type IChartApi,
+  type ISeriesApi,
   type Time,
+  type SeriesType,
 } from "lightweight-charts";
 import type { CreditVsIndexItem } from "@/app/api/credit-vs-index/route";
 
-type Mode = "kospi" | "kosdaq";
-
 const COLORS = {
-  index: "#3b82f6",  // blue — 지수
-  loan: "#ef4444",   // red — 신용융자
+  kospi: "#3b82f6",   // blue
+  kosdaq: "#22c55e",  // green
+  loan: "#ef4444",    // red
 } as const;
 
-const MODE_LABELS: Record<Mode, { index: string; loan: string }> = {
-  kospi: { index: "코스피 지수", loan: "코스피 신용융자" },
-  kosdaq: { index: "코스닥 지수", loan: "코스닥 신용융자" },
-};
+function pctChange(base: number, current: number): number {
+  if (base === 0) return 0;
+  return ((current - base) / base) * 100;
+}
+
+interface TooltipData {
+  date: string;
+  kospiClose: number;
+  kospiPct: number;
+  kosdaqClose: number;
+  kosdaqPct: number;
+  totalLoan: number;
+  loanPct: number;
+}
 
 export function CreditVsIndexChart() {
   const containerRef = useRef<HTMLDivElement>(null);
+  const tooltipRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
+  const seriesMapRef = useRef<Map<ISeriesApi<SeriesType>, string>>(new Map());
+  const rawDataRef = useRef<Map<string, CreditVsIndexItem>>(new Map());
+  const baseRef = useRef<{ kospi: number; kosdaq: number; loan: number }>({
+    kospi: 0,
+    kosdaq: 0,
+    loan: 0,
+  });
+
   const [data, setData] = useState<CreditVsIndexItem[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [mode, setMode] = useState<Mode>("kospi");
 
   useEffect(() => {
     async function fetchData() {
@@ -50,11 +69,25 @@ export function CreditVsIndexChart() {
     const el = containerRef.current;
     if (!el || !data || data.length === 0) return;
 
-    // 기존 차트 제거
     if (chartRef.current) {
       chartRef.current.remove();
       chartRef.current = null;
     }
+
+    // 기준값 (시작일)
+    const first = data[0];
+    baseRef.current = {
+      kospi: first.kospiClose,
+      kosdaq: first.kosdaqClose,
+      loan: first.totalLoan,
+    };
+
+    // raw 데이터 맵
+    const rawMap = new Map<string, CreditVsIndexItem>();
+    for (const d of data) {
+      rawMap.set(d.date, d);
+    }
+    rawDataRef.current = rawMap;
 
     const chart = createChart(el, {
       layout: {
@@ -69,50 +102,159 @@ export function CreditVsIndexChart() {
       height: 400,
       timeScale: { borderColor: "#3f3f46", timeVisible: false },
       rightPriceScale: { borderColor: "#3f3f46" },
-      leftPriceScale: { borderColor: "#3f3f46", visible: true },
-    });
-
-    chartRef.current = chart;
-
-    // 왼쪽 Y축: 지수 (파란색)
-    const indexSeries = chart.addSeries(LineSeries, {
-      color: COLORS.index,
-      lineWidth: 2,
-      title: "",
-      priceScaleId: "left",
-      priceFormat: {
-        type: "custom",
-        formatter: (price: number) => price.toFixed(0),
+      crosshair: {
+        vertLine: { labelVisible: true },
+        horzLine: { labelVisible: true },
+      },
+      localization: {
+        priceFormatter: (price: number) => price.toFixed(2) + "%",
       },
     });
 
-    // 오른쪽 Y축: 신용융자 (빨간색)
+    chartRef.current = chart;
+    const newSeriesMap = new Map<ISeriesApi<SeriesType>, string>();
+
+    const pctFormat = {
+      type: "custom" as const,
+      formatter: (price: number) => price.toFixed(2) + "%",
+    };
+
+    // 코스피 지수 변화율
+    const kospiSeries = chart.addSeries(LineSeries, {
+      color: COLORS.kospi,
+      lineWidth: 2,
+      title: "",
+      priceFormat: pctFormat,
+    });
+    kospiSeries.setData(
+      data.map((d) => ({
+        time: d.date as Time,
+        value: pctChange(first.kospiClose, d.kospiClose),
+      }))
+    );
+    newSeriesMap.set(kospiSeries as ISeriesApi<SeriesType>, "kospi");
+
+    // 코스닥 지수 변화율
+    const kosdaqSeries = chart.addSeries(LineSeries, {
+      color: COLORS.kosdaq,
+      lineWidth: 2,
+      title: "",
+      priceFormat: pctFormat,
+    });
+    kosdaqSeries.setData(
+      data.map((d) => ({
+        time: d.date as Time,
+        value: pctChange(first.kosdaqClose, d.kosdaqClose),
+      }))
+    );
+    newSeriesMap.set(kosdaqSeries as ISeriesApi<SeriesType>, "kosdaq");
+
+    // 전체 신용융자잔고 변화율
     const loanSeries = chart.addSeries(LineSeries, {
       color: COLORS.loan,
       lineWidth: 2,
       title: "",
-      priceScaleId: "right",
-      priceFormat: {
-        type: "custom",
-        formatter: (price: number) => price.toLocaleString() + "억",
-      },
+      priceFormat: pctFormat,
+    });
+    loanSeries.setData(
+      data.map((d) => ({
+        time: d.date as Time,
+        value: pctChange(first.totalLoan, d.totalLoan),
+      }))
+    );
+    newSeriesMap.set(loanSeries as ISeriesApi<SeriesType>, "loan");
+
+    seriesMapRef.current = newSeriesMap;
+
+    // 0% 기준선
+    kospiSeries.createPriceLine({
+      price: 0,
+      color: "#52525b",
+      lineWidth: 1,
+      lineStyle: 1,
+      axisLabelVisible: false,
+      title: "",
     });
 
-    if (mode === "kospi") {
-      indexSeries.setData(
-        data.map((d) => ({ time: d.date as Time, value: d.kospiClose }))
-      );
-      loanSeries.setData(
-        data.map((d) => ({ time: d.date as Time, value: d.kospiLoan }))
-      );
-    } else {
-      indexSeries.setData(
-        data.map((d) => ({ time: d.date as Time, value: d.kosdaqClose }))
-      );
-      loanSeries.setData(
-        data.map((d) => ({ time: d.date as Time, value: d.kosdaqLoan }))
-      );
-    }
+    // 커스텀 툴팁
+    chart.subscribeCrosshairMove((param) => {
+      const tooltip = tooltipRef.current;
+      if (!tooltip || !el) return;
+
+      if (
+        !param.time ||
+        param.point === undefined ||
+        param.point.x < 0 ||
+        param.point.y < 0
+      ) {
+        tooltip.style.display = "none";
+        return;
+      }
+
+      const dateStr = param.time as string;
+      const raw = rawDataRef.current.get(dateStr);
+      if (!raw) {
+        tooltip.style.display = "none";
+        return;
+      }
+
+      const base = baseRef.current;
+      const info: TooltipData = {
+        date: dateStr,
+        kospiClose: raw.kospiClose,
+        kospiPct: pctChange(base.kospi, raw.kospiClose),
+        kosdaqClose: raw.kosdaqClose,
+        kosdaqPct: pctChange(base.kosdaq, raw.kosdaqClose),
+        totalLoan: raw.totalLoan,
+        loanPct: pctChange(base.loan, raw.totalLoan),
+      };
+
+      const fmtPct = (v: number) =>
+        (v >= 0 ? "+" : "") + v.toFixed(2) + "%";
+      const pctColor = (v: number) =>
+        v > 0 ? "#ef4444" : v < 0 ? "#3b82f6" : "#a1a1aa";
+
+      tooltip.innerHTML = `
+        <div style="font-size:11px;color:#a1a1aa;margin-bottom:4px">${info.date}</div>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+          <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${COLORS.kospi}"></span>
+          <span style="color:#e4e4e7">코스피</span>
+          <span style="color:#e4e4e7;margin-left:auto">${info.kospiClose.toFixed(2)}</span>
+          <span style="color:${pctColor(info.kospiPct)};min-width:60px;text-align:right">${fmtPct(info.kospiPct)}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+          <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${COLORS.kosdaq}"></span>
+          <span style="color:#e4e4e7">코스닥</span>
+          <span style="color:#e4e4e7;margin-left:auto">${info.kosdaqClose.toFixed(2)}</span>
+          <span style="color:${pctColor(info.kosdaqPct)};min-width:60px;text-align:right">${fmtPct(info.kosdaqPct)}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${COLORS.loan}"></span>
+          <span style="color:#e4e4e7">신용융자</span>
+          <span style="color:#e4e4e7;margin-left:auto">${info.totalLoan.toLocaleString()}억</span>
+          <span style="color:${pctColor(info.loanPct)};min-width:60px;text-align:right">${fmtPct(info.loanPct)}</span>
+        </div>
+      `;
+
+      tooltip.style.display = "block";
+
+      const chartRect = el.getBoundingClientRect();
+      const tooltipWidth = tooltip.offsetWidth;
+      const tooltipHeight = tooltip.offsetHeight;
+
+      let left = param.point.x + 16;
+      if (left + tooltipWidth > chartRect.width) {
+        left = param.point.x - tooltipWidth - 16;
+      }
+      let top = param.point.y - tooltipHeight / 2;
+      if (top < 0) top = 0;
+      if (top + tooltipHeight > chartRect.height) {
+        top = chartRect.height - tooltipHeight;
+      }
+
+      tooltip.style.left = left + "px";
+      tooltip.style.top = top + "px";
+    });
 
     chart.timeScale().fitContent();
 
@@ -124,7 +266,7 @@ export function CreditVsIndexChart() {
       chart.remove();
       chartRef.current = null;
     };
-  }, [data, mode]);
+  }, [data]);
 
   useEffect(() => {
     const cleanup = buildChart();
@@ -147,55 +289,45 @@ export function CreditVsIndexChart() {
     );
   }
 
-  const labels = MODE_LABELS[mode];
-
   return (
     <div className="rounded-xl border border-border bg-card p-6">
-      {/* 상단: 토글 + 범례 */}
-      <div className="mb-4 flex flex-wrap items-center gap-3 text-sm">
-        {/* 토글 버튼 */}
-        <div className="inline-flex rounded-lg border border-border">
-          <button
-            onClick={() => setMode("kospi")}
-            className={`rounded-l-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-              mode === "kospi"
-                ? "bg-blue-600 text-white"
-                : "bg-transparent text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            코스피
-          </button>
-          <button
-            onClick={() => setMode("kosdaq")}
-            className={`rounded-r-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-              mode === "kosdaq"
-                ? "bg-blue-600 text-white"
-                : "bg-transparent text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            코스닥
-          </button>
-        </div>
-
-        {/* 범례 */}
+      {/* 범례 */}
+      <div className="mb-4 flex flex-wrap items-center gap-4 text-sm">
         <span className="flex items-center gap-1.5">
           <span
             className="inline-block h-2.5 w-2.5 rounded-full"
-            style={{ backgroundColor: COLORS.index }}
+            style={{ backgroundColor: COLORS.kospi }}
           />
-          {labels.index} (좌축)
+          코스피 지수
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span
+            className="inline-block h-2.5 w-2.5 rounded-full"
+            style={{ backgroundColor: COLORS.kosdaq }}
+          />
+          코스닥 지수
         </span>
         <span className="flex items-center gap-1.5">
           <span
             className="inline-block h-2.5 w-2.5 rounded-full"
             style={{ backgroundColor: COLORS.loan }}
           />
-          {labels.loan} (우축, 억원)
+          전체 신용융자잔고
+        </span>
+        <span className="ml-auto text-xs text-muted-foreground">
+          기간 시작일 대비 변화율 (%)
         </span>
       </div>
 
-      {/* 차트 */}
-      <div ref={containerRef} className="w-full overflow-hidden rounded-lg" />
+      {/* 차트 + 툴팁 */}
+      <div className="relative w-full overflow-hidden rounded-lg">
+        <div ref={containerRef} className="w-full" />
+        <div
+          ref={tooltipRef}
+          className="pointer-events-none absolute z-10 hidden rounded-lg border border-border bg-card/95 px-3 py-2 shadow-lg backdrop-blur-sm"
+          style={{ fontSize: "12px", lineHeight: "1.5", minWidth: "220px" }}
+        />
+      </div>
     </div>
   );
 }
