@@ -121,35 +121,13 @@ export function InvestmentQuoteBanner() {
     return INVESTMENT_QUOTES[Math.floor(Math.random() * INVESTMENT_QUOTES.length)];
   }, []);
 
-  const text = `\u201c${quote}\u201d \u2014 ${author}`;
-
   return (
-    <div className="w-full overflow-hidden bg-[#0a0a0a] py-1.5">
-      <div className="marquee-wrap">
-        <p className="marquee-text text-sm font-semibold tracking-wide">
-          <span className="text-[#39ff14]">{text}</span>
-          <span className="mx-16 text-[#39ff14]/40" aria-hidden="true">|</span>
-          <span className="text-[#39ff14]" aria-hidden="true">{text}</span>
-          <span className="mx-16 text-[#39ff14]/40" aria-hidden="true">|</span>
+    <div className="w-full border-b border-border/30 bg-muted/30">
+      <div className="mx-auto max-w-5xl px-6 py-1.5">
+        <p className="text-center text-xs text-muted-foreground">
+          &ldquo;{quote}&rdquo; — <span className="font-medium">{author}</span>
         </p>
       </div>
-
-      <style jsx>{`
-        .marquee-wrap {
-          display: flex;
-          width: max-content;
-        }
-        .marquee-text {
-          display: flex;
-          align-items: center;
-          white-space: nowrap;
-          animation: marquee 22s linear infinite;
-        }
-        @keyframes marquee {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(-50%); }
-        }
-      `}</style>
     </div>
   );
 }
