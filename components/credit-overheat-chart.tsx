@@ -155,7 +155,7 @@ export function CreditOverheatChart() {
             className="inline-block h-2.5 w-2.5 rounded-full"
             style={{ backgroundColor: "#a855f7" }}
           />
-          과열지수 = 융자잔고(억) / (KOSPI + KOSDAQ)
+          과열지수 = 융자잔고(억) / 시가총액(조)
         </span>
       </div>
     </div>

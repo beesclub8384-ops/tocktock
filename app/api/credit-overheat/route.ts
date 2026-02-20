@@ -1,63 +1,37 @@
 import { NextResponse } from "next/server";
-import YahooFinance from "yahoo-finance2";
 import { fetchCreditBalanceData } from "@/lib/fetch-credit-balance";
+import { fetchMarketCap } from "@/lib/fetch-market-index";
 import type { OverheatIndexResponse } from "@/lib/types/credit-balance";
-
-const yahooFinance = new YahooFinance();
 
 export const revalidate = 3600;
 
-interface ChartQuote {
-  date: Date;
-  close: number | null;
-}
-
-async function fetchIndexClose(symbol: string): Promise<Map<string, number>> {
-  const period1 = new Date();
-  period1.setMonth(period1.getMonth() - 6);
-
-  const result = await yahooFinance.chart(symbol, {
-    period1,
-    interval: "1d",
-    return: "array",
-  } as Parameters<typeof yahooFinance.chart>[1]);
-
-  const quotes = (result as unknown as { quotes: ChartQuote[] }).quotes;
-  const map = new Map<string, number>();
-
-  for (const q of quotes) {
-    if (q.close != null) {
-      const dateStr = new Date(q.date).toISOString().split("T")[0];
-      map.set(dateStr, q.close);
-    }
-  }
-
-  return map;
-}
-
 export async function GET() {
   try {
-    const [creditData, kospiMap, kosdaqMap] = await Promise.all([
+    const [creditData, kospiCaps, kosdaqCaps] = await Promise.all([
       fetchCreditBalanceData(),
-      fetchIndexClose("^KS11"),
-      fetchIndexClose("^KQ11"),
+      fetchMarketCap("코스피"),
+      fetchMarketCap("코스닥"),
     ]);
 
+    // Map date → marketCap (조원)
+    const kospiMap = new Map(kospiCaps.map((d) => [d.date, d.marketCap]));
+    const kosdaqMap = new Map(kosdaqCaps.map((d) => [d.date, d.marketCap]));
+
     // inner join by date
+    // 과열지수 = totalLoan(억원) / (KOSPI시총 + KOSDAQ시총)(조원)
     const joined = creditData
       .filter((c) => kospiMap.has(c.date) && kosdaqMap.has(c.date))
-      .map((c) => ({
-        date: c.date,
-        index:
-          Math.round(
-            (c.totalLoan / (kospiMap.get(c.date)! + kosdaqMap.get(c.date)!)) *
-              10
-          ) / 10,
-      }));
+      .map((c) => {
+        const totalMarketCap = kospiMap.get(c.date)! + kosdaqMap.get(c.date)!;
+        return {
+          date: c.date,
+          index: Math.round((c.totalLoan / totalMarketCap) * 100) / 100,
+        };
+      });
 
     if (joined.length === 0) {
       return NextResponse.json(
-        { error: "No overlapping data between credit and index" },
+        { error: "No overlapping data between credit and market cap" },
         { status: 500 }
       );
     }
@@ -68,8 +42,8 @@ export async function GET() {
     const variance =
       values.reduce((a, b) => a + (b - mean) ** 2, 0) / values.length;
     const std = Math.sqrt(variance);
-    const cautionLine = Math.round(mean * 10) / 10;
-    const dangerLine = Math.round((mean + std) * 10) / 10;
+    const cautionLine = Math.round(mean * 100) / 100;
+    const dangerLine = Math.round((mean + std) * 100) / 100;
 
     const current = values[values.length - 1];
     let status: "safe" | "caution" | "danger";
@@ -84,11 +58,11 @@ export async function GET() {
     const response: OverheatIndexResponse = {
       data: joined,
       stats: {
-        mean: Math.round(mean * 10) / 10,
-        std: Math.round(std * 10) / 10,
+        mean: Math.round(mean * 100) / 100,
+        std: Math.round(std * 100) / 100,
         cautionLine,
         dangerLine,
-        current: Math.round(current * 10) / 10,
+        current: Math.round(current * 100) / 100,
         status,
       },
     };
