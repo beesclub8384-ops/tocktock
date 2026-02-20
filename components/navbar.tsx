@@ -15,6 +15,9 @@ export function Navbar() {
 
         <nav className="flex items-center gap-1">
           <Button variant="ghost" size="sm" asChild>
+            <Link href="/news">뉴스</Link>
+          </Button>
+          <Button variant="ghost" size="sm" asChild>
             <Link href="/blog">거시전망</Link>
           </Button>
           <Button variant="ghost" size="sm" asChild>
@@ -25,9 +28,6 @@ export function Navbar() {
           </Button>
           <Button variant="ghost" size="sm" asChild>
             <Link href="/fed-rate">연준과 금리</Link>
-          </Button>
-          <Button variant="ghost" size="sm" asChild>
-            <Link href="/news">뉴스</Link>
           </Button>
           <Button variant="ghost" size="sm" asChild>
             <Link href="/economics">경제공부</Link>
