@@ -155,9 +155,16 @@ export function CreditOverheatChart() {
             className="inline-block h-2.5 w-2.5 rounded-full"
             style={{ backgroundColor: "#a855f7" }}
           />
-          과열지수 = 융자잔고(억) / 시가총액(조)
+          {response.source === "marketCap"
+            ? "과열지수 = 융자잔고(억) / 시가총액(조)"
+            : "과열지수 = 융자잔고(억) / 지수합계 (근사치)"}
         </span>
       </div>
+      {response.source === "indexClose" && (
+        <p className="mt-2 text-[11px] text-muted-foreground/60">
+          * 시가총액 API 미연결 상태로 지수 종가 기반 근사치를 표시합니다.
+        </p>
+      )}
     </div>
   );
 }

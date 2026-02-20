@@ -22,4 +22,5 @@ export interface OverheatIndexResponse {
     current: number;        // 최신 과열지수
     status: "safe" | "caution" | "danger";
   };
+  source: "marketCap" | "indexClose"; // 데이터 소스 (시가총액 vs 지수종가 fallback)
 }
