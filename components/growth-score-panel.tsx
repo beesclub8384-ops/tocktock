@@ -477,11 +477,11 @@ export function GrowthScorePanel() {
   const showDropdown = isOpen && query.length > 0;
 
   return (
-    <div className="rounded-xl border border-border bg-card p-6">
-      <h2 className="mb-4 text-lg font-semibold">성장성 종합 점수</h2>
+    <div className="rounded-xl border border-border bg-card p-3">
+      <h2 className="mb-3 text-sm font-semibold">성장성 종합 점수</h2>
 
       {/* 검색창 */}
-      <div ref={containerRef} className="relative mb-6">
+      <div ref={containerRef} className="relative mb-4">
         <div className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2">
           <Search size={16} className="shrink-0 text-muted-foreground" />
           <input
@@ -496,7 +496,7 @@ export function GrowthScorePanel() {
               if (query.length > 0) setIsOpen(true);
             }}
             onKeyDown={handleKeyDown}
-            placeholder="종목 검색 (예: AAPL, TSLA, 005930.KS)"
+            placeholder="종목 검색 (예: AAPL)"
             className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
           />
         </div>
@@ -540,7 +540,7 @@ export function GrowthScorePanel() {
 
       {/* 로딩 */}
       {scoreLoading && (
-        <div className="flex items-center justify-center gap-2 py-12 text-muted-foreground">
+        <div className="flex items-center justify-center gap-2 py-6 text-muted-foreground">
           <Loader2 size={20} className="animate-spin" />
           <span className="text-sm">
             {selectedSymbol} 성장 점수 계산 중...
@@ -562,18 +562,18 @@ export function GrowthScorePanel() {
           ) : (
             <>
               {/* 종합 점수 */}
-              <div className="mb-6 text-center">
-                <p className="mb-1 text-sm text-muted-foreground">
+              <div className="mb-4 text-center">
+                <p className="mb-1 text-xs text-muted-foreground">
                   {scoreResult.symbol} 종합 성장 점수
                   {scoreResult.dataYears &&
                     ` (${scoreResult.dataYears.previous} → ${scoreResult.dataYears.latest})`}
                 </p>
                 <p
-                  className={`text-6xl font-extrabold tabular-nums ${scoreColor(scoreResult.totalScore!)}`}
+                  className={`text-4xl font-extrabold tabular-nums ${scoreColor(scoreResult.totalScore!)}`}
                 >
                   {scoreResult.totalScore!.toFixed(1)}
                 </p>
-                <p className="mt-1 text-xs text-muted-foreground">/ 100</p>
+                <p className="mt-0.5 text-[10px] text-muted-foreground">/ 100</p>
                 <button
                   onClick={() => setGuideOpen(true)}
                   className="guide-btn mt-3 inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs transition-all"
@@ -584,7 +584,7 @@ export function GrowthScorePanel() {
               </div>
 
               {/* 지표별 막대그래프 */}
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {scoreResult.metrics.map((m) => (
                   <div key={m.name}>
                     <div className="mb-1 flex items-center justify-between text-sm">
@@ -606,7 +606,7 @@ export function GrowthScorePanel() {
                         </span>
                       )}
                     </div>
-                    <div className="h-3 w-full overflow-hidden rounded-full bg-muted">
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
                       {m.score != null ? (
                         <div
                           className={`h-full rounded-full transition-all duration-500 ${barColor(m.score)}`}
@@ -633,7 +633,7 @@ export function GrowthScorePanel() {
 
       {/* 초기 상태 */}
       {!scoreLoading && !scoreResult && (
-        <div className="py-8 text-center">
+        <div className="py-4 text-center">
           <p className="text-sm text-muted-foreground">
             종목을 검색하면 5가지 재무 지표 기반 성장성 점수를 확인할 수 있습니다.
           </p>
