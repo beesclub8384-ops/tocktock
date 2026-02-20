@@ -12,6 +12,7 @@ import {
   type SeriesType,
 } from "lightweight-charts";
 import type { CreditVsIndexItem } from "@/app/api/credit-vs-index/route";
+import { CreditVsIndexAnalysis } from "@/components/credit-vs-index-analysis";
 
 const COLORS = {
   kospi: "#3b82f6",   // blue
@@ -330,6 +331,9 @@ export function CreditVsIndexChart() {
           style={{ fontSize: "12px", lineHeight: "1.5", minWidth: "220px" }}
         />
       </div>
+
+      {/* 분석 결과 */}
+      <CreditVsIndexAnalysis />
 
       {/* 차트 보는 법 아코디언 */}
       <div className="mt-4 rounded-lg border border-border">
