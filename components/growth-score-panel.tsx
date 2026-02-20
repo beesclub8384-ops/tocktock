@@ -496,7 +496,7 @@ export function GrowthScorePanel() {
               if (query.length > 0) setIsOpen(true);
             }}
             onKeyDown={handleKeyDown}
-            placeholder="종목 검색 (예: AAPL)"
+            placeholder="종목 검색 (예: 삼성전자, AAPL, 005930)"
             className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
           />
         </div>
