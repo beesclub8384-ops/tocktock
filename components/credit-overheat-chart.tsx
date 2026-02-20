@@ -16,6 +16,10 @@ const STATUS_LABELS: Record<string, { text: string; color: string }> = {
   danger: { text: "위험 구간", color: "#ef4444" },
 };
 
+function fmt(v: number): string {
+  return v.toFixed(3) + "%";
+}
+
 export function CreditOverheatChart() {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -55,7 +59,12 @@ export function CreditOverheatChart() {
       width: el.clientWidth,
       height: 300,
       timeScale: { borderColor: "#3f3f46", timeVisible: false },
-      rightPriceScale: { borderColor: "#3f3f46" },
+      rightPriceScale: {
+        borderColor: "#3f3f46",
+      },
+      localization: {
+        priceFormatter: (price: number) => price.toFixed(3) + "%",
+      },
     });
 
     chartRef.current = chart;
@@ -64,6 +73,10 @@ export function CreditOverheatChart() {
       color: "#a855f7",
       lineWidth: 2,
       title: "과열지수",
+      priceFormat: {
+        type: "custom",
+        formatter: (price: number) => price.toFixed(3) + "%",
+      },
     });
 
     series.setData(
@@ -126,7 +139,7 @@ export function CreditOverheatChart() {
       {/* 상단: 현재 상태 */}
       <div className="mb-4 text-sm">
         <span className="text-muted-foreground">현재 과열지수 </span>
-        <span className="font-semibold text-foreground">{stats.current}</span>
+        <span className="font-semibold text-foreground">{fmt(stats.current)}</span>
         <span className="text-muted-foreground"> — </span>
         <span className="font-semibold" style={{ color: statusInfo.color }}>
           {statusInfo.text}
@@ -140,15 +153,15 @@ export function CreditOverheatChart() {
       <div className="mt-4 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
         <span className="flex items-center gap-1.5">
           <span className="inline-block h-2.5 w-2.5 rounded-full bg-green-500" />
-          안전 (&lt; {stats.cautionLine})
+          안전 (&lt; {fmt(stats.cautionLine)})
         </span>
         <span className="flex items-center gap-1.5">
           <span className="inline-block h-2.5 w-2.5 rounded-full bg-yellow-500" />
-          주의 ({stats.cautionLine} ~ {stats.dangerLine})
+          주의 ({fmt(stats.cautionLine)} ~ {fmt(stats.dangerLine)})
         </span>
         <span className="flex items-center gap-1.5">
           <span className="inline-block h-2.5 w-2.5 rounded-full bg-red-500" />
-          위험 (&gt; {stats.dangerLine})
+          위험 (&gt; {fmt(stats.dangerLine)})
         </span>
         <span className="ml-auto flex items-center gap-1.5">
           <span
@@ -156,8 +169,8 @@ export function CreditOverheatChart() {
             style={{ backgroundColor: "#a855f7" }}
           />
           {response.source === "marketCap"
-            ? "과열지수 = 융자잔고(억) / 시가총액(조)"
-            : "과열지수 = 융자잔고(억) / 지수합계 (근사치)"}
+            ? "과열지수 = 융자잔고 / 시가총액 × 100"
+            : "과열지수 = 융자잔고 / 시가총액(추정) × 100"}
         </span>
       </div>
       {response.source === "indexClose" && (
