@@ -1,8 +1,38 @@
 import { NextResponse } from "next/server";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import YahooFinance from "yahoo-finance2";
 import { fetchCreditBalanceData } from "@/lib/fetch-credit-balance";
 import type { CreditBalanceItem } from "@/lib/types/credit-balance";
+
+const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
+
+export const revalidate = 3600;
+
+interface ChartQuote {
+  date: Date;
+  close: number | null;
+}
+
+async function fetchKospiIndex(): Promise<{ date: string; close: number }[]> {
+  const result = await yahooFinance.chart("^KS11", {
+    period1: "1998-07-01",
+    interval: "1d",
+    return: "array",
+  } as Parameters<typeof yahooFinance.chart>[1]);
+
+  const quotes = (result as unknown as { quotes: ChartQuote[] }).quotes;
+  const arr: { date: string; close: number }[] = [];
+
+  for (const q of quotes) {
+    if (q.close != null) {
+      const dateStr = new Date(q.date).toISOString().split("T")[0];
+      arr.push({ date: dateStr, close: Math.round(q.close * 100) / 100 });
+    }
+  }
+
+  return arr;
+}
 
 /**
  * FreeSIS CSV (1998-07-01 ~ 2021-11-08, 백만원 단위)를 읽어서 억원 단위로 변환
@@ -38,11 +68,14 @@ export async function GET() {
     // 1) FreeSIS 히스토리컬 데이터 (1998-07 ~ 2021-11-08)
     const freesisData = loadFreesisCSV();
 
-    // 2) 공공데이터포털 API 데이터 (2021-11-09 ~ 현재)
-    const apiData = await fetchCreditBalanceData({
-      beginBasDt: "20211101",
-      numOfRows: 1200,
-    });
+    // 2) 공공데이터포털 API 데이터 (2021-11-09 ~ 현재) + KOSPI 지수
+    const [apiData, kospiIndex] = await Promise.all([
+      fetchCreditBalanceData({
+        beginBasDt: "20211101",
+        numOfRows: 1200,
+      }),
+      fetchKospiIndex(),
+    ]);
 
     // 3) 병합: Map으로 날짜 중복 시 API 데이터 우선
     const merged = new Map<string, CreditBalanceItem>();
@@ -58,7 +91,7 @@ export async function GET() {
       a.date.localeCompare(b.date)
     );
 
-    return NextResponse.json({ data });
+    return NextResponse.json({ data, kospiIndex });
   } catch (error) {
     console.error("Credit balance API error:", error);
     return NextResponse.json(

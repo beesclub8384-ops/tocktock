@@ -13,11 +13,17 @@ import { Button } from "@/components/ui/button";
 import type { CreditBalanceItem } from "@/lib/types/credit-balance";
 
 const LINE_COLORS = {
-  kospi: "#22c55e",   // green
-  kosdaq: "#f59e0b",  // amber
+  kospi: "#22c55e",       // green
+  kosdaq: "#f59e0b",      // amber
+  kospiIndex: "#a78bfa",  // purple
 } as const;
 
 type Period = "daily" | "weekly" | "monthly";
+
+interface KospiIndexItem {
+  date: string;
+  close: number;
+}
 
 const PERIOD_OPTIONS: { value: Period; label: string }[] = [
   { value: "daily", label: "일간" },
@@ -68,6 +74,35 @@ function sampleData(
       result.push(data[i]);
     }
     prevKey = key;
+  }
+
+  return result;
+}
+
+function sampleIndexData(
+  data: KospiIndexItem[],
+  period: Period
+): KospiIndexItem[] {
+  if (period === "daily") return data;
+
+  const result: KospiIndexItem[] = [];
+
+  for (let i = 0; i < data.length; i++) {
+    const key =
+      period === "monthly"
+        ? data[i].date.slice(0, 7)
+        : getISOWeekKey(data[i].date);
+
+    const nextKey =
+      i + 1 < data.length
+        ? period === "monthly"
+          ? data[i + 1].date.slice(0, 7)
+          : getISOWeekKey(data[i + 1].date)
+        : null;
+
+    if (key !== nextKey) {
+      result.push(data[i]);
+    }
   }
 
   return result;
@@ -364,6 +399,7 @@ export function CreditBalanceChart() {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const [data, setData] = useState<CreditBalanceItem[] | null>(null);
+  const [kospiIndex, setKospiIndex] = useState<KospiIndexItem[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [guideOpen, setGuideOpen] = useState(false);
@@ -378,6 +414,7 @@ export function CreditBalanceChart() {
         if (!res.ok) throw new Error("Failed to fetch");
         const json = await res.json();
         setData(json.data);
+        setKospiIndex(json.kospiIndex ?? null);
       } catch {
         setError("데이터를 불러오는데 실패했습니다.");
       } finally {
@@ -412,6 +449,11 @@ export function CreditBalanceChart() {
     [data, period]
   );
 
+  const indexData = useMemo(
+    () => (kospiIndex ? sampleIndexData(kospiIndex, period) : null),
+    [kospiIndex, period]
+  );
+
   // 차트 높이
   const chartHeight = isFullscreen ? window.innerHeight - 72 : 400;
 
@@ -432,21 +474,25 @@ export function CreditBalanceChart() {
       width: el.clientWidth,
       height: chartHeight,
       timeScale: { borderColor: "#3f3f46", timeVisible: false },
+      leftPriceScale: {
+        borderColor: "#3f3f46",
+        visible: true,
+      },
       rightPriceScale: {
         borderColor: "#3f3f46",
-      },
-      localization: {
-        priceFormatter: (price: number) => price.toFixed(2),
+        visible: true,
       },
     });
 
     chartRef.current = chart;
 
-    // KOSPI 융자
+    // KOSPI 융자 (왼쪽 Y축)
     const kospiSeries = chart.addSeries(LineSeries, {
       color: LINE_COLORS.kospi,
       lineWidth: 2,
       title: "",
+      priceScaleId: "left",
+      priceFormat: { type: "custom", formatter: (price: number) => price.toFixed(2) },
     });
     kospiSeries.setData(
       chartData.map((d) => ({
@@ -455,11 +501,13 @@ export function CreditBalanceChart() {
       }))
     );
 
-    // KOSDAQ 융자
+    // KOSDAQ 융자 (왼쪽 Y축)
     const kosdaqSeries = chart.addSeries(LineSeries, {
       color: LINE_COLORS.kosdaq,
       lineWidth: 2,
       title: "",
+      priceScaleId: "left",
+      priceFormat: { type: "custom", formatter: (price: number) => price.toFixed(2) },
     });
     kosdaqSeries.setData(
       chartData.map((d) => ({
@@ -467,6 +515,23 @@ export function CreditBalanceChart() {
         value: Math.round(d.kosdaqLoan / 100) / 100,
       }))
     );
+
+    // KOSPI 지수 (오른쪽 Y축)
+    if (indexData && indexData.length > 0) {
+      const indexSeries = chart.addSeries(LineSeries, {
+        color: LINE_COLORS.kospiIndex,
+        lineWidth: 1,
+        title: "",
+        priceScaleId: "right",
+        priceFormat: { type: "custom", formatter: (price: number) => Math.round(price).toLocaleString() },
+      });
+      indexSeries.setData(
+        indexData.map((d) => ({
+          time: d.date as Time,
+          value: d.close,
+        }))
+      );
+    }
 
     chart.timeScale().fitContent();
 
@@ -481,7 +546,7 @@ export function CreditBalanceChart() {
       chart.remove();
       chartRef.current = null;
     };
-  }, [chartData, chartHeight]);
+  }, [chartData, indexData, chartHeight]);
 
   if (loading) {
     return (
@@ -519,14 +584,21 @@ export function CreditBalanceChart() {
             className="inline-block h-2.5 w-2.5 rounded-full"
             style={{ backgroundColor: LINE_COLORS.kospi }}
           />
-          KOSPI
+          KOSPI 융자
         </span>
         <span className="flex items-center gap-1.5">
           <span
             className="inline-block h-2.5 w-2.5 rounded-full"
             style={{ backgroundColor: LINE_COLORS.kosdaq }}
           />
-          KOSDAQ
+          KOSDAQ 융자
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span
+            className="inline-block h-2.5 w-2.5 rounded-full"
+            style={{ backgroundColor: LINE_COLORS.kospiIndex }}
+          />
+          KOSPI 지수
         </span>
 
         {/* 기간 토글 */}
@@ -545,7 +617,7 @@ export function CreditBalanceChart() {
 
         {/* 오른쪽: 단위 + 가이드 */}
         <span className="ml-auto flex items-center gap-2 text-muted-foreground">
-          단위: 조원
+          좌: 조원 / 우: 포인트
           <button
             onClick={() => setGuideOpen(true)}
             className="guide-btn inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs transition-all"
