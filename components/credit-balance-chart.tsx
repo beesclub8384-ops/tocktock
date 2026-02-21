@@ -10,6 +10,7 @@ import {
 } from "lightweight-charts";
 import { HelpCircle, Maximize2, Minimize2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { CreditBalanceAnalysis } from "@/components/credit-balance-analysis";
 import type { CreditBalanceItem } from "@/lib/types/credit-balance";
 
 const LINE_COLORS = {
@@ -454,8 +455,11 @@ export function CreditBalanceChart() {
     [kospiIndex, period]
   );
 
-  // 차트 높이
-  const chartHeight = isFullscreen ? window.innerHeight - 72 : 400;
+  // 차트 높이 (SSR-safe: window 참조를 렌더 밖으로)
+  const [chartHeight, setChartHeight] = useState(400);
+  useEffect(() => {
+    setChartHeight(isFullscreen ? window.innerHeight - 72 : 400);
+  }, [isFullscreen]);
 
   // 차트 생성 / 업데이트
   useEffect(() => {
@@ -522,6 +526,7 @@ export function CreditBalanceChart() {
 
     const onResize = () => {
       const h = document.fullscreenElement ? window.innerHeight - 72 : 400;
+      setChartHeight(h);
       chart.applyOptions({ width: el.clientWidth, height: h });
     };
     window.addEventListener("resize", onResize);
@@ -626,6 +631,7 @@ export function CreditBalanceChart() {
           {isFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
         </button>
       </div>
+      {!isFullscreen && <CreditBalanceAnalysis />}
     </div>
   );
 }
