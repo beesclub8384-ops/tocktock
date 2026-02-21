@@ -127,8 +127,8 @@ function CreditBalanceGuideModal({ onClose }: { onClose: () => void }) {
               넣은 돈이 총 얼마인가?&rdquo;를 보여주는 숫자입니다.
             </li>
             <li>
-              금융투자협회가 매일 집계하여 공개하며, 단위는 억원입니다
-              (예: 314,767억원 = 약 31.5조원).
+              금융투자협회가 매일 집계하여 공개하며, 차트에서는 조원
+              단위로 표시합니다 (예: 31.48조원).
             </li>
           </ul>
         </section>
@@ -274,8 +274,8 @@ function CreditBalanceGuideModal({ onClose }: { onClose: () => void }) {
           </h3>
           <ul className="space-y-1.5 text-sm leading-relaxed text-muted-foreground">
             <li>
-              예시: 전체 314,767억원 &rarr; 약 31.5조원 (억원 &divide; 10,000
-              = 조원)
+              예시: KOSPI 20.10조원 + KOSDAQ 10.37조원 = 전체 약
+              30.47조원
             </li>
             <li>
               최근 한국 시장의 신용융자잔고는 대략 25~35조원 범위에서 움직이고
@@ -432,7 +432,12 @@ export function CreditBalanceChart() {
       width: el.clientWidth,
       height: chartHeight,
       timeScale: { borderColor: "#3f3f46", timeVisible: false },
-      rightPriceScale: { borderColor: "#3f3f46" },
+      rightPriceScale: {
+        borderColor: "#3f3f46",
+      },
+      localization: {
+        priceFormatter: (price: number) => price.toFixed(2),
+      },
     });
 
     chartRef.current = chart;
@@ -444,7 +449,10 @@ export function CreditBalanceChart() {
       title: "",
     });
     kospiSeries.setData(
-      chartData.map((d) => ({ time: d.date as Time, value: d.kospiLoan }))
+      chartData.map((d) => ({
+        time: d.date as Time,
+        value: Math.round(d.kospiLoan / 100) / 100,
+      }))
     );
 
     // KOSDAQ 융자
@@ -454,7 +462,10 @@ export function CreditBalanceChart() {
       title: "",
     });
     kosdaqSeries.setData(
-      chartData.map((d) => ({ time: d.date as Time, value: d.kosdaqLoan }))
+      chartData.map((d) => ({
+        time: d.date as Time,
+        value: Math.round(d.kosdaqLoan / 100) / 100,
+      }))
     );
 
     chart.timeScale().fitContent();
@@ -534,7 +545,7 @@ export function CreditBalanceChart() {
 
         {/* 오른쪽: 단위 + 가이드 */}
         <span className="ml-auto flex items-center gap-2 text-muted-foreground">
-          단위: 억원
+          단위: 조원
           <button
             onClick={() => setGuideOpen(true)}
             className="guide-btn inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs transition-all"
