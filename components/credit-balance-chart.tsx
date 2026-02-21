@@ -13,7 +13,6 @@ import { Button } from "@/components/ui/button";
 import type { CreditBalanceItem } from "@/lib/types/credit-balance";
 
 const LINE_COLORS = {
-  total: "#3b82f6",   // blue
   kospi: "#22c55e",   // green
   kosdaq: "#f59e0b",  // amber
 } as const;
@@ -139,22 +138,9 @@ function CreditBalanceGuideModal({ onClose }: { onClose: () => void }) {
         {/* 2. 3개의 선 */}
         <section className="mb-6">
           <h3 className="mb-2 text-base font-semibold">
-            차트에 있는 3개의 선은 뭔가요?
+            차트에 있는 2개의 선은 뭔가요?
           </h3>
           <div className="space-y-3">
-            <div className="rounded-lg border border-border bg-muted/30 p-4">
-              <p className="mb-1 flex items-center gap-1.5 text-sm font-semibold text-blue-500">
-                <span
-                  className="inline-block h-2.5 w-2.5 rounded-full"
-                  style={{ backgroundColor: LINE_COLORS.total }}
-                />
-                파란색 선 (전체)
-              </p>
-              <p className="text-sm leading-relaxed text-muted-foreground">
-                KOSPI + KOSDAQ 합산 신용융자잔고입니다. 한국 주식시장 전체의
-                빚투 규모를 보여줍니다.
-              </p>
-            </div>
             <div className="rounded-lg border border-border bg-muted/30 p-4">
               <p className="mb-1 flex items-center gap-1.5 text-sm font-semibold text-green-500">
                 <span
@@ -451,16 +437,6 @@ export function CreditBalanceChart() {
 
     chartRef.current = chart;
 
-    // 전체 융자
-    const totalSeries = chart.addSeries(LineSeries, {
-      color: LINE_COLORS.total,
-      lineWidth: 2,
-      title: "",
-    });
-    totalSeries.setData(
-      chartData.map((d) => ({ time: d.date as Time, value: d.totalLoan }))
-    );
-
     // KOSPI 융자
     const kospiSeries = chart.addSeries(LineSeries, {
       color: LINE_COLORS.kospi,
@@ -527,13 +503,6 @@ export function CreditBalanceChart() {
 
       <div className={`mb-4 flex flex-wrap items-center gap-3 text-sm ${isFullscreen ? "text-zinc-300" : ""}`}>
         {/* 범례 */}
-        <span className="flex items-center gap-1.5">
-          <span
-            className="inline-block h-2.5 w-2.5 rounded-full"
-            style={{ backgroundColor: LINE_COLORS.total }}
-          />
-          전체
-        </span>
         <span className="flex items-center gap-1.5">
           <span
             className="inline-block h-2.5 w-2.5 rounded-full"
