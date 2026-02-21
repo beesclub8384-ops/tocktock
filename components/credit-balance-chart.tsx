@@ -14,7 +14,6 @@ import type { CreditBalanceItem } from "@/lib/types/credit-balance";
 
 const LINE_COLORS = {
   kospi: "#22c55e",       // green
-  kosdaq: "#f59e0b",      // amber
   kospiIndex: "#a78bfa",  // purple
 } as const;
 
@@ -170,7 +169,7 @@ function CreditBalanceGuideModal({ onClose }: { onClose: () => void }) {
 
         <hr className="my-5 border-border" />
 
-        {/* 2. 3개의 선 */}
+        {/* 2. 2개의 선 */}
         <section className="mb-6">
           <h3 className="mb-2 text-base font-semibold">
             차트에 있는 2개의 선은 뭔가요?
@@ -182,24 +181,25 @@ function CreditBalanceGuideModal({ onClose }: { onClose: () => void }) {
                   className="inline-block h-2.5 w-2.5 rounded-full"
                   style={{ backgroundColor: LINE_COLORS.kospi }}
                 />
-                초록색 선 (KOSPI)
+                초록색 선 (신용융자잔고)
               </p>
               <p className="text-sm leading-relaxed text-muted-foreground">
-                코스피 시장의 신용융자잔고입니다. 삼성전자, 현대차 같은 대형주
-                중심 시장입니다.
+                코스피 시장의 신용융자잔고입니다. 빚내서 주식을 산 금액의
+                총합으로, 왼쪽 Y축(조원)에 표시됩니다.
               </p>
             </div>
             <div className="rounded-lg border border-border bg-muted/30 p-4">
-              <p className="mb-1 flex items-center gap-1.5 text-sm font-semibold text-amber-500">
+              <p className="mb-1 flex items-center gap-1.5 text-sm font-semibold text-purple-400">
                 <span
                   className="inline-block h-2.5 w-2.5 rounded-full"
-                  style={{ backgroundColor: LINE_COLORS.kosdaq }}
+                  style={{ backgroundColor: LINE_COLORS.kospiIndex }}
                 />
-                주황색 선 (KOSDAQ)
+                보라색 선 (KOSPI 지수)
               </p>
               <p className="text-sm leading-relaxed text-muted-foreground">
-                코스닥 시장의 신용융자잔고입니다. 중소형 성장주, 바이오주 중심
-                시장입니다.
+                코스피 지수의 흐름입니다. 오른쪽 Y축(포인트)에 표시되며,
+                융자잔고와 지수의 방향이 다르면(다이버전스) 주의 신호일 수
+                있습니다.
               </p>
             </div>
           </div>
@@ -501,21 +501,6 @@ export function CreditBalanceChart() {
       }))
     );
 
-    // KOSDAQ 융자 (왼쪽 Y축)
-    const kosdaqSeries = chart.addSeries(LineSeries, {
-      color: LINE_COLORS.kosdaq,
-      lineWidth: 2,
-      title: "",
-      priceScaleId: "left",
-      priceFormat: { type: "custom", formatter: (price: number) => price.toFixed(2) },
-    });
-    kosdaqSeries.setData(
-      chartData.map((d) => ({
-        time: d.date as Time,
-        value: Math.round(d.kosdaqLoan / 100) / 100,
-      }))
-    );
-
     // KOSPI 지수 (오른쪽 Y축)
     if (indexData && indexData.length > 0) {
       const indexSeries = chart.addSeries(LineSeries, {
@@ -578,20 +563,16 @@ export function CreditBalanceChart() {
       )}
 
       <div className={`mb-4 flex flex-wrap items-center gap-3 text-sm ${isFullscreen ? "text-zinc-300" : ""}`}>
+        {/* 차트 제목 */}
+        <span className="font-semibold">코스피 빚투 지표</span>
+
         {/* 범례 */}
         <span className="flex items-center gap-1.5">
           <span
             className="inline-block h-2.5 w-2.5 rounded-full"
             style={{ backgroundColor: LINE_COLORS.kospi }}
           />
-          KOSPI 융자
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span
-            className="inline-block h-2.5 w-2.5 rounded-full"
-            style={{ backgroundColor: LINE_COLORS.kosdaq }}
-          />
-          KOSDAQ 융자
+          신용융자잔고
         </span>
         <span className="flex items-center gap-1.5">
           <span
