@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   createChart,
   ColorType,
@@ -8,7 +8,8 @@ import {
   type IChartApi,
   type Time,
 } from "lightweight-charts";
-import { HelpCircle, X } from "lucide-react";
+import { HelpCircle, Maximize2, Minimize2, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import type { CreditBalanceItem } from "@/lib/types/credit-balance";
 
 const LINE_COLORS = {
@@ -16,6 +17,62 @@ const LINE_COLORS = {
   kospi: "#22c55e",   // green
   kosdaq: "#f59e0b",  // amber
 } as const;
+
+type Period = "daily" | "weekly" | "monthly";
+
+const PERIOD_OPTIONS: { value: Period; label: string }[] = [
+  { value: "monthly", label: "월간" },
+  { value: "weekly", label: "주간" },
+  { value: "daily", label: "일간" },
+];
+
+/* ────────────────────────────────────────────
+   데이터 샘플링: 주간/월간
+   ──────────────────────────────────────────── */
+
+function getISOWeekKey(dateStr: string): string {
+  const d = new Date(dateStr + "T00:00:00");
+  const dayOfWeek = d.getDay() || 7; // Mon=1 ... Sun=7
+  d.setDate(d.getDate() + 4 - dayOfWeek); // Thursday of this week
+  const yearStart = new Date(d.getFullYear(), 0, 1);
+  const weekNo = Math.ceil(
+    ((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7
+  );
+  return `${d.getFullYear()}-W${weekNo}`;
+}
+
+function sampleData(
+  data: CreditBalanceItem[],
+  period: Period
+): CreditBalanceItem[] {
+  if (period === "daily") return data;
+
+  // 데이터가 날짜 오름차순이므로, 같은 그룹의 마지막 항목이 해당 기간의 마지막 영업일
+  const result: CreditBalanceItem[] = [];
+  let prevKey = "";
+
+  for (let i = 0; i < data.length; i++) {
+    const key =
+      period === "monthly"
+        ? data[i].date.slice(0, 7) // "YYYY-MM"
+        : getISOWeekKey(data[i].date); // "YYYY-WNN"
+
+    const nextKey =
+      i + 1 < data.length
+        ? period === "monthly"
+          ? data[i + 1].date.slice(0, 7)
+          : getISOWeekKey(data[i + 1].date)
+        : null;
+
+    // 그룹이 바뀌는 시점(현재가 그룹의 마지막) 또는 데이터 끝
+    if (key !== nextKey) {
+      result.push(data[i]);
+    }
+    prevKey = key;
+  }
+
+  return result;
+}
 
 /* ────────────────────────────────────────────
    가이드 모달
@@ -317,12 +374,15 @@ function CreditBalanceGuideModal({ onClose }: { onClose: () => void }) {
    메인 차트 컴포넌트
    ──────────────────────────────────────────── */
 export function CreditBalanceChart() {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const [data, setData] = useState<CreditBalanceItem[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [guideOpen, setGuideOpen] = useState(false);
+  const [period, setPeriod] = useState<Period>("monthly");
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // 데이터 fetch
   useEffect(() => {
@@ -341,10 +401,38 @@ export function CreditBalanceChart() {
     fetchData();
   }, []);
 
-  // 차트 생성
+  // 전체화면 상태 감지
   useEffect(() => {
-    const el = containerRef.current;
-    if (!el || !data || data.length === 0) return;
+    const handler = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener("fullscreenchange", handler);
+    return () => document.removeEventListener("fullscreenchange", handler);
+  }, []);
+
+  const toggleFullscreen = useCallback(() => {
+    const el = wrapperRef.current;
+    if (!el) return;
+    if (!document.fullscreenElement) {
+      el.requestFullscreen().catch(() => {});
+    } else {
+      document.exitFullscreen().catch(() => {});
+    }
+  }, []);
+
+  // 샘플링된 데이터
+  const chartData = useMemo(
+    () => (data ? sampleData(data, period) : null),
+    [data, period]
+  );
+
+  // 차트 높이
+  const chartHeight = isFullscreen ? window.innerHeight - 72 : 400;
+
+  // 차트 생성 / 업데이트
+  useEffect(() => {
+    const el = chartContainerRef.current;
+    if (!el || !chartData || chartData.length === 0) return;
 
     const chart = createChart(el, {
       layout: {
@@ -356,7 +444,7 @@ export function CreditBalanceChart() {
         horzLines: { color: "#27272a" },
       },
       width: el.clientWidth,
-      height: 400,
+      height: chartHeight,
       timeScale: { borderColor: "#3f3f46", timeVisible: false },
       rightPriceScale: { borderColor: "#3f3f46" },
     });
@@ -370,7 +458,7 @@ export function CreditBalanceChart() {
       title: "",
     });
     totalSeries.setData(
-      data.map((d) => ({ time: d.date as Time, value: d.totalLoan }))
+      chartData.map((d) => ({ time: d.date as Time, value: d.totalLoan }))
     );
 
     // KOSPI 융자
@@ -380,7 +468,7 @@ export function CreditBalanceChart() {
       title: "",
     });
     kospiSeries.setData(
-      data.map((d) => ({ time: d.date as Time, value: d.kospiLoan }))
+      chartData.map((d) => ({ time: d.date as Time, value: d.kospiLoan }))
     );
 
     // KOSDAQ 융자
@@ -390,12 +478,15 @@ export function CreditBalanceChart() {
       title: "",
     });
     kosdaqSeries.setData(
-      data.map((d) => ({ time: d.date as Time, value: d.kosdaqLoan }))
+      chartData.map((d) => ({ time: d.date as Time, value: d.kosdaqLoan }))
     );
 
     chart.timeScale().fitContent();
 
-    const onResize = () => chart.applyOptions({ width: el.clientWidth });
+    const onResize = () => {
+      const h = document.fullscreenElement ? window.innerHeight - 72 : 400;
+      chart.applyOptions({ width: el.clientWidth, height: h });
+    };
     window.addEventListener("resize", onResize);
 
     return () => {
@@ -403,7 +494,7 @@ export function CreditBalanceChart() {
       chart.remove();
       chartRef.current = null;
     };
-  }, [data]);
+  }, [chartData, chartHeight]);
 
   if (loading) {
     return (
@@ -422,12 +513,20 @@ export function CreditBalanceChart() {
   }
 
   return (
-    <div className="rounded-xl border border-border bg-card p-6">
+    <div
+      ref={wrapperRef}
+      className={
+        isFullscreen
+          ? "flex h-screen w-screen flex-col bg-[#0a0a0a] p-4"
+          : "rounded-xl border border-border bg-card p-6"
+      }
+    >
       {guideOpen && (
         <CreditBalanceGuideModal onClose={() => setGuideOpen(false)} />
       )}
 
-      <div className="mb-4 flex items-center gap-4 text-sm">
+      <div className="mb-4 flex flex-wrap items-center gap-3 text-sm">
+        {/* 범례 */}
         <span className="flex items-center gap-1.5">
           <span
             className="inline-block h-2.5 w-2.5 rounded-full"
@@ -449,8 +548,32 @@ export function CreditBalanceChart() {
           />
           KOSDAQ
         </span>
+
+        {/* 기간 토글 */}
+        <div className="flex items-center gap-1">
+          {PERIOD_OPTIONS.map((opt) => (
+            <Button
+              key={opt.value}
+              variant={period === opt.value ? "default" : "outline"}
+              size="xs"
+              onClick={() => setPeriod(opt.value)}
+            >
+              {opt.label}
+            </Button>
+          ))}
+        </div>
+
+        {/* 오른쪽: 단위 + 전체화면 + 가이드 */}
         <span className="ml-auto flex items-center gap-2 text-muted-foreground">
           단위: 억원
+          <Button
+            variant="outline"
+            size="icon-xs"
+            onClick={toggleFullscreen}
+            title={isFullscreen ? "원래 크기로" : "전체화면"}
+          >
+            {isFullscreen ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
+          </Button>
           <button
             onClick={() => setGuideOpen(true)}
             className="guide-btn inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs transition-all"
@@ -460,7 +583,14 @@ export function CreditBalanceChart() {
           </button>
         </span>
       </div>
-      <div ref={containerRef} className="w-full overflow-hidden rounded-lg" />
+      <div
+        ref={chartContainerRef}
+        className={
+          isFullscreen
+            ? "w-full flex-1 overflow-hidden rounded-lg"
+            : "w-full overflow-hidden rounded-lg"
+        }
+      />
     </div>
   );
 }
