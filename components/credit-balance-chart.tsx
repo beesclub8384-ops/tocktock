@@ -21,9 +21,9 @@ const LINE_COLORS = {
 type Period = "daily" | "weekly" | "monthly";
 
 const PERIOD_OPTIONS: { value: Period; label: string }[] = [
-  { value: "monthly", label: "월간" },
-  { value: "weekly", label: "주간" },
   { value: "daily", label: "일간" },
+  { value: "weekly", label: "주간" },
+  { value: "monthly", label: "월간" },
 ];
 
 /* ────────────────────────────────────────────
@@ -525,7 +525,7 @@ export function CreditBalanceChart() {
         <CreditBalanceGuideModal onClose={() => setGuideOpen(false)} />
       )}
 
-      <div className="mb-4 flex flex-wrap items-center gap-3 text-sm">
+      <div className={`mb-4 flex flex-wrap items-center gap-3 text-sm ${isFullscreen ? "text-zinc-300" : ""}`}>
         {/* 범례 */}
         <span className="flex items-center gap-1.5">
           <span
@@ -563,17 +563,9 @@ export function CreditBalanceChart() {
           ))}
         </div>
 
-        {/* 오른쪽: 단위 + 전체화면 + 가이드 */}
+        {/* 오른쪽: 단위 + 가이드 */}
         <span className="ml-auto flex items-center gap-2 text-muted-foreground">
           단위: 억원
-          <Button
-            variant="outline"
-            size="icon-xs"
-            onClick={toggleFullscreen}
-            title={isFullscreen ? "원래 크기로" : "전체화면"}
-          >
-            {isFullscreen ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
-          </Button>
           <button
             onClick={() => setGuideOpen(true)}
             className="guide-btn inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs transition-all"
@@ -583,14 +575,24 @@ export function CreditBalanceChart() {
           </button>
         </span>
       </div>
-      <div
-        ref={chartContainerRef}
-        className={
-          isFullscreen
-            ? "w-full flex-1 overflow-hidden rounded-lg"
-            : "w-full overflow-hidden rounded-lg"
-        }
-      />
+      <div className="relative">
+        <div
+          ref={chartContainerRef}
+          className={
+            isFullscreen
+              ? "w-full flex-1 overflow-hidden rounded-lg"
+              : "w-full overflow-hidden rounded-lg"
+          }
+        />
+        {/* 전체화면 버튼: 차트 우하단 */}
+        <button
+          onClick={toggleFullscreen}
+          title={isFullscreen ? "원래 크기로" : "전체화면"}
+          className="absolute bottom-2 right-2 rounded-md bg-black/50 p-1.5 text-zinc-400 backdrop-blur-sm transition-colors hover:bg-black/70 hover:text-zinc-200"
+        >
+          {isFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+        </button>
+      </div>
     </div>
   );
 }
