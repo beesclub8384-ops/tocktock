@@ -303,9 +303,9 @@ function CreditBalanceGuideModal({ onClose }: { onClose: () => void }) {
             데이터 출처 및 업데이트
           </h3>
           <ul className="space-y-1.5 text-sm leading-relaxed text-muted-foreground">
-            <li>출처: 금융투자협회 (공공데이터포털 API)</li>
+            <li>출처: 금융투자협회 (FreeSIS 1998~2021 + 공공데이터포털 API 2021~현재)</li>
             <li>업데이트: 매 영업일 1회 자동 갱신</li>
-            <li>범위: 최근 6개월 데이터 표시</li>
+            <li>범위: 1998년 7월 ~ 현재 (전체 기간)</li>
           </ul>
         </section>
       </div>
