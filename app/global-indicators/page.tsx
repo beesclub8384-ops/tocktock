@@ -39,7 +39,7 @@ interface ModalInfo {
   description: string;
   importance: string;
   readings: ReadingGuide[];
-  sources: string[];
+  sources: { name: string; url: string }[];
 }
 
 /* ═══════════════════ 색상 맵 ═══════════════════ */
@@ -178,7 +178,11 @@ const MODAL_CONTENTS: Record<string, ModalInfo> = {
       { icon: "▼", text: "하락 → 주식↑ 채권↑ 금↑", color: "#22c55e" },
       { icon: "◆", text: "4~5% 이상 → 주식 부담 구간", color: "#eab308" },
     ],
-    sources: ["FRED", "TradingView", "Investing.com"],
+    sources: [
+      { name: "FRED — DGS10", url: "https://fred.stlouisfed.org/series/DGS10" },
+      { name: "TradingView", url: "https://www.tradingview.com/symbols/TVC-US10Y/" },
+      { name: "Investing.com", url: "https://www.investing.com/rates-bonds/u.s.-10-year-bond-yield" },
+    ],
   },
   us02y: {
     guru: "",
@@ -189,7 +193,10 @@ const MODAL_CONTENTS: Record<string, ModalInfo> = {
       { icon: "▼", text: "하락 → 금리인하 기대 강화", color: "#22c55e" },
       { icon: "◆", text: "2년물 > 10년물 → 장단기 역전 (경기침체 선행신호)", color: "#eab308" },
     ],
-    sources: ["FRED", "TradingView"],
+    sources: [
+      { name: "FRED — DGS2", url: "https://fred.stlouisfed.org/series/DGS2" },
+      { name: "TradingView", url: "https://www.tradingview.com/symbols/TVC-US02Y/" },
+    ],
   },
   t10y2y: {
     guru: "",
@@ -200,7 +207,10 @@ const MODAL_CONTENTS: Record<string, ModalInfo> = {
       { icon: "◆", text: "0 근처 → 경고", color: "#eab308" },
       { icon: "▼", text: "마이너스 → 경기침체 선행신호 (1~2년 후)", color: "#ef4444" },
     ],
-    sources: ["FRED", "TradingView"],
+    sources: [
+      { name: "FRED — T10Y2Y", url: "https://fred.stlouisfed.org/series/T10Y2Y" },
+      { name: "TradingView", url: "https://www.tradingview.com/symbols/FRED-T10Y2Y/" },
+    ],
   },
   tips: {
     guru: "",
@@ -210,7 +220,10 @@ const MODAL_CONTENTS: Record<string, ModalInfo> = {
       { icon: "▼", text: "마이너스 → 금↑ 위험자산↑", color: "#22c55e" },
       { icon: "▲", text: "플러스 확대 → 금↓ 성장주↓", color: "#ef4444" },
     ],
-    sources: ["FRED (DFII10)", "TradingView"],
+    sources: [
+      { name: "FRED — DFII10", url: "https://fred.stlouisfed.org/series/DFII10" },
+      { name: "TradingView", url: "https://www.tradingview.com/symbols/FRED-DFII10/" },
+    ],
   },
   walcl: {
     guru: "스탠리 드러켄밀러",
@@ -220,7 +233,10 @@ const MODAL_CONTENTS: Record<string, ModalInfo> = {
       { icon: "▲", text: "증가 (QE) → 유동성 공급 = 시장 우호", color: "#22c55e" },
       { icon: "▼", text: "감소 (QT) → 유동성 흡수 = 시장 부담", color: "#ef4444" },
     ],
-    sources: ["FRED (WALCL)", "연준 홈페이지"],
+    sources: [
+      { name: "FRED — WALCL", url: "https://fred.stlouisfed.org/series/WALCL" },
+      { name: "연준 홈페이지", url: "https://www.federalreserve.gov/monetarypolicy/bst_recenttrends.htm" },
+    ],
   },
   buffett_rate: {
     guru: "워런 버핏",
@@ -230,7 +246,10 @@ const MODAL_CONTENTS: Record<string, ModalInfo> = {
       { icon: "▲", text: "이익수익률 > 국채금리 → 주식 매력적", color: "#22c55e" },
       { icon: "▼", text: "이익수익률 < 국채금리 → 주식 과대평가 가능", color: "#ef4444" },
     ],
-    sources: ["multpl.com", "FRED"],
+    sources: [
+      { name: "multpl.com", url: "https://www.multpl.com/s-p-500-earnings-yield" },
+      { name: "FRED — DGS10", url: "https://fred.stlouisfed.org/series/DGS10" },
+    ],
   },
   dxy: {
     guru: "",
@@ -241,7 +260,10 @@ const MODAL_CONTENTS: Record<string, ModalInfo> = {
       { icon: "▼", text: "하락 = 달러 약세 → 원자재↑ 금↑", color: "#22c55e" },
       { icon: "◆", text: "100~105 = 중립 구간", color: "#eab308" },
     ],
-    sources: ["TradingView", "Investing.com"],
+    sources: [
+      { name: "TradingView", url: "https://www.tradingview.com/symbols/TVC-DXY/" },
+      { name: "Investing.com", url: "https://www.investing.com/indices/usdollar" },
+    ],
   },
   usdkrw: {
     guru: "",
@@ -252,7 +274,11 @@ const MODAL_CONTENTS: Record<string, ModalInfo> = {
       { icon: "◆", text: "1,300원대 = 중립~약세", color: "#eab308" },
       { icon: "▲", text: "1,400원 이상 = 위기 신호", color: "#ef4444" },
     ],
-    sources: ["한국은행", "네이버 금융", "Investing.com"],
+    sources: [
+      { name: "한국은행 ECOS", url: "https://ecos.bok.or.kr/" },
+      { name: "네이버 금융", url: "https://finance.naver.com/marketindex/exchangeDetail.naver?marketindexCd=FX_USDKRW" },
+      { name: "Investing.com", url: "https://www.investing.com/currencies/usd-krw" },
+    ],
   },
   usdjpy: {
     guru: "",
@@ -262,7 +288,10 @@ const MODAL_CONTENTS: Record<string, ModalInfo> = {
       { icon: "▼", text: "하락 (엔 강세) = 리스크오프, 주식 위험", color: "#ef4444" },
       { icon: "▲", text: "상승 (엔 약세) = 리스크온, 캐리트레이드 활성", color: "#22c55e" },
     ],
-    sources: ["TradingView", "Investing.com"],
+    sources: [
+      { name: "TradingView", url: "https://www.tradingview.com/symbols/USDJPY/" },
+      { name: "Investing.com", url: "https://www.investing.com/currencies/usd-jpy" },
+    ],
   },
   swap: {
     guru: "",
@@ -272,7 +301,10 @@ const MODAL_CONTENTS: Record<string, ModalInfo> = {
       { icon: "◆", text: "0 근처 = 정상", color: "#22c55e" },
       { icon: "▼", text: "마이너스 확대 = 달러 부족, 위기 신호", color: "#ef4444" },
     ],
-    sources: ["Bloomberg", "한국은행"],
+    sources: [
+      { name: "Bloomberg", url: "https://www.bloomberg.com/markets/rates-bonds" },
+      { name: "한국은행 ECOS", url: "https://ecos.bok.or.kr/" },
+    ],
   },
   vix: {
     guru: "",
@@ -284,7 +316,11 @@ const MODAL_CONTENTS: Record<string, ModalInfo> = {
       { icon: "▲", text: "30 이상 = 공포", color: "#ef4444" },
       { icon: "▲", text: "40 이상 = 패닉 (역발상 매수 기회)", color: "#dc2626" },
     ],
-    sources: ["CBOE", "TradingView", "Yahoo Finance"],
+    sources: [
+      { name: "CBOE", url: "https://www.cboe.com/tradable_products/vix/" },
+      { name: "TradingView", url: "https://www.tradingview.com/symbols/TVC-VIX/" },
+      { name: "Yahoo Finance", url: "https://finance.yahoo.com/quote/%5EVIX/" },
+    ],
   },
   move: {
     guru: "",
@@ -295,7 +331,10 @@ const MODAL_CONTENTS: Record<string, ModalInfo> = {
       { icon: "▲", text: "100 이상 = 불안", color: "#eab308" },
       { icon: "▲", text: "150 이상 = 심각한 위기", color: "#ef4444" },
     ],
-    sources: ["Bloomberg", "TradingView"],
+    sources: [
+      { name: "Bloomberg", url: "https://www.bloomberg.com/quote/MOVE:IND" },
+      { name: "TradingView", url: "https://www.tradingview.com/symbols/TVC-MOVE/" },
+    ],
   },
   pcr: {
     guru: "",
@@ -305,7 +344,10 @@ const MODAL_CONTENTS: Record<string, ModalInfo> = {
       { icon: "▼", text: "0.7 이하 = 과낙관, 조심", color: "#eab308" },
       { icon: "▲", text: "1.0 이상 = 과공포, 반등 가능", color: "#22c55e" },
     ],
-    sources: ["CBOE", "TradingView"],
+    sources: [
+      { name: "CBOE", url: "https://www.cboe.com/us/options/market_statistics/" },
+      { name: "TradingView", url: "https://www.tradingview.com/symbols/USI-PCC/" },
+    ],
   },
   hy: {
     guru: "하워드 막스",
@@ -316,7 +358,10 @@ const MODAL_CONTENTS: Record<string, ModalInfo> = {
       { icon: "▲", text: "5~7% = 경고", color: "#eab308" },
       { icon: "▲", text: "8% 이상 = 위기", color: "#ef4444" },
     ],
-    sources: ["FRED", "Bloomberg"],
+    sources: [
+      { name: "FRED — BAMLH0A0HYM2", url: "https://fred.stlouisfed.org/series/BAMLH0A0HYM2" },
+      { name: "Bloomberg", url: "https://www.bloomberg.com/markets/rates-bonds" },
+    ],
   },
   cds: {
     guru: "",
@@ -327,7 +372,10 @@ const MODAL_CONTENTS: Record<string, ModalInfo> = {
       { icon: "▲", text: "50bp 이상 = 경고", color: "#eab308" },
       { icon: "▲", text: "100bp 이상 = 위기", color: "#ef4444" },
     ],
-    sources: ["Bloomberg", "한국은행"],
+    sources: [
+      { name: "Bloomberg", url: "https://www.bloomberg.com/quote/CKREA1U5:IND" },
+      { name: "한국은행 ECOS", url: "https://ecos.bok.or.kr/" },
+    ],
   },
   cc: {
     guru: "마이클 버리",
@@ -337,7 +385,10 @@ const MODAL_CONTENTS: Record<string, ModalInfo> = {
       { icon: "◆", text: "2% 이하 = 정상", color: "#22c55e" },
       { icon: "▲", text: "3% 이상 급등 = 소비 둔화 신호", color: "#ef4444" },
     ],
-    sources: ["FRED", "뉴욕 연준"],
+    sources: [
+      { name: "FRED — DRCCLACBS", url: "https://fred.stlouisfed.org/series/DRCCLACBS" },
+      { name: "뉴욕 연준", url: "https://www.newyorkfed.org/microeconomics/hhdc" },
+    ],
   },
   auto: {
     guru: "마이클 버리",
@@ -346,7 +397,10 @@ const MODAL_CONTENTS: Record<string, ModalInfo> = {
     readings: [
       { icon: "▲", text: "상승 추세 = 중산층 압박, 소비 위축 우려", color: "#ef4444" },
     ],
-    sources: ["FRED", "뉴욕 연준"],
+    sources: [
+      { name: "FRED", url: "https://fred.stlouisfed.org/series/DRALACBS" },
+      { name: "뉴욕 연준", url: "https://www.newyorkfed.org/microeconomics/hhdc" },
+    ],
   },
   wti: {
     guru: "",
@@ -358,7 +412,11 @@ const MODAL_CONTENTS: Record<string, ModalInfo> = {
       { icon: "▲", text: "100달러 이상 = 경기 압박", color: "#ef4444" },
       { icon: "▼", text: "50달러 이하 = 경기침체 우려", color: "#ef4444" },
     ],
-    sources: ["TradingView", "Investing.com", "EIA"],
+    sources: [
+      { name: "TradingView", url: "https://www.tradingview.com/symbols/TVC-USOIL/" },
+      { name: "Investing.com", url: "https://www.investing.com/commodities/crude-oil" },
+      { name: "EIA", url: "https://www.eia.gov/petroleum/" },
+    ],
   },
   gold: {
     guru: "레이 달리오",
@@ -368,7 +426,11 @@ const MODAL_CONTENTS: Record<string, ModalInfo> = {
       { icon: "▲", text: "금 상승 + 달러 약세 = 정상 패턴", color: "#22c55e" },
       { icon: "▲", text: "금 상승 + 달러 강세 = 극도 위기 (모든 걸 팔고 금만 사는 상태)", color: "#ef4444" },
     ],
-    sources: ["TradingView", "Kitco", "World Gold Council"],
+    sources: [
+      { name: "TradingView", url: "https://www.tradingview.com/symbols/TVC-GOLD/" },
+      { name: "Kitco", url: "https://www.kitco.com/charts/livegold.html" },
+      { name: "World Gold Council", url: "https://www.gold.org/goldhub/data/gold-prices" },
+    ],
   },
   copper: {
     guru: "",
@@ -378,7 +440,10 @@ const MODAL_CONTENTS: Record<string, ModalInfo> = {
       { icon: "▲", text: "상승 = 경기 회복 신호", color: "#22c55e" },
       { icon: "▼", text: "하락 = 경기 둔화 신호", color: "#ef4444" },
     ],
-    sources: ["TradingView", "LME"],
+    sources: [
+      { name: "TradingView", url: "https://www.tradingview.com/symbols/TVC-COPPER/" },
+      { name: "LME", url: "https://www.lme.com/Metals/Non-ferrous/LME-Copper" },
+    ],
   },
   crb: {
     guru: "폴 튜더 존스",
@@ -388,7 +453,10 @@ const MODAL_CONTENTS: Record<string, ModalInfo> = {
       { icon: "▲", text: "상승 = 인플레 압력", color: "#ef4444" },
       { icon: "▼", text: "하락 = 디플레 우려", color: "#eab308" },
     ],
-    sources: ["TradingView", "Refinitiv"],
+    sources: [
+      { name: "TradingView", url: "https://www.tradingview.com/symbols/TVC-TRJEFFCRB/" },
+      { name: "Refinitiv", url: "https://www.refinitiv.com/" },
+    ],
   },
   cape: {
     guru: "제러미 그랜섬",
@@ -399,7 +467,10 @@ const MODAL_CONTENTS: Record<string, ModalInfo> = {
       { icon: "▲", text: "25배 이상 = 고평가 경고", color: "#eab308" },
       { icon: "▲", text: "30배 이상 = 버블 영역", color: "#ef4444" },
     ],
-    sources: ["multpl.com", "Shiller Online Data"],
+    sources: [
+      { name: "multpl.com", url: "https://www.multpl.com/shiller-pe" },
+      { name: "Shiller Online Data", url: "http://www.econ.yale.edu/~shiller/data.htm" },
+    ],
   },
   buffett: {
     guru: "워런 버핏",
@@ -410,7 +481,10 @@ const MODAL_CONTENTS: Record<string, ModalInfo> = {
       { icon: "▲", text: "100~115% = 약간 고평가", color: "#eab308" },
       { icon: "▲", text: "140% 이상 = 버블 경고", color: "#ef4444" },
     ],
-    sources: ["FRED", "currentmarketvaluation.com"],
+    sources: [
+      { name: "FRED — DDDM01USA156NWDB", url: "https://fred.stlouisfed.org/series/DDDM01USA156NWDB" },
+      { name: "currentmarketvaluation.com", url: "https://www.currentmarketvaluation.com/models/buffett-indicator.php" },
+    ],
   },
   em_cape: {
     guru: "제러미 그랜섬",
@@ -419,7 +493,10 @@ const MODAL_CONTENTS: Record<string, ModalInfo> = {
     readings: [
       { icon: "▼", text: "미국 CAPE 대비 낮을수록 → 신흥국 상대적 저평가", color: "#22c55e" },
     ],
-    sources: ["MSCI", "StarCapital"],
+    sources: [
+      { name: "MSCI", url: "https://www.msci.com/emerging-markets" },
+      { name: "StarCapital", url: "https://www.starcapital.de/en/research/stock-market-valuation/" },
+    ],
   },
   debt: {
     guru: "레이 달리오",
@@ -428,7 +505,11 @@ const MODAL_CONTENTS: Record<string, ModalInfo> = {
     readings: [
       { icon: "▲", text: "높을수록 시스템 취약", color: "#ef4444" },
     ],
-    sources: ["BIS", "FRED", "IMF"],
+    sources: [
+      { name: "BIS", url: "https://www.bis.org/statistics/totcredit.htm" },
+      { name: "FRED — HDTGPDUSQ163N", url: "https://fred.stlouisfed.org/series/HDTGPDUSQ163N" },
+      { name: "IMF", url: "https://www.imf.org/external/datamapper/datasets/GDD" },
+    ],
   },
   m2: {
     guru: "달리오 / 드러켄밀러",
@@ -438,7 +519,10 @@ const MODAL_CONTENTS: Record<string, ModalInfo> = {
       { icon: "▲", text: "증가 → 자산가격 상승 경향", color: "#22c55e" },
       { icon: "▼", text: "감소 → 자산가격 하락 경향", color: "#ef4444" },
     ],
-    sources: ["FRED", "각국 중앙은행"],
+    sources: [
+      { name: "FRED — WM2NS", url: "https://fred.stlouisfed.org/series/WM2NS" },
+      { name: "한국은행 ECOS", url: "https://ecos.bok.or.kr/" },
+    ],
   },
   gold_reserve: {
     guru: "레이 달리오",
@@ -447,7 +531,10 @@ const MODAL_CONTENTS: Record<string, ModalInfo> = {
     readings: [
       { icon: "▲", text: "중앙은행 금 매수 증가 = 달러 신뢰 하락 신호", color: "#eab308" },
     ],
-    sources: ["World Gold Council", "IMF"],
+    sources: [
+      { name: "World Gold Council", url: "https://www.gold.org/goldhub/data/gold-reserves-by-country" },
+      { name: "IMF", url: "https://data.imf.org/regular.aspx?key=41175" },
+    ],
   },
   dollar_share: {
     guru: "레이 달리오",
@@ -456,7 +543,10 @@ const MODAL_CONTENTS: Record<string, ModalInfo> = {
     readings: [
       { icon: "▼", text: "하락 추세 = 달러 패권 약화 진행 중", color: "#eab308" },
     ],
-    sources: ["IMF COFER", "SWIFT"],
+    sources: [
+      { name: "IMF COFER", url: "https://data.imf.org/regular.aspx?key=41175" },
+      { name: "SWIFT", url: "https://www.swift.com/our-solutions/compliance-and-shared-services/business-intelligence/renminbi/rmb-tracker" },
+    ],
   },
   cpi: {
     guru: "",
@@ -466,7 +556,11 @@ const MODAL_CONTENTS: Record<string, ModalInfo> = {
       { icon: "▼", text: "예상 하회 → 금리인하 기대, 주식↑", color: "#22c55e" },
       { icon: "▲", text: "예상 상회 → 금리인상 우려, 주식↓", color: "#ef4444" },
     ],
-    sources: ["BLS", "FRED", "Investing.com"],
+    sources: [
+      { name: "BLS", url: "https://www.bls.gov/cpi/" },
+      { name: "FRED — CPIAUCSL", url: "https://fred.stlouisfed.org/series/CPIAUCSL" },
+      { name: "Investing.com", url: "https://www.investing.com/economic-calendar/cpi-733" },
+    ],
   },
   pce: {
     guru: "",
@@ -476,7 +570,10 @@ const MODAL_CONTENTS: Record<string, ModalInfo> = {
       { icon: "▼", text: "2% 근접 → 금리인하 기대 상승", color: "#22c55e" },
       { icon: "▲", text: "2% 이상 유지 → 금리 동결·인상 압력", color: "#ef4444" },
     ],
-    sources: ["BEA", "FRED"],
+    sources: [
+      { name: "BEA", url: "https://www.bea.gov/data/personal-consumption-expenditures-price-index" },
+      { name: "FRED — PCEPI", url: "https://fred.stlouisfed.org/series/PCEPI" },
+    ],
   },
   nfp: {
     guru: "",
@@ -486,7 +583,11 @@ const MODAL_CONTENTS: Record<string, ModalInfo> = {
       { icon: "▲", text: "예상 크게 상회 → 과열, 금리인상 우려", color: "#eab308" },
       { icon: "▼", text: "예상 하회 → 경기 둔화 우려", color: "#ef4444" },
     ],
-    sources: ["BLS", "FRED", "Investing.com"],
+    sources: [
+      { name: "BLS", url: "https://www.bls.gov/news.release/empsit.nr0.htm" },
+      { name: "FRED — PAYEMS", url: "https://fred.stlouisfed.org/series/PAYEMS" },
+      { name: "Investing.com", url: "https://www.investing.com/economic-calendar/nonfarm-payrolls-227" },
+    ],
   },
   jolts: {
     guru: "",
@@ -496,7 +597,10 @@ const MODAL_CONTENTS: Record<string, ModalInfo> = {
       { icon: "▲", text: "구인 > 실업자 = 노동 과열", color: "#eab308" },
       { icon: "▼", text: "구인 < 실업자 = 노동 냉각", color: "#22c55e" },
     ],
-    sources: ["BLS (JOLTS)", "FRED"],
+    sources: [
+      { name: "BLS — JOLTS", url: "https://www.bls.gov/jlt/" },
+      { name: "FRED — JTSJOL", url: "https://fred.stlouisfed.org/series/JTSJOL" },
+    ],
   },
   pmi: {
     guru: "",
@@ -508,7 +612,10 @@ const MODAL_CONTENTS: Record<string, ModalInfo> = {
       { icon: "▼", text: "50 미만 = 수축", color: "#ef4444" },
       { icon: "▼", text: "45 미만 = 강한 수축", color: "#dc2626" },
     ],
-    sources: ["ISM", "S&P Global PMI"],
+    sources: [
+      { name: "ISM", url: "https://www.ismworld.org/supply-management-news-and-reports/reports/ism-report-on-business/" },
+      { name: "S&P Global PMI", url: "https://www.pmi.spglobal.com/Public/Home/PressRelease" },
+    ],
   },
   sp200: {
     guru: "폴 튜더 존스",
@@ -518,7 +625,10 @@ const MODAL_CONTENTS: Record<string, ModalInfo> = {
       { icon: "▲", text: "200일선 위 = 매수 우호", color: "#22c55e" },
       { icon: "▼", text: "200일선 아래 = 주의, 현금 비중 확대", color: "#ef4444" },
     ],
-    sources: ["TradingView", "Yahoo Finance"],
+    sources: [
+      { name: "TradingView", url: "https://www.tradingview.com/symbols/SPX/" },
+      { name: "Yahoo Finance", url: "https://finance.yahoo.com/quote/%5EGSPC/" },
+    ],
   },
   revision: {
     guru: "스탠리 드러켄밀러",
@@ -528,7 +638,11 @@ const MODAL_CONTENTS: Record<string, ModalInfo> = {
       { icon: "▲", text: "상향 증가 = 실적 개선 기대, 매수 우호", color: "#22c55e" },
       { icon: "▼", text: "하향 증가 = 실적 우려, 주의", color: "#ef4444" },
     ],
-    sources: ["FactSet", "Bloomberg", "Yardeni Research"],
+    sources: [
+      { name: "FactSet Earnings Insight", url: "https://insight.factset.com/" },
+      { name: "Bloomberg", url: "https://www.bloomberg.com/markets" },
+      { name: "Yardeni Research", url: "https://www.yardeni.com/" },
+    ],
   },
   bdi: {
     guru: "",
@@ -538,7 +652,10 @@ const MODAL_CONTENTS: Record<string, ModalInfo> = {
       { icon: "▲", text: "상승 = 세계 경기 회복 신호", color: "#22c55e" },
       { icon: "▼", text: "급락 = 교역 둔화, 경기침체 우려", color: "#ef4444" },
     ],
-    sources: ["Baltic Exchange", "TradingView"],
+    sources: [
+      { name: "Baltic Exchange", url: "https://www.balticexchange.com/" },
+      { name: "TradingView", url: "https://www.tradingview.com/symbols/INDEX-BDI/" },
+    ],
   },
 };
 
@@ -719,9 +836,9 @@ function IndicatorModal({ item, onClose }: { item: Indicator; onClose: () => voi
             <h3 className="text-sm font-semibold text-white/70 mb-2">🔗 어디서 보는가</h3>
             <div className="flex flex-wrap gap-1.5">
               {info.sources.map((s) => (
-                <span key={s} className="text-xs px-2 py-1 rounded bg-white/5 text-white/60 border border-white/10">
-                  {s}
-                </span>
+                <a key={s.name} href={s.url} target="_blank" rel="noopener noreferrer" className="text-xs px-2 py-1 rounded bg-white/5 text-white/60 border border-white/10 hover:bg-white/10 hover:text-white/80 transition-colors">
+                  {s.name}
+                </a>
               ))}
             </div>
           </section>
