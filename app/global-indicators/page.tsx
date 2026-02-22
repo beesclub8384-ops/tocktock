@@ -611,7 +611,7 @@ function CategoryBlock({
     <div className="relative" style={{ border: `1px solid ${color}`, borderRadius: 8, padding: 12, paddingTop: 18 }}>
       <span
         className="absolute text-xs font-medium px-1.5"
-        style={{ top: -8, left: 8, backgroundColor: "#111417", color }}
+        style={{ top: -8, left: 8, backgroundColor: "var(--background)", color }}
       >
         {name}
       </span>
@@ -786,8 +786,8 @@ export default function GlobalIndicatorsPage() {
 
   return (
     <div
-      className="min-h-screen px-4 py-8"
-      style={{ backgroundColor: "#111417", fontFamily: "'Noto Sans KR', 'DM Mono', sans-serif" }}
+      className="min-h-screen bg-background px-4 py-8"
+      style={{ fontFamily: "'Noto Sans KR', 'DM Mono', sans-serif" }}
     >
       <div className="max-w-5xl mx-auto space-y-3">
         {/* 1행: 금리 (전체 폭) */}
