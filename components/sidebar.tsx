@@ -5,6 +5,7 @@ import { BarChart3, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { GrowthScorePanel } from "@/components/growth-score-panel";
 import { DollarIndexWidget } from "@/components/dollar-index-widget";
+import { UsTreasury10yWidget } from "@/components/us-treasury-10y-widget";
 
 export function Sidebar() {
   const [open, setOpen] = useState(false);
@@ -66,6 +67,9 @@ export function Sidebar() {
         <GrowthScorePanel />
         <div className="mt-3">
           <DollarIndexWidget />
+          <div className="mt-1.5">
+            <UsTreasury10yWidget />
+          </div>
         </div>
       </aside>
     </>
