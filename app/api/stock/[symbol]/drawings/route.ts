@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { redis } from "@/lib/redis";
-import { isAdmin } from "@/lib/auth";
 import type { DrawingData } from "@/lib/types/drawing";
 
 interface DrawingsPayload {
@@ -22,10 +21,6 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ symbol: string }> }
 ) {
-  if (!isAdmin(request)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   const { symbol } = await params;
   const key = `drawings:${symbol.toUpperCase()}`;
   const body: DrawingsPayload = await request.json();

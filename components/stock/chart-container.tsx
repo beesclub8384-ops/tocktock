@@ -22,8 +22,6 @@ interface ChartContainerProps {
   onSelectionChange: (id: string | null) => void;
   onContextMenu: (x: number, y: number, id: string) => void;
   onToolReset: () => void;
-  isAdmin: boolean;
-  adminPassword: string | null;
 }
 
 export interface ChartContainerHandle {
@@ -40,8 +38,6 @@ export const ChartContainer = forwardRef<ChartContainerHandle, ChartContainerPro
       onSelectionChange,
       onContextMenu,
       onToolReset,
-      isAdmin,
-      adminPassword,
     },
     ref
   ) {
@@ -55,8 +51,6 @@ export const ChartContainer = forwardRef<ChartContainerHandle, ChartContainerPro
 
     const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const pendingSaveRef = useRef<{ drawings: DrawingData[]; sym: string } | null>(null);
-    const adminPasswordRef = useRef(adminPassword);
-    adminPasswordRef.current = adminPassword;
 
     // 서버에서 드로잉 로드
     const [initialDrawings, setInitialDrawings] = useState<DrawingData[] | null>(null);
@@ -79,10 +73,7 @@ export const ChartContainer = forwardRef<ChartContainerHandle, ChartContainerPro
         try {
           await fetch(`/api/stock/${encodeURIComponent(symbol)}/drawings`, {
             method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-              "x-admin-password": adminPasswordRef.current ?? "",
-            },
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ version: 1, drawings }),
           });
         } catch { /* 저장 실패 무시 — 다음 저장 시 재시도 */ }
@@ -132,10 +123,7 @@ export const ChartContainer = forwardRef<ChartContainerHandle, ChartContainerPro
           pendingSaveRef.current = null;
           fetch(`/api/stock/${encodeURIComponent(sym)}/drawings`, {
             method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-              "x-admin-password": adminPasswordRef.current ?? "",
-            },
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ version: 1, drawings }),
           }).catch(() => {});
         }
@@ -203,17 +191,17 @@ export const ChartContainer = forwardRef<ChartContainerHandle, ChartContainerPro
             onSelectionChange: (id) => callbacksRef.current.onSelectionChange(id),
             onContextMenu: (x, y, id) => callbacksRef.current.onContextMenu(x, y, id),
             onToolReset: () => callbacksRef.current.onToolReset(),
-            onSave: isAdmin ? handleSave : undefined,
+            onSave: handleSave,
           },
           initialDrawings,
-          readOnly: !isAdmin,
+          readOnly: false,
         });
       } else {
         managerRef.current.reattachAll(candles as ISeriesApi<SeriesType>);
       }
 
       chart.timeScale().fitContent();
-    }, [data, symbol, initialDrawings, isAdmin, handleSave]);
+    }, [data, symbol, initialDrawings, handleSave]);
 
     useEffect(() => {
       rebuildSeries();

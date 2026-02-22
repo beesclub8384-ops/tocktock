@@ -100,7 +100,7 @@ export function StockChart({ symbol }: StockChartProps) {
   // Delete 키로 선택된 드로잉 삭제 (관리자만)
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (isAdmin && (e.key === "Delete" || e.key === "Backspace") && selectedDrawingId) {
+      if ((e.key === "Delete" || e.key === "Backspace") && selectedDrawingId) {
         chartRef.current?.deleteDrawing(selectedDrawingId);
         setSelectedDrawingId(null);
       }
@@ -111,7 +111,7 @@ export function StockChart({ symbol }: StockChartProps) {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [selectedDrawingId, isAdmin]);
+  }, [selectedDrawingId]);
 
   const handleSelectionChange = useCallback((id: string | null) => {
     setSelectedDrawingId(id);
@@ -193,27 +193,23 @@ export function StockChart({ symbol }: StockChartProps) {
         </div>
       ) : (
         <div className="flex gap-2">
-          {isAdmin && (
-            <DrawingToolbar activeTool={activeTool} onToolChange={setActiveTool} />
-          )}
+          <DrawingToolbar activeTool={activeTool} onToolChange={setActiveTool} />
           <div className="flex-1">
             <ChartContainer
               ref={chartRef}
               data={data}
               symbol={symbol}
-              activeTool={isAdmin ? activeTool : null}
+              activeTool={activeTool}
               onSelectionChange={handleSelectionChange}
               onContextMenu={handleContextMenu}
               onToolReset={handleToolReset}
-              isAdmin={isAdmin}
-              adminPassword={adminPassword}
             />
           </div>
         </div>
       )}
 
-      {/* 우클릭 컨텍스트 메뉴 (관리자만) */}
-      {isAdmin && contextMenu && (
+      {/* 우클릭 컨텍스트 메뉴 */}
+      {contextMenu && (
         <DrawingContextMenu
           x={contextMenu.x}
           y={contextMenu.y}
