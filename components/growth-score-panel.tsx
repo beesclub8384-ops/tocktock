@@ -574,6 +574,9 @@ export function GrowthScorePanel() {
                   {scoreResult.totalScore!.toFixed(1)}
                 </p>
                 <p className="mt-0.5 text-[10px] text-muted-foreground">/ 100</p>
+                <p className="mt-1 text-[10px] text-muted-foreground/60">
+                  기준 연도는 종목별 실적 공시 시점에 따라 다를 수 있습니다
+                </p>
                 <button
                   onClick={() => setGuideOpen(true)}
                   className="guide-btn mt-3 inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs transition-all"
