@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   createChart,
   ColorType,
@@ -8,8 +8,12 @@ import {
   type IChartApi,
   type Time,
 } from "lightweight-charts";
-import { HelpCircle, X } from "lucide-react";
-import type { OverheatIndexResponse } from "@/lib/types/credit-balance";
+import { HelpCircle, Maximize2, Minimize2, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import type {
+  OverheatIndexItem,
+  OverheatIndexResponse,
+} from "@/lib/types/credit-balance";
 
 const STATUS_LABELS: Record<string, { text: string; color: string }> = {
   safe: { text: "안전 구간", color: "#22c55e" },
@@ -17,8 +21,60 @@ const STATUS_LABELS: Record<string, { text: string; color: string }> = {
   danger: { text: "위험 구간", color: "#ef4444" },
 };
 
+type Period = "daily" | "weekly" | "monthly";
+
+const PERIOD_OPTIONS: { value: Period; label: string }[] = [
+  { value: "daily", label: "일간" },
+  { value: "weekly", label: "주간" },
+  { value: "monthly", label: "월간" },
+];
+
 function fmt(v: number): string {
   return v.toFixed(3) + "%";
+}
+
+/* ────────────────────────────────────────────
+   데이터 샘플링: 주간/월간
+   ──────────────────────────────────────────── */
+
+function getISOWeekKey(dateStr: string): string {
+  const d = new Date(dateStr + "T00:00:00");
+  const dayOfWeek = d.getDay() || 7;
+  d.setDate(d.getDate() + 4 - dayOfWeek);
+  const yearStart = new Date(d.getFullYear(), 0, 1);
+  const weekNo = Math.ceil(
+    ((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7
+  );
+  return `${d.getFullYear()}-W${weekNo}`;
+}
+
+function sampleOverheatData(
+  data: OverheatIndexItem[],
+  period: Period
+): OverheatIndexItem[] {
+  if (period === "daily") return data;
+
+  const result: OverheatIndexItem[] = [];
+
+  for (let i = 0; i < data.length; i++) {
+    const key =
+      period === "monthly"
+        ? data[i].date.slice(0, 7)
+        : getISOWeekKey(data[i].date);
+
+    const nextKey =
+      i + 1 < data.length
+        ? period === "monthly"
+          ? data[i + 1].date.slice(0, 7)
+          : getISOWeekKey(data[i + 1].date)
+        : null;
+
+    if (key !== nextKey) {
+      result.push(data[i]);
+    }
+  }
+
+  return result;
 }
 
 /* ────────────────────────────────────────────
@@ -301,13 +357,17 @@ function OverheatGuideModal({ onClose }: { onClose: () => void }) {
    메인 차트 컴포넌트
    ──────────────────────────────────────────── */
 export function CreditOverheatChart() {
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const [response, setResponse] = useState<OverheatIndexResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [guideOpen, setGuideOpen] = useState(false);
+  const [period, setPeriod] = useState<Period>("monthly");
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
+  // 데이터 fetch
   useEffect(() => {
     async function fetchData() {
       try {
@@ -324,9 +384,41 @@ export function CreditOverheatChart() {
     fetchData();
   }, []);
 
+  // 전체화면 상태 감지
+  useEffect(() => {
+    const handler = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener("fullscreenchange", handler);
+    return () => document.removeEventListener("fullscreenchange", handler);
+  }, []);
+
+  const toggleFullscreen = useCallback(() => {
+    const el = wrapperRef.current;
+    if (!el) return;
+    if (!document.fullscreenElement) {
+      el.requestFullscreen().catch(() => {});
+    } else {
+      document.exitFullscreen().catch(() => {});
+    }
+  }, []);
+
+  // 샘플링된 데이터
+  const chartData = useMemo(
+    () => (response ? sampleOverheatData(response.data, period) : null),
+    [response, period]
+  );
+
+  // 차트 높이 (SSR-safe)
+  const [chartHeight, setChartHeight] = useState(300);
+  useEffect(() => {
+    setChartHeight(isFullscreen ? window.innerHeight - 72 : 300);
+  }, [isFullscreen]);
+
+  // 차트 생성 / 업데이트
   useEffect(() => {
     const el = containerRef.current;
-    if (!el || !response || response.data.length === 0) return;
+    if (!el || !chartData || chartData.length === 0 || !response) return;
 
     const chart = createChart(el, {
       layout: {
@@ -338,7 +430,7 @@ export function CreditOverheatChart() {
         horzLines: { color: "#27272a" },
       },
       width: el.clientWidth,
-      height: 300,
+      height: chartHeight,
       timeScale: { borderColor: "#3f3f46", timeVisible: false },
       rightPriceScale: {
         borderColor: "#3f3f46",
@@ -361,7 +453,7 @@ export function CreditOverheatChart() {
     });
 
     series.setData(
-      response.data.map((d) => ({ time: d.date as Time, value: d.index }))
+      chartData.map((d) => ({ time: d.date as Time, value: d.index }))
     );
 
     // 주의선 (평균)
@@ -386,7 +478,11 @@ export function CreditOverheatChart() {
 
     chart.timeScale().fitContent();
 
-    const onResize = () => chart.applyOptions({ width: el.clientWidth });
+    const onResize = () => {
+      const h = document.fullscreenElement ? window.innerHeight - 72 : 300;
+      setChartHeight(h);
+      chart.applyOptions({ width: el.clientWidth, height: h });
+    };
     window.addEventListener("resize", onResize);
 
     return () => {
@@ -394,7 +490,7 @@ export function CreditOverheatChart() {
       chart.remove();
       chartRef.current = null;
     };
-  }, [response]);
+  }, [chartData, response, chartHeight]);
 
   if (loading) {
     return (
@@ -416,21 +512,43 @@ export function CreditOverheatChart() {
   const statusInfo = STATUS_LABELS[stats.status];
 
   return (
-    <div className="rounded-xl border border-border bg-card p-6">
+    <div
+      ref={wrapperRef}
+      className={
+        isFullscreen
+          ? "flex h-screen w-screen flex-col bg-[#0a0a0a] p-4"
+          : "rounded-xl border border-border bg-card p-6"
+      }
+    >
       {guideOpen && <OverheatGuideModal onClose={() => setGuideOpen(false)} />}
 
-      {/* 상단: 현재 상태 + 가이드 버튼 */}
-      <div className="mb-4 flex items-center gap-3 text-sm">
+      {/* 상단: 현재 상태 + 기간 토글 + 가이드 버튼 */}
+      <div className={`mb-4 flex flex-wrap items-center gap-3 text-sm ${isFullscreen ? "text-zinc-300" : ""}`}>
         <div>
-          <span className="text-muted-foreground">현재 과열지수 </span>
-          <span className="font-semibold text-foreground">
+          <span className={isFullscreen ? "text-zinc-400" : "text-muted-foreground"}>현재 과열지수 </span>
+          <span className={`font-semibold ${isFullscreen ? "text-zinc-100" : "text-foreground"}`}>
             {fmt(stats.current)}
           </span>
-          <span className="text-muted-foreground"> — </span>
+          <span className={isFullscreen ? "text-zinc-400" : "text-muted-foreground"}> — </span>
           <span className="font-semibold" style={{ color: statusInfo.color }}>
             {statusInfo.text}
           </span>
         </div>
+
+        {/* 기간 토글 */}
+        <div className="flex items-center gap-1">
+          {PERIOD_OPTIONS.map((opt) => (
+            <Button
+              key={opt.value}
+              variant={period === opt.value ? "default" : "outline"}
+              size="xs"
+              onClick={() => setPeriod(opt.value)}
+            >
+              {opt.label}
+            </Button>
+          ))}
+        </div>
+
         <button
           onClick={() => setGuideOpen(true)}
           className="guide-btn ml-auto inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs transition-all"
@@ -441,10 +559,27 @@ export function CreditOverheatChart() {
       </div>
 
       {/* 차트 */}
-      <div ref={containerRef} className="w-full overflow-hidden rounded-lg" />
+      <div className="relative">
+        <div
+          ref={containerRef}
+          className={
+            isFullscreen
+              ? "w-full flex-1 overflow-hidden rounded-lg"
+              : "w-full overflow-hidden rounded-lg"
+          }
+        />
+        {/* 전체화면 버튼: 차트 우하단 */}
+        <button
+          onClick={toggleFullscreen}
+          title={isFullscreen ? "원래 크기로" : "전체화면"}
+          className="absolute bottom-2 right-2 rounded-md bg-black/50 p-1.5 text-zinc-400 backdrop-blur-sm transition-colors hover:bg-black/70 hover:text-zinc-200"
+        >
+          {isFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+        </button>
+      </div>
 
       {/* 하단: 범례 */}
-      <div className="mt-4 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+      <div className={`mt-4 flex flex-wrap items-center gap-4 text-xs ${isFullscreen ? "text-zinc-400" : "text-muted-foreground"}`}>
         <span className="flex items-center gap-1.5">
           <span className="inline-block h-2.5 w-2.5 rounded-full bg-green-500" />
           안전 (&lt; {fmt(stats.cautionLine)})
@@ -468,7 +603,7 @@ export function CreditOverheatChart() {
         </span>
       </div>
       {response.source === "indexClose" && (
-        <p className="mt-2 text-[11px] text-muted-foreground/60">
+        <p className={`mt-2 text-[11px] ${isFullscreen ? "text-zinc-500" : "text-muted-foreground/60"}`}>
           * 시가총액 API 미연결 상태로 지수 종가 기반 근사치를 표시합니다.
         </p>
       )}
