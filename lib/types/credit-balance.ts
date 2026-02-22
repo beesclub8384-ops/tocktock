@@ -15,12 +15,12 @@ export interface OverheatIndexItem {
 export interface OverheatIndexResponse {
   data: OverheatIndexItem[];
   stats: {
-    mean: number;
-    std: number;
-    cautionLine: number;    // mean + 0σ (= mean)
-    dangerLine: number;     // mean + 1σ
+    interestLine: number;   // 0.500% — 관심 구간 시작
+    cautionLine: number;    // 0.750% — 주의 구간 시작
+    dangerLine: number;     // 0.850% — 위험 구간 시작
     current: number;        // 최신 과열지수
-    status: "safe" | "caution" | "danger";
+    status: "safe" | "interest" | "caution" | "danger";
+    dataPoints: number;     // 분석 기반 데이터 수 (25년간 6,164일)
   };
-  source: "marketCap" | "indexClose"; // 데이터 소스 (시가총액 vs 지수종가 fallback)
+  source: "marketCap" | "indexClose";
 }

@@ -243,24 +243,22 @@ export async function GET() {
       );
     }
 
-    // statistics
+    // 역사적 데이터 기반 고정 임계값 (25년간 6,164일 분석)
+    const INTEREST_LINE = 0.5;   // 관심: 하락 확률 서서히 증가
+    const CAUTION_LINE = 0.75;   // 주의: 90일 하락 확률 53~65%
+    const DANGER_LINE = 0.85;    // 위험: 90일 하락 확률 65~86%
+
     const values = joined.map((d) => d.index);
-    const mean = values.reduce((a, b) => a + b, 0) / values.length;
-    const variance =
-      values.reduce((a, b) => a + (b - mean) ** 2, 0) / values.length;
-    const std = Math.sqrt(variance);
-
     const round = (v: number) => Math.round(v * 1000) / 1000;
-
-    const cautionLine = round(mean);
-    const dangerLine = round(mean + std);
     const current = round(values[values.length - 1]);
 
-    let status: "safe" | "caution" | "danger";
-    if (current >= mean + std) {
+    let status: "safe" | "interest" | "caution" | "danger";
+    if (current >= DANGER_LINE) {
       status = "danger";
-    } else if (current >= mean) {
+    } else if (current >= CAUTION_LINE) {
       status = "caution";
+    } else if (current >= INTEREST_LINE) {
+      status = "interest";
     } else {
       status = "safe";
     }
@@ -268,12 +266,12 @@ export async function GET() {
     const response: OverheatIndexResponse = {
       data: joined,
       stats: {
-        mean: round(mean),
-        std: round(std),
-        cautionLine,
-        dangerLine,
+        interestLine: INTEREST_LINE,
+        cautionLine: CAUTION_LINE,
+        dangerLine: DANGER_LINE,
         current,
         status,
+        dataPoints: joined.length,
       },
       source,
     };

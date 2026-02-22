@@ -16,9 +16,10 @@ import type {
 } from "@/lib/types/credit-balance";
 
 const STATUS_LABELS: Record<string, { text: string; color: string }> = {
-  safe: { text: "안전 구간", color: "#22c55e" },
-  caution: { text: "주의 구간", color: "#eab308" },
-  danger: { text: "위험 구간", color: "#ef4444" },
+  safe: { text: "안전", color: "#22c55e" },
+  interest: { text: "관심", color: "#3b82f6" },
+  caution: { text: "주의", color: "#eab308" },
+  danger: { text: "위험", color: "#ef4444" },
 };
 
 type Period = "daily" | "weekly" | "monthly";
@@ -202,35 +203,45 @@ function OverheatGuideModal({ onClose }: { onClose: () => void }) {
           <div className="space-y-3">
             <div className="rounded-lg border border-border bg-muted/30 p-4">
               <p className="mb-1 text-sm font-semibold text-green-500">
-                안전 (평균 미만)
+                안전 (0.500% 미만)
               </p>
               <p className="text-sm leading-relaxed text-muted-foreground">
-                빚투 비율이 정상 범위입니다. 시장이 건강하다는 의미이지만, 다른
-                리스크가 없다는 뜻은 아닙니다.
+                빚투 비율이 역사적 평균 이하입니다. 90일 후 하락 확률이 약
+                41~43%로, 빚투발 리스크는 낮은 구간입니다.
+              </p>
+            </div>
+            <div className="rounded-lg border border-border bg-muted/30 p-4">
+              <p className="mb-1 text-sm font-semibold text-blue-500">
+                관심 (0.500% ~ 0.750%)
+              </p>
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                빚투가 평균을 넘어 서서히 늘고 있습니다. 90일 후 하락 확률이
+                약 47~53%로, 추가 빚투는 신중하게 판단하세요.
               </p>
             </div>
             <div className="rounded-lg border border-border bg-muted/30 p-4">
               <p className="mb-1 text-sm font-semibold text-yellow-500">
-                주의 (평균 ~ 평균+1&sigma;)
+                주의 (0.750% ~ 0.850%)
               </p>
               <p className="text-sm leading-relaxed text-muted-foreground">
-                빚투가 평소보다 많아지고 있습니다. 추가 빚투를 자제하고, 보유
-                종목의 담보비율을 점검하세요.
+                빚투가 상당히 높은 수준입니다. 90일 후 하락 확률이 약
+                53~65%로, 보유 종목의 담보비율을 반드시 점검하세요.
+                2024년 블랙먼데이 직전이 이 구간이었습니다.
               </p>
             </div>
             <div className="rounded-lg border border-border bg-muted/30 p-4">
               <p className="mb-1 text-sm font-semibold text-red-500">
-                위험 (평균+1&sigma; 초과)
+                위험 (0.850% 이상)
               </p>
               <p className="text-sm leading-relaxed text-muted-foreground">
-                빚투가 과도한 수준입니다. 작은 충격에도 반대매매 연쇄가 발생할
-                수 있습니다. 신용융자 비중 축소를 고려하세요.
+                빚투가 역사적 상위 5% 수준입니다. 90일 후 하락 확률이
+                65~86%에 달합니다. 작은 충격에도 반대매매 연쇄가 발생할 수
+                있습니다. 2022년 금리인상 하락이 이 구간에서 시작되었습니다.
               </p>
             </div>
           </div>
           <p className="mt-3 text-xs text-muted-foreground/70">
-            * &sigma;(시그마)는 표준편차입니다. 쉽게 말해 &ldquo;평소에 이
-            정도까지는 움직인다&rdquo;는 범위를 뜻합니다.
+            * 하락 확률은 2001~2026년 25년간 6,164일 데이터 분석 기준입니다.
           </p>
         </section>
 
@@ -251,10 +262,18 @@ function OverheatGuideModal({ onClose }: { onClose: () => void }) {
             <li>
               <span
                 className="mr-1.5 inline-block h-2.5 w-2.5 rounded-full"
+                style={{ backgroundColor: "#3b82f6" }}
+              />
+              <strong className="text-foreground">파란 점선</strong>: 관심선
+              (0.500%)
+            </li>
+            <li>
+              <span
+                className="mr-1.5 inline-block h-2.5 w-2.5 rounded-full"
                 style={{ backgroundColor: "#eab308" }}
               />
               <strong className="text-foreground">노란 점선</strong>: 주의선
-              (6개월 평균값)
+              (0.750%)
             </li>
             <li>
               <span
@@ -262,7 +281,7 @@ function OverheatGuideModal({ onClose }: { onClose: () => void }) {
                 style={{ backgroundColor: "#ef4444" }}
               />
               <strong className="text-foreground">빨간 점선</strong>: 위험선
-              (평균 + 1 표준편차)
+              (0.850%)
             </li>
             <li>
               보라색 선이 급격히 올라가는 구간을 특히 주의하세요. 빚투가 빠르게
@@ -287,14 +306,14 @@ function OverheatGuideModal({ onClose }: { onClose: () => void }) {
               <strong className="text-foreground">예시로 이해하기:</strong>
             </p>
             <ul className="ml-4 list-disc space-y-1">
-              <li>빚투 30조, 시장 3,000조 &rarr; 과열지수 1.0% (주의)</li>
+              <li>빚투 30조, 시장 3,000조 &rarr; 과열지수 1.0% (위험)</li>
               <li>
-                빚투 30조, 시장 5,000조 &rarr; 과열지수 0.6% (안전) — 빚투는
-                같지만 시장이 커서 안전
+                빚투 30조, 시장 5,000조 &rarr; 과열지수 0.6% (관심) — 빚투는
+                같지만 시장이 커서 상대적으로 안전
               </li>
               <li>
-                빚투 30조, 시장 2,000조 &rarr; 과열지수 1.5% (위험) — 빚투는
-                같지만 시장이 줄어서 위험
+                빚투 15조, 시장 5,000조 &rarr; 과열지수 0.3% (안전) — 빚투가
+                적고 시장이 커서 안전
               </li>
             </ul>
             <p className="mt-2 font-medium text-foreground">
@@ -339,11 +358,15 @@ function OverheatGuideModal({ onClose }: { onClose: () => void }) {
             데이터 출처 및 업데이트
           </h3>
           <ul className="space-y-1.5 text-sm leading-relaxed text-muted-foreground">
-            <li>신용융자잔고: 금융투자협회 (공공데이터포털 API)</li>
-            <li>시가총액: 한국거래소 (공공데이터포털 API)</li>
+            <li>신용융자잔고: 금융투자협회 (FreeSIS 2001~2021 + 공공데이터포털 API 2021~현재)</li>
+            <li>시가총액: 한국거래소 (FreeSIS 2001~2021 + 공공데이터포털 API 2020~현재)</li>
             <li>업데이트: 매 영업일 자동 갱신</li>
             <li>
-              TockTock이 두 공공데이터를 조합하여 자체 산출하는 독자
+              구간 기준: 2001~2026년 25년간 6,164일 데이터의 이후
+              30/60/90일 KOSPI 수익률 분석 기반
+            </li>
+            <li>
+              TockTock이 공공데이터를 조합하여 자체 산출하는 독자
               지표입니다.
             </li>
           </ul>
@@ -456,17 +479,27 @@ export function CreditOverheatChart() {
       chartData.map((d) => ({ time: d.date as Time, value: d.index }))
     );
 
-    // 주의선 (평균)
+    // 관심선 (0.500%)
     series.createPriceLine({
-      price: response.stats.cautionLine,
-      color: "#eab308",
+      price: response.stats.interestLine,
+      color: "#3b82f6",
       lineWidth: 1,
-      lineStyle: 1, // dashed
+      lineStyle: 1,
       axisLabelVisible: true,
       title: "",
     });
 
-    // 위험선 (평균 + 1σ)
+    // 주의선 (0.750%)
+    series.createPriceLine({
+      price: response.stats.cautionLine,
+      color: "#eab308",
+      lineWidth: 1,
+      lineStyle: 1,
+      axisLabelVisible: true,
+      title: "",
+    });
+
+    // 위험선 (0.850%)
     series.createPriceLine({
       price: response.stats.dangerLine,
       color: "#ef4444",
@@ -579,10 +612,14 @@ export function CreditOverheatChart() {
       </div>
 
       {/* 하단: 범례 */}
-      <div className={`mt-4 flex flex-wrap items-center gap-4 text-xs ${isFullscreen ? "text-zinc-400" : "text-muted-foreground"}`}>
+      <div className={`mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs ${isFullscreen ? "text-zinc-400" : "text-muted-foreground"}`}>
         <span className="flex items-center gap-1.5">
           <span className="inline-block h-2.5 w-2.5 rounded-full bg-green-500" />
-          안전 (&lt; {fmt(stats.cautionLine)})
+          안전 (&lt; {fmt(stats.interestLine)})
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="inline-block h-2.5 w-2.5 rounded-full bg-blue-500" />
+          관심 ({fmt(stats.interestLine)} ~ {fmt(stats.cautionLine)})
         </span>
         <span className="flex items-center gap-1.5">
           <span className="inline-block h-2.5 w-2.5 rounded-full bg-yellow-500" />
@@ -592,21 +629,20 @@ export function CreditOverheatChart() {
           <span className="inline-block h-2.5 w-2.5 rounded-full bg-red-500" />
           위험 (&gt; {fmt(stats.dangerLine)})
         </span>
-        <span className="ml-auto flex items-center gap-1.5">
-          <span
-            className="inline-block h-2.5 w-2.5 rounded-full"
-            style={{ backgroundColor: "#a855f7" }}
-          />
-          {response.source === "marketCap"
-            ? "과열지수 = 융자잔고 / 시가총액 × 100"
-            : "과열지수 = 융자잔고 / 시가총액(추정) × 100"}
+        <span className={`ml-auto text-[11px] ${isFullscreen ? "text-zinc-500" : "text-muted-foreground/60"}`}>
+          25년간 {stats.dataPoints.toLocaleString()}일 데이터 기반
         </span>
       </div>
       {response.source === "indexClose" && (
-        <p className={`mt-2 text-[11px] ${isFullscreen ? "text-zinc-500" : "text-muted-foreground/60"}`}>
+        <p className={`mt-1.5 text-[11px] ${isFullscreen ? "text-zinc-500" : "text-muted-foreground/60"}`}>
           * 시가총액 API 미연결 상태로 지수 종가 기반 근사치를 표시합니다.
         </p>
       )}
+      <p className={`mt-1.5 text-[11px] ${isFullscreen ? "text-zinc-500" : "text-muted-foreground/60"}`}>
+        {response.source === "marketCap"
+          ? "과열지수 = 융자잔고 / 시가총액 × 100"
+          : "과열지수 = 융자잔고 / 시가총액(추정) × 100"}
+      </p>
     </div>
   );
 }
