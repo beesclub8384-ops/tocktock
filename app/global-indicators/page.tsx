@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import type { GlobalIndicatorsResponse } from "@/lib/types/global-indicators";
 
 /* ═══════════════════ 타입 ═══════════════════ */
 
@@ -18,7 +19,14 @@ interface Indicator {
   size: TileSize;
   status: Status;
   category: string;
+  manual?: boolean;
 }
+
+const MANUAL_IDS = new Set([
+  "buffett_rate", "swap", "move", "pcr", "hy", "cds", "cc", "auto",
+  "crb", "cape", "buffett", "em_cape", "debt", "m2", "gold_reserve",
+  "dollar_share", "jolts", "pmi", "sp200", "revision", "bdi",
+]);
 
 interface ReadingGuide {
   icon: string;
@@ -62,7 +70,7 @@ const CATEGORY_COLORS: Record<string, string> = {
 
 /* ═══════════════════ 지표 데이터 ═══════════════════ */
 
-const CATEGORIES: { name: string; items: Indicator[] }[] = [
+const INITIAL_CATEGORIES: { name: string; items: Indicator[] }[] = [
   {
     name: "금리",
     items: [
@@ -150,6 +158,13 @@ const CATEGORIES: { name: string; items: Indicator[] }[] = [
     ],
   },
 ];
+
+// Mark manual indicators
+INITIAL_CATEGORIES.forEach((cat) =>
+  cat.items.forEach((item) => {
+    if (MANUAL_IDS.has(item.id)) item.manual = true;
+  })
+);
 
 /* ═══════════════════ 모달 콘텐츠 ═══════════════════ */
 
@@ -570,6 +585,11 @@ function Tile({ item, onClick }: { item: Indicator; onClick: () => void }) {
           {item.change}
         </span>
       )}
+      {item.manual && (
+        <span style={{ fontSize: 7 }} className="text-white/30 mt-0.5">
+          수동업데이트
+        </span>
+      )}
     </button>
   );
 }
@@ -713,10 +733,56 @@ function IndicatorModal({ item, onClose }: { item: Indicator; onClose: () => voi
 
 /* ═══════════════════ 메인 페이지 ═══════════════════ */
 
+function formatValue(id: string, value: number): string {
+  if (id === "usdkrw") return Math.round(value).toLocaleString();
+  if (id === "gold") return Math.round(value).toLocaleString();
+  if (id === "t10y2y") return (value >= 0 ? "+" : "") + value.toFixed(2);
+  if (id === "nfp") return String(value);
+  return value.toFixed(2);
+}
+
+function formatChange(change: number | null): string {
+  if (change === null || change === 0) return "";
+  const sign = change > 0 ? "▲ +" : "▼ ";
+  return `${sign}${Math.abs(change) >= 10 ? Math.round(change) : change.toFixed(2)}`;
+}
+
+function deepCloneCategories() {
+  return INITIAL_CATEGORIES.map((cat) => ({
+    ...cat,
+    items: cat.items.map((item) => ({ ...item })),
+  }));
+}
+
 export default function GlobalIndicatorsPage() {
+  const [categories, setCategories] = useState(() => deepCloneCategories());
   const [selected, setSelected] = useState<Indicator | null>(null);
 
-  const cat = (name: string) => CATEGORIES.find((c) => c.name === name)!;
+  useEffect(() => {
+    fetch("/api/global-indicators")
+      .then((res) => res.json())
+      .then((json: GlobalIndicatorsResponse) => {
+        const liveMap = new Map(json.data.map((d) => [d.id, d]));
+        setCategories((prev) =>
+          prev.map((cat) => ({
+            ...cat,
+            items: cat.items.map((item) => {
+              const live = liveMap.get(item.id);
+              if (!live || live.value === null) return item;
+              return {
+                ...item,
+                value: formatValue(item.id, live.value),
+                unit: live.unit || item.unit,
+                change: formatChange(live.change) || item.change,
+              };
+            }),
+          }))
+        );
+      })
+      .catch((err) => console.error("global-indicators fetch error:", err));
+  }, []);
+
+  const cat = (name: string) => categories.find((c) => c.name === name)!;
 
   return (
     <div
