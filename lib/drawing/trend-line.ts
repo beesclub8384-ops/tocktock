@@ -1,6 +1,7 @@
 import type {
   IPrimitivePaneView,
   PrimitiveHoveredItem,
+  Time,
 } from "lightweight-charts";
 import type { CanvasRenderingTarget2D } from "fancy-canvas";
 import type { TrendLineData } from "@/lib/types/drawing";
@@ -49,9 +50,51 @@ export class TrendLineDrawing extends BaseDrawing {
   }
 
   updateAllViews(): void {
-    const p1 = this.toCoord(this.data.p1.time, this.data.p1.price);
-    const p2 = this.toCoord(this.data.p2.time, this.data.p2.price);
+    const p1 = this.toCoord(this.data.p1.time, this.data.p1.price)
+      ?? this.toCoordNearest(this.data.p1.time, this.data.p1.price);
+    const p2 = this.toCoord(this.data.p2.time, this.data.p2.price)
+      ?? this.toCoordNearest(this.data.p2.time, this.data.p2.price);
     this._coords = p1 && p2 ? { x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y } : null;
+  }
+
+  /** timeToCoordinate()가 null일 때 가장 가까운 캔들의 x좌표 사용 */
+  private toCoordNearest(time: Time, price: number): { x: number; y: number } | null {
+    if (!this._chart || !this._series) return null;
+    const y = this._series.priceToCoordinate(price);
+    if (y === null) return null;
+
+    const ts = this._chart.timeScale();
+    const range = ts.getVisibleLogicalRange();
+    if (!range) return null;
+
+    const targetMs = this.timeToMs(time);
+    let bestX: number | null = null;
+    let bestDist = Infinity;
+
+    const start = Math.floor(range.from) - 10;
+    const end = Math.ceil(range.to) + 10;
+
+    for (let i = start; i <= end; i++) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const x = ts.logicalToCoordinate(i as any);
+      if (x === null) continue;
+      const t = ts.coordinateToTime(x);
+      if (t === null) continue;
+
+      const dist = Math.abs(this.timeToMs(t) - targetMs);
+      if (dist < bestDist) {
+        bestDist = dist;
+        bestX = x;
+      }
+    }
+
+    return bestX !== null ? { x: bestX, y } : null;
+  }
+
+  private timeToMs(time: Time): number {
+    if (typeof time === "number") return time * 1000;
+    if (typeof time === "string") return new Date(time).getTime();
+    return new Date(time.year, time.month - 1, time.day).getTime();
   }
 
   paneViews(): readonly IPrimitivePaneView[] {

@@ -54,6 +54,7 @@ export const ChartContainer = forwardRef<ChartContainerHandle, ChartContainerPro
     callbacksRef.current = { onSelectionChange, onContextMenu, onToolReset };
 
     const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const pendingSaveRef = useRef<{ drawings: DrawingData[]; sym: string } | null>(null);
     const adminPasswordRef = useRef(adminPassword);
     adminPasswordRef.current = adminPassword;
 
@@ -71,7 +72,10 @@ export const ChartContainer = forwardRef<ChartContainerHandle, ChartContainerPro
     // 디바운스 서버 저장
     const handleSave = useCallback((drawings: DrawingData[]) => {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+      pendingSaveRef.current = { drawings, sym: symbol };
       saveTimeoutRef.current = setTimeout(async () => {
+        pendingSaveRef.current = null;
+        saveTimeoutRef.current = null;
         try {
           await fetch(`/api/stock/${encodeURIComponent(symbol)}/drawings`, {
             method: "PUT",
@@ -118,6 +122,23 @@ export const ChartContainer = forwardRef<ChartContainerHandle, ChartContainerPro
 
       return () => {
         window.removeEventListener("resize", onResize);
+        // 대기 중인 저장이 있으면 즉시 실행
+        if (saveTimeoutRef.current) {
+          clearTimeout(saveTimeoutRef.current);
+          saveTimeoutRef.current = null;
+        }
+        if (pendingSaveRef.current) {
+          const { drawings, sym } = pendingSaveRef.current;
+          pendingSaveRef.current = null;
+          fetch(`/api/stock/${encodeURIComponent(sym)}/drawings`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              "x-admin-password": adminPasswordRef.current ?? "",
+            },
+            body: JSON.stringify({ version: 1, drawings }),
+          }).catch(() => {});
+        }
         managerRef.current?.destroy();
         managerRef.current = null;
         chart.remove();
