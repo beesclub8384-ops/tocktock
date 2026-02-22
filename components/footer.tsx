@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { Separator } from "@/components/ui/separator";
 
 export function Footer() {
@@ -12,17 +11,6 @@ export function Footer() {
               실시간 주식 정보 공유 커뮤니티
             </p>
           </div>
-          <nav className="flex gap-6 text-sm text-muted-foreground">
-            <Link href="/" className="hover:text-foreground transition-colors">
-              홈
-            </Link>
-            <Link
-              href="/blog"
-              className="hover:text-foreground transition-colors"
-            >
-              블로그
-            </Link>
-          </nav>
         </div>
         <Separator className="my-8" />
         <p className="text-center text-sm text-muted-foreground">
