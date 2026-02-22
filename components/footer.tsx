@@ -7,7 +7,7 @@ export function Footer() {
       <div className="mx-auto max-w-5xl px-6 py-12">
         <div className="flex flex-col items-center gap-6 sm:flex-row sm:justify-between">
           <div>
-            <p className="text-lg font-semibold">TockTock</p>
+            <img src="/logo.png" height={32} alt="TockTock" style={{ height: 32 }} />
             <p className="mt-1 text-sm text-muted-foreground">
               실시간 주식 정보 공유 커뮤니티
             </p>
