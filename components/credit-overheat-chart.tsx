@@ -14,6 +14,7 @@ import type {
   OverheatIndexItem,
   OverheatIndexResponse,
 } from "@/lib/types/credit-balance";
+import { CreditOverheatAnalysis } from "@/components/credit-overheat-analysis";
 
 const STATUS_LABELS: Record<string, { text: string; color: string }> = {
   safe: { text: "안전", color: "#22c55e" },
@@ -643,6 +644,7 @@ export function CreditOverheatChart() {
           ? "과열지수 = 융자잔고 / 시가총액 × 100"
           : "과열지수 = 융자잔고 / 시가총액(추정) × 100"}
       </p>
+      {!isFullscreen && <CreditOverheatAnalysis />}
     </div>
   );
 }
