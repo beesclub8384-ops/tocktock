@@ -1,27 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Lock, Unlock } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { ChartContainer, type ChartContainerHandle } from "./chart-container";
-import { DrawingToolbar } from "./drawing-toolbar";
-import { DrawingContextMenu } from "./drawing-context-menu";
-import { AdminLoginDialog } from "./admin-login-dialog";
+import { ChartContainer } from "./chart-container";
 import { StockSearch } from "./stock-search";
 import type {
   ChartInterval,
   OHLCData,
   StockChartResponse,
 } from "@/lib/types/stock";
-import type { DrawingToolType } from "@/lib/types/drawing";
 
 const INTERVALS: { value: ChartInterval; label: string }[] = [
   { value: "1d", label: "일봉" },
   { value: "1wk", label: "주봉" },
   { value: "1mo", label: "월봉" },
 ];
-
-const SESSION_KEY = "tocktock-admin-pw";
 
 interface StockChartProps {
   symbol: string;
@@ -32,53 +25,6 @@ export function StockChart({ symbol }: StockChartProps) {
   const [data, setData] = useState<OHLCData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // 관리자 인증
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [adminPassword, setAdminPassword] = useState<string | null>(null);
-  const [showLoginDialog, setShowLoginDialog] = useState(false);
-
-  // 드로잉 상태
-  const [activeTool, setActiveTool] = useState<DrawingToolType>(null);
-  const [selectedDrawingId, setSelectedDrawingId] = useState<string | null>(null);
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; id: string } | null>(null);
-
-  const chartRef = useRef<ChartContainerHandle>(null);
-
-  // sessionStorage에서 관리자 세션 복원
-  useEffect(() => {
-    const saved = sessionStorage.getItem(SESSION_KEY);
-    if (!saved) return;
-    // 저장된 비밀번호 검증
-    fetch("/api/admin/verify", {
-      method: "POST",
-      headers: { "x-admin-password": saved },
-    }).then((res) => {
-      if (res.ok) {
-        setIsAdmin(true);
-        setAdminPassword(saved);
-      } else {
-        sessionStorage.removeItem(SESSION_KEY);
-      }
-    }).catch(() => {
-      sessionStorage.removeItem(SESSION_KEY);
-    });
-  }, []);
-
-  const handleLogin = useCallback((password: string) => {
-    setIsAdmin(true);
-    setAdminPassword(password);
-    sessionStorage.setItem(SESSION_KEY, password);
-  }, []);
-
-  const handleLogout = useCallback(() => {
-    setIsAdmin(false);
-    setAdminPassword(null);
-    setActiveTool(null);
-    setSelectedDrawingId(null);
-    setContextMenu(null);
-    sessionStorage.removeItem(SESSION_KEY);
-  }, []);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -96,34 +42,6 @@ export function StockChart({ symbol }: StockChartProps) {
   }, [symbol, interval]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
-
-  // Delete 키로 선택된 드로잉 삭제 (관리자만)
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.key === "Delete" || e.key === "Backspace") && selectedDrawingId) {
-        chartRef.current?.deleteDrawing(selectedDrawingId);
-        setSelectedDrawingId(null);
-      }
-      if (e.key === "Escape") {
-        setActiveTool(null);
-        setContextMenu(null);
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [selectedDrawingId]);
-
-  const handleSelectionChange = useCallback((id: string | null) => {
-    setSelectedDrawingId(id);
-  }, []);
-
-  const handleContextMenu = useCallback((x: number, y: number, id: string) => {
-    setContextMenu({ x, y, id });
-  }, []);
-
-  const handleToolReset = useCallback(() => {
-    setActiveTool(null);
-  }, []);
 
   const lastPrice = data.length > 0 ? data[data.length - 1] : null;
   const prevClose = data.length > 1 ? data[data.length - 2].close : null;
@@ -154,35 +72,22 @@ export function StockChart({ symbol }: StockChartProps) {
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => isAdmin ? handleLogout() : setShowLoginDialog(true)}
-            className={`rounded-md p-1.5 transition-colors ${
-              isAdmin
-                ? "text-green-500 hover:bg-green-500/10"
-                : "text-zinc-500 hover:bg-zinc-800"
-            }`}
-            title={isAdmin ? "관리자 로그아웃" : "관리자 로그인"}
-          >
-            {isAdmin ? <Unlock size={16} /> : <Lock size={16} />}
-          </button>
-          <div className="flex gap-1">
-            {INTERVALS.map((item) => (
-              <Button
-                key={item.value}
-                variant={interval === item.value ? "default" : "outline"}
-                size="sm"
-                onClick={() => setInterval(item.value)}
-                disabled={loading}
-              >
-                {item.label}
-              </Button>
-            ))}
-          </div>
+        <div className="flex gap-1">
+          {INTERVALS.map((item) => (
+            <Button
+              key={item.value}
+              variant={interval === item.value ? "default" : "outline"}
+              size="sm"
+              onClick={() => setInterval(item.value)}
+              disabled={loading}
+            >
+              {item.label}
+            </Button>
+          ))}
         </div>
       </div>
 
-      {/* 차트 + 드로잉 툴바 */}
+      {/* 차트 */}
       {error ? (
         <div className="flex h-[500px] items-center justify-center rounded-lg border border-zinc-800 text-red-400">
           {error}
@@ -192,42 +97,8 @@ export function StockChart({ symbol }: StockChartProps) {
           차트 로딩 중...
         </div>
       ) : (
-        <div className="flex gap-2">
-          <DrawingToolbar activeTool={activeTool} onToolChange={setActiveTool} />
-          <div className="flex-1">
-            <ChartContainer
-              ref={chartRef}
-              data={data}
-              symbol={symbol}
-              activeTool={activeTool}
-              onSelectionChange={handleSelectionChange}
-              onContextMenu={handleContextMenu}
-              onToolReset={handleToolReset}
-            />
-          </div>
-        </div>
+        <ChartContainer data={data} symbol={symbol} />
       )}
-
-      {/* 우클릭 컨텍스트 메뉴 */}
-      {contextMenu && (
-        <DrawingContextMenu
-          x={contextMenu.x}
-          y={contextMenu.y}
-          onChangeColor={(color) => chartRef.current?.changeColor(contextMenu.id, color)}
-          onDelete={() => {
-            chartRef.current?.deleteDrawing(contextMenu.id);
-            setSelectedDrawingId(null);
-          }}
-          onClose={() => setContextMenu(null)}
-        />
-      )}
-
-      {/* 관리자 로그인 다이얼로그 */}
-      <AdminLoginDialog
-        open={showLoginDialog}
-        onClose={() => setShowLoginDialog(false)}
-        onLogin={handleLogin}
-      />
     </div>
   );
 }
