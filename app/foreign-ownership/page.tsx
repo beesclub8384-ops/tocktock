@@ -15,8 +15,28 @@ interface StockData {
   data: ForeignEntry[];
 }
 
-type Period = "1m" | "3m" | "6m";
+type Period = "1m" | "3m" | "6m" | "1y" | "all";
 type Market = "kospi" | "kosdaq";
+
+const PERIOD_LABELS: Record<Period, string> = {
+  "1m": "1개월",
+  "3m": "3개월",
+  "6m": "6개월",
+  "1y": "1년",
+  all: "전체",
+};
+
+function filterByPeriod(data: ForeignEntry[], period: Period): ForeignEntry[] {
+  if (period === "all" || data.length === 0) return data;
+  const now = new Date();
+  const start = new Date(now);
+  if (period === "1m") start.setMonth(start.getMonth() - 1);
+  else if (period === "3m") start.setMonth(start.getMonth() - 3);
+  else if (period === "6m") start.setMonth(start.getMonth() - 6);
+  else if (period === "1y") start.setFullYear(start.getFullYear() - 1);
+  const startStr = start.toISOString().split("T")[0];
+  return data.filter((e) => e.date >= startStr);
+}
 
 // --- Guide Modal ---
 function GuideModal({ onClose }: { onClose: () => void }) {
@@ -54,7 +74,6 @@ function GuideModal({ onClose }: { onClose: () => void }) {
           외국인 지분율, 이렇게 읽으세요
         </h2>
 
-        {/* 1 */}
         <section className="mb-6">
           <h3 className="mb-2 text-base font-semibold">
             외국인 지분율이 뭔가요?
@@ -70,7 +89,6 @@ function GuideModal({ onClose }: { onClose: () => void }) {
 
         <hr className="my-5 border-border" />
 
-        {/* 2 */}
         <section className="mb-6">
           <h3 className="mb-2 text-base font-semibold">왜 중요한가요?</h3>
           <ul className="space-y-1.5 text-sm leading-relaxed text-muted-foreground">
@@ -90,7 +108,6 @@ function GuideModal({ onClose }: { onClose: () => void }) {
 
         <hr className="my-5 border-border" />
 
-        {/* 3 */}
         <section className="mb-6">
           <h3 className="mb-2 text-base font-semibold">
             단기 뉴스를 믿으면 안 되는 이유
@@ -107,7 +124,6 @@ function GuideModal({ onClose }: { onClose: () => void }) {
 
         <hr className="my-5 border-border" />
 
-        {/* 4 */}
         <section className="mb-6">
           <h3 className="mb-2 text-base font-semibold">어떻게 읽나요?</h3>
           <div className="space-y-2 text-sm leading-relaxed text-muted-foreground">
@@ -137,7 +153,6 @@ function GuideModal({ onClose }: { onClose: () => void }) {
 
         <hr className="my-5 border-border" />
 
-        {/* 5 */}
         <section>
           <h3 className="mb-2 text-base font-semibold">주의할 점</h3>
           <ul className="space-y-1.5 text-sm leading-relaxed text-muted-foreground">
@@ -230,17 +245,30 @@ function DetailChart({ data }: { data: ForeignEntry[] }) {
     return { val, y };
   });
 
-  // X-axis labels (5 ticks)
+  // X-axis labels — show year for long ranges
+  const firstDate = data[0].date;
+  const lastDate = data[data.length - 1].date;
+  const spanYears =
+    Number(lastDate.slice(0, 4)) - Number(firstDate.slice(0, 4));
+  const showYear = spanYears >= 1 || data.length > 250;
+
   const step = Math.max(1, Math.floor(data.length / 4));
   const xTicks: { label: string; x: number }[] = [];
   for (let i = 0; i < data.length; i += step) {
     const x = PL + (i / (data.length - 1)) * chartW;
-    xTicks.push({ label: data[i].date.slice(5), x });
+    const d = data[i].date;
+    xTicks.push({
+      label: showYear ? d.slice(2, 7) : d.slice(5),
+      x,
+    });
   }
   // always include last
   if (xTicks.length > 0) {
     const lastX = PL + chartW;
-    xTicks.push({ label: data[data.length - 1].date.slice(5), x: lastX });
+    xTicks.push({
+      label: showYear ? lastDate.slice(2, 7) : lastDate.slice(5),
+      x: lastX,
+    });
   }
 
   const latest = data[data.length - 1];
@@ -250,7 +278,6 @@ function DetailChart({ data }: { data: ForeignEntry[] }) {
   return (
     <div>
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full">
-        {/* grid lines */}
         {yTicks.map((t, i) => (
           <g key={i}>
             <line
@@ -273,7 +300,6 @@ function DetailChart({ data }: { data: ForeignEntry[] }) {
             </text>
           </g>
         ))}
-        {/* x labels */}
         {xTicks.map((t, i) => (
           <text
             key={i}
@@ -287,7 +313,6 @@ function DetailChart({ data }: { data: ForeignEntry[] }) {
             {t.label}
           </text>
         ))}
-        {/* line */}
         <polyline
           points={points}
           fill="none"
@@ -297,24 +322,29 @@ function DetailChart({ data }: { data: ForeignEntry[] }) {
           strokeLinejoin="round"
         />
       </svg>
-      <div className="flex gap-4 mt-3 text-xs text-muted-foreground justify-center">
+      <div className="flex gap-4 mt-3 text-xs text-muted-foreground justify-center flex-wrap">
         <span>
           현재:{" "}
-          <strong className="text-foreground">{latest.ratio.toFixed(2)}%</strong>
+          <strong className="text-foreground">
+            {latest.ratio.toFixed(2)}%
+          </strong>
         </span>
         <span>
           최고:{" "}
           <strong className="text-foreground">
             {highest.ratio.toFixed(2)}%
           </strong>{" "}
-          ({highest.date.slice(5)})
+          ({highest.date})
         </span>
         <span>
           최저:{" "}
           <strong className="text-foreground">
             {lowest.ratio.toFixed(2)}%
           </strong>{" "}
-          ({lowest.date.slice(5)})
+          ({lowest.date})
+        </span>
+        <span>
+          기간: {firstDate} ~ {lastDate} ({data.length}일)
         </span>
       </div>
     </div>
@@ -330,21 +360,26 @@ function Modal({
   onClose: () => void;
 }) {
   const [period, setPeriod] = useState<Period>("1m");
-  const [allData, setAllData] = useState<ForeignEntry[]>(stock.data);
+  const [fullData, setFullData] = useState<ForeignEntry[]>(stock.data);
   const [loading, setLoading] = useState(false);
 
+  // Fetch ALL data once on open
   useEffect(() => {
     setLoading(true);
-    fetch(
-      `/api/foreign-ownership?ticker=${stock.ticker}&period=${period}`
-    )
+    fetch(`/api/foreign-ownership?ticker=${stock.ticker}`)
       .then((r) => r.json())
       .then((json) => {
         const s = json.stocks?.[0];
-        if (s) setAllData(s.data);
+        if (s && s.data.length > 0) setFullData(s.data);
       })
       .finally(() => setLoading(false));
-  }, [stock.ticker, period]);
+  }, [stock.ticker]);
+
+  // Client-side period filtering
+  const visibleData = useMemo(
+    () => filterByPeriod(fullData, period),
+    [fullData, period]
+  );
 
   return (
     <div
@@ -364,14 +399,14 @@ function Modal({
           </h2>
           <button
             onClick={onClose}
-            className="text-muted-foreground hover:text-foreground text-xl leading-none"
+            className="text-muted-foreground hover:text-foreground"
           >
-            &times;
+            <X size={20} />
           </button>
         </div>
 
-        <div className="flex gap-2 mb-4">
-          {(["1m", "3m", "6m"] as Period[]).map((p) => (
+        <div className="flex gap-2 mb-4 flex-wrap">
+          {(["1m", "3m", "6m", "1y", "all"] as Period[]).map((p) => (
             <button
               key={p}
               onClick={() => setPeriod(p)}
@@ -381,7 +416,7 @@ function Modal({
                   : "border-border text-muted-foreground hover:text-foreground"
               }`}
             >
-              {p === "1m" ? "1개월" : p === "3m" ? "3개월" : "6개월"}
+              {PERIOD_LABELS[p]}
             </button>
           ))}
         </div>
@@ -391,7 +426,7 @@ function Modal({
             로딩 중...
           </div>
         ) : (
-          <DetailChart data={allData} />
+          <DetailChart data={visibleData} />
         )}
       </div>
     </div>
@@ -411,7 +446,6 @@ function StockCard({
 
   function getChange(daysAgo: number) {
     if (data.length < 2) return null;
-    // find entry ~daysAgo trading days back
     const idx = Math.max(0, data.length - 1 - daysAgo);
     const old = data[idx].ratio;
     if (current === null) return null;
@@ -422,7 +456,9 @@ function StockCard({
   const change3m = getChange(60);
   const change6m = getChange(120);
 
-  const sparkData = data.map((d) => d.ratio);
+  // Sparkline uses last 6 months of data
+  const spark6m = filterByPeriod(data, "6m");
+  const sparkData = spark6m.map((d) => d.ratio);
   const sparkColor =
     change1m !== null && change1m >= 0 ? "#22c55e" : "#ef4444";
 
@@ -492,7 +528,7 @@ export default function ForeignOwnershipPage() {
 
   useEffect(() => {
     setLoading(true);
-    fetch(`/api/foreign-ownership?market=${market}&period=6m`)
+    fetch(`/api/foreign-ownership?market=${market}`)
       .then((r) => r.json())
       .then((json) => setStocks(json.stocks || []))
       .finally(() => setLoading(false));
@@ -502,8 +538,7 @@ export default function ForeignOwnershipPage() {
     if (!search.trim()) return stocks;
     const q = search.trim().toLowerCase();
     return stocks.filter(
-      (s) =>
-        s.name.toLowerCase().includes(q) || s.ticker.includes(q)
+      (s) => s.name.toLowerCase().includes(q) || s.ticker.includes(q)
     );
   }, [stocks, search]);
 

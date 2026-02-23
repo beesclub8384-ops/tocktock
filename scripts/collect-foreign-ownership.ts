@@ -138,10 +138,7 @@ async function fetchFromNaver(
 
 async function main() {
   const now = new Date();
-  const sixMonthsAgo = new Date(now);
-  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-
-  const startDate = formatDate(sixMonthsAgo);
+  const startDate = "20150101"; // 최대한 오래된 데이터부터 수집
   const endDate = formatDate(now);
 
   console.log(`Collecting foreign ownership data: ${startDate} ~ ${endDate}`);

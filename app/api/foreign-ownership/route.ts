@@ -11,17 +11,6 @@ import {
 
 export const dynamic = "force-dynamic";
 
-function getDateRange(period: string): { startDate: string; startYmd: string } {
-  const now = new Date();
-  const start = new Date(now);
-  if (period === "1m") start.setMonth(start.getMonth() - 1);
-  else if (period === "3m") start.setMonth(start.getMonth() - 3);
-  else start.setMonth(start.getMonth() - 6);
-  const iso = start.toISOString().split("T")[0];
-  const ymd = iso.replace(/-/g, "");
-  return { startDate: iso, startYmd: ymd };
-}
-
 function formatYmd(d: Date): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -75,34 +64,28 @@ async function fetchFromNaver(
 
 async function getStockData(
   stock: StockInfo,
-  startDate: string,
-  startYmd: string,
   endYmd: string
 ): Promise<StockForeignData> {
-  // 1) Try Redis cache first
+  // 1) Try Redis cache first — stores ALL historical data
   try {
     const cached = await redis.get<ForeignOwnershipEntry[]>(
       `foreign:${stock.ticker}`
     );
     if (cached && Array.isArray(cached) && cached.length > 0) {
-      const filtered = cached.filter((e) => e.date >= startDate);
-      if (filtered.length > 0) {
-        return { name: stock.name, ticker: stock.ticker, data: filtered };
-      }
+      return { name: stock.name, ticker: stock.ticker, data: cached };
     }
   } catch {
     // Redis failed, fall through to NAVER
   }
 
-  // 2) Fallback: fetch from NAVER directly
+  // 2) Fallback: fetch max history from NAVER (from 2015)
   try {
-    const entries = await fetchFromNaver(stock.ticker, startYmd, endYmd);
+    const entries = await fetchFromNaver(stock.ticker, "20150101", endYmd);
     if (entries.length > 0) {
-      // Cache in Redis for next time (TTL 24h)
       try {
         await redis.set(`foreign:${stock.ticker}`, entries, { ex: 86400 });
       } catch {
-        // Cache write failed, that's ok
+        // Cache write failed
       }
       return { name: stock.name, ticker: stock.ticker, data: entries };
     }
@@ -115,11 +98,9 @@ async function getStockData(
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const period = searchParams.get("period") || "1m";
   const market = searchParams.get("market") || "all";
   const ticker = searchParams.get("ticker");
 
-  const { startDate, startYmd } = getDateRange(period);
   const endYmd = formatYmd(new Date());
 
   let stocks =
@@ -139,14 +120,14 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // Fetch all stocks in parallel (batched to avoid overwhelming NAVER)
+  // Fetch all stocks in parallel (batched)
   const BATCH_SIZE = 5;
   const results: StockForeignData[] = [];
 
   for (let i = 0; i < stocks.length; i += BATCH_SIZE) {
     const batch = stocks.slice(i, i + BATCH_SIZE);
     const batchResults = await Promise.all(
-      batch.map((s) => getStockData(s, startDate, startYmd, endYmd))
+      batch.map((s) => getStockData(s, endYmd))
     );
     results.push(...batchResults);
   }
