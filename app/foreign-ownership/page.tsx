@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { HelpCircle, X } from "lucide-react";
 
 interface ForeignEntry {
   date: string;
@@ -44,9 +45,9 @@ function GuideModal({ onClose }: { onClose: () => void }) {
       <div className="relative max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-border bg-card p-6 shadow-2xl sm:p-8">
         <button
           onClick={onClose}
-          className="absolute right-4 top-4 rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground text-xl leading-none"
+          className="absolute right-4 top-4 rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
         >
-          &times;
+          <X size={20} />
         </button>
 
         <h2 className="mb-6 text-xl font-bold">
@@ -522,7 +523,8 @@ export default function ForeignOwnershipPage() {
                 onClick={() => setShowGuide(true)}
                 className="guide-btn inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs transition-all"
               >
-                ?&nbsp;&nbsp;외국인 지분율 보는 법
+                <HelpCircle size={13} />
+                외국인 지분율 보는 법
               </button>
             </span>
           </p>
