@@ -39,6 +39,9 @@ export function Navbar() {
             <Link href="/global-indicators">글로벌 지표</Link>
           </Button>
           <Button variant="ghost" size="sm" asChild>
+            <Link href="/volume-explosion">거래대금 폭발</Link>
+          </Button>
+          <Button variant="ghost" size="sm" asChild>
             <Link href="/stock/TSLA">차트</Link>
           </Button>
         </nav>
