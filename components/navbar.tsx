@@ -36,6 +36,9 @@ export function Navbar() {
             <Link href="/economics">경제공부</Link>
           </Button>
           <Button variant="ghost" size="sm" asChild>
+            <Link href="/foreign-ownership">외국인 지분율</Link>
+          </Button>
+          <Button variant="ghost" size="sm" asChild>
             <Link href="/global-indicators">글로벌 지표</Link>
           </Button>
           <Button variant="ghost" size="sm" asChild>
