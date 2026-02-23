@@ -17,6 +17,138 @@ interface StockData {
 type Period = "1m" | "3m" | "6m";
 type Market = "kospi" | "kosdaq";
 
+// --- Guide Modal ---
+function GuideModal({ onClose }: { onClose: () => void }) {
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, []);
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="relative max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-border bg-card p-6 shadow-2xl sm:p-8">
+        <button
+          onClick={onClose}
+          className="absolute right-4 top-4 rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground text-xl leading-none"
+        >
+          &times;
+        </button>
+
+        <h2 className="mb-6 text-xl font-bold">
+          외국인 지분율, 이렇게 읽으세요
+        </h2>
+
+        {/* 1 */}
+        <section className="mb-6">
+          <h3 className="mb-2 text-base font-semibold">
+            외국인 지분율이 뭔가요?
+          </h3>
+          <ul className="space-y-1.5 text-sm leading-relaxed text-muted-foreground">
+            <li>전체 주식 중 외국인이 갖고 있는 비율이에요.</li>
+            <li>
+              삼성전자 51%라면 주식의 절반 이상을 외국인이 갖고 있다는
+              뜻이에요.
+            </li>
+          </ul>
+        </section>
+
+        <hr className="my-5 border-border" />
+
+        {/* 2 */}
+        <section className="mb-6">
+          <h3 className="mb-2 text-base font-semibold">왜 중요한가요?</h3>
+          <ul className="space-y-1.5 text-sm leading-relaxed text-muted-foreground">
+            <li>
+              외국인은 대부분 글로벌 기관투자자(펀드, 연기금 등)예요.
+            </li>
+            <li>
+              이들은 단순 뉴스가 아니라 기업의 실적, 글로벌 경기, 환율을
+              종합적으로 보고 움직여요.
+            </li>
+            <li>
+              그래서 외국인이 사면 &ldquo;똑똑한 돈이 들어온다&rdquo;,
+              팔면 &ldquo;뭔가 불안하다&rdquo;는 신호로 읽혀요.
+            </li>
+          </ul>
+        </section>
+
+        <hr className="my-5 border-border" />
+
+        {/* 3 */}
+        <section className="mb-6">
+          <h3 className="mb-2 text-base font-semibold">
+            단기 뉴스를 믿으면 안 되는 이유
+          </h3>
+          <ul className="space-y-1.5 text-sm leading-relaxed text-muted-foreground">
+            <li>
+              &ldquo;외국인 5일 연속 순매수!&rdquo;라는 뉴스가 있어도,
+              그 전에 대량 매도가 있었다면 전체 흐름은 여전히 매도세일 수
+              있어요.
+            </li>
+            <li>그래서 1개월, 3개월, 6개월 흐름을 봐야 해요.</li>
+          </ul>
+        </section>
+
+        <hr className="my-5 border-border" />
+
+        {/* 4 */}
+        <section className="mb-6">
+          <h3 className="mb-2 text-base font-semibold">어떻게 읽나요?</h3>
+          <div className="space-y-2 text-sm leading-relaxed text-muted-foreground">
+            <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/30 p-3">
+              <span className="mt-0.5 inline-block h-2.5 w-2.5 shrink-0 rounded-full bg-green-500" />
+              <span>
+                지분율 꾸준히 상승 &rarr; 외국인이 이 종목을 계속 사고
+                있다 &rarr; 긍정 신호
+              </span>
+            </div>
+            <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/30 p-3">
+              <span className="mt-0.5 inline-block h-2.5 w-2.5 shrink-0 rounded-full bg-red-500" />
+              <span>
+                지분율 꾸준히 하락 &rarr; 외국인이 팔고 있다 &rarr; 주의
+                신호
+              </span>
+            </div>
+            <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/30 p-3">
+              <span className="mt-0.5 inline-block h-2.5 w-2.5 shrink-0 rounded-full bg-yellow-500" />
+              <span>
+                갑자기 급락 &rarr; 뭔가 큰 이슈가 있을 수 있다 &rarr;
+                원인 확인 필요
+              </span>
+            </div>
+          </div>
+        </section>
+
+        <hr className="my-5 border-border" />
+
+        {/* 5 */}
+        <section>
+          <h3 className="mb-2 text-base font-semibold">주의할 점</h3>
+          <ul className="space-y-1.5 text-sm leading-relaxed text-muted-foreground">
+            <li>외국인이 산다고 무조건 오르는 건 아니에요.</li>
+            <li>보조 지표로 활용하고, 기업 실적과 함께 봐야 해요.</li>
+          </ul>
+        </section>
+      </div>
+    </div>
+  );
+}
+
 // --- Sparkline SVG ---
 function Sparkline({
   data,
@@ -355,6 +487,7 @@ export default function ForeignOwnershipPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selectedStock, setSelectedStock] = useState<StockData | null>(null);
+  const [showGuide, setShowGuide] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -384,6 +517,14 @@ export default function ForeignOwnershipPage() {
           </h1>
           <p className="text-muted-foreground text-sm">
             코스피 · 코스닥 상위 종목의 외국인 보유 비율 변화를 추적합니다
+            <span className="ml-2 inline-block">
+              <button
+                onClick={() => setShowGuide(true)}
+                className="guide-btn inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs transition-all"
+              >
+                ?&nbsp;&nbsp;외국인 지분율 보는 법
+              </button>
+            </span>
           </p>
         </header>
 
@@ -453,6 +594,9 @@ export default function ForeignOwnershipPage() {
           onClose={() => setSelectedStock(null)}
         />
       )}
+
+      {/* Guide Modal */}
+      {showGuide && <GuideModal onClose={() => setShowGuide(false)} />}
     </div>
   );
 }
