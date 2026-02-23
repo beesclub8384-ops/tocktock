@@ -72,65 +72,61 @@ function formatDate(d: Date): string {
   return `${y}${m}${day}`;
 }
 
-function toISODate(krxDate: string): string {
-  // "2026/02/23" or "2026-02-23" → "2026-02-23"
-  return krxDate.replace(/\//g, "-");
-}
-
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function fetchFromKRX(
-  stock: StockInfo,
+async function fetchFromNaver(
+  ticker: string,
   startDate: string,
   endDate: string
 ): Promise<ForeignOwnershipEntry[]> {
-  const body = new URLSearchParams({
-    bld: "dbms/MDC/STAT/standard/MDCSTAT03501",
-    isuCd: stock.code,
-    strtDd: startDate,
-    endDd: endDate,
+  const url = `https://api.finance.naver.com/siseJson.naver?symbol=${ticker}&requestType=1&startTime=${startDate}&endTime=${endDate}&timeframe=day`;
+
+  const res = await fetch(url, {
+    headers: {
+      "User-Agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+    },
   });
 
-  const res = await fetch(
-    "https://data.krx.co.kr/comm/bldAttendant/getJsonData.cmd",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-        Referer:
-          "https://data.krx.co.kr/contents/MDC/MDI/mdiStat/tables/MDCSTAT03501.html",
-        Accept: "application/json, text/javascript, */*; q=0.01",
-        "Accept-Language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
-        Origin: "https://data.krx.co.kr",
-        "X-Requested-With": "XMLHttpRequest",
-      },
-      body: body.toString(),
-    }
-  );
-
   if (!res.ok) {
-    console.error(`KRX request failed for ${stock.name}: ${res.status}`);
+    console.error(`NAVER request failed for ${ticker}: ${res.status}`);
     return [];
   }
 
-  const json = await res.json();
-  const rows = json.OutBlock_1 || json.output || [];
+  const text = await res.text();
 
+  // NAVER returns JS-style array: [['header',...], ['20260220', ...], ...]
+  // Parse it safely
+  let parsed: unknown[][];
+  try {
+    // Replace single quotes with double quotes for JSON parsing
+    const jsonText = text.trim().replace(/'/g, '"');
+    parsed = JSON.parse(jsonText);
+  } catch {
+    console.error(`Failed to parse NAVER response for ${ticker}`);
+    return [];
+  }
+
+  if (!Array.isArray(parsed) || parsed.length < 2) return [];
+
+  // First row is header: ['날짜', '시가', '고가', '저가', '종가', '거래량', '외국인소진율']
   const entries: ForeignOwnershipEntry[] = [];
-  for (const row of rows) {
-    const date = row.TRD_DD;
-    const quantity = row.FORN_HLD_QTY;
-    const ratio = row.FORN_SHR_RT;
+  for (let i = 1; i < parsed.length; i++) {
+    const row = parsed[i];
+    if (!Array.isArray(row) || row.length < 7) continue;
 
-    if (date && ratio !== undefined) {
+    const rawDate = String(row[0]).trim();
+    const ratio = Number(row[6]);
+
+    if (rawDate && !isNaN(ratio)) {
+      // rawDate is "20260220" → "2026-02-20"
+      const date = `${rawDate.slice(0, 4)}-${rawDate.slice(4, 6)}-${rawDate.slice(6, 8)}`;
       entries.push({
-        date: toISODate(date),
-        quantity: Number(String(quantity).replace(/,/g, "")) || 0,
-        ratio: parseFloat(String(ratio).replace(/,/g, "")) || 0,
+        date,
+        quantity: 0, // NAVER doesn't provide quantity in this API
+        ratio,
       });
     }
   }
@@ -149,6 +145,7 @@ async function main() {
   const endDate = formatDate(now);
 
   console.log(`Collecting foreign ownership data: ${startDate} ~ ${endDate}`);
+  console.log(`Source: NAVER Finance API`);
   console.log(`Total stocks: ${ALL_STOCKS.length}`);
 
   let success = 0;
@@ -157,7 +154,7 @@ async function main() {
   for (const stock of ALL_STOCKS) {
     try {
       console.log(`Fetching: ${stock.name} (${stock.ticker})...`);
-      const entries = await fetchFromKRX(stock, startDate, endDate);
+      const entries = await fetchFromNaver(stock.ticker, startDate, endDate);
 
       if (entries.length > 0) {
         const key = `foreign:${stock.ticker}`;
@@ -173,8 +170,8 @@ async function main() {
       fail++;
     }
 
-    // 0.5초 딜레이 (서버 부하 방지)
-    await sleep(500);
+    // 0.3초 딜레이
+    await sleep(300);
   }
 
   console.log(`\nDone! Success: ${success}, Failed: ${fail}`);

@@ -6,17 +6,111 @@ import {
   ALL_STOCKS,
   type ForeignOwnershipEntry,
   type StockForeignData,
+  type StockInfo,
 } from "@/lib/types/foreign-ownership";
 
-export const revalidate = 3600;
+export const dynamic = "force-dynamic";
 
-function getDateRange(period: string): string {
+function getDateRange(period: string): { startDate: string; startYmd: string } {
   const now = new Date();
   const start = new Date(now);
   if (period === "1m") start.setMonth(start.getMonth() - 1);
   else if (period === "3m") start.setMonth(start.getMonth() - 3);
   else start.setMonth(start.getMonth() - 6);
-  return start.toISOString().split("T")[0];
+  const iso = start.toISOString().split("T")[0];
+  const ymd = iso.replace(/-/g, "");
+  return { startDate: iso, startYmd: ymd };
+}
+
+function formatYmd(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}${m}${day}`;
+}
+
+async function fetchFromNaver(
+  ticker: string,
+  startYmd: string,
+  endYmd: string
+): Promise<ForeignOwnershipEntry[]> {
+  const url = `https://api.finance.naver.com/siseJson.naver?symbol=${ticker}&requestType=1&startTime=${startYmd}&endTime=${endYmd}&timeframe=day`;
+  const res = await fetch(url, {
+    headers: {
+      "User-Agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+    },
+  });
+
+  if (!res.ok) return [];
+
+  const text = await res.text();
+  let parsed: unknown[][];
+  try {
+    parsed = JSON.parse(text.trim().replace(/'/g, '"'));
+  } catch {
+    return [];
+  }
+
+  if (!Array.isArray(parsed) || parsed.length < 2) return [];
+
+  const entries: ForeignOwnershipEntry[] = [];
+  for (let i = 1; i < parsed.length; i++) {
+    const row = parsed[i];
+    if (!Array.isArray(row) || row.length < 7) continue;
+    const rawDate = String(row[0]).trim();
+    const ratio = Number(row[6]);
+    if (rawDate && !isNaN(ratio)) {
+      entries.push({
+        date: `${rawDate.slice(0, 4)}-${rawDate.slice(4, 6)}-${rawDate.slice(6, 8)}`,
+        quantity: 0,
+        ratio,
+      });
+    }
+  }
+
+  entries.sort((a, b) => a.date.localeCompare(b.date));
+  return entries;
+}
+
+async function getStockData(
+  stock: StockInfo,
+  startDate: string,
+  startYmd: string,
+  endYmd: string
+): Promise<StockForeignData> {
+  // 1) Try Redis cache first
+  try {
+    const cached = await redis.get<ForeignOwnershipEntry[]>(
+      `foreign:${stock.ticker}`
+    );
+    if (cached && Array.isArray(cached) && cached.length > 0) {
+      const filtered = cached.filter((e) => e.date >= startDate);
+      if (filtered.length > 0) {
+        return { name: stock.name, ticker: stock.ticker, data: filtered };
+      }
+    }
+  } catch {
+    // Redis failed, fall through to NAVER
+  }
+
+  // 2) Fallback: fetch from NAVER directly
+  try {
+    const entries = await fetchFromNaver(stock.ticker, startYmd, endYmd);
+    if (entries.length > 0) {
+      // Cache in Redis for next time (TTL 24h)
+      try {
+        await redis.set(`foreign:${stock.ticker}`, entries, { ex: 86400 });
+      } catch {
+        // Cache write failed, that's ok
+      }
+      return { name: stock.name, ticker: stock.ticker, data: entries };
+    }
+  } catch {
+    // NAVER also failed
+  }
+
+  return { name: stock.name, ticker: stock.ticker, data: [] };
 }
 
 export async function GET(request: NextRequest) {
@@ -24,9 +118,9 @@ export async function GET(request: NextRequest) {
   const period = searchParams.get("period") || "1m";
   const market = searchParams.get("market") || "all";
   const ticker = searchParams.get("ticker");
-  const debug = searchParams.get("debug") === "1";
 
-  const startDate = getDateRange(period);
+  const { startDate, startYmd } = getDateRange(period);
+  const endYmd = formatYmd(new Date());
 
   let stocks =
     market === "kospi"
@@ -38,60 +132,24 @@ export async function GET(request: NextRequest) {
   if (ticker) {
     stocks = stocks.filter((s) => s.ticker === ticker);
     if (stocks.length === 0) {
-      return NextResponse.json({ stocks: [], message: "종목을 찾을 수 없습니다." });
+      return NextResponse.json({
+        stocks: [],
+        message: "종목을 찾을 수 없습니다.",
+      });
     }
   }
 
+  // Fetch all stocks in parallel (batched to avoid overwhelming NAVER)
+  const BATCH_SIZE = 5;
   const results: StockForeignData[] = [];
-  const debugInfo: Record<string, unknown>[] = [];
 
-  for (const stock of stocks) {
-    let data: ForeignOwnershipEntry[] = [];
-
-    try {
-      const key = `foreign:${stock.ticker}`;
-      const raw = await redis.get(key);
-
-      if (debug) {
-        debugInfo.push({
-          ticker: stock.ticker,
-          key,
-          rawType: typeof raw,
-          isArray: Array.isArray(raw),
-          rawLength: Array.isArray(raw) ? raw.length : null,
-          rawSample: raw ? JSON.stringify(raw).slice(0, 200) : null,
-        });
-      }
-
-      if (raw && Array.isArray(raw)) {
-        data = (raw as ForeignOwnershipEntry[]).filter(
-          (e) => e.date >= startDate
-        );
-      }
-    } catch (err) {
-      if (debug) {
-        debugInfo.push({
-          ticker: stock.ticker,
-          error: String(err),
-        });
-      }
-    }
-
-    results.push({
-      name: stock.name,
-      ticker: stock.ticker,
-      data,
-    });
+  for (let i = 0; i < stocks.length; i += BATCH_SIZE) {
+    const batch = stocks.slice(i, i + BATCH_SIZE);
+    const batchResults = await Promise.all(
+      batch.map((s) => getStockData(s, startDate, startYmd, endYmd))
+    );
+    results.push(...batchResults);
   }
 
-  const response: Record<string, unknown> = { stocks: results };
-  if (debug) {
-    response.debug = debugInfo;
-    response.startDate = startDate;
-    response.redisUrl = process.env.UPSTASH_REDIS_REST_URL
-      ? "set (" + process.env.UPSTASH_REDIS_REST_URL.slice(0, 20) + "...)"
-      : "NOT SET";
-  }
-
-  return NextResponse.json(response);
+  return NextResponse.json({ stocks: results });
 }
