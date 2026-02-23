@@ -62,23 +62,41 @@ async function fetchFromNaver(
   return entries;
 }
 
+// Check if cached data has enough history (at least 1 year span)
+function hasEnoughHistory(data: ForeignOwnershipEntry[]): boolean {
+  if (data.length < 200) return false;
+  const oldest = data[0].date;
+  const newest = data[data.length - 1].date;
+  const oldestYear = Number(oldest.slice(0, 4));
+  const newestYear = Number(newest.slice(0, 4));
+  const oldestMonth = Number(oldest.slice(5, 7));
+  const newestMonth = Number(newest.slice(5, 7));
+  const spanMonths = (newestYear - oldestYear) * 12 + (newestMonth - oldestMonth);
+  return spanMonths >= 12;
+}
+
 async function getStockData(
   stock: StockInfo,
-  endYmd: string
+  endYmd: string,
+  requireFullHistory: boolean
 ): Promise<StockForeignData> {
-  // 1) Try Redis cache first — stores ALL historical data
+  // 1) Try Redis cache
   try {
     const cached = await redis.get<ForeignOwnershipEntry[]>(
       `foreign:${stock.ticker}`
     );
     if (cached && Array.isArray(cached) && cached.length > 0) {
-      return { name: stock.name, ticker: stock.ticker, data: cached };
+      // For single-ticker (modal), only accept cache with enough history
+      // For bulk (card grid), accept any cached data
+      if (!requireFullHistory || hasEnoughHistory(cached)) {
+        return { name: stock.name, ticker: stock.ticker, data: cached };
+      }
     }
   } catch {
     // Redis failed, fall through to NAVER
   }
 
-  // 2) Fallback: fetch max history from NAVER (from 2015)
+  // 2) Fetch full history from NAVER (from 2015) and update Redis
   try {
     const entries = await fetchFromNaver(stock.ticker, "20150101", endYmd);
     if (entries.length > 0) {
@@ -91,6 +109,18 @@ async function getStockData(
     }
   } catch {
     // NAVER also failed
+  }
+
+  // 3) If NAVER failed, still return whatever Redis had
+  try {
+    const cached = await redis.get<ForeignOwnershipEntry[]>(
+      `foreign:${stock.ticker}`
+    );
+    if (cached && Array.isArray(cached) && cached.length > 0) {
+      return { name: stock.name, ticker: stock.ticker, data: cached };
+    }
+  } catch {
+    // Nothing available
   }
 
   return { name: stock.name, ticker: stock.ticker, data: [] };
@@ -120,14 +150,17 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // Fetch all stocks in parallel (batched)
+  // Single ticker → require full history (for modal chart with period buttons)
+  // Bulk request → accept whatever Redis has (for card grid)
+  const requireFullHistory = !!ticker;
+
   const BATCH_SIZE = 5;
   const results: StockForeignData[] = [];
 
   for (let i = 0; i < stocks.length; i += BATCH_SIZE) {
     const batch = stocks.slice(i, i + BATCH_SIZE);
     const batchResults = await Promise.all(
-      batch.map((s) => getStockData(s, endYmd))
+      batch.map((s) => getStockData(s, endYmd, requireFullHistory))
     );
     results.push(...batchResults);
   }
