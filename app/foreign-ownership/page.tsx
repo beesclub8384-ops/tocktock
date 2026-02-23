@@ -153,11 +153,68 @@ function GuideModal({ onClose }: { onClose: () => void }) {
 
         <hr className="my-5 border-border" />
 
-        <section>
+        <section className="mb-6">
           <h3 className="mb-2 text-base font-semibold">주의할 점</h3>
           <ul className="space-y-1.5 text-sm leading-relaxed text-muted-foreground">
             <li>외국인이 산다고 무조건 오르는 건 아니에요.</li>
             <li>보조 지표로 활용하고, 기업 실적과 함께 봐야 해요.</li>
+          </ul>
+        </section>
+
+        <hr className="my-5 border-border" />
+
+        <section className="mb-6">
+          <h3 className="mb-2 text-base font-semibold">
+            데이터는 어디서 오나요?
+          </h3>
+          <ul className="space-y-1.5 text-sm leading-relaxed text-muted-foreground">
+            <li>네이버 금융에서 제공하는 종목별 일별 시세 데이터를 가져와요.</li>
+            <li>
+              네이버 금융은 한국거래소(KRX) 공식 데이터를 기반으로 집계한
+              수치예요.
+            </li>
+          </ul>
+        </section>
+
+        <hr className="my-5 border-border" />
+
+        <section className="mb-6">
+          <h3 className="mb-2 text-base font-semibold">
+            외국인 지분율은 어떻게 만들어지나요?
+          </h3>
+          <ul className="space-y-1.5 text-sm leading-relaxed text-muted-foreground">
+            <li>
+              매일 장 마감 후 한국거래소가 외국인 보유 수량을 집계해요.
+            </li>
+            <li>
+              예: 삼성전자 전체 주식 59억 주 중 외국인이 30억 주 보유 &rarr;
+              지분율 51%.
+            </li>
+            <li>이 숫자가 매일 업데이트돼요.</li>
+          </ul>
+        </section>
+
+        <hr className="my-5 border-border" />
+
+        <section className="mb-6">
+          <h3 className="mb-2 text-base font-semibold">
+            톡톡은 언제 수집하나요?
+          </h3>
+          <ul className="space-y-1.5 text-sm leading-relaxed text-muted-foreground">
+            <li>
+              매일 오후 4시 30분(장 마감 후) 자동으로 수집해서 저장해요.
+            </li>
+            <li>주말과 공휴일은 장이 없으니 수집하지 않아요.</li>
+          </ul>
+        </section>
+
+        <hr className="my-5 border-border" />
+
+        <section>
+          <h3 className="mb-2 text-base font-semibold">데이터 시작일은?</h3>
+          <ul className="space-y-1.5 text-sm leading-relaxed text-muted-foreground">
+            <li>2015년 1월부터 수집된 데이터를 보여줘요.</li>
+            <li>이후 매일 자동으로 쌓여가요.</li>
           </ul>
         </section>
       </div>
