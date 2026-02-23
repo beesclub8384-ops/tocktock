@@ -513,9 +513,9 @@ function StockCard({
   const change3m = getChange(60);
   const change6m = getChange(120);
 
-  // Sparkline uses last 6 months of data
-  const spark6m = filterByPeriod(data, "6m");
-  const sparkData = spark6m.map((d) => d.ratio);
+  // Sparkline uses last 1 year of data
+  const spark1y = filterByPeriod(data, "1y");
+  const sparkData = spark1y.map((d) => d.ratio);
   const sparkColor =
     change1m !== null && change1m >= 0 ? "#22c55e" : "#ef4444";
 
