@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { redis } from "@/lib/redis";
 import {
   KOSPI_TOP20,
   KOSDAQ_TOP20,
@@ -18,20 +19,12 @@ function getDateRange(period: string): string {
   return start.toISOString().split("T")[0];
 }
 
-async function getRedis() {
-  try {
-    const { redis } = await import("@/lib/redis");
-    return redis;
-  } catch {
-    return null;
-  }
-}
-
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const period = searchParams.get("period") || "1m";
   const market = searchParams.get("market") || "all";
   const ticker = searchParams.get("ticker");
+  const debug = searchParams.get("debug") === "1";
 
   const startDate = getDateRange(period);
 
@@ -49,22 +42,38 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  const redis = await getRedis();
   const results: StockForeignData[] = [];
+  const debugInfo: Record<string, unknown>[] = [];
 
   for (const stock of stocks) {
     let data: ForeignOwnershipEntry[] = [];
 
-    if (redis) {
-      try {
-        const cached = await redis.get<ForeignOwnershipEntry[]>(
-          `foreign:${stock.ticker}`
+    try {
+      const key = `foreign:${stock.ticker}`;
+      const raw = await redis.get(key);
+
+      if (debug) {
+        debugInfo.push({
+          ticker: stock.ticker,
+          key,
+          rawType: typeof raw,
+          isArray: Array.isArray(raw),
+          rawLength: Array.isArray(raw) ? raw.length : null,
+          rawSample: raw ? JSON.stringify(raw).slice(0, 200) : null,
+        });
+      }
+
+      if (raw && Array.isArray(raw)) {
+        data = (raw as ForeignOwnershipEntry[]).filter(
+          (e) => e.date >= startDate
         );
-        if (cached && Array.isArray(cached)) {
-          data = cached.filter((e) => e.date >= startDate);
-        }
-      } catch {
-        // Redis read failed for this stock, continue with empty data
+      }
+    } catch (err) {
+      if (debug) {
+        debugInfo.push({
+          ticker: stock.ticker,
+          error: String(err),
+        });
       }
     }
 
@@ -75,5 +84,14 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  return NextResponse.json({ stocks: results });
+  const response: Record<string, unknown> = { stocks: results };
+  if (debug) {
+    response.debug = debugInfo;
+    response.startDate = startDate;
+    response.redisUrl = process.env.UPSTASH_REDIS_REST_URL
+      ? "set (" + process.env.UPSTASH_REDIS_REST_URL.slice(0, 20) + "...)"
+      : "NOT SET";
+  }
+
+  return NextResponse.json(response);
 }
