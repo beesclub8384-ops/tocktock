@@ -78,27 +78,23 @@ function hasEnoughHistory(data: ForeignOwnershipEntry[]): boolean {
 async function getStockData(
   stock: StockInfo,
   endYmd: string,
-  requireFullHistory: boolean
+  fetchStartYmd: string
 ): Promise<StockForeignData> {
-  // 1) Try Redis cache
+  // 1) Try Redis cache — only use if it has enough history (≥1 year)
   try {
     const cached = await redis.get<ForeignOwnershipEntry[]>(
       `foreign:${stock.ticker}`
     );
-    if (cached && Array.isArray(cached) && cached.length > 0) {
-      // For single-ticker (modal), only accept cache with enough history
-      // For bulk (card grid), accept any cached data
-      if (!requireFullHistory || hasEnoughHistory(cached)) {
-        return { name: stock.name, ticker: stock.ticker, data: cached };
-      }
+    if (cached && Array.isArray(cached) && hasEnoughHistory(cached)) {
+      return { name: stock.name, ticker: stock.ticker, data: cached };
     }
   } catch {
     // Redis failed, fall through to NAVER
   }
 
-  // 2) Fetch full history from NAVER (from 2015) and update Redis
+  // 2) Fetch from NAVER and update Redis
   try {
-    const entries = await fetchFromNaver(stock.ticker, "20150101", endYmd);
+    const entries = await fetchFromNaver(stock.ticker, fetchStartYmd, endYmd);
     if (entries.length > 0) {
       try {
         await redis.set(`foreign:${stock.ticker}`, entries, { ex: 86400 });
@@ -150,9 +146,12 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // Single ticker → require full history (for modal chart with period buttons)
-  // Bulk request → accept whatever Redis has (for card grid)
-  const requireFullHistory = !!ticker;
+  // Single ticker (modal) → fetch full history from 2015 for all period buttons
+  // Bulk (card grid) → fetch 2 years for 1-year sparklines (lighter & faster)
+  const now = new Date();
+  const twoYearsAgo = new Date(now);
+  twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
+  const fetchStartYmd = ticker ? "20150101" : formatYmd(twoYearsAgo);
 
   const BATCH_SIZE = 5;
   const results: StockForeignData[] = [];
@@ -160,7 +159,7 @@ export async function GET(request: NextRequest) {
   for (let i = 0; i < stocks.length; i += BATCH_SIZE) {
     const batch = stocks.slice(i, i + BATCH_SIZE);
     const batchResults = await Promise.all(
-      batch.map((s) => getStockData(s, endYmd, requireFullHistory))
+      batch.map((s) => getStockData(s, endYmd, fetchStartYmd))
     );
     results.push(...batchResults);
   }
