@@ -31,7 +31,13 @@ async function testKRXFetch() {
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
         "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+        Referer:
+          "https://data.krx.co.kr/contents/MDC/MDI/mdiStat/tables/MDCSTAT03501.html",
+        Accept: "application/json, text/javascript, */*; q=0.01",
+        "Accept-Language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
+        Origin: "https://data.krx.co.kr",
+        "X-Requested-With": "XMLHttpRequest",
       },
       body: body.toString(),
     }
@@ -97,6 +103,37 @@ export async function GET() {
     report.krx = await testKRXFetch();
   } catch (err) {
     report.krx = { error: String(err) };
+  }
+
+  // 4) If KRX succeeded, try storing one stock in Redis
+  if (
+    report.krx &&
+    typeof report.krx === "object" &&
+    "firstRow" in report.krx &&
+    (report.krx as Record<string, unknown>).firstRow
+  ) {
+    try {
+      const krxResult = report.krx as Record<string, unknown>;
+      const row = krxResult.firstRow as Record<string, string>;
+      const entry = {
+        date: row.TRD_DD?.replace(/\//g, "-") || "unknown",
+        quantity: Number(String(row.FORN_HLD_QTY || "0").replace(/,/g, "")) || 0,
+        ratio: parseFloat(String(row.FORN_SHR_RT || "0").replace(/,/g, "")) || 0,
+      };
+      const key = "foreign:005930";
+      // Don't overwrite real data — use a test prefix
+      const testKey = "foreign:__diag_005930__";
+      await redis.set(testKey, [entry], { ex: 120 });
+      const readBack = await redis.get(testKey);
+      await redis.del(testKey);
+      report.e2eTest = {
+        stored: entry,
+        readBack,
+        match: JSON.stringify([entry]) === JSON.stringify(readBack),
+      };
+    } catch (err) {
+      report.e2eTest = { error: String(err) };
+    }
   }
 
   return NextResponse.json(report);
