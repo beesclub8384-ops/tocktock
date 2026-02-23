@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { redis } from "@/lib/redis";
 import {
   KOSPI_TOP20,
   KOSDAQ_TOP20,
@@ -17,6 +16,15 @@ function getDateRange(period: string): string {
   else if (period === "3m") start.setMonth(start.getMonth() - 3);
   else start.setMonth(start.getMonth() - 6);
   return start.toISOString().split("T")[0];
+}
+
+async function getRedis() {
+  try {
+    const { redis } = await import("@/lib/redis");
+    return redis;
+  } catch {
+    return null;
+  }
 }
 
 export async function GET(request: NextRequest) {
@@ -37,31 +45,34 @@ export async function GET(request: NextRequest) {
   if (ticker) {
     stocks = stocks.filter((s) => s.ticker === ticker);
     if (stocks.length === 0) {
-      // Try KRX direct lookup for unknown ticker
       return NextResponse.json({ stocks: [], message: "종목을 찾을 수 없습니다." });
     }
   }
 
+  const redis = await getRedis();
   const results: StockForeignData[] = [];
 
   for (const stock of stocks) {
-    const key = `foreign:${stock.ticker}`;
-    const cached = await redis.get<ForeignOwnershipEntry[]>(key);
+    let data: ForeignOwnershipEntry[] = [];
 
-    if (cached && Array.isArray(cached)) {
-      const filtered = cached.filter((e) => e.date >= startDate);
-      results.push({
-        name: stock.name,
-        ticker: stock.ticker,
-        data: filtered,
-      });
-    } else {
-      results.push({
-        name: stock.name,
-        ticker: stock.ticker,
-        data: [],
-      });
+    if (redis) {
+      try {
+        const cached = await redis.get<ForeignOwnershipEntry[]>(
+          `foreign:${stock.ticker}`
+        );
+        if (cached && Array.isArray(cached)) {
+          data = cached.filter((e) => e.date >= startDate);
+        }
+      } catch {
+        // Redis read failed for this stock, continue with empty data
+      }
     }
+
+    results.push({
+      name: stock.name,
+      ticker: stock.ticker,
+      data,
+    });
   }
 
   return NextResponse.json({ stocks: results });
