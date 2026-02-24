@@ -22,6 +22,7 @@ interface ExplosionStock {
 interface VolumeData {
   todayDate: string;
   yesterdayDate: string;
+  marketOpen: boolean;
   yesterdayStocks: YesterdayStock[];
   explosionStocks: ExplosionStock[];
   updatedAt: string;
@@ -114,7 +115,7 @@ export default function VolumeExplosionPage() {
         </header>
 
         {/* 요약 배너 */}
-        {data.explosionStocks.length > 0 && (
+        {!data.marketOpen && data.explosionStocks.length > 0 && (
           <div className="mb-6 rounded-lg border border-amber-500/30 bg-amber-500/5 px-5 py-3">
             <p className="text-sm">
               <strong className="text-amber-400">
@@ -214,11 +215,24 @@ export default function VolumeExplosionPage() {
                 </span>
               </h2>
               <p className="text-xs text-muted-foreground mt-1">
-                거래대금 1,000억 이상 돌파 · {data.explosionStocks.length}종목
+                {data.marketOpen
+                  ? "장 마감 후 업데이트"
+                  : `거래대금 1,000억 이상 돌파 · ${data.explosionStocks.length}종목`}
               </p>
             </div>
             <div className="p-4 space-y-3 h-[600px] overflow-y-auto">
-              {data.explosionStocks.length === 0 ? (
+              {data.marketOpen ? (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center">
+                    <p className="text-muted-foreground text-sm mb-2">
+                      아직 장 마감 전입니다.
+                    </p>
+                    <p className="text-muted-foreground/60 text-xs">
+                      장 마감 후(15:30 이후) 업데이트됩니다.
+                    </p>
+                  </div>
+                </div>
+              ) : data.explosionStocks.length === 0 ? (
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center">
                     <p className="text-muted-foreground text-sm mb-1">

@@ -3,8 +3,9 @@ import { redis } from "@/lib/redis";
 
 export const dynamic = "force-dynamic";
 
-const CACHE_KEY = "volume-explosion:latest";
-const CACHE_TTL = 86400; // 24h
+const CACHE_KEY_PREFIX = "volume-explosion";
+const CACHE_TTL_CLOSED = 86400; // 장 마감 후 24h
+const CACHE_TTL_OPEN = 600; // 장중 10분 (어제 데이터만 캐시)
 
 const YESTERDAY_THRESHOLD = 30_000_000_000; // 300억
 const TODAY_THRESHOLD = 100_000_000_000; // 1,000억
@@ -44,6 +45,7 @@ interface StockVolume {
 export interface VolumeExplosionResponse {
   todayDate: string;
   yesterdayDate: string;
+  marketOpen: boolean; // true = 장 마감 전, 오늘 데이터 없음
   yesterdayStocks: {
     code: string;
     name: string;
@@ -66,14 +68,29 @@ function parseNum(s: string): number {
   return Number(s.replace(/,/g, "")) || 0;
 }
 
+/** KST 기준 현재 시각 */
+function getKSTNow(): Date {
+  const now = new Date();
+  const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+  return new Date(utc + 9 * 3600000);
+}
+
 function fmtDate(d: Date): string {
   return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
 }
 
-/** 최근 weekday 날짜 후보 (오늘부터 역순) */
-function getWeekdayCandidates(count: number): string[] {
+/** 장 마감 여부 (KST 15:30 이후이고 평일이면 장 마감) */
+function isMarketClosed(kstNow: Date): boolean {
+  const day = kstNow.getDay();
+  if (day === 0 || day === 6) return true; // 주말은 이전 거래일 마감 상태
+  const hhmm = kstNow.getHours() * 100 + kstNow.getMinutes();
+  return hhmm >= 1530;
+}
+
+/** startDate부터 과거 방향으로 평일 날짜 후보 생성 */
+function getWeekdayCandidates(count: number, startDate: Date): string[] {
   const result: string[] = [];
-  const d = new Date();
+  const d = new Date(startDate);
   while (result.length < count) {
     if (d.getDay() !== 0 && d.getDay() !== 6) {
       result.push(fmtDate(d));
@@ -94,22 +111,40 @@ async function fetchKRXStocks(
     trdDd: date,
   });
 
-  const res = await fetch(
-    "http://data.krx.co.kr/comm/bldAttendant/getJsonData.cmd",
-    {
+  const url = "http://data.krx.co.kr/comm/bldAttendant/getJsonData.cmd";
+  console.log(`[KRX] 요청: date=${date}, mktId=${mktId}`);
+
+  let res: Response;
+  try {
+    res = await fetch(url, {
       method: "POST",
       headers: KRX_HEADERS,
       body: body.toString(),
       signal: AbortSignal.timeout(15000),
-    },
-  );
+    });
+  } catch (err) {
+    console.error(`[KRX] 네트워크 에러: date=${date}, mktId=${mktId}`, err);
+    return [];
+  }
 
-  if (!res.ok) return [];
+  if (!res.ok) {
+    console.warn(`[KRX] HTTP ${res.status}: date=${date}, mktId=${mktId}`);
+    return [];
+  }
 
   try {
     const json = await res.json();
-    return json?.OutBlock_1 || json?.output || [];
-  } catch {
+    const rows: KRXRow[] = json?.OutBlock_1 || json?.output || [];
+    console.log(
+      `[KRX] 응답: date=${date}, mktId=${mktId}, rows=${rows.length}`,
+    );
+    if (rows.length === 0) {
+      const keys = Object.keys(json || {});
+      console.warn(`[KRX] 빈 결과. 응답 키: [${keys.join(", ")}]`);
+    }
+    return rows;
+  } catch (err) {
+    console.error(`[KRX] JSON 파싱 에러: date=${date}, mktId=${mktId}`, err);
     return [];
   }
 }
@@ -133,70 +168,161 @@ function toStockVolumes(
 }
 
 export async function GET() {
+  const kstNow = getKSTNow();
+  const marketClosed = isMarketClosed(kstNow);
+  const todayKST = fmtDate(kstNow);
+  const cacheKey = `${CACHE_KEY_PREFIX}:${todayKST}:${marketClosed ? "closed" : "open"}`;
+
+  console.log(
+    `[volume-explosion] KST=${kstNow.toISOString()}, today=${todayKST}, marketClosed=${marketClosed}`,
+  );
+
   // 1. Redis 캐시 확인
   try {
-    const cached = await redis.get<VolumeExplosionResponse>(CACHE_KEY);
-    if (cached) return NextResponse.json(cached);
+    const cached = await redis.get<VolumeExplosionResponse>(cacheKey);
+    if (cached) {
+      console.log(`[volume-explosion] 캐시 히트: ${cacheKey}`);
+      return NextResponse.json(cached);
+    }
   } catch {
     /* cache miss */
   }
 
-  // 2. 최근 거래일 2일 찾기 (KOSPI 데이터로 거래일 판별)
-  const candidates = getWeekdayCandidates(10);
-  let todayDate = "";
+  // 2. "어제" 데이터 조회 — 항상 직전 거래일
+  //    장 마감 전: 오늘 제외, 어제부터 탐색
+  //    장 마감 후: 오늘이 첫 번째, 그 전이 "어제"
+  const yesterdayStart = new Date(kstNow);
+  yesterdayStart.setDate(yesterdayStart.getDate() - 1); // 어제부터 시작
+  const yesterdayCandidates = getWeekdayCandidates(10, yesterdayStart);
+
   let yesterdayDate = "";
-  let todayKospiRows: KRXRow[] = [];
   let yesterdayKospiRows: KRXRow[] = [];
 
-  for (const date of candidates) {
+  for (const date of yesterdayCandidates) {
     try {
       const rows = await fetchKRXStocks(date, "STK");
       if (rows.length > 0) {
-        if (!todayDate) {
-          todayDate = date;
-          todayKospiRows = rows;
-        } else {
-          yesterdayDate = date;
-          yesterdayKospiRows = rows;
-          break;
-        }
+        yesterdayDate = date;
+        yesterdayKospiRows = rows;
+        break;
       }
-    } catch {
+    } catch (err) {
+      console.error(`[volume-explosion] 어제 데이터 조회 실패: ${date}`, err);
       continue;
     }
   }
 
-  if (!todayDate || !yesterdayDate) {
+  if (!yesterdayDate) {
+    console.error(
+      `[volume-explosion] 어제 거래일을 찾을 수 없음. 후보: [${yesterdayCandidates.join(", ")}]`,
+    );
     return NextResponse.json(
-      { error: "최근 거래일 데이터를 찾을 수 없습니다." },
+      {
+        error: `최근 거래일 데이터를 찾을 수 없습니다. (후보: ${yesterdayCandidates.slice(0, 3).join(", ")})`,
+      },
       { status: 500 },
     );
   }
 
-  // 3. 코스닥 데이터 병렬 조회
-  const [todayKosdaqRows, yesterdayKosdaqRows] = await Promise.all([
-    fetchKRXStocks(todayDate, "KSQ"),
-    fetchKRXStocks(yesterdayDate, "KSQ"),
-  ]);
+  // 어제 코스닥 데이터
+  const yesterdayKosdaqRows = await fetchKRXStocks(yesterdayDate, "KSQ");
 
-  // 4. 전체 합산
-  const todayAll = [
-    ...toStockVolumes(todayKospiRows, "KOSPI"),
-    ...toStockVolumes(todayKosdaqRows, "KOSDAQ"),
-  ];
   const yesterdayAll = [
     ...toStockVolumes(yesterdayKospiRows, "KOSPI"),
     ...toStockVolumes(yesterdayKosdaqRows, "KOSDAQ"),
   ];
 
-  // 5. 어제 거래대금 300억 이하 종목
   const yesterdayLow = yesterdayAll
     .filter((s) => s.tradingValue > 0 && s.tradingValue <= YESTERDAY_THRESHOLD)
     .sort((a, b) => b.tradingValue - a.tradingValue);
 
-  const yesterdayLowCodes = new Set(yesterdayLow.map((s) => s.code));
+  // 3. 장 마감 전이면 어제 데이터만 반환
+  if (!marketClosed) {
+    console.log(
+      `[volume-explosion] 장 마감 전 — 어제(${yesterdayDate}) 데이터만 반환`,
+    );
+    const result: VolumeExplosionResponse = {
+      todayDate: todayKST,
+      yesterdayDate,
+      marketOpen: true,
+      yesterdayStocks: yesterdayLow.map((s) => ({
+        code: s.code,
+        name: s.name,
+        value: s.tradingValue,
+        market: s.market,
+      })),
+      explosionStocks: [],
+      updatedAt: new Date().toISOString(),
+    };
+
+    try {
+      await redis.set(cacheKey, result, { ex: CACHE_TTL_OPEN });
+    } catch {
+      /* cache write failed */
+    }
+
+    return NextResponse.json(result);
+  }
+
+  // 4. 장 마감 후 — 오늘 데이터 조회
+  const todayCandidates = getWeekdayCandidates(5, kstNow);
+  let todayDate = "";
+  let todayKospiRows: KRXRow[] = [];
+
+  for (const date of todayCandidates) {
+    // 어제와 같은 날짜면 건너뜀
+    if (date === yesterdayDate) continue;
+    try {
+      const rows = await fetchKRXStocks(date, "STK");
+      if (rows.length > 0) {
+        todayDate = date;
+        todayKospiRows = rows;
+        break;
+      }
+    } catch (err) {
+      console.error(`[volume-explosion] 오늘 데이터 조회 실패: ${date}`, err);
+      continue;
+    }
+  }
+
+  // 오늘 데이터를 못 찾으면 (공휴일 등) 어제 데이터만 반환
+  if (!todayDate) {
+    console.warn(
+      `[volume-explosion] 장 마감 후지만 오늘 데이터 없음. 후보: [${todayCandidates.join(", ")}]`,
+    );
+    const result: VolumeExplosionResponse = {
+      todayDate: todayKST,
+      yesterdayDate,
+      marketOpen: false,
+      yesterdayStocks: yesterdayLow.map((s) => ({
+        code: s.code,
+        name: s.name,
+        value: s.tradingValue,
+        market: s.market,
+      })),
+      explosionStocks: [],
+      updatedAt: new Date().toISOString(),
+    };
+
+    try {
+      await redis.set(cacheKey, result, { ex: CACHE_TTL_OPEN });
+    } catch {
+      /* cache write failed */
+    }
+
+    return NextResponse.json(result);
+  }
+
+  // 5. 오늘 코스닥 데이터 조회
+  const todayKosdaqRows = await fetchKRXStocks(todayDate, "KSQ");
+
+  const todayAll = [
+    ...toStockVolumes(todayKospiRows, "KOSPI"),
+    ...toStockVolumes(todayKosdaqRows, "KOSDAQ"),
+  ];
 
   // 6. 폭발 종목: 어제 300억 이하 → 오늘 1,000억 이상
+  const yesterdayLowCodes = new Set(yesterdayLow.map((s) => s.code));
   const yesterdayMap = new Map(yesterdayAll.map((s) => [s.code, s]));
 
   const explosionStocks = todayAll
@@ -215,9 +341,14 @@ export async function GET() {
       market: s.market,
     }));
 
+  console.log(
+    `[volume-explosion] 장 마감 후 — 어제=${yesterdayDate}, 오늘=${todayDate}, 폭발=${explosionStocks.length}개`,
+  );
+
   const result: VolumeExplosionResponse = {
     todayDate,
     yesterdayDate,
+    marketOpen: false,
     yesterdayStocks: yesterdayLow.map((s) => ({
       code: s.code,
       name: s.name,
@@ -228,9 +359,9 @@ export async function GET() {
     updatedAt: new Date().toISOString(),
   };
 
-  // 7. Redis 캐싱 (24시간)
+  // 7. Redis 캐싱
   try {
-    await redis.set(CACHE_KEY, result, { ex: CACHE_TTL });
+    await redis.set(cacheKey, result, { ex: CACHE_TTL_CLOSED });
   } catch {
     /* cache write failed */
   }
