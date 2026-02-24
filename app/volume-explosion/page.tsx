@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { X } from "lucide-react";
 
 interface YesterdayStock {
   code: string;
@@ -43,11 +44,221 @@ function formatDateLabel(yyyymmdd: string): string {
   return `${m}/${d}`;
 }
 
+function VolumeGuideModal({ onClose }: { onClose: () => void }) {
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, []);
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="relative max-h-[85vh] w-full max-w-4xl overflow-y-auto rounded-2xl border border-border bg-card p-6 shadow-2xl sm:p-8">
+        <button
+          onClick={onClose}
+          className="absolute right-4 top-4 rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+        >
+          <X size={20} />
+        </button>
+
+        <h2 className="mb-6 text-xl font-bold">거래대금 폭발 보는 법</h2>
+
+        {/* 섹션1 */}
+        <section className="mb-6">
+          <h3 className="mb-2 text-base font-semibold">
+            거래대금이 뭔가요?
+          </h3>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            하루 동안 그 주식이 사고팔린 총 금액입니다. 예를 들어 삼성전자가
+            하루에 1조원어치 거래되었다면, 그날 삼성전자의 거래대금은
+            1조원입니다. 주가와는 다른 개념으로,{" "}
+            <strong className="text-foreground">
+              &ldquo;이 종목에 얼마나 많은 돈이 오갔는가&rdquo;
+            </strong>
+            를 보여줍니다.
+          </p>
+        </section>
+
+        <hr className="my-5 border-border" />
+
+        {/* 섹션2 */}
+        <section className="mb-6">
+          <h3 className="mb-2 text-base font-semibold">
+            이 페이지는 뭘 보여주나요?
+          </h3>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            어제까지 조용하던 종목(거래대금 300억 이하) 중에서, 오늘 갑자기
+            돈이 몰린 종목(1,000억 이상)을 자동으로 찾아줍니다. 즉,{" "}
+            <strong className="text-foreground">
+              &ldquo;어제는 아무도 안 쳐다보던 종목에 오늘 갑자기 큰돈이
+              들어왔다&rdquo;
+            </strong>
+            는 뜻입니다.
+          </p>
+        </section>
+
+        <hr className="my-5 border-border" />
+
+        {/* 섹션3 */}
+        <section className="mb-6">
+          <h3 className="mb-2 text-base font-semibold">
+            왜 이게 중요한가요?
+          </h3>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            거래대금이 갑자기 폭발한다는 건, 큰손(기관·외국인)이 움직이고
+            있거나 중요한 뉴스가 터졌다는 신호일 수 있습니다. 비유하면 이렇습니다.{" "}
+            <strong className="text-foreground">
+              평소 손님 10명 오던 가게에 갑자기 100명이 몰렸다면, 분명 뭔가
+              이유가 있는 겁니다.
+            </strong>{" "}
+            그 이유를 찾아보는 게 투자의 출발점입니다.
+          </p>
+        </section>
+
+        <hr className="my-5 border-border" />
+
+        {/* 섹션4: 패널 설명 — 2단 그리드 */}
+        <section className="mb-6">
+          <h3 className="mb-3 text-base font-semibold">
+            화면 구성
+          </h3>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="rounded-lg border border-border bg-muted/30 p-4">
+              <h4 className="mb-1.5 text-sm font-semibold">
+                왼쪽 &ldquo;어제&rdquo; 패널
+              </h4>
+              <ul className="space-y-1 text-sm leading-relaxed text-muted-foreground">
+                <li>
+                  어제 거래대금이{" "}
+                  <strong className="text-foreground">300억 이하</strong>였던
+                  종목들입니다.
+                </li>
+                <li>
+                  한마디로 &ldquo;조용했던 종목들&rdquo;. 평소에 시장의 관심을
+                  거의 받지 못하던 종목이라고 보면 됩니다.
+                </li>
+                <li>
+                  검색창에서 종목명이나 코드로 검색할 수 있습니다.
+                </li>
+              </ul>
+            </div>
+
+            <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4">
+              <h4 className="mb-1.5 text-sm font-semibold">
+                오른쪽 &ldquo;오늘&rdquo; 패널{" "}
+                <span className="font-normal text-amber-400">— 핵심!</span>
+              </h4>
+              <ul className="space-y-1 text-sm leading-relaxed text-muted-foreground">
+                <li>
+                  어제 조용했는데, 오늘 갑자기 거래대금이{" "}
+                  <strong className="text-foreground">1,000억 이상</strong>{" "}
+                  터진 종목입니다.
+                </li>
+                <li>
+                  &ldquo;몇 배&rdquo; 표시는 어제 대비 오늘 거래대금이 몇 배
+                  늘었는지를 보여줍니다. 배수가 높을수록 관심이 급증한
+                  종목입니다.
+                </li>
+                <li>
+                  종가와 등락률도 함께 표시되어, 상승인지 하락인지 바로 확인할
+                  수 있습니다.
+                </li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <hr className="my-5 border-border" />
+
+        {/* 하단 정보 — 2단 그리드 */}
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+          {/* 좌측: 주의할 점 */}
+          <div className="space-y-5">
+            <section>
+              <h3 className="mb-2 text-base font-semibold">주의할 점</h3>
+              <ul className="list-disc space-y-1.5 pl-5 text-sm leading-relaxed text-muted-foreground">
+                <li>
+                  거래대금 폭발이{" "}
+                  <strong className="text-foreground">
+                    항상 좋은 신호는 아닙니다.
+                  </strong>{" "}
+                  급등할 때도 거래대금이 폭발하지만, 급락할 때도 폭발합니다.
+                </li>
+                <li>
+                  반드시{" "}
+                  <strong className="text-foreground">
+                    &ldquo;왜 터졌는지&rdquo; 뉴스를 확인
+                  </strong>
+                  하세요. 호재(신사업, 실적 서프라이즈)인지, 악재(소송, 분식회계
+                  의혹)인지에 따라 의미가 완전히 달라집니다.
+                </li>
+                <li>
+                  거래대금만 보고 매수하는 것은 권장하지 않습니다. 다른 분석과
+                  함께 보조 지표로 활용하세요.
+                </li>
+              </ul>
+            </section>
+          </div>
+
+          {/* 우측: 장 마감 + 데이터 출처 */}
+          <div className="space-y-5">
+            <section>
+              <h3 className="mb-2 text-base font-semibold">
+                장 마감 전에는?
+              </h3>
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                오른쪽 &ldquo;오늘&rdquo; 패널은{" "}
+                <strong className="text-foreground">
+                  장 마감(15:30) 이후
+                </strong>
+                에 업데이트됩니다. 장중에는 아직 거래가 진행 중이라 최종
+                거래대금을 알 수 없기 때문입니다. 왼쪽 &ldquo;어제&rdquo;
+                패널은 장중에도 정상적으로 표시됩니다.
+              </p>
+            </section>
+
+            <hr className="border-border md:hidden" />
+
+            <section>
+              <h3 className="mb-2 text-base font-semibold">데이터 출처</h3>
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                <strong className="text-foreground">네이버 금융</strong>에서
+                코스피·코스닥 전 종목의 거래대금 데이터를 가져옵니다. 매일 장
+                마감 후 자동으로 업데이트되며, ETF·ETN·스팩·우선주 등 파생상품은
+                제외하고{" "}
+                <strong className="text-foreground">
+                  일반 기업 주식만
+                </strong>{" "}
+                표시합니다.
+              </p>
+            </section>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function VolumeExplosionPage() {
   const [data, setData] = useState<VolumeData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
+  const [showGuide, setShowGuide] = useState(false);
 
   useEffect(() => {
     fetch("/api/volume-explosion")
@@ -112,7 +323,15 @@ export default function VolumeExplosionPage() {
             어제 조용했던 종목(거래대금 300억 이하) 중 오늘 거래대금이 1,000억
             이상 터진 종목을 찾습니다. 데이터 출처: 네이버 금융
           </p>
+          <button
+            onClick={() => setShowGuide(true)}
+            className="mt-3 inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          >
+            거래대금 폭발 보는 법
+          </button>
         </header>
+
+        {showGuide && <VolumeGuideModal onClose={() => setShowGuide(false)} />}
 
         {/* 요약 배너 */}
         {!data.marketOpen && data.explosionStocks.length > 0 && (
