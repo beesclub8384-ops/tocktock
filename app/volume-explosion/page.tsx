@@ -248,6 +248,95 @@ function VolumeGuideModal({ onClose }: { onClose: () => void }) {
             </section>
           </div>
         </div>
+
+        <hr className="my-5 border-border" />
+
+        {/* AI 분석 설명 — 2단 그리드 */}
+        <section className="mb-6">
+          <h3 className="mb-3 text-base font-semibold">
+            AI 분석 패널
+          </h3>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="rounded-lg border border-purple-500/30 bg-purple-500/5 p-4">
+              <h4 className="mb-1.5 text-sm font-semibold">
+                AI 분석이란?
+              </h4>
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                거래대금이 폭발한 종목들을{" "}
+                <strong className="text-foreground">
+                  AI가 자동으로 분석
+                </strong>
+                해주는 기능입니다. 네이버 금융의 테마 데이터를 수집하고,
+                이를 바탕으로 폭발 종목들의 패턴을 읽어줍니다.
+              </p>
+            </div>
+
+            <div className="rounded-lg border border-purple-500/30 bg-purple-500/5 p-4">
+              <h4 className="mb-1.5 text-sm font-semibold">
+                어떤 내용을 알려주나요?
+              </h4>
+              <ul className="space-y-1 text-sm leading-relaxed text-muted-foreground">
+                <li>
+                  <strong className="text-foreground">공통 테마</strong> —
+                  어떤 테마·섹터에 돈이 몰리고 있는지
+                </li>
+                <li>
+                  <strong className="text-foreground">종목별 포인트</strong> —
+                  폭발 종목 간 핵심 차이점
+                </li>
+                <li>
+                  <strong className="text-foreground">리스크 요인</strong> —
+                  고평가, 과열, 작전주 의심 등 위험 요소
+                </li>
+                <li>
+                  <strong className="text-foreground">한줄 요약</strong> —
+                  오늘의 수급 흐름 정리
+                </li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+          <section>
+            <h3 className="mb-2 text-base font-semibold">
+              언제 볼 수 있나요?
+            </h3>
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              <strong className="text-foreground">
+                장 마감(15:30) 이후
+              </strong>
+              에 자동으로 생성됩니다. 장중에는 &ldquo;장 마감 후 AI 분석이
+              제공됩니다&rdquo; 메시지가 표시됩니다. 한 번 생성된 분석은
+              캐싱되어, 같은 날 다시 접속해도 빠르게 확인할 수 있습니다.
+            </p>
+          </section>
+
+          <section>
+            <h3 className="mb-2 text-base font-semibold">
+              AI 분석 주의할 점
+            </h3>
+            <ul className="list-disc space-y-1.5 pl-5 text-sm leading-relaxed text-muted-foreground">
+              <li>
+                AI 분석은{" "}
+                <strong className="text-foreground">참고용</strong>이며,
+                투자 판단의 유일한 근거로 사용하면 안 됩니다.
+              </li>
+              <li>
+                반드시{" "}
+                <strong className="text-foreground">
+                  본인이 직접 뉴스와 재무정보를 확인
+                </strong>
+                하세요.
+              </li>
+              <li>
+                AI가 모든 시장 상황을 완벽하게 파악하지는 못합니다.
+                예상치 못한 이벤트나 급변하는 시장에는 한계가 있을 수
+                있습니다.
+              </li>
+            </ul>
+          </section>
+        </div>
       </div>
     </div>
   );
