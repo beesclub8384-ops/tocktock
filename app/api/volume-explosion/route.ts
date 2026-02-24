@@ -197,13 +197,13 @@ async function fetchAllStocks(
 // --- 스냅샷 ---
 async function saveSnapshot(
   date: string,
-  stocks: StockVolume[],
+  stocks: { code: string; name: string; tradingValue: number; market: string }[],
 ): Promise<void> {
-  const data: StockSnapshot[] = stocks.map((s) => ({
+  const data = stocks.map((s) => ({
     code: s.code,
     name: s.name,
     tradingValue: s.tradingValue,
-    market: s.market,
+    market: s.market as "KOSPI" | "KOSDAQ",
   }));
   try {
     await redis.set(`${SNAPSHOT_PREFIX}:${date}`, data, { ex: SNAPSHOT_TTL });
@@ -253,6 +253,98 @@ async function findPreviousSnapshot(
   return null;
 }
 
+// --- siseJson 개별 종목 히스토리 fallback ---
+async function fetchStockSiseJson(
+  code: string,
+  startDate: string,
+  endDate: string,
+): Promise<{ date: string; tradingValue: number }[]> {
+  const url = `https://api.finance.naver.com/siseJson.naver?symbol=${code}&requestType=1&startTime=${startDate}&endTime=${endDate}&timeframe=day`;
+  try {
+    const res = await fetch(url, {
+      headers: NAVER_HEADERS,
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!res.ok) return [];
+    const text = await res.text();
+    const parsed = JSON.parse(text.trim().replace(/'/g, '"'));
+    if (!Array.isArray(parsed) || parsed.length < 2) return [];
+    return parsed.slice(1).map((row: any[]) => ({
+      date: String(row[0]).trim(),
+      tradingValue: Math.round(Number(row[4]) * Number(row[5])), // 종가 × 거래량 (근사치)
+    }));
+  } catch {
+    return [];
+  }
+}
+
+/** 전종목의 이전 거래일 데이터를 siseJson으로 조회 (스냅샷 없을 때 fallback) */
+async function fetchYesterdayFromSiseJson(
+  stocks: { code: string; name: string; market: "KOSPI" | "KOSDAQ" }[],
+  dataDate: string,
+): Promise<{ date: string; stocks: StockSnapshot[] } | null> {
+  const d = new Date(
+    parseInt(dataDate.slice(0, 4)),
+    parseInt(dataDate.slice(4, 6)) - 1,
+    parseInt(dataDate.slice(6, 8)),
+  );
+  d.setDate(d.getDate() - 10);
+  const startDate = fmtDate(d);
+
+  console.log(
+    `[siseJson] ${stocks.length}종목의 이전 거래일 데이터 조회 시작 (${startDate}~${dataDate})`,
+  );
+
+  const BATCH = 50;
+  const results: StockSnapshot[] = [];
+  let foundDate = "";
+
+  for (let i = 0; i < stocks.length; i += BATCH) {
+    const batch = stocks.slice(i, i + BATCH);
+    const batchResults = await Promise.all(
+      batch.map(async (stock) => {
+        const history = await fetchStockSiseJson(
+          stock.code,
+          startDate,
+          dataDate,
+        );
+        if (!history.length) return null;
+        // dataDate와 같은 날짜면 그 전 항목 사용 (오늘 데이터 제외)
+        let entry = history[history.length - 1];
+        if (entry.date === dataDate && history.length >= 2) {
+          entry = history[history.length - 2];
+        }
+        if (entry && entry.date !== dataDate) {
+          if (!foundDate && entry.date) foundDate = entry.date;
+          return {
+            code: stock.code,
+            name: stock.name,
+            tradingValue: entry.tradingValue,
+            market: stock.market,
+          } as StockSnapshot;
+        }
+        return null;
+      }),
+    );
+    results.push(...(batchResults.filter(Boolean) as StockSnapshot[]));
+    if (i + BATCH < stocks.length) {
+      await new Promise((r) => setTimeout(r, 100)); // rate limit 방지
+    }
+    if ((i / BATCH) % 10 === 0) {
+      console.log(
+        `[siseJson] 진행: ${Math.min(i + BATCH, stocks.length)}/${stocks.length}`,
+      );
+    }
+  }
+
+  console.log(
+    `[siseJson] 완료: ${results.length}/${stocks.length}종목 조회, 날짜=${foundDate}`,
+  );
+
+  if (results.length === 0 || !foundDate) return null;
+  return { date: foundDate, stocks: results };
+}
+
 // --- 메인 핸들러 ---
 export async function GET() {
   const kstNow = getKSTNow();
@@ -289,6 +381,35 @@ export async function GET() {
         yesterdayDate = date;
         yesterdayStocks = snap;
         break;
+      }
+    }
+
+    // 스냅샷 없으면 siseJson fallback
+    if (yesterdayStocks.length === 0) {
+      console.log(`[volume-explosion] 장중 - 스냅샷 없음 → siseJson fallback`);
+      const [kospiResult, kosdaqResult] = await Promise.all([
+        fetchAllStocks("KOSPI"),
+        fetchAllStocks("KOSDAQ"),
+      ]);
+      const allStocks = [...kospiResult.stocks, ...kosdaqResult.stocks];
+      const liveDate =
+        kospiResult.dataDate || kosdaqResult.dataDate || todayKST;
+
+      if (allStocks.length > 0) {
+        const stockInfos = allStocks.map((s) => ({
+          code: s.code,
+          name: s.name,
+          market: s.market,
+        }));
+        const yesterdayData = await fetchYesterdayFromSiseJson(
+          stockInfos,
+          liveDate,
+        );
+        if (yesterdayData) {
+          yesterdayDate = yesterdayData.date;
+          yesterdayStocks = yesterdayData.stocks;
+          await saveSnapshot(yesterdayDate, yesterdayStocks);
+        }
       }
     }
 
@@ -353,7 +474,27 @@ export async function GET() {
   await saveSnapshot(dataDate, todayAll);
 
   // 이전 거래일 스냅샷 찾기
-  const prevSnap = await findPreviousSnapshot(dataDate);
+  let prevSnap = await findPreviousSnapshot(dataDate);
+
+  // 스냅샷 없으면 siseJson fallback
+  if (!prevSnap) {
+    console.log(
+      `[volume-explosion] 장마감 - 이전 스냅샷 없음 → siseJson fallback`,
+    );
+    const stockInfos = todayAll.map((s) => ({
+      code: s.code,
+      name: s.name,
+      market: s.market,
+    }));
+    const yesterdayData = await fetchYesterdayFromSiseJson(
+      stockInfos,
+      dataDate,
+    );
+    if (yesterdayData) {
+      prevSnap = yesterdayData;
+      await saveSnapshot(yesterdayData.date, yesterdayData.stocks);
+    }
+  }
 
   const yesterdayLow = prevSnap
     ? prevSnap.stocks
