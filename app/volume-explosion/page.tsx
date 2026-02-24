@@ -75,7 +75,7 @@ export default function VolumeExplosionPage() {
         <div className="text-center">
           <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-muted-foreground/30 border-t-foreground" />
           <p className="mt-4 text-muted-foreground text-sm">
-            KRX 데이터를 불러오는 중...
+            네이버 금융 데이터를 불러오는 중...
           </p>
         </div>
       </div>
