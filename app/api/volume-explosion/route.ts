@@ -75,6 +75,15 @@ export interface VolumeExplosionResponse {
 }
 
 // --- 유틸 ---
+/** ETF, ETN, 리츠, 우선주 제외 — 일반 주식만 */
+function isRegularStock(name: string): boolean {
+  if (/ETF/i.test(name)) return false;
+  if (/ETN/i.test(name)) return false;
+  if (name.includes("리츠") || /REIT/i.test(name)) return false;
+  if (/우[A-C]?$/.test(name)) return false;
+  return true;
+}
+
 function parseNum(s: string): number {
   return Number(s.replace(/,/g, "")) || 0;
 }
@@ -415,7 +424,10 @@ export async function GET() {
 
     const yesterdayLow = yesterdayStocks
       .filter(
-        (s) => s.tradingValue > 0 && s.tradingValue <= YESTERDAY_THRESHOLD,
+        (s) =>
+          isRegularStock(s.name) &&
+          s.tradingValue > 0 &&
+          s.tradingValue <= YESTERDAY_THRESHOLD,
       )
       .sort((a, b) => b.tradingValue - a.tradingValue);
 
@@ -500,7 +512,9 @@ export async function GET() {
     ? prevSnap.stocks
         .filter(
           (s) =>
-            s.tradingValue > 0 && s.tradingValue <= YESTERDAY_THRESHOLD,
+            isRegularStock(s.name) &&
+            s.tradingValue > 0 &&
+            s.tradingValue <= YESTERDAY_THRESHOLD,
         )
         .sort((a, b) => b.tradingValue - a.tradingValue)
     : [];
