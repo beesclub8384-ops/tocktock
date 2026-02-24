@@ -75,14 +75,17 @@ export interface VolumeExplosionResponse {
 }
 
 // --- 유틸 ---
-/** ETF, ETN, 리츠, 우선주 제외 — 일반 주식만 */
+/** ETF·ETN·스팩·리츠·인프라펀드·우선주·파생상품 제외 — 일반 기업 주식만 */
 const ETF_BRAND_RE =
-  /^(KODEX|TIGER|KBSTAR|ACE|ARIRANG|HANARO|SOL|KOSEF|KINDEX|TIMEFOLIO|PLUS|FOCUS|WOORI|BNK|RISE|파워|마이티|히어로)\b/;
+  /^(KODEX|TIGER|KBSTAR|ACE|ARIRANG|HANARO|SOL|KOSEF|KINDEX|TIMEFOLIO|PLUS|FOCUS|WOORI|BNK|RISE|KIWOOM|KoAct|WON|HK|1Q|TIME|DAISHIN\d+|UNICORN|TRUSTON|VITA|에셋플러스|마이다스|더제이|파워|마이티|히어로)\s/;
 
 function isRegularStock(name: string): boolean {
   if (/ETF|ETN/i.test(name)) return false;
   if (ETF_BRAND_RE.test(name)) return false;
   if (name.includes("리츠") || /REIT/i.test(name)) return false;
+  if (/스팩/.test(name)) return false;
+  if (/채권|선물|인버스|레버리지/.test(name)) return false;
+  if (/^(맥쿼리|KB발해)인프라/.test(name)) return false;
   if (/우[A-C]?$/.test(name)) return false;
   return true;
 }
