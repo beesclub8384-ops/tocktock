@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>돈의 모험 EP.1 — 돈은 뭘까?</title>
+<link href="https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&family=Noto+Sans+KR:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #FFF8F0;
+    --panel-bg: #FFFFFF;
+    --border: #2D2D2D;
+    --accent-yellow: #FFD93D;
+    --accent-blue: #6EC6FF;
+    --accent-pink: #FF8FA3;
+    --accent-green: #7ED957;
+    --accent-purple: #B39DDB;
+    --text-dark: #2D2D2D;
+    --text-gray: #666;
+    --bubble-bg: #FFFFFF;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    font-family: 'Gaegu', 'Noto Sans KR', sans-serif;
+    color: var(--text-dark);
+    min-height: 100vh;
+    padding: 20px;
+  }
+
+  .comic-container {
+    max-width: 800px;
+    margin: 0 auto;
+  }
+
+  /* Header */
+  .comic-header {
+    text-align: center;
+    margin-bottom: 30px;
+    position: relative;
+  }
+
+  .series-badge {
+    display: inline-block;
+    background: var(--accent-yellow);
+    color: var(--text-dark);
+    font-family: 'Noto Sans KR', sans-serif;
+    font-weight: 900;
+    font-size: 13px;
+    padding: 4px 14px;
+    border-radius: 20px;
+    border: 2px solid var(--border);
+    margin-bottom: 10px;
+    letter-spacing: 1px;
+  }
+
+  .comic-title {
+    font-family: 'Gaegu', cursive;
+    font-size: 42px;
+    font-weight: 700;
+    color: var(--text-dark);
+    line-height: 1.2;
+  }
+
+  .comic-title .highlight {
+    color: #FF6B35;
+    position: relative;
+  }
+
+  .episode-subtitle {
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 16px;
+    color: var(--text-gray);
+    margin-top: 6px;
+    font-weight: 400;
+  }
+
+  /* Character Intro */
+  .character-intro {
+    display: flex;
+    justify-content: center;
+    gap: 40px;
+    margin-bottom: 30px;
+    padding: 16px 20px;
+    background: white;
+    border-radius: 16px;
+    border: 2px solid var(--border);
+  }
+
+  .char-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .char-card .char-icon {
+    width: 50px;
+    height: 50px;
+    flex-shrink: 0;
+  }
+
+  .char-card .char-info {
+    text-align: left;
+  }
+
+  .char-card .char-name {
+    font-family: 'Gaegu', cursive;
+    font-weight: 700;
+    font-size: 20px;
+    color: var(--text-dark);
+  }
+
+  .char-card .char-desc {
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 11px;
+    color: var(--text-gray);
+  }
+
+  /* Comic Grid */
+  .comic-grid {
+    display: grid;
+    gap: 16px;
+  }
+
+  .row-1 { grid-template-columns: 1fr 1fr; display: grid; gap: 16px; }
+  .row-2 { grid-template-columns: 1fr; display: grid; gap: 16px; }
+  .row-3 { grid-template-columns: 1fr 1fr; display: grid; gap: 16px; }
+
+  .panel {
+    background: var(--panel-bg);
+    border: 3px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+    min-height: 240px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+
+  .panel-number {
+    position: absolute;
+    top: 8px;
+    left: 10px;
+    font-family: 'Noto Sans KR', sans-serif;
+    font-weight: 900;
+    font-size: 14px;
+    color: white;
+    background: var(--border);
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 5;
+  }
+
+  .panel-scene {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 0;
+  }
+
+  /* Speech bubbles */
+  .speech {
+    background: var(--bubble-bg);
+    border: 2px solid var(--border);
+    border-radius: 18px;
+    padding: 10px 14px;
+    font-family: 'Gaegu', cursive;
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 1.5;
+    position: relative;
+    max-width: 90%;
+    margin: 0 auto;
+    text-align: center;
+  }
+
+  .speech.haneul {
+    background: #FFF0F3;
+    border-color: var(--accent-pink);
+  }
+
+  .speech.coni {
+    background: #E8F5FF;
+    border-color: var(--accent-blue);
+  }
+
+  .speech.narrator {
+    background: var(--accent-yellow);
+    border-color: var(--border);
+    font-family: 'Noto Sans KR', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+  }
+
+  .speech::after {
+    content: '';
+    position: absolute;
+    bottom: -10px;
+    width: 16px;
+    height: 16px;
+    background: inherit;
+    border-right: 2px solid;
+    border-bottom: 2px solid;
+    border-color: inherit;
+    transform: rotate(45deg);
+  }
+
+  .speech.haneul::after { left: 25%; border-color: var(--accent-pink); }
+  .speech.coni::after { right: 25%; left: auto; border-color: var(--accent-blue); }
+  .speech.narrator::after { display: none; }
+
+  .speech .speaker-tag {
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-gray);
+    display: block;
+    margin-bottom: 2px;
+  }
+
+  /* Panel specific styles */
+  .panel-1 { background: #FFF8F0; }
+  .panel-2 { background: #F0F7FF; }
+  .panel-3 { background: #FFFDE7; }
+  .panel-4 { background: #FFF0F0; }
+  .panel-5 { background: #F0FFF4; }
+  .panel-6 { background: #FFFDE7; }
+
+  /* Infographic elements */
+  .exchange-arrow {
+    font-size: 28px;
+    color: var(--accent-pink);
+    font-weight: 700;
+    margin: 0 6px;
+  }
+
+  .exchange-diagram {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    margin: 6px 0;
+  }
+
+  .exchange-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-family: 'Gaegu', cursive;
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  .big-x {
+    font-size: 52px;
+    color: #FF4444;
+    font-weight: 900;
+    font-family: 'Noto Sans KR', sans-serif;
+    line-height: 1;
+  }
+
+  .coin-shine {
+    animation: shine 2s ease-in-out infinite;
+  }
+
+  @keyframes shine {
+    0%, 100% { filter: drop-shadow(0 0 4px rgba(255,217,61,0.3)); }
+    50% { filter: drop-shadow(0 0 12px rgba(255,217,61,0.8)); }
+  }
+
+  .lightbulb-glow {
+    animation: glow 1.5s ease-in-out infinite;
+  }
+
+  @keyframes glow {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
+  }
+
+  /* Key concept box */
+  .key-concept {
+    margin-top: 24px;
+    background: linear-gradient(135deg, #FFD93D 0%, #FF6B35 100%);
+    border: 3px solid var(--border);
+    border-radius: 16px;
+    padding: 20px 24px;
+    text-align: center;
+  }
+
+  .key-concept .label {
+    font-family: 'Noto Sans KR', sans-serif;
+    font-weight: 900;
+    font-size: 13px;
+    color: white;
+    background: var(--border);
+    display: inline-block;
+    padding: 2px 12px;
+    border-radius: 10px;
+    margin-bottom: 8px;
+  }
+
+  .key-concept .concept-text {
+    font-family: 'Gaegu', cursive;
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--text-dark);
+    line-height: 1.4;
+  }
+
+  /* Footer */
+  .comic-footer {
+    text-align: center;
+    margin-top: 24px;
+    padding: 16px;
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 14px;
+    color: var(--text-gray);
+    border-top: 2px dashed #ddd;
+  }
+
+  .next-ep {
+    font-family: 'Gaegu', cursive;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-dark);
+    margin-top: 4px;
+  }
+
+  /* Responsive */
+  @media (max-width: 600px) {
+    .row-1, .row-3 { grid-template-columns: 1fr; }
+    .comic-title { font-size: 32px; }
+    .character-intro { flex-direction: column; gap: 16px; align-items: center; }
+    .panel { min-height: 200px; }
+    .speech { font-size: 15px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="comic-container">
+
+  <!-- Header -->
+  <div class="comic-header">
+    <div class="series-badge">돈의 모험 시리즈</div>
+    <div class="comic-title">EP.1 <span class="highlight">돈은 뭘까?</span></div>
+    <div class="episode-subtitle">교환의 마법을 배우다</div>
+  </div>
+
+  <!-- Character Intro -->
+  <div class="character-intro">
+    <div class="char-card">
+      <svg class="char-icon" viewBox="0 0 50 50">
+        <!-- Haneul - girl -->
+        <circle cx="25" cy="20" r="14" fill="#FFE0E8"/>
+        <circle cx="25" cy="18" r="11" fill="#FFDBA4"/>
+        <!-- hair -->
+        <ellipse cx="25" cy="12" rx="12" ry="8" fill="#5C3D2E"/>
+        <ellipse cx="14" cy="16" rx="3" ry="6" fill="#5C3D2E"/>
+        <ellipse cx="36" cy="16" rx="3" ry="6" fill="#5C3D2E"/>
+        <!-- eyes -->
+        <circle cx="21" cy="19" r="2" fill="#2D2D2D"/>
+        <circle cx="29" cy="19" r="2" fill="#2D2D2D"/>
+        <circle cx="21.5" cy="18.5" r="0.7" fill="white"/>
+        <circle cx="29.5" cy="18.5" r="0.7" fill="white"/>
+        <!-- mouth -->
+        <path d="M22 24 Q25 27 28 24" stroke="#2D2D2D" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+        <!-- cheeks -->
+        <circle cx="17" cy="22" r="2.5" fill="#FF8FA3" opacity="0.4"/>
+        <circle cx="33" cy="22" r="2.5" fill="#FF8FA3" opacity="0.4"/>
+        <!-- body -->
+        <rect x="18" y="32" width="14" height="12" rx="4" fill="#FF8FA3"/>
+        <rect x="16" y="44" width="6" height="4" rx="2" fill="#FFDBA4"/>
+        <rect x="28" y="44" width="6" height="4" rx="2" fill="#FFDBA4"/>
+      </svg>
+      <div class="char-info">
+        <div class="char-name">하늘</div>
+        <div class="char-desc">8살, 질문 많고 똑똑한 아이</div>
+      </div>
+    </div>
+    <div class="char-card">
+      <svg class="char-icon" viewBox="0 0 50 50">
+        <!-- Coni - coin robot -->
+        <circle cx="25" cy="24" r="16" fill="var(--accent-yellow)" stroke="#E8A800" stroke-width="2"/>
+        <circle cx="25" cy="24" r="12" fill="none" stroke="#E8A800" stroke-width="1" stroke-dasharray="3,3"/>
+        <!-- eyes -->
+        <rect x="19" y="20" width="4" height="5" rx="1" fill="#2D2D2D"/>
+        <rect x="27" y="20" width="4" height="5" rx="1" fill="#2D2D2D"/>
+        <rect x="19.5" y="20.5" width="1.5" height="1.5" rx="0.5" fill="#6EC6FF"/>
+        <rect x="27.5" y="20.5" width="1.5" height="1.5" rx="0.5" fill="#6EC6FF"/>
+        <!-- mouth -->
+        <rect x="21" y="28" width="8" height="2" rx="1" fill="#2D2D2D"/>
+        <!-- antenna -->
+        <line x1="25" y1="8" x2="25" y2="4" stroke="#E8A800" stroke-width="2"/>
+        <circle cx="25" cy="3" r="2.5" fill="var(--accent-blue)"/>
+        <!-- arms -->
+        <line x1="9" y1="26" x2="5" y2="22" stroke="#E8A800" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="41" y1="26" x2="45" y2="22" stroke="#E8A800" stroke-width="2.5" stroke-linecap="round"/>
+        <circle cx="4" cy="21" r="2" fill="#E8A800"/>
+        <circle cx="46" cy="21" r="2" fill="#E8A800"/>
+        <!-- legs -->
+        <rect x="19" y="40" width="5" height="6" rx="2" fill="#E8A800"/>
+        <rect x="27" y="40" width="5" height="6" rx="2" fill="#E8A800"/>
+        <!-- W mark -->
+        <text x="25" y="18" text-anchor="middle" font-size="7" font-weight="900" fill="#E8A800" font-family="sans-serif">₩</text>
+      </svg>
+      <div class="char-info">
+        <div class="char-name">코니</div>
+        <div class="char-desc">AI 로봇, 돈의 비밀 안내자</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Comic Panels -->
+  <div class="comic-grid">
+
+    <!-- Row 1: Panel 1 & 2 -->
+    <div class="row-1">
+      <!-- Panel 1 -->
+      <div class="panel panel-1">
+        <div class="panel-number">1</div>
+        <div class="speech haneul">
+          <span class="speaker-tag">하늘</span>
+          초코파이가 2개나 있는데...<br>젤리가 먹고 싶단 말이야 😞
+        </div>
+        <div class="panel-scene">
+          <svg width="180" height="100" viewBox="0 0 180 100">
+            <!-- desk -->
+            <rect x="20" y="70" width="140" height="8" rx="3" fill="#DEB887"/>
+            <!-- choco pies -->
+            <rect x="40" y="48" width="30" height="20" rx="8" fill="#8B4513"/>
+            <rect x="43" y="51" width="24" height="14" rx="6" fill="#A0522D"/>
+            <text x="55" y="62" text-anchor="middle" font-size="8" fill="white" font-weight="700">🍫</text>
+            <rect x="75" y="48" width="30" height="20" rx="8" fill="#8B4513"/>
+            <rect x="78" y="51" width="24" height="14" rx="6" fill="#A0522D"/>
+            <text x="90" y="62" text-anchor="middle" font-size="8" fill="white" font-weight="700">🍫</text>
+            <!-- thought bubble for jelly -->
+            <ellipse cx="140" cy="30" rx="22" ry="16" fill="white" stroke="#ccc" stroke-width="1.5"/>
+            <circle cx="120" cy="50" r="3" fill="white" stroke="#ccc" stroke-width="1"/>
+            <circle cx="127" cy="42" r="4" fill="white" stroke="#ccc" stroke-width="1"/>
+            <text x="140" y="34" text-anchor="middle" font-size="14">🍬</text>
+            <!-- sad haneul mini -->
+            <circle cx="35" cy="35" r="10" fill="#FFDBA4"/>
+            <ellipse cx="35" cy="30" rx="10" ry="7" fill="#5C3D2E"/>
+            <circle cx="32" cy="36" r="1.2" fill="#2D2D2D"/>
+            <circle cx="38" cy="36" r="1.2" fill="#2D2D2D"/>
+            <path d="M32 40 Q35 38 38 40" stroke="#2D2D2D" stroke-width="1" fill="none"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Panel 2 -->
+      <div class="panel panel-2">
+        <div class="panel-number">2</div>
+        <div class="speech coni">
+          <span class="speaker-tag">코니</span>
+          안녕! 나는 코니!✨<br>돈의 비밀을 알려주러 왔어!
+        </div>
+        <div class="panel-scene">
+          <svg width="160" height="110" viewBox="0 0 160 110">
+            <!-- sparkle effects -->
+            <text x="20" y="20" font-size="16">✨</text>
+            <text x="130" y="30" font-size="12">✨</text>
+            <text x="15" y="80" font-size="10">⭐</text>
+            <text x="140" y="90" font-size="10">⭐</text>
+            <!-- Coni big -->
+            <g class="coin-shine">
+              <circle cx="80" cy="55" r="32" fill="var(--accent-yellow)" stroke="#E8A800" stroke-width="3"/>
+              <circle cx="80" cy="55" r="25" fill="none" stroke="#E8A800" stroke-width="1.5" stroke-dasharray="4,4"/>
+              <!-- eyes -->
+              <rect x="70" y="48" width="6" height="8" rx="2" fill="#2D2D2D"/>
+              <rect x="84" y="48" width="6" height="8" rx="2" fill="#2D2D2D"/>
+              <rect x="71" y="49" width="2.5" height="2.5" rx="1" fill="#6EC6FF"/>
+              <rect x="85" y="49" width="2.5" height="2.5" rx="1" fill="#6EC6FF"/>
+              <!-- happy mouth -->
+              <path d="M72 64 Q80 72 88 64" stroke="#2D2D2D" stroke-width="2" fill="none" stroke-linecap="round"/>
+              <!-- antenna -->
+              <line x1="80" y1="23" x2="80" y2="14" stroke="#E8A800" stroke-width="3"/>
+              <circle cx="80" cy="11" r="4" fill="var(--accent-blue)"/>
+              <!-- waving arms -->
+              <line x1="48" y1="55" x2="38" y2="40" stroke="#E8A800" stroke-width="3" stroke-linecap="round"/>
+              <circle cx="36" cy="38" r="3.5" fill="#E8A800"/>
+              <line x1="112" y1="55" x2="122" y2="40" stroke="#E8A800" stroke-width="3" stroke-linecap="round"/>
+              <circle cx="124" cy="38" r="3.5" fill="#E8A800"/>
+              <!-- legs -->
+              <rect x="69" y="87" width="8" height="10" rx="3" fill="#E8A800"/>
+              <rect x="83" y="87" width="8" height="10" rx="3" fill="#E8A800"/>
+              <!-- W mark -->
+              <text x="80" y="45" text-anchor="middle" font-size="12" font-weight="900" fill="#E8A800" font-family="sans-serif">₩</text>
+            </g>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 2: Panel 3 (wide) -->
+    <div class="row-2">
+      <div class="panel panel-3">
+        <div class="panel-number">3</div>
+        <div class="speech narrator">
+          💡 옛날에는 서로 원하는 물건을 직접 바꿨어요. 이걸 <strong>"물물교환"</strong>이라고 해요!
+        </div>
+        <div class="panel-scene">
+          <svg width="500" height="120" viewBox="0 0 500 120">
+            <!-- Person A -->
+            <g>
+              <circle cx="80" cy="45" r="18" fill="#FFDBA4"/>
+              <ellipse cx="80" cy="37" rx="18" ry="12" fill="#8B7355"/>
+              <circle cx="75" cy="46" r="2" fill="#2D2D2D"/>
+              <circle cx="85" cy="46" r="2" fill="#2D2D2D"/>
+              <path d="M76 52 Q80 55 84 52" stroke="#2D2D2D" stroke-width="1.5" fill="none"/>
+              <rect x="68" y="65" width="24" height="18" rx="5" fill="#6EC6FF"/>
+              <!-- holding fish -->
+              <text x="80" y="100" text-anchor="middle" font-size="24">🐟</text>
+              <text x="80" y="115" text-anchor="middle" font-size="10" font-family="'Gaegu', cursive" font-weight="700" fill="#2D2D2D">생선 있어요!</text>
+            </g>
+            <!-- Arrow exchange -->
+            <g>
+              <path d="M140 55 L220 55" stroke="var(--accent-green)" stroke-width="3" marker-end="url(#arrowG)"/>
+              <path d="M220 70 L140 70" stroke="var(--accent-pink)" stroke-width="3" marker-end="url(#arrowP)"/>
+              <text x="180" y="48" text-anchor="middle" font-family="'Gaegu', cursive" font-size="14" font-weight="700" fill="var(--accent-green)">생선 →</text>
+              <text x="180" y="88" text-anchor="middle" font-family="'Gaegu', cursive" font-size="14" font-weight="700" fill="var(--accent-pink)">← 쌀</text>
+            </g>
+            <defs>
+              <marker id="arrowG" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8" fill="var(--accent-green)"/></marker>
+              <marker id="arrowP" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8" fill="var(--accent-pink)"/></marker>
+            </defs>
+            <!-- Person B -->
+            <g>
+              <circle cx="280" cy="45" r="18" fill="#FFDBA4"/>
+              <ellipse cx="280" cy="37" rx="18" ry="12" fill="#2D2D2D"/>
+              <circle cx="275" cy="46" r="2" fill="#2D2D2D"/>
+              <circle cx="285" cy="46" r="2" fill="#2D2D2D"/>
+              <path d="M276 52 Q280 55 284 52" stroke="#2D2D2D" stroke-width="1.5" fill="none"/>
+              <rect x="268" y="65" width="24" height="18" rx="5" fill="var(--accent-pink)"/>
+              <text x="280" y="100" text-anchor="middle" font-size="24">🍚</text>
+              <text x="280" y="115" text-anchor="middle" font-size="10" font-family="'Gaegu', cursive" font-weight="700" fill="#2D2D2D">쌀 있어요!</text>
+            </g>
+
+            <!-- Divider -->
+            <line x1="340" y1="10" x2="340" y2="110" stroke="#ddd" stroke-width="2" stroke-dasharray="5,5"/>
+
+            <!-- Result: both happy -->
+            <text x="420" y="30" text-anchor="middle" font-family="'Gaegu', cursive" font-size="16" font-weight="700" fill="var(--accent-green)">둘 다 행복! 😊</text>
+            <text x="400" y="70" text-anchor="middle" font-size="28">🐟😋</text>
+            <text x="440" y="70" text-anchor="middle" font-size="28">🍚😋</text>
+            <text x="420" y="100" text-anchor="middle" font-family="'Gaegu', cursive" font-size="12" fill="var(--text-gray)">서로 원하는 게 딱 맞을 때!</text>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 3: Panel 4 & 5 -->
+    <div class="row-3">
+      <!-- Panel 4 -->
+      <div class="panel panel-4">
+        <div class="panel-number">4</div>
+        <div class="speech haneul">
+          <span class="speaker-tag">하늘</span>
+          근데 내가 원하는 걸<br>상대방은 안 원하면?! 😱
+        </div>
+        <div class="panel-scene">
+          <svg width="200" height="110" viewBox="0 0 200 110">
+            <!-- Person with apple -->
+            <circle cx="50" cy="30" r="14" fill="#FFDBA4"/>
+            <ellipse cx="50" cy="24" rx="14" ry="9" fill="#FF8FA3"/>
+            <circle cx="46" cy="31" r="1.5" fill="#2D2D2D"/>
+            <circle cx="54" cy="31" r="1.5" fill="#2D2D2D"/>
+            <path d="M47 36 Q50 34 53 36" stroke="#2D2D2D" stroke-width="1" fill="none"/>
+            <text x="50" y="65" text-anchor="middle" font-size="22">🍎</text>
+            <text x="50" y="80" text-anchor="middle" font-size="9" font-family="'Gaegu', cursive" font-weight="700">사과 줄게!</text>
+            <!-- Big X -->
+            <text x="100" y="60" text-anchor="middle" class="big-x">✕</text>
+            <!-- Person who doesn't want it -->
+            <circle cx="150" cy="30" r="14" fill="#FFDBA4"/>
+            <ellipse cx="150" cy="24" rx="14" ry="9" fill="#6EC6FF"/>
+            <circle cx="146" cy="31" r="1.5" fill="#2D2D2D"/>
+            <circle cx="154" cy="31" r="1.5" fill="#2D2D2D"/>
+            <path d="M146 36 Q150 38 154 36" stroke="#2D2D2D" stroke-width="1.2" fill="none"/>
+            <text x="150" y="65" text-anchor="middle" font-size="22">🙅</text>
+            <text x="150" y="80" text-anchor="middle" font-size="9" font-family="'Gaegu', cursive" font-weight="700">사과 싫어!</text>
+            <!-- problem text -->
+            <text x="100" y="105" text-anchor="middle" font-size="12" font-family="'Noto Sans KR', sans-serif" font-weight="700" fill="#FF4444">교환 실패! 💥</text>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Panel 5 -->
+      <div class="panel panel-5">
+        <div class="panel-number">5</div>
+        <div class="speech coni">
+          <span class="speaker-tag">코니</span>
+          그래서 만든 게 바로 <strong>'돈'</strong>이야!<br>누구나 원하는 만능 교환 도구! 💰
+        </div>
+        <div class="panel-scene">
+          <svg width="200" height="110" viewBox="0 0 200 110">
+            <!-- Person A -->
+            <circle cx="40" cy="35" r="12" fill="#FFDBA4"/>
+            <ellipse cx="40" cy="30" rx="12" ry="8" fill="#FF8FA3"/>
+            <circle cx="37" cy="36" r="1.3" fill="#2D2D2D"/>
+            <circle cx="43" cy="36" r="1.3" fill="#2D2D2D"/>
+            <path d="M37 40 Q40 43 43 40" stroke="#2D2D2D" stroke-width="1" fill="none"/>
+            <text x="40" y="65" text-anchor="middle" font-size="16">🍎</text>
+
+            <!-- Arrow to coin -->
+            <path d="M60 50 L85 50" stroke="var(--accent-green)" stroke-width="2" marker-end="url(#arrowG2)"/>
+            <defs><marker id="arrowG2" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="var(--accent-green)"/></marker></defs>
+
+            <!-- Central coin -->
+            <g class="coin-shine">
+              <circle cx="105" cy="45" r="18" fill="var(--accent-yellow)" stroke="#E8A800" stroke-width="2.5"/>
+              <text x="105" y="51" text-anchor="middle" font-size="16" font-weight="900" fill="#E8A800" font-family="sans-serif">₩</text>
+            </g>
+
+            <!-- Arrow from coin -->
+            <path d="M125 50 L150 50" stroke="var(--accent-green)" stroke-width="2" marker-end="url(#arrowG2)"/>
+
+            <!-- Person B -->
+            <circle cx="170" cy="35" r="12" fill="#FFDBA4"/>
+            <ellipse cx="170" cy="30" rx="12" ry="8" fill="#6EC6FF"/>
+            <circle cx="167" cy="36" r="1.3" fill="#2D2D2D"/>
+            <circle cx="173" cy="36" r="1.3" fill="#2D2D2D"/>
+            <path d="M167 40 Q170 43 173 40" stroke="#2D2D2D" stroke-width="1" fill="none"/>
+            <text x="170" y="65" text-anchor="middle" font-size="16">🍬</text>
+
+            <!-- Bottom label -->
+            <rect x="30" y="82" width="150" height="24" rx="12" fill="var(--accent-green)" opacity="0.15"/>
+            <text x="105" y="98" text-anchor="middle" font-size="13" font-family="'Gaegu', cursive" font-weight="700" fill="#2D8C3E">누구와도 교환 가능! ✅</text>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 4: Panel 6 (wide - conclusion) -->
+    <div class="row-2" style="margin-top: 0;">
+      <div class="panel panel-6">
+        <div class="panel-number">6</div>
+        <div style="display: flex; align-items: center; justify-content: center; gap: 20px; flex-wrap: wrap;">
+          <div class="speech haneul" style="flex: 1; min-width: 200px;">
+            <span class="speaker-tag">하늘</span>
+            아~! 돈은 <strong>"만능 교환권"</strong>이구나! 🎉
+          </div>
+          <div class="speech coni" style="flex: 1; min-width: 200px;">
+            <span class="speaker-tag">코니</span>
+            정확해! 💯<br>돈은 목적이 아니라 <strong>도구</strong>야!
+          </div>
+        </div>
+        <div class="panel-scene">
+          <svg width="400" height="80" viewBox="0 0 400 80">
+            <!-- Celebration scene -->
+            <text x="50" y="35" font-size="20">🎊</text>
+            <text x="350" y="35" font-size="20">🎊</text>
+            <!-- Haneul happy -->
+            <circle cx="170" cy="40" r="18" fill="#FFDBA4"/>
+            <ellipse cx="170" cy="33" rx="18" ry="12" fill="#5C3D2E"/>
+            <circle cx="165" cy="41" r="2" fill="#2D2D2D"/>
+            <circle cx="175" cy="41" r="2" fill="#2D2D2D"/>
+            <path d="M165 47 Q170 52 175 47" stroke="#2D2D2D" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+            <circle cx="161" cy="45" r="3" fill="#FF8FA3" opacity="0.4"/>
+            <circle cx="179" cy="45" r="3" fill="#FF8FA3" opacity="0.4"/>
+            <!-- Coni happy -->
+            <g class="coin-shine">
+              <circle cx="230" cy="40" r="18" fill="var(--accent-yellow)" stroke="#E8A800" stroke-width="2"/>
+              <rect x="222" y="35" width="5" height="6" rx="1" fill="#2D2D2D"/>
+              <rect x="233" y="35" width="5" height="6" rx="1" fill="#2D2D2D"/>
+              <path d="M224 48 Q230 54 236 48" stroke="#2D2D2D" stroke-width="2" fill="none" stroke-linecap="round"/>
+              <circle cx="230" cy="26" r="3" fill="var(--accent-blue)"/>
+              <line x1="230" y1="22" x2="230" y2="16" stroke="#E8A800" stroke-width="2"/>
+            </g>
+            <!-- High five spark -->
+            <text x="200" y="35" text-anchor="middle" font-size="20">🤝</text>
+            <text x="200" y="15" text-anchor="middle" font-size="14">✨</text>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Key Concept -->
+  <div class="key-concept">
+    <div class="label">📌 오늘의 핵심</div>
+    <div class="concept-text">
+      돈은 "갖고 싶은 것"이 아니라<br>
+      "바꾸기 위한 도구"예요!
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="comic-footer">
+    다음 이야기가 궁금하다면? 👀
+    <div class="next-ep">EP.2 예고: "저축은 왜 할까?" — 미래의 나에게 보내는 선물 🎁</div>
+  </div>
+
+</div>
+
+</body>
+</html>
