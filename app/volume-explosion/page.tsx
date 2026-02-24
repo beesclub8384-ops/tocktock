@@ -67,7 +67,8 @@ function VolumeGuideModal({ onClose }: { onClose: () => void }) {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="relative max-h-[85vh] w-full max-w-4xl overflow-y-auto rounded-2xl border border-border bg-card p-6 shadow-2xl sm:p-8">
+      <div className="w-full max-w-4xl overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
+      <div className="relative max-h-[85vh] overflow-y-auto p-6 sm:p-8">
         <button
           onClick={onClose}
           className="absolute right-4 top-4 rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
@@ -251,20 +252,20 @@ function VolumeGuideModal({ onClose }: { onClose: () => void }) {
 
         <hr className="my-5 border-border" />
 
-        {/* AI 분석 설명 — 2단 그리드 */}
+        {/* TockTock 분석 설명 — 2단 그리드 */}
         <section className="mb-6">
           <h3 className="mb-3 text-base font-semibold">
-            AI 분석 패널
+            TockTock 분석 패널
           </h3>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="rounded-lg border border-purple-500/30 bg-purple-500/5 p-4">
               <h4 className="mb-1.5 text-sm font-semibold">
-                AI 분석이란?
+                TockTock 분석이란?
               </h4>
               <p className="text-sm leading-relaxed text-muted-foreground">
                 거래대금이 폭발한 종목들을{" "}
                 <strong className="text-foreground">
-                  AI가 자동으로 분석
+                  자동으로 분석
                 </strong>
                 해주는 기능입니다. 네이버 금융의 테마 데이터를 수집하고,
                 이를 바탕으로 폭발 종목들의 패턴을 읽어줍니다.
@@ -306,7 +307,7 @@ function VolumeGuideModal({ onClose }: { onClose: () => void }) {
               <strong className="text-foreground">
                 장 마감(15:30) 이후
               </strong>
-              에 자동으로 생성됩니다. 장중에는 &ldquo;장 마감 후 AI 분석이
+              에 자동으로 생성됩니다. 장중에는 &ldquo;장 마감 후 분석이
               제공됩니다&rdquo; 메시지가 표시됩니다. 한 번 생성된 분석은
               캐싱되어, 같은 날 다시 접속해도 빠르게 확인할 수 있습니다.
             </p>
@@ -314,11 +315,11 @@ function VolumeGuideModal({ onClose }: { onClose: () => void }) {
 
           <section>
             <h3 className="mb-2 text-base font-semibold">
-              AI 분석 주의할 점
+              분석 시 주의할 점
             </h3>
             <ul className="list-disc space-y-1.5 pl-5 text-sm leading-relaxed text-muted-foreground">
               <li>
-                AI 분석은{" "}
+                TockTock 분석은{" "}
                 <strong className="text-foreground">참고용</strong>이며,
                 투자 판단의 유일한 근거로 사용하면 안 됩니다.
               </li>
@@ -330,13 +331,14 @@ function VolumeGuideModal({ onClose }: { onClose: () => void }) {
                 하세요.
               </li>
               <li>
-                AI가 모든 시장 상황을 완벽하게 파악하지는 못합니다.
+                자동 분석이 모든 시장 상황을 완벽하게 파악하지는 못합니다.
                 예상치 못한 이벤트나 급변하는 시장에는 한계가 있을 수
                 있습니다.
               </li>
             </ul>
           </section>
         </div>
+      </div>
       </div>
     </div>
   );
@@ -362,7 +364,7 @@ export default function VolumeExplosionPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  // 장 마감 후 + 폭발 종목 있을 때 AI 분석 fetch
+  // 장 마감 후 + 폭발 종목 있을 때 분석 fetch
   useEffect(() => {
     if (!data || data.marketOpen || data.explosionStocks.length === 0) return;
     setAnalysisLoading(true);
@@ -529,7 +531,7 @@ export default function VolumeExplosionPage() {
             </div>
           </div>
 
-          {/* ── 오른쪽: 오늘 (폭발) + AI 분석 ── */}
+          {/* ── 오른쪽: 오늘 (폭발) + TockTock 분석 ── */}
           <div className="flex flex-col gap-6">
             {/* 상단: 폭발 종목 리스트 */}
             <div className="border border-amber-500/30 rounded-xl overflow-hidden">
@@ -647,15 +649,15 @@ export default function VolumeExplosionPage() {
               </div>
             </div>
 
-            {/* 하단: AI 분석 */}
+            {/* 하단: TockTock 분석 */}
             <div className="border border-purple-500/30 rounded-xl overflow-hidden">
               <div className="bg-purple-500/5 px-5 py-4 border-b border-purple-500/20">
                 <h2 className="text-lg font-bold flex items-center gap-2">
                   <Sparkles size={18} className="text-purple-400" />
-                  AI 분석
+                  TockTock 분석
                 </h2>
                 <p className="text-xs text-muted-foreground mt-1">
-                  네이버 금융 테마 데이터 기반 · Claude AI
+                  네이버 금융 테마 데이터 기반
                 </p>
               </div>
               <div className="p-5 h-[300px] overflow-y-auto">
@@ -667,7 +669,7 @@ export default function VolumeExplosionPage() {
                         className="mx-auto mb-3 text-purple-400/40"
                       />
                       <p className="text-muted-foreground text-sm mb-1">
-                        장 마감 후 AI 분석이 제공됩니다
+                        장 마감 후 분석이 제공됩니다
                       </p>
                       <p className="text-muted-foreground/60 text-xs">
                         15:30 이후 폭발 종목의 공통 테마·리스크를 분석합니다
@@ -685,7 +687,7 @@ export default function VolumeExplosionPage() {
                     <div className="text-center">
                       <div className="inline-block h-6 w-6 animate-spin rounded-full border-3 border-purple-400/30 border-t-purple-400" />
                       <p className="mt-3 text-muted-foreground text-sm">
-                        AI가 분석 중입니다...
+                        분석 중입니다...
                       </p>
                     </div>
                   </div>
@@ -724,7 +726,7 @@ export default function VolumeExplosionPage() {
                 ) : (
                   <div className="flex items-center justify-center h-full">
                     <p className="text-muted-foreground/60 text-sm">
-                      AI 분석을 불러올 수 없습니다
+                      분석을 불러올 수 없습니다
                     </p>
                   </div>
                 )}

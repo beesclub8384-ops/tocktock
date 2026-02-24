@@ -62,7 +62,8 @@ function GuideModal({ onClose }: { onClose: () => void }) {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="relative max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-border bg-card p-6 shadow-2xl sm:p-8">
+      <div className="w-full max-w-2xl overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
+      <div className="relative max-h-[85vh] overflow-y-auto p-6 sm:p-8">
         <button
           onClick={onClose}
           className="absolute right-4 top-4 rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
@@ -217,6 +218,7 @@ function GuideModal({ onClose }: { onClose: () => void }) {
             <li>이후 매일 자동으로 쌓여가요.</li>
           </ul>
         </section>
+      </div>
       </div>
     </div>
   );

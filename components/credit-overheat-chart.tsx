@@ -105,7 +105,8 @@ function OverheatGuideModal({ onClose }: { onClose: () => void }) {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="relative max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-border bg-card p-6 shadow-2xl sm:p-8">
+      <div className="w-full max-w-2xl overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
+      <div className="relative max-h-[85vh] overflow-y-auto p-6 sm:p-8">
         {/* 닫기 버튼 */}
         <button
           onClick={onClose}
@@ -372,6 +373,7 @@ function OverheatGuideModal({ onClose }: { onClose: () => void }) {
             </li>
           </ul>
         </section>
+      </div>
       </div>
     </div>
   );
