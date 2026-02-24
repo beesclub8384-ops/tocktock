@@ -103,7 +103,7 @@ function VolumeGuideModal({ onClose }: { onClose: () => void }) {
           </h3>
           <p className="text-sm leading-relaxed text-muted-foreground">
             어제까지 조용하던 종목(거래대금 300억 이하) 중에서, 오늘 갑자기
-            돈이 몰린 종목(1,000억 이상)을 자동으로 찾아줍니다. 즉,{" "}
+            돈이 몰린 종목(950억 이상)을 자동으로 찾아줍니다. 즉,{" "}
             <strong className="text-foreground">
               &ldquo;어제는 아무도 안 쳐다보던 종목에 오늘 갑자기 큰돈이
               들어왔다&rdquo;
@@ -166,7 +166,7 @@ function VolumeGuideModal({ onClose }: { onClose: () => void }) {
               <ul className="space-y-1 text-sm leading-relaxed text-muted-foreground">
                 <li>
                   어제 조용했는데, 오늘 갑자기 거래대금이{" "}
-                  <strong className="text-foreground">1,000억 이상</strong>{" "}
+                  <strong className="text-foreground">950억 이상</strong>{" "}
                   터진 종목입니다.
                 </li>
                 <li>
@@ -426,7 +426,7 @@ export default function VolumeExplosionPage() {
             거래대금 폭발 탐지
           </h1>
           <p className="text-muted-foreground text-sm">
-            어제 조용했던 종목(거래대금 300억 이하) 중 오늘 거래대금이 1,000억
+            어제 조용했던 종목(거래대금 300억 이하) 중 오늘 거래대금이 950억
             이상 터진 종목을 찾습니다. 데이터 출처: 네이버 금융
           </p>
           <button
@@ -545,7 +545,7 @@ export default function VolumeExplosionPage() {
                 <p className="text-xs text-muted-foreground mt-1">
                   {data.marketOpen
                     ? "장 마감 후 업데이트"
-                    : `거래대금 1,000억 이상 돌파 · ${data.explosionStocks.length}종목`}
+                    : `거래대금 950억 이상 돌파 · ${data.explosionStocks.length}종목`}
                 </p>
               </div>
               <div className="p-4 space-y-3 h-[300px] overflow-y-auto">
@@ -567,7 +567,7 @@ export default function VolumeExplosionPage() {
                         조건에 해당하는 종목이 없습니다
                       </p>
                       <p className="text-muted-foreground/60 text-xs">
-                        어제 300억 이하 → 오늘 1,000억 이상 종목 없음
+                        어제 300억 이하 → 오늘 950억 이상 종목 없음
                       </p>
                     </div>
                   </div>

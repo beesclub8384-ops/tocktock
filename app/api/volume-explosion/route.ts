@@ -11,7 +11,7 @@ const CACHE_TTL_CLOSED = 3 * 86400; // 장 마감 후 3일 (주말 커버)
 const CACHE_TTL_OPEN = 600; // 장중 10분
 
 const YESTERDAY_THRESHOLD = 30_000_000_000; // 300억원
-const TODAY_THRESHOLD = 100_000_000_000; // 1,000억원
+const TODAY_THRESHOLD = 95_000_000_000; // 950억원
 
 const NAVER_HEADERS = {
   "User-Agent":
