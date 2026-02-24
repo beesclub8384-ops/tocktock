@@ -76,9 +76,12 @@ export interface VolumeExplosionResponse {
 
 // --- 유틸 ---
 /** ETF, ETN, 리츠, 우선주 제외 — 일반 주식만 */
+const ETF_BRAND_RE =
+  /^(KODEX|TIGER|KBSTAR|ACE|ARIRANG|HANARO|SOL|KOSEF|KINDEX|TIMEFOLIO|PLUS|FOCUS|WOORI|BNK|RISE|파워|마이티|히어로)\b/;
+
 function isRegularStock(name: string): boolean {
-  if (/ETF/i.test(name)) return false;
-  if (/ETN/i.test(name)) return false;
+  if (/ETF|ETN/i.test(name)) return false;
+  if (ETF_BRAND_RE.test(name)) return false;
   if (name.includes("리츠") || /REIT/i.test(name)) return false;
   if (/우[A-C]?$/.test(name)) return false;
   return true;
