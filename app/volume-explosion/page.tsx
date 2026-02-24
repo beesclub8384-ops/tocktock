@@ -110,7 +110,7 @@ export default function VolumeExplosionPage() {
           </h1>
           <p className="text-muted-foreground text-sm">
             어제 조용했던 종목(거래대금 300억 이하) 중 오늘 거래대금이 1,000억
-            이상 터진 종목을 찾습니다. 데이터 출처: KRX 정보데이터시스템
+            이상 터진 종목을 찾습니다. 데이터 출처: 네이버 금융
           </p>
         </header>
 
@@ -136,7 +136,7 @@ export default function VolumeExplosionPage() {
               <h2 className="text-lg font-bold">
                 어제{" "}
                 <span className="text-muted-foreground font-normal">
-                  ({formatDateLabel(data.yesterdayDate)})
+                  ({data.yesterdayDate ? formatDateLabel(data.yesterdayDate) : "-"})
                 </span>
               </h2>
               <p className="text-xs text-muted-foreground mt-1">
@@ -211,7 +211,7 @@ export default function VolumeExplosionPage() {
               <h2 className="text-lg font-bold">
                 오늘{" "}
                 <span className="text-muted-foreground font-normal">
-                  ({formatDateLabel(data.todayDate)})
+                  ({data.todayDate ? formatDateLabel(data.todayDate) : "-"})
                 </span>
               </h2>
               <p className="text-xs text-muted-foreground mt-1">
