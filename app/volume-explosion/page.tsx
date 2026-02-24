@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { X } from "lucide-react";
+import { X, HelpCircle } from "lucide-react";
 
 interface YesterdayStock {
   code: string;
@@ -325,8 +325,9 @@ export default function VolumeExplosionPage() {
           </p>
           <button
             onClick={() => setShowGuide(true)}
-            className="mt-3 inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            className="guide-btn mt-3 inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs transition-all"
           >
+            <HelpCircle size={13} />
             거래대금 폭발 보는 법
           </button>
         </header>
