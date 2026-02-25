@@ -315,6 +315,28 @@ async function findPreviousSnapshot(
   return null;
 }
 
+// --- 개별 종목 시가 조회 ---
+async function fetchOpenPrice(code: string): Promise<number | null> {
+  const url = `https://m.stock.naver.com/api/stock/${code}/price`;
+  try {
+    const res = await fetch(url, {
+      headers: NAVER_HEADERS,
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (Array.isArray(data) && data.length > 0 && data[0].openPrice) {
+      return parseNum(String(data[0].openPrice));
+    }
+    if (data?.openPrice) {
+      return parseNum(String(data.openPrice));
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 // --- siseJson 개별 종목 히스토리 fallback ---
 async function fetchStockSiseJson(
   code: string,
@@ -590,10 +612,43 @@ export async function GET() {
     const lowCodes = new Set(yesterdayLow.map((s) => s.code));
     const prevMap = new Map(prevSnap.stocks.map((s) => [s.code, s]));
 
-    explosionStocks = todayAll
-      .filter(
-        (s) => lowCodes.has(s.code) && s.tradingValue >= TODAY_THRESHOLD,
-      )
+    // 기존 거래대금 기준 필터
+    const rawCandidates = todayAll.filter(
+      (s) => lowCodes.has(s.code) && s.tradingValue >= TODAY_THRESHOLD,
+    );
+
+    // 조건 1: 등락률 > 0 (하락 마감 종목 제외)
+    const candidates = rawCandidates.filter((s) => s.changeRate > 0);
+    console.log(
+      `[volume-explosion] 필터 — 거래대금 기준: ${rawCandidates.length}개 → 등락률>0 필터 후: ${candidates.length}개` +
+        (rawCandidates.length > candidates.length
+          ? ` (제외: ${rawCandidates.filter((s) => s.changeRate <= 0).map((s) => `${s.name}(${s.changeRate}%)`).join(", ")})`
+          : ""),
+    );
+
+    // 조건 2: 갭상승 10% 이상 + 음봉(종가 < 시가) 제외 — 시가 개별 API 호출
+    const openPrices = await Promise.all(
+      candidates.map(async (s) => ({
+        code: s.code,
+        openPrice: await fetchOpenPrice(s.code),
+      })),
+    );
+    const openMap = new Map(openPrices.map((p) => [p.code, p.openPrice]));
+
+    explosionStocks = candidates
+      .filter((s) => {
+        const op = openMap.get(s.code);
+        if (!op) return true; // 시가 조회 실패 → 보수적으로 포함
+        const prevClose = s.closePrice / (1 + s.changeRate / 100);
+        const gapPct = ((op - prevClose) / prevClose) * 100;
+        const isGapUpBearish = gapPct >= 10 && s.closePrice < op;
+        if (isGapUpBearish) {
+          console.log(
+            `[volume-explosion] 갭상승+음봉 제외: ${s.name} (갭=${gapPct.toFixed(1)}%, 시가=${op}, 종가=${s.closePrice})`,
+          );
+        }
+        return !isGapUpBearish;
+      })
       .sort((a, b) => b.tradingValue - a.tradingValue)
       .map((s) => ({
         code: s.code,
