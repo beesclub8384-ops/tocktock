@@ -13,6 +13,46 @@ const CACHE_TTL_OPEN = 600; // 장중 10분
 const YESTERDAY_THRESHOLD = 30_000_000_000; // 300억원
 const TODAY_THRESHOLD = 95_000_000_000; // 950억원
 
+// --- 한국 공휴일 (2025~2027) ---
+const KOREAN_HOLIDAYS = new Set([
+  // 2025
+  "20250101", // 신정
+  "20250127", // 임시공휴일 (설 연휴)
+  "20250128", "20250129", "20250130", // 설날 연휴
+  "20250303", // 삼일절 대체공휴일
+  "20250505", // 어린이날 + 부처님오신날
+  "20250506", // 부처님오신날 대체공휴일
+  "20250606", // 현충일
+  "20250815", // 광복절
+  "20251003", // 개천절
+  "20251006", "20251007", // 추석 연휴 (10/5 일요일 제외)
+  "20251008", // 추석 대체공휴일
+  "20251009", // 한글날
+  "20251225", // 성탄절
+  // 2026
+  "20260101", // 신정
+  "20260216", "20260217", "20260218", // 설날 연휴
+  "20260302", // 삼일절 대체공휴일
+  "20260505", // 어린이날
+  "20260525", // 부처님오신날 대체공휴일
+  "20260817", // 광복절 대체공휴일
+  "20260924", "20260925", // 추석 연휴
+  "20261005", // 개천절 대체공휴일
+  "20261009", // 한글날
+  "20261225", // 성탄절
+  // 2027
+  "20270101", // 신정
+  "20270208", "20270209", // 설날 연휴 + 대체공휴일
+  "20270301", // 삼일절
+  "20270505", // 어린이날
+  "20270513", // 부처님오신날
+  "20270816", // 광복절 대체공휴일
+  "20270914", "20270915", "20270916", // 추석 연휴
+  "20271004", // 개천절 대체공휴일
+  "20271011", // 한글날 대체공휴일
+  "20271227", // 성탄절 대체공휴일
+]);
+
 const NAVER_HEADERS = {
   "User-Agent":
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
@@ -104,10 +144,16 @@ function fmtDate(d: Date): string {
   return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
 }
 
-/** 평일 09:00~15:30 → 장중 */
+function isKoreanHoliday(date: Date | string): boolean {
+  const dateStr = typeof date === "string" ? date : fmtDate(date);
+  return KOREAN_HOLIDAYS.has(dateStr);
+}
+
+/** 평일(공휴일 제외) 09:00~15:30 → 장중 */
 function isMarketOpen(kstNow: Date): boolean {
   const day = kstNow.getDay();
   if (day === 0 || day === 6) return false;
+  if (isKoreanHoliday(kstNow)) return false;
   const hhmm = kstNow.getHours() * 100 + kstNow.getMinutes();
   return hhmm >= 900 && hhmm < 1530;
 }
@@ -116,8 +162,9 @@ function getWeekdayCandidates(count: number, startDate: Date): string[] {
   const result: string[] = [];
   const d = new Date(startDate);
   while (result.length < count) {
-    if (d.getDay() !== 0 && d.getDay() !== 6) {
-      result.push(fmtDate(d));
+    const dateStr = fmtDate(d);
+    if (d.getDay() !== 0 && d.getDay() !== 6 && !KOREAN_HOLIDAYS.has(dateStr)) {
+      result.push(dateStr);
     }
     d.setDate(d.getDate() - 1);
   }
@@ -464,10 +511,10 @@ export async function GET() {
   try {
     const cached = await redis.get<VolumeExplosionResponse>(cacheKey);
     if (cached) {
-      // 평일 장마감 후(15:30~)인데 캐시 데이터가 오늘이 아니면 → 장 시작 전에 만들어진 stale 캐시
-      const isWeekday = kstNow.getDay() !== 0 && kstNow.getDay() !== 6;
+      // 거래일 장마감 후(15:30~)인데 캐시 데이터가 오늘이 아니면 → 장 시작 전에 만들어진 stale 캐시
+      const isTradingDay = kstNow.getDay() !== 0 && kstNow.getDay() !== 6 && !isKoreanHoliday(kstNow);
       const hhmm = kstNow.getHours() * 100 + kstNow.getMinutes();
-      if (isWeekday && hhmm >= 1530 && cached.todayDate !== todayKST) {
+      if (isTradingDay && hhmm >= 1530 && cached.todayDate !== todayKST) {
         console.log(
           `[volume-explosion] 캐시 무효 (장마감 후 데이터 불일치): cached=${cached.todayDate}, today=${todayKST}`,
         );
@@ -578,10 +625,10 @@ export async function GET() {
   };
 
   try {
-    // 평일인데 네이버 데이터가 아직 오늘이 아니면(장 시작 전) → 짧은 TTL로 캐시
-    const isWeekday = kstNow.getDay() !== 0 && kstNow.getDay() !== 6;
+    // 거래일인데 네이버 데이터가 아직 오늘이 아니면(장 시작 전) → 짧은 TTL로 캐시
+    const isTradingDay = kstNow.getDay() !== 0 && kstNow.getDay() !== 6 && !isKoreanHoliday(kstNow);
     const cacheTtl =
-      isWeekday && dataDate !== todayKST ? CACHE_TTL_OPEN : CACHE_TTL_CLOSED;
+      isTradingDay && dataDate !== todayKST ? CACHE_TTL_OPEN : CACHE_TTL_CLOSED;
     await redis.set(cacheKey, result, { ex: cacheTtl });
     console.log(
       `[volume-explosion] 캐시 저장: ${cacheKey}, TTL=${cacheTtl}초 (dataDate=${dataDate}, todayKST=${todayKST})`,
