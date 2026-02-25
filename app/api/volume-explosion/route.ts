@@ -203,20 +203,14 @@ function toStockVolumes(
   rawStocks: NaverStockRaw[],
   market: "KOSPI" | "KOSDAQ",
 ): StockVolume[] {
-  return rawStocks.map((s) => {
-    const rate = parseNum(s.fluctuationsRatio);
-    const isDown =
-      s.compareToPreviousPrice?.code === "5" ||
-      s.compareToPreviousPrice?.code === "4";
-    return {
-      code: s.itemCode,
-      name: s.stockName,
-      tradingValue: parseNum(s.accumulatedTradingValue) * 1_000_000, // 백만원 → 원
-      closePrice: parseNum(s.closePrice),
-      changeRate: isDown ? -rate : rate,
-      market,
-    };
-  });
+  return rawStocks.map((s) => ({
+    code: s.itemCode,
+    name: s.stockName,
+    tradingValue: parseNum(s.accumulatedTradingValue) * 1_000_000, // 백만원 → 원
+    closePrice: parseNum(s.closePrice),
+    changeRate: parseNum(s.fluctuationsRatio), // 이미 부호 포함 (e.g. "-11.13")
+    market,
+  }));
 }
 
 /** 특정 시장 전종목 페이지네이션 조회. dataDate(실제 거래일)도 반환 */
