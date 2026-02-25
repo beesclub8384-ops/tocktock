@@ -464,8 +464,20 @@ export async function GET() {
   try {
     const cached = await redis.get<VolumeExplosionResponse>(cacheKey);
     if (cached) {
-      console.log(`[volume-explosion] 캐시 히트 (장마감): ${cacheKey}`);
-      return NextResponse.json(cached);
+      // 평일 장마감 후(15:30~)인데 캐시 데이터가 오늘이 아니면 → 장 시작 전에 만들어진 stale 캐시
+      const isWeekday = kstNow.getDay() !== 0 && kstNow.getDay() !== 6;
+      const hhmm = kstNow.getHours() * 100 + kstNow.getMinutes();
+      if (isWeekday && hhmm >= 1530 && cached.todayDate !== todayKST) {
+        console.log(
+          `[volume-explosion] 캐시 무효 (장마감 후 데이터 불일치): cached=${cached.todayDate}, today=${todayKST}`,
+        );
+        // stale 캐시 삭제 후 아래에서 새로 조회 (분석 캐시도 함께 삭제)
+        await redis.del(cacheKey);
+        await redis.del(`volume-analysis:${todayKST}`).catch(() => {});
+      } else {
+        console.log(`[volume-explosion] 캐시 히트 (장마감): ${cacheKey}`);
+        return NextResponse.json(cached);
+      }
     }
   } catch {
     /* miss */
@@ -566,7 +578,14 @@ export async function GET() {
   };
 
   try {
-    await redis.set(cacheKey, result, { ex: CACHE_TTL_CLOSED });
+    // 평일인데 네이버 데이터가 아직 오늘이 아니면(장 시작 전) → 짧은 TTL로 캐시
+    const isWeekday = kstNow.getDay() !== 0 && kstNow.getDay() !== 6;
+    const cacheTtl =
+      isWeekday && dataDate !== todayKST ? CACHE_TTL_OPEN : CACHE_TTL_CLOSED;
+    await redis.set(cacheKey, result, { ex: cacheTtl });
+    console.log(
+      `[volume-explosion] 캐시 저장: ${cacheKey}, TTL=${cacheTtl}초 (dataDate=${dataDate}, todayKST=${todayKST})`,
+    );
   } catch {
     /* */
   }
