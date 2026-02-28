@@ -20,12 +20,24 @@ interface ExplosionStock {
   market: string;
 }
 
+interface SuspectedStock {
+  code: string;
+  name: string;
+  dDayValue: number;
+  dPlusOneValue: number;
+  dDayClosePrice: number;
+  dDayChangeRate: number;
+  market: string;
+  dDate: string;
+}
+
 interface VolumeData {
   todayDate: string;
   yesterdayDate: string;
   marketOpen: boolean;
   yesterdayStocks: YesterdayStock[];
   explosionStocks: ExplosionStock[];
+  suspectedStocks: SuspectedStock[];
   updatedAt: string;
   error?: string;
 }
@@ -160,23 +172,24 @@ function VolumeGuideModal({ onClose }: { onClose: () => void }) {
 
             <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4">
               <h4 className="mb-1.5 text-sm font-semibold">
-                오른쪽 &ldquo;오늘&rdquo; 패널{" "}
+                오른쪽 &ldquo;세력진입 의심 종목&rdquo; 패널{" "}
                 <span className="font-normal text-amber-400">— 핵심!</span>
               </h4>
               <ul className="space-y-1 text-sm leading-relaxed text-muted-foreground">
                 <li>
-                  어제 조용했는데, 오늘 갑자기 거래대금이{" "}
+                  거래대금이{" "}
                   <strong className="text-foreground">950억 이상</strong>{" "}
-                  터진 종목입니다.
+                  폭발한 뒤, 다음날 거래대금이{" "}
+                  <strong className="text-foreground">1/3 이하</strong>로
+                  급감한 종목입니다.
                 </li>
                 <li>
-                  &ldquo;몇 배&rdquo; 표시는 어제 대비 오늘 거래대금이 몇 배
-                  늘었는지를 보여줍니다. 배수가 높을수록 관심이 급증한
-                  종목입니다.
+                  세력이 대량 매수 후 다음날 물량을 털지 못한(거래가
+                  급감한) 패턴을 포착합니다.
                 </li>
                 <li>
-                  종가와 등락률도 함께 표시되어, 상승인지 하락인지 바로 확인할
-                  수 있습니다.
+                  D일 종가·등락률과 함께 D일 대비 D+1일 거래대금
+                  비율(%)이 표시됩니다.
                 </li>
               </ul>
             </div>
@@ -222,7 +235,7 @@ function VolumeGuideModal({ onClose }: { onClose: () => void }) {
                 장 마감 전에는?
               </h3>
               <p className="text-sm leading-relaxed text-muted-foreground">
-                오른쪽 &ldquo;오늘&rdquo; 패널은{" "}
+                오른쪽 &ldquo;세력진입 의심 종목&rdquo; 패널은{" "}
                 <strong className="text-foreground">
                   장 마감(15:30) 이후
                 </strong>
@@ -441,14 +454,14 @@ export default function VolumeExplosionPage() {
         {showGuide && <VolumeGuideModal onClose={() => setShowGuide(false)} />}
 
         {/* 요약 배너 */}
-        {!data.marketOpen && data.explosionStocks.length > 0 && (
+        {!data.marketOpen && data.suspectedStocks.length > 0 && (
           <div className="mb-6 rounded-lg border border-amber-500/30 bg-amber-500/5 px-5 py-3">
             <p className="text-sm">
               <strong className="text-amber-400">
-                {data.explosionStocks.length}개 종목
+                {data.suspectedStocks.length}개 종목
               </strong>
               <span className="text-muted-foreground">
-                이 어제 대비 거래대금이 폭발했습니다
+                에서 세력 진입이 의심됩니다 (거래대금 폭발 후 다음날 급감)
               </span>
             </p>
           </div>
@@ -531,21 +544,18 @@ export default function VolumeExplosionPage() {
             </div>
           </div>
 
-          {/* ── 오른쪽: 오늘 (폭발) + TockTock 분석 ── */}
+          {/* ── 오른쪽: 세력진입 의심 종목 + TockTock 분석 ── */}
           <div className="flex flex-col gap-6">
-            {/* 상단: 폭발 종목 리스트 */}
+            {/* 상단: 세력진입 의심 종목 리스트 */}
             <div className="border border-amber-500/30 rounded-xl overflow-hidden">
               <div className="bg-amber-500/5 px-5 py-4 border-b border-amber-500/20">
                 <h2 className="text-lg font-bold">
-                  오늘{" "}
-                  <span className="text-muted-foreground font-normal">
-                    ({data.todayDate ? formatDateLabel(data.todayDate) : "-"})
-                  </span>
+                  세력진입 의심 종목
                 </h2>
                 <p className="text-xs text-muted-foreground mt-1">
                   {data.marketOpen
                     ? "장 마감 후 업데이트"
-                    : `거래대금 950억 이상 돌파 · ${data.explosionStocks.length}종목`}
+                    : `거래대금 폭발 후 다음날 1/3 이하로 급감 · ${data.suspectedStocks.length}종목`}
                 </p>
               </div>
               <div className="p-4 space-y-3 h-[300px] overflow-y-auto">
@@ -560,24 +570,23 @@ export default function VolumeExplosionPage() {
                       </p>
                     </div>
                   </div>
-                ) : data.explosionStocks.length === 0 ? (
+                ) : data.suspectedStocks.length === 0 ? (
                   <div className="flex items-center justify-center h-full">
                     <div className="text-center">
                       <p className="text-muted-foreground text-sm mb-1">
                         조건에 해당하는 종목이 없습니다
                       </p>
                       <p className="text-muted-foreground/60 text-xs">
-                        어제 300억 이하 → 오늘 950억 이상 종목 없음
+                        전일 폭발 종목 중 오늘 거래대금이 1/3 이하로 급감한 종목 없음
                       </p>
                     </div>
                   </div>
                 ) : (
-                  data.explosionStocks.map((s) => {
-                    const multiple =
-                      s.yesterdayValue > 0
-                        ? (s.todayValue / s.yesterdayValue).toFixed(1)
-                        : "N/A";
-                    const isUp = s.changeRate >= 0;
+                  data.suspectedStocks.map((s) => {
+                    const dropRatio = s.dDayValue > 0
+                      ? ((s.dPlusOneValue / s.dDayValue) * 100).toFixed(1)
+                      : "N/A";
+                    const isUp = s.dDayChangeRate >= 0;
 
                     return (
                       <div
@@ -606,40 +615,43 @@ export default function VolumeExplosionPage() {
                               className="text-lg font-bold"
                               style={{ fontFamily: "'DM Mono', monospace" }}
                             >
-                              {s.closePrice.toLocaleString()}원
+                              {s.dDayClosePrice.toLocaleString()}원
                             </div>
                             <div
                               className={`text-sm font-medium ${isUp ? "text-red-400" : "text-blue-400"}`}
                             >
                               {isUp ? "+" : ""}
-                              {s.changeRate.toFixed(2)}%
+                              {s.dDayChangeRate.toFixed(2)}%
+                              <span className="text-muted-foreground/60 text-xs ml-1">
+                                (D일)
+                              </span>
                             </div>
                           </div>
                         </div>
 
-                        {/* 거래대금 비교 */}
+                        {/* 거래대금 비교: D일 → D+1일 */}
                         <div className="flex items-center gap-2 text-sm">
                           <span className="text-muted-foreground text-xs">
-                            어제
-                          </span>
-                          <span
-                            style={{ fontFamily: "'DM Mono', monospace" }}
-                            className="text-muted-foreground"
-                          >
-                            {formatBillion(s.yesterdayValue)}
-                          </span>
-                          <span className="text-muted-foreground/50">→</span>
-                          <span className="text-xs text-muted-foreground">
-                            오늘
+                            D일({formatDateLabel(s.dDate)})
                           </span>
                           <span
                             className="font-bold text-amber-400"
                             style={{ fontFamily: "'DM Mono', monospace" }}
                           >
-                            {formatBillion(s.todayValue)}
+                            {formatBillion(s.dDayValue)}
                           </span>
-                          <span className="ml-auto px-2 py-0.5 rounded-full text-xs font-bold bg-amber-500/20 text-amber-400">
-                            {multiple}배
+                          <span className="text-muted-foreground/50">→</span>
+                          <span className="text-xs text-muted-foreground">
+                            D+1일
+                          </span>
+                          <span
+                            style={{ fontFamily: "'DM Mono', monospace" }}
+                            className="text-muted-foreground"
+                          >
+                            {formatBillion(s.dPlusOneValue)}
+                          </span>
+                          <span className="ml-auto px-2 py-0.5 rounded-full text-xs font-bold bg-red-500/20 text-red-400">
+                            {dropRatio}%
                           </span>
                         </div>
                       </div>

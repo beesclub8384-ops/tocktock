@@ -13,6 +13,9 @@ const CACHE_TTL_OPEN = 600; // 장중 10분
 const YESTERDAY_THRESHOLD = 30_000_000_000; // 300억원
 const TODAY_THRESHOLD = 95_000_000_000; // 950억원
 
+const EXPLOSION_DAILY_PREFIX = "volume-explosion-daily";
+const EXPLOSION_DAILY_TTL = 5 * 86400; // 5일
+
 // --- 한국 공휴일 (2025~2027) ---
 const KOREAN_HOLIDAYS = new Set([
   // 2025
@@ -111,6 +114,16 @@ export interface VolumeExplosionResponse {
     changeRate: number;
     market: string;
   }[];
+  suspectedStocks: {
+    code: string;
+    name: string;
+    dDayValue: number;
+    dPlusOneValue: number;
+    dDayClosePrice: number;
+    dDayChangeRate: number;
+    market: string;
+    dDate: string;
+  }[];
   updatedAt: string;
 }
 
@@ -132,6 +145,11 @@ function isRegularStock(name: string): boolean {
 
 function parseNum(s: string): number {
   return Number(s.replace(/,/g, "")) || 0;
+}
+
+function formatBillion(value: number): string {
+  const eok = Math.round(value / 100_000_000);
+  return eok >= 10000 ? (eok / 10000).toFixed(2) + "조" : eok.toLocaleString() + "억";
 }
 
 function getKSTNow(): Date {
@@ -511,6 +529,7 @@ export async function GET() {
         market: s.market,
       })),
       explosionStocks: [],
+      suspectedStocks: [],
       updatedAt: new Date().toISOString(),
     };
 
@@ -659,6 +678,87 @@ export async function GET() {
     `[volume-explosion] 완료 — dataDate=${dataDate}, 어제=${prevSnap?.date || "없음"}, 총=${todayAll.length}종목, 폭발=${explosionStocks.length}개`,
   );
 
+  // --- 오늘의 폭발 종목을 Redis에 저장 (내일 D+1 체크용) ---
+  if (explosionStocks.length > 0) {
+    const dailyKey = `${EXPLOSION_DAILY_PREFIX}:${dataDate}`;
+    const dailyData = explosionStocks.map((s) => ({
+      code: s.code,
+      name: s.name,
+      todayValue: s.todayValue,
+      closePrice: s.closePrice,
+      changeRate: s.changeRate,
+      market: s.market,
+    }));
+    try {
+      await redis.set(dailyKey, dailyData, { ex: EXPLOSION_DAILY_TTL });
+      console.log(`[volume-explosion] 일별 폭발 저장: ${dailyKey}, ${dailyData.length}종목`);
+    } catch {
+      /* */
+    }
+  }
+
+  // --- 세력진입 의심 종목 계산 (D+1 거래대금 ≤ D일의 1/3) ---
+  let suspectedStocks: VolumeExplosionResponse["suspectedStocks"] = [];
+  {
+    const todayMap = new Map(todayAll.map((s) => [s.code, s]));
+
+    // 이전 거래일의 폭발 종목 로드 (dataDate 기준 이전 10영업일 탐색)
+    const dDate = new Date(
+      parseInt(dataDate.slice(0, 4)),
+      parseInt(dataDate.slice(4, 6)) - 1,
+      parseInt(dataDate.slice(6, 8)),
+    );
+    dDate.setDate(dDate.getDate() - 1);
+    const prevCandidates = getWeekdayCandidates(10, dDate);
+
+    for (const prevDate of prevCandidates) {
+      try {
+        const prevExplosions = await redis.get<
+          { code: string; name: string; todayValue: number; closePrice: number; changeRate: number; market: string }[]
+        >(`${EXPLOSION_DAILY_PREFIX}:${prevDate}`);
+
+        if (prevExplosions && prevExplosions.length > 0) {
+          console.log(`[volume-explosion] D일 폭발 로드: ${prevDate}, ${prevExplosions.length}종목`);
+
+          suspectedStocks = prevExplosions
+            .filter((s) => {
+              const todayStock = todayMap.get(s.code);
+              if (!todayStock) return false;
+              const ratio = todayStock.tradingValue / s.todayValue;
+              const pass = ratio <= 1 / 3;
+              if (pass) {
+                console.log(
+                  `[volume-explosion] 세력진입 의심: ${s.name} D=${formatBillion(s.todayValue)} → D+1=${formatBillion(todayStock.tradingValue)} (${(ratio * 100).toFixed(1)}%)`,
+                );
+              }
+              return pass;
+            })
+            .map((s) => {
+              const todayStock = todayMap.get(s.code)!;
+              return {
+                code: s.code,
+                name: s.name,
+                dDayValue: s.todayValue,
+                dPlusOneValue: todayStock.tradingValue,
+                dDayClosePrice: s.closePrice,
+                dDayChangeRate: s.changeRate,
+                market: s.market,
+                dDate: prevDate,
+              };
+            })
+            .sort((a, b) => b.dDayValue - a.dDayValue);
+
+          console.log(
+            `[volume-explosion] 세력진입 의심 종목: ${suspectedStocks.length}개 (D=${prevDate}, D+1=${dataDate})`,
+          );
+          break; // 가장 최근 거래일의 폭발 데이터만 사용
+        }
+      } catch {
+        /* continue */
+      }
+    }
+  }
+
   const result: VolumeExplosionResponse = {
     todayDate: dataDate,
     yesterdayDate: prevSnap?.date || "",
@@ -670,6 +770,7 @@ export async function GET() {
       market: s.market,
     })),
     explosionStocks,
+    suspectedStocks,
     updatedAt: new Date().toISOString(),
   };
 
