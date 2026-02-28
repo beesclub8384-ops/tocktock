@@ -16,6 +16,9 @@ const TODAY_THRESHOLD = 95_000_000_000; // 950억원
 const EXPLOSION_DAILY_PREFIX = "volume-explosion-daily";
 const EXPLOSION_DAILY_TTL = 5 * 86400; // 5일
 
+const SUSPECTED_LATEST_KEY = "volume-explosion-suspected-latest";
+const SUSPECTED_LATEST_TTL = 7 * 86400; // 7일
+
 // --- 한국 공휴일 (2025~2027) ---
 const KOREAN_HOLIDAYS = new Set([
   // 2025
@@ -518,6 +521,13 @@ export async function GET() {
       )
       .sort((a, b) => b.tradingValue - a.tradingValue);
 
+    // 장중에도 세력진입 의심 종목은 마지막 계산 결과를 Redis에서 로드
+    let suspectedStocks: VolumeExplosionResponse["suspectedStocks"] = [];
+    try {
+      const latest = await redis.get<VolumeExplosionResponse["suspectedStocks"]>(SUSPECTED_LATEST_KEY);
+      if (latest) suspectedStocks = latest;
+    } catch { /* */ }
+
     const result: VolumeExplosionResponse = {
       todayDate: todayKST,
       yesterdayDate,
@@ -529,7 +539,7 @@ export async function GET() {
         market: s.market,
       })),
       explosionStocks: [],
-      suspectedStocks: [],
+      suspectedStocks,
       updatedAt: new Date().toISOString(),
     };
 
@@ -757,6 +767,14 @@ export async function GET() {
         /* continue */
       }
     }
+  }
+
+  // 세력진입 의심 종목을 Redis에 저장 (장중/주말에도 유지)
+  if (suspectedStocks.length > 0) {
+    try {
+      await redis.set(SUSPECTED_LATEST_KEY, suspectedStocks, { ex: SUSPECTED_LATEST_TTL });
+      console.log(`[volume-explosion] 세력진입 의심 최신 저장: ${suspectedStocks.length}종목`);
+    } catch { /* */ }
   }
 
   const result: VolumeExplosionResponse = {
