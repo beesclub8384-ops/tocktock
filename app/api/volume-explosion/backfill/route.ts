@@ -438,10 +438,8 @@ export async function GET() {
           }))
           .sort((a, b) => b.dDayValue - a.dDayValue);
 
-        if (suspectedStocks.length > 0) {
-          await redis.set(SUSPECTED_LATEST_KEY, suspectedStocks, { ex: SUSPECTED_LATEST_TTL });
-          console.log(`[backfill] 세력진입 의심 최신 저장: ${suspectedStocks.length}종목`);
-        }
+        await redis.set(SUSPECTED_LATEST_KEY, suspectedStocks, { ex: SUSPECTED_LATEST_TTL });
+        console.log(`[backfill] 세력진입 의심 최신 저장: ${suspectedStocks.length}종목`);
         suspectedCount = suspectedStocks.length;
       }
     } catch (err) {
