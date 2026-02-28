@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { X, HelpCircle, Sparkles } from "lucide-react";
 
 interface YesterdayStock {
@@ -155,29 +155,9 @@ function VolumeGuideModal({ onClose }: { onClose: () => void }) {
             화면 구성
           </h3>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div className="rounded-lg border border-border bg-muted/30 p-4">
-              <h4 className="mb-1.5 text-sm font-semibold">
-                왼쪽 &ldquo;어제&rdquo; 패널
-              </h4>
-              <ul className="space-y-1 text-sm leading-relaxed text-muted-foreground">
-                <li>
-                  어제 거래대금이{" "}
-                  <strong className="text-foreground">300억 이하</strong>였던
-                  종목들입니다.
-                </li>
-                <li>
-                  한마디로 &ldquo;조용했던 종목들&rdquo;. 평소에 시장의 관심을
-                  거의 받지 못하던 종목이라고 보면 됩니다.
-                </li>
-                <li>
-                  검색창에서 종목명이나 코드로 검색할 수 있습니다.
-                </li>
-              </ul>
-            </div>
-
             <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4">
               <h4 className="mb-1.5 text-sm font-semibold">
-                오른쪽 &ldquo;세력진입 의심 종목&rdquo; 패널{" "}
+                &ldquo;세력진입 의심 종목&rdquo; 패널{" "}
                 <span className="font-normal text-amber-400">— 핵심!</span>
               </h4>
               <ul className="space-y-1 text-sm leading-relaxed text-muted-foreground">
@@ -240,13 +220,12 @@ function VolumeGuideModal({ onClose }: { onClose: () => void }) {
                 장 마감 전에는?
               </h3>
               <p className="text-sm leading-relaxed text-muted-foreground">
-                오른쪽 &ldquo;세력진입 의심 종목&rdquo; 패널은{" "}
+                세력진입 의심 종목 패널은{" "}
                 <strong className="text-foreground">
                   장 마감(15:30) 이후
                 </strong>
                 에 업데이트됩니다. 장중에는 아직 거래가 진행 중이라 최종
-                거래대금을 알 수 없기 때문입니다. 왼쪽 &ldquo;어제&rdquo;
-                패널은 장중에도 정상적으로 표시됩니다.
+                거래대금을 알 수 없기 때문입니다.
               </p>
             </section>
 
@@ -366,7 +345,6 @@ export default function VolumeExplosionPage() {
   const [data, setData] = useState<VolumeData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [search, setSearch] = useState("");
   const [showGuide, setShowGuide] = useState(false);
   const [analysis, setAnalysis] = useState<string | null>(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
@@ -394,15 +372,6 @@ export default function VolumeExplosionPage() {
       .catch(() => {})
       .finally(() => setAnalysisLoading(false));
   }, [data]);
-
-  const filteredYesterday = useMemo(() => {
-    if (!data) return [];
-    if (!search.trim()) return data.yesterdayStocks;
-    const q = search.toLowerCase();
-    return data.yesterdayStocks.filter(
-      (s) => s.name.toLowerCase().includes(q) || s.code.includes(q),
-    );
-  }, [data, search]);
 
   if (loading) {
     return (
@@ -472,85 +441,8 @@ export default function VolumeExplosionPage() {
           </div>
         )}
 
-        {/* 좌우 패널 */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* ── 왼쪽: 어제 ── */}
-          <div className="border border-border rounded-xl overflow-hidden">
-            <div className="bg-muted/30 px-5 py-4 border-b border-border">
-              <h2 className="text-lg font-bold">
-                어제{" "}
-                <span className="text-muted-foreground font-normal">
-                  ({data.yesterdayDate ? formatDateLabel(data.yesterdayDate) : "-"})
-                </span>
-              </h2>
-              <p className="text-xs text-muted-foreground mt-1">
-                거래대금 300억 이하 ·{" "}
-                {data.yesterdayStocks.length.toLocaleString()}종목
-              </p>
-              <input
-                type="text"
-                placeholder="종목명 또는 코드 검색..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="mt-3 w-full px-3 py-1.5 text-sm border border-border rounded-md bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              />
-            </div>
-            <div className="h-[600px] overflow-y-auto">
-              <table className="w-full text-sm">
-                <thead className="sticky top-0 bg-muted/80 backdrop-blur text-xs text-muted-foreground">
-                  <tr>
-                    <th className="text-left px-4 py-2 font-medium">종목코드</th>
-                    <th className="text-left px-4 py-2 font-medium">종목명</th>
-                    <th className="text-right px-4 py-2 font-medium">
-                      거래대금
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredYesterday.map((s) => (
-                    <tr
-                      key={s.code}
-                      className="border-t border-border/20 hover:bg-accent/30 transition-colors"
-                    >
-                      <td
-                        className="px-4 py-1.5 text-muted-foreground text-xs"
-                        style={{ fontFamily: "'DM Mono', monospace" }}
-                      >
-                        {s.code}
-                      </td>
-                      <td className="px-4 py-1.5">
-                        {s.name}
-                        <span className="ml-1.5 text-[10px] text-muted-foreground/60">
-                          {s.market}
-                        </span>
-                      </td>
-                      <td
-                        className="px-4 py-1.5 text-right text-muted-foreground"
-                        style={{ fontFamily: "'DM Mono', monospace" }}
-                      >
-                        {formatBillion(s.value)}
-                      </td>
-                    </tr>
-                  ))}
-                  {filteredYesterday.length === 0 && (
-                    <tr>
-                      <td
-                        colSpan={3}
-                        className="px-4 py-8 text-center text-muted-foreground text-xs"
-                      >
-                        {search.trim()
-                          ? `"${search}" 검색 결과가 없습니다`
-                          : "데이터가 없습니다"}
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* ── 오른쪽: 세력진입 의심 종목 + TockTock 분석 ── */}
-          <div className="flex flex-col gap-6">
+        {/* 메인 패널 */}
+        <div className="max-w-2xl mx-auto flex flex-col gap-6">
             {/* 상단: 세력진입 의심 종목 리스트 */}
             <div className="border border-amber-500/30 rounded-xl overflow-hidden">
               <div className="bg-amber-500/5 px-5 py-4 border-b border-amber-500/20">
@@ -779,7 +671,6 @@ export default function VolumeExplosionPage() {
                 )}
               </div>
             </div>
-          </div>
         </div>
 
         {/* 업데이트 시각 */}
