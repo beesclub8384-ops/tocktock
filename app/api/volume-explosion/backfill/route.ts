@@ -434,6 +434,29 @@ export async function GET() {
     }
   }
 
+  // 7. 메인 API 캐시 무효화 (stale 결과 방지)
+  {
+    const CACHE_PREFIX = "volume-explosion";
+    const kstNowDate = fmtDate(kstNow);
+    const keysToDelete = [
+      `${CACHE_PREFIX}:${kstNowDate}:closed`,
+      `${CACHE_PREFIX}:${kstNowDate}:open`,
+    ];
+    // 어제 날짜 캐시도 삭제 (자정 전후 타이밍 이슈 대비)
+    const yesterday = new Date(kstNow);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayDate = fmtDate(yesterday);
+    keysToDelete.push(`${CACHE_PREFIX}:${yesterdayDate}:closed`);
+    keysToDelete.push(`${CACHE_PREFIX}:${yesterdayDate}:open`);
+
+    for (const key of keysToDelete) {
+      try {
+        await redis.del(key);
+      } catch { /* */ }
+    }
+    console.log(`[backfill] 메인 API 캐시 무효화: ${keysToDelete.join(", ")}`);
+  }
+
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
   console.log(`[backfill] 완료: ${elapsed}s`);
 

@@ -775,6 +775,15 @@ export async function GET() {
       await redis.set(SUSPECTED_LATEST_KEY, suspectedStocks, { ex: SUSPECTED_LATEST_TTL });
       console.log(`[volume-explosion] 세력진입 의심 최신 저장: ${suspectedStocks.length}종목`);
     } catch { /* */ }
+  } else {
+    // 직접 계산 결과가 비어있으면 백필이 저장한 최신 결과를 fallback으로 사용
+    try {
+      const latest = await redis.get<VolumeExplosionResponse["suspectedStocks"]>(SUSPECTED_LATEST_KEY);
+      if (latest && latest.length > 0) {
+        suspectedStocks = latest;
+        console.log(`[volume-explosion] 세력진입 의심 fallback 로드: ${latest.length}종목`);
+      }
+    } catch { /* */ }
   }
 
   const result: VolumeExplosionResponse = {
