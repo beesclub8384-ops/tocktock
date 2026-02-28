@@ -72,6 +72,7 @@ interface NaverStockRaw {
   fluctuationsRatio: string;
   compareToPreviousPrice: { code: string };
   accumulatedTradingValue: string;
+  marketValue: string; // 시가총액 (백만원 단위)
   localTradedAt: string;
 }
 
@@ -88,6 +89,7 @@ interface StockVolume {
   tradingValue: number; // 원
   closePrice: number;
   changeRate: number;
+  marketCap: number; // 시가총액 (원)
   market: "KOSPI" | "KOSDAQ";
 }
 
@@ -124,6 +126,7 @@ export interface VolumeExplosionResponse {
     dPlusOneValue: number;
     dDayClosePrice: number;
     dDayChangeRate: number;
+    marketCap: number; // D일 기준 시가총액 (원)
     market: string;
     dDate: string;
   }[];
@@ -230,6 +233,7 @@ function toStockVolumes(
     tradingValue: parseNum(s.accumulatedTradingValue) * 1_000_000, // 백만원 → 원
     closePrice: parseNum(s.closePrice),
     changeRate: parseNum(s.fluctuationsRatio), // 이미 부호 포함 (e.g. "-11.13")
+    marketCap: parseNum(s.marketValue) * 1_000_000, // 백만원 → 원
     market,
   }));
 }
@@ -689,6 +693,7 @@ export async function GET() {
   );
 
   // --- 오늘의 폭발 종목을 Redis에 저장 (내일 D+1 체크용) ---
+  const todayMarketCapMap = new Map(todayAll.map((s) => [s.code, s.marketCap]));
   if (explosionStocks.length > 0) {
     const dailyKey = `${EXPLOSION_DAILY_PREFIX}:${dataDate}`;
     const dailyData = explosionStocks.map((s) => ({
@@ -697,6 +702,7 @@ export async function GET() {
       todayValue: s.todayValue,
       closePrice: s.closePrice,
       changeRate: s.changeRate,
+      marketCap: todayMarketCapMap.get(s.code) || 0,
       market: s.market,
     }));
     try {
@@ -724,21 +730,30 @@ export async function GET() {
     for (const prevDate of prevCandidates) {
       try {
         const prevExplosions = await redis.get<
-          { code: string; name: string; todayValue: number; closePrice: number; changeRate: number; market: string }[]
+          { code: string; name: string; todayValue: number; closePrice: number; changeRate: number; marketCap?: number; market: string }[]
         >(`${EXPLOSION_DAILY_PREFIX}:${prevDate}`);
 
         if (prevExplosions && prevExplosions.length > 0) {
           console.log(`[volume-explosion] D일 폭발 로드: ${prevDate}, ${prevExplosions.length}종목`);
 
+          const MARKET_CAP_MIN = 50_000_000_000; // 500억원
           suspectedStocks = prevExplosions
             .filter((s) => {
               const todayStock = todayMap.get(s.code);
               if (!todayStock) return false;
+              // 시총 500억 이하 제외 (D일 저장값 우선, 없으면 현재 시총 사용)
+              const cap = s.marketCap || todayMarketCapMap.get(s.code) || 0;
+              if (cap <= MARKET_CAP_MIN) {
+                console.log(
+                  `[volume-explosion] 시총 필터 제외: ${s.name} (시총=${formatBillion(cap)})`,
+                );
+                return false;
+              }
               const ratio = todayStock.tradingValue / s.todayValue;
               const pass = ratio <= 1 / 3;
               if (pass) {
                 console.log(
-                  `[volume-explosion] 세력진입 의심: ${s.name} D=${formatBillion(s.todayValue)} → D+1=${formatBillion(todayStock.tradingValue)} (${(ratio * 100).toFixed(1)}%)`,
+                  `[volume-explosion] 세력진입 의심: ${s.name} D=${formatBillion(s.todayValue)} → D+1=${formatBillion(todayStock.tradingValue)} (${(ratio * 100).toFixed(1)}%), 시총=${formatBillion(cap)}`,
                 );
               }
               return pass;
@@ -752,6 +767,7 @@ export async function GET() {
                 dPlusOneValue: todayStock.tradingValue,
                 dDayClosePrice: s.closePrice,
                 dDayChangeRate: s.changeRate,
+                marketCap: s.marketCap || todayMarketCapMap.get(s.code) || 0,
                 market: s.market,
                 dDate: prevDate,
               };

@@ -42,6 +42,7 @@ interface NaverStockRaw {
   fluctuationsRatio: string;
   compareToPreviousPrice: { code: string };
   accumulatedTradingValue: string;
+  marketValue: string;
   localTradedAt: string;
 }
 
@@ -58,6 +59,7 @@ interface StockVolume {
   tradingValue: number;
   closePrice: number;
   changeRate: number;
+  marketCap: number;
   market: "KOSPI" | "KOSDAQ";
 }
 
@@ -140,6 +142,7 @@ function toStockVolumes(
     tradingValue: parseNum(s.accumulatedTradingValue) * 1_000_000,
     closePrice: parseNum(s.closePrice),
     changeRate: parseNum(s.fluctuationsRatio),
+    marketCap: parseNum(s.marketValue) * 1_000_000,
     market,
   }));
 }
@@ -266,7 +269,7 @@ export async function GET() {
   console.log(`[backfill] siseJson 조회 완료: ${stockHistoryMap.size}종목`);
 
   // 4. 날짜별 데이터 그룹핑
-  const stockInfoMap = new Map(allStocksLive.map((s) => [s.code, { name: s.name, market: s.market }]));
+  const stockInfoMap = new Map(allStocksLive.map((s) => [s.code, { name: s.name, market: s.market, marketCap: s.marketCap }]));
 
   // 날짜 목록 수집
   const allDatesSet = new Set<string>();
@@ -299,6 +302,7 @@ export async function GET() {
       todayValue: number;
       closePrice: number;
       changeRate: number;
+      marketCap: number;
       market: string;
     }[] = [];
 
@@ -354,6 +358,7 @@ export async function GET() {
         todayValue: dDayData.tradingValue,
         closePrice: dDayData.close,
         changeRate: Math.round(changeRate * 100) / 100,
+        marketCap: info.marketCap,
         market: info.market,
       });
     }
@@ -387,7 +392,7 @@ export async function GET() {
 
     try {
       const dExplosions = await redis.get<
-        { code: string; name: string; todayValue: number; closePrice: number; changeRate: number; market: string }[]
+        { code: string; name: string; todayValue: number; closePrice: number; changeRate: number; marketCap?: number; market: string }[]
       >(`${EXPLOSION_DAILY_PREFIX}:${dDay}`);
 
       if (dExplosions && dExplosions.length > 0) {
@@ -398,15 +403,24 @@ export async function GET() {
           if (dayData) dPlusOneData.set(code, dayData.tradingValue);
         }
 
+        const MARKET_CAP_MIN = 50_000_000_000; // 500억원
         const suspectedStocks = dExplosions
           .filter((s) => {
             const dPlusOneValue = dPlusOneData.get(s.code);
             if (dPlusOneValue === undefined) return false;
+            // 시총 500억 이하 제외
+            const cap = s.marketCap || stockInfoMap.get(s.code)?.marketCap || 0;
+            if (cap <= MARKET_CAP_MIN) {
+              console.log(
+                `[backfill] 시총 필터 제외: ${s.name} (시총=${formatBillion(cap)})`,
+              );
+              return false;
+            }
             const ratio = dPlusOneValue / s.todayValue;
             const pass = ratio <= 1 / 3;
             if (pass) {
               console.log(
-                `[backfill] 세력진입 의심: ${s.name} D=${formatBillion(s.todayValue)} → D+1=${formatBillion(dPlusOneValue)} (${(ratio * 100).toFixed(1)}%)`,
+                `[backfill] 세력진입 의심: ${s.name} D=${formatBillion(s.todayValue)} → D+1=${formatBillion(dPlusOneValue)} (${(ratio * 100).toFixed(1)}%), 시총=${formatBillion(cap)}`,
               );
             }
             return pass;
@@ -418,6 +432,7 @@ export async function GET() {
             dPlusOneValue: dPlusOneData.get(s.code)!,
             dDayClosePrice: s.closePrice,
             dDayChangeRate: s.changeRate,
+            marketCap: s.marketCap || stockInfoMap.get(s.code)?.marketCap || 0,
             market: s.market,
             dDate: dDay,
           }))

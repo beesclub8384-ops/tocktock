@@ -27,6 +27,7 @@ interface SuspectedStock {
   dPlusOneValue: number;
   dDayClosePrice: number;
   dDayChangeRate: number;
+  marketCap: number;
   market: string;
   dDate: string;
 }
@@ -608,6 +609,11 @@ export default function VolumeExplosionPage() {
                               <span className="px-1.5 py-0.5 rounded bg-muted text-[10px]">
                                 {s.market}
                               </span>
+                              {s.marketCap > 0 && (
+                                <span className="text-muted-foreground/70">
+                                  시총 {formatBillion(s.marketCap)}
+                                </span>
+                              )}
                             </div>
                           </div>
                           <div className="text-right">
