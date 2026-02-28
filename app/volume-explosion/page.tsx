@@ -30,6 +30,7 @@ interface SuspectedStock {
   marketCap: number;
   turnoverRate: number;
   turnoverGroup: string;
+  isLimitUp: boolean;
   isRepeated: boolean;
   repeatedDates: string[];
   market: string;
@@ -495,6 +496,11 @@ export default function VolumeExplosionPage() {
                           <div>
                             <div className="flex items-center gap-2">
                               <span className="font-bold text-base">{s.name}</span>
+                              {s.isLimitUp && (
+                                <span className="px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-400 text-[10px] font-bold">
+                                  상한가 폭발
+                                </span>
+                              )}
                               {s.isRepeated && (
                                 <span className="px-1.5 py-0.5 rounded-full bg-orange-500/20 text-orange-400 text-[10px] font-bold">
                                   반복 폭발

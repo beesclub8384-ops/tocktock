@@ -463,6 +463,7 @@ export async function GET() {
               marketCap: cap,
               turnoverRate,
               turnoverGroup: getTurnoverGroup(turnoverRate),
+              isLimitUp: s.changeRate >= 29.5,
               isRepeated: repeatedDates.length >= 2,
               repeatedDates,
               market: s.market,

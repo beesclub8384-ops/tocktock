@@ -129,6 +129,7 @@ export interface VolumeExplosionResponse {
     marketCap: number; // D일 기준 시가총액 (원)
     turnoverRate: number; // 회전율 (%, 소수점 1자리)
     turnoverGroup: string; // "~5%" | "5~20%" | "20~50%" | "50%+"
+    isLimitUp: boolean; // D일 상한가(29.5%+) 여부
     isRepeated: boolean; // 10거래일 내 반복 폭발 여부
     repeatedDates: string[]; // 반복 폭발 날짜 목록
     market: string;
@@ -803,6 +804,7 @@ export async function GET() {
                 marketCap: cap,
                 turnoverRate,
                 turnoverGroup: getTurnoverGroup(turnoverRate),
+                isLimitUp: s.changeRate >= 29.5,
                 isRepeated: repeatedDates.length >= 2,
                 repeatedDates,
                 market: s.market,
