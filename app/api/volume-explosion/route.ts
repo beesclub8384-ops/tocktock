@@ -127,6 +127,8 @@ export interface VolumeExplosionResponse {
     dDayClosePrice: number;
     dDayChangeRate: number;
     marketCap: number; // D일 기준 시가총액 (원)
+    isRepeated: boolean; // 10거래일 내 반복 폭발 여부
+    repeatedDates: string[]; // 반복 폭발 날짜 목록
     market: string;
     dDate: string;
   }[];
@@ -737,6 +739,24 @@ export async function GET() {
           console.log(`[volume-explosion] D일 폭발 로드: ${prevDate}, ${prevExplosions.length}종목`);
 
           const MARKET_CAP_MIN = 50_000_000_000; // 500억원
+
+          // 반복 폭발 체크: 최근 10거래일의 폭발 데이터를 모두 로드
+          const allExplosionCodes = new Map<string, string[]>(); // code → [date, ...]
+          for (const candDate of prevCandidates) {
+            try {
+              const dayExplosions = candDate === prevDate
+                ? prevExplosions
+                : await redis.get<{ code: string }[]>(`${EXPLOSION_DAILY_PREFIX}:${candDate}`);
+              if (dayExplosions) {
+                for (const e of dayExplosions) {
+                  const dates = allExplosionCodes.get(e.code) || [];
+                  dates.push(candDate);
+                  allExplosionCodes.set(e.code, dates);
+                }
+              }
+            } catch { /* */ }
+          }
+
           suspectedStocks = prevExplosions
             .filter((s) => {
               const todayStock = todayMap.get(s.code);
@@ -760,6 +780,7 @@ export async function GET() {
             })
             .map((s) => {
               const todayStock = todayMap.get(s.code)!;
+              const repeatedDates = (allExplosionCodes.get(s.code) || []).sort();
               return {
                 code: s.code,
                 name: s.name,
@@ -768,6 +789,8 @@ export async function GET() {
                 dDayClosePrice: s.closePrice,
                 dDayChangeRate: s.changeRate,
                 marketCap: s.marketCap || todayMarketCapMap.get(s.code) || 0,
+                isRepeated: repeatedDates.length >= 2,
+                repeatedDates,
                 market: s.market,
                 dDate: prevDate,
               };

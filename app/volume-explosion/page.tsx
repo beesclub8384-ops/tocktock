@@ -28,6 +28,8 @@ interface SuspectedStock {
   dDayClosePrice: number;
   dDayChangeRate: number;
   marketCap: number;
+  isRepeated: boolean;
+  repeatedDates: string[];
   market: string;
   dDate: string;
 }
@@ -597,7 +599,14 @@ export default function VolumeExplosionPage() {
                         {/* 종목 정보 */}
                         <div className="flex items-start justify-between mb-3">
                           <div>
-                            <div className="font-bold text-base">{s.name}</div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-base">{s.name}</span>
+                              {s.isRepeated && (
+                                <span className="px-1.5 py-0.5 rounded-full bg-orange-500/20 text-orange-400 text-[10px] font-bold">
+                                  반복 폭발
+                                </span>
+                              )}
+                            </div>
                             <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
                               <span
                                 style={{
@@ -615,6 +624,11 @@ export default function VolumeExplosionPage() {
                                 </span>
                               )}
                             </div>
+                            {s.isRepeated && s.repeatedDates.length > 0 && (
+                              <div className="text-[10px] text-orange-400/70 mt-0.5">
+                                {s.repeatedDates.map((d) => `${parseInt(d.slice(4, 6))}/${parseInt(d.slice(6, 8))}`).join(", ")} 폭발
+                              </div>
+                            )}
                           </div>
                           <div className="text-right">
                             <div

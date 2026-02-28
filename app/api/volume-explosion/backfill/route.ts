@@ -404,6 +404,22 @@ export async function GET() {
         }
 
         const MARKET_CAP_MIN = 50_000_000_000; // 500억원
+
+        // 반복 폭발 체크: processedDates 전체에서 폭발 종목 코드 수집
+        const allExplosionCodes = new Map<string, string[]>(); // code → [date, ...]
+        for (const pDate of processedDates) {
+          try {
+            const dayExplosions = await redis.get<{ code: string }[]>(`${EXPLOSION_DAILY_PREFIX}:${pDate}`);
+            if (dayExplosions) {
+              for (const e of dayExplosions) {
+                const dates = allExplosionCodes.get(e.code) || [];
+                dates.push(pDate);
+                allExplosionCodes.set(e.code, dates);
+              }
+            }
+          } catch { /* */ }
+        }
+
         const suspectedStocks = dExplosions
           .filter((s) => {
             const dPlusOneValue = dPlusOneData.get(s.code);
@@ -425,17 +441,22 @@ export async function GET() {
             }
             return pass;
           })
-          .map((s) => ({
-            code: s.code,
-            name: s.name,
-            dDayValue: s.todayValue,
-            dPlusOneValue: dPlusOneData.get(s.code)!,
-            dDayClosePrice: s.closePrice,
-            dDayChangeRate: s.changeRate,
-            marketCap: s.marketCap || stockInfoMap.get(s.code)?.marketCap || 0,
-            market: s.market,
-            dDate: dDay,
-          }))
+          .map((s) => {
+            const repeatedDates = (allExplosionCodes.get(s.code) || []).sort();
+            return {
+              code: s.code,
+              name: s.name,
+              dDayValue: s.todayValue,
+              dPlusOneValue: dPlusOneData.get(s.code)!,
+              dDayClosePrice: s.closePrice,
+              dDayChangeRate: s.changeRate,
+              marketCap: s.marketCap || stockInfoMap.get(s.code)?.marketCap || 0,
+              isRepeated: repeatedDates.length >= 2,
+              repeatedDates,
+              market: s.market,
+              dDate: dDay,
+            };
+          })
           .sort((a, b) => b.dDayValue - a.dDayValue);
 
         await redis.set(SUSPECTED_LATEST_KEY, suspectedStocks, { ex: SUSPECTED_LATEST_TTL });
