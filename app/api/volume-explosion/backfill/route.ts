@@ -107,6 +107,13 @@ function getWeekdayCandidates(count: number, startDate: Date): string[] {
   return result;
 }
 
+function getTurnoverGroup(rate: number): string {
+  if (rate >= 50) return "50%+";
+  if (rate >= 20) return "20~50%";
+  if (rate >= 5) return "5~20%";
+  return "~5%";
+}
+
 function formatBillion(value: number): string {
   const eok = Math.round(value / 100_000_000);
   return eok >= 10000 ? (eok / 10000).toFixed(2) + "조" : eok.toLocaleString() + "억";
@@ -404,6 +411,7 @@ export async function GET() {
         }
 
         const MARKET_CAP_MIN = 50_000_000_000; // 500억원
+        const MARKET_CAP_MAX = 2_000_000_000_000; // 2조원
 
         // 반복 폭발 체크: processedDates 전체에서 폭발 종목 코드 수집
         const allExplosionCodes = new Map<string, string[]>(); // code → [date, ...]
@@ -424,11 +432,11 @@ export async function GET() {
           .filter((s) => {
             const dPlusOneValue = dPlusOneData.get(s.code);
             if (dPlusOneValue === undefined) return false;
-            // 시총 500억 이하 제외
+            // 시총 500억 이하 또는 2조 초과 제외
             const cap = s.marketCap || stockInfoMap.get(s.code)?.marketCap || 0;
-            if (cap <= MARKET_CAP_MIN) {
+            if (cap <= MARKET_CAP_MIN || cap > MARKET_CAP_MAX) {
               console.log(
-                `[backfill] 시총 필터 제외: ${s.name} (시총=${formatBillion(cap)})`,
+                `[backfill] 시총 필터 제외: ${s.name} (시총=${formatBillion(cap)}, ${cap <= MARKET_CAP_MIN ? "500억 이하" : "2조 초과"})`,
               );
               return false;
             }
@@ -443,6 +451,8 @@ export async function GET() {
           })
           .map((s) => {
             const repeatedDates = (allExplosionCodes.get(s.code) || []).sort();
+            const cap = s.marketCap || stockInfoMap.get(s.code)?.marketCap || 0;
+            const turnoverRate = cap > 0 ? Math.round((s.todayValue / cap) * 1000) / 10 : 0;
             return {
               code: s.code,
               name: s.name,
@@ -450,7 +460,9 @@ export async function GET() {
               dPlusOneValue: dPlusOneData.get(s.code)!,
               dDayClosePrice: s.closePrice,
               dDayChangeRate: s.changeRate,
-              marketCap: s.marketCap || stockInfoMap.get(s.code)?.marketCap || 0,
+              marketCap: cap,
+              turnoverRate,
+              turnoverGroup: getTurnoverGroup(turnoverRate),
               isRepeated: repeatedDates.length >= 2,
               repeatedDates,
               market: s.market,

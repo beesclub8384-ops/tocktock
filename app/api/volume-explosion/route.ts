@@ -127,6 +127,8 @@ export interface VolumeExplosionResponse {
     dDayClosePrice: number;
     dDayChangeRate: number;
     marketCap: number; // D일 기준 시가총액 (원)
+    turnoverRate: number; // 회전율 (%, 소수점 1자리)
+    turnoverGroup: string; // "~5%" | "5~20%" | "20~50%" | "50%+"
     isRepeated: boolean; // 10거래일 내 반복 폭발 여부
     repeatedDates: string[]; // 반복 폭발 날짜 목록
     market: string;
@@ -153,6 +155,13 @@ function isRegularStock(name: string): boolean {
 
 function parseNum(s: string): number {
   return Number(s.replace(/,/g, "")) || 0;
+}
+
+function getTurnoverGroup(rate: number): string {
+  if (rate >= 50) return "50%+";
+  if (rate >= 20) return "20~50%";
+  if (rate >= 5) return "5~20%";
+  return "~5%";
 }
 
 function formatBillion(value: number): string {
@@ -739,6 +748,7 @@ export async function GET() {
           console.log(`[volume-explosion] D일 폭발 로드: ${prevDate}, ${prevExplosions.length}종목`);
 
           const MARKET_CAP_MIN = 50_000_000_000; // 500억원
+          const MARKET_CAP_MAX = 2_000_000_000_000; // 2조원
 
           // 반복 폭발 체크: 최근 10거래일의 폭발 데이터를 모두 로드
           const allExplosionCodes = new Map<string, string[]>(); // code → [date, ...]
@@ -761,11 +771,11 @@ export async function GET() {
             .filter((s) => {
               const todayStock = todayMap.get(s.code);
               if (!todayStock) return false;
-              // 시총 500억 이하 제외 (D일 저장값 우선, 없으면 현재 시총 사용)
+              // 시총 500억 이하 또는 2조 초과 제외
               const cap = s.marketCap || todayMarketCapMap.get(s.code) || 0;
-              if (cap <= MARKET_CAP_MIN) {
+              if (cap <= MARKET_CAP_MIN || cap > MARKET_CAP_MAX) {
                 console.log(
-                  `[volume-explosion] 시총 필터 제외: ${s.name} (시총=${formatBillion(cap)})`,
+                  `[volume-explosion] 시총 필터 제외: ${s.name} (시총=${formatBillion(cap)}, ${cap <= MARKET_CAP_MIN ? "500억 이하" : "2조 초과"})`,
                 );
                 return false;
               }
@@ -781,6 +791,8 @@ export async function GET() {
             .map((s) => {
               const todayStock = todayMap.get(s.code)!;
               const repeatedDates = (allExplosionCodes.get(s.code) || []).sort();
+              const cap = s.marketCap || todayMarketCapMap.get(s.code) || 0;
+              const turnoverRate = cap > 0 ? Math.round((s.todayValue / cap) * 1000) / 10 : 0;
               return {
                 code: s.code,
                 name: s.name,
@@ -788,7 +800,9 @@ export async function GET() {
                 dPlusOneValue: todayStock.tradingValue,
                 dDayClosePrice: s.closePrice,
                 dDayChangeRate: s.changeRate,
-                marketCap: s.marketCap || todayMarketCapMap.get(s.code) || 0,
+                marketCap: cap,
+                turnoverRate,
+                turnoverGroup: getTurnoverGroup(turnoverRate),
                 isRepeated: repeatedDates.length >= 2,
                 repeatedDates,
                 market: s.market,

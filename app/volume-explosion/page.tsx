@@ -28,6 +28,8 @@ interface SuspectedStock {
   dDayClosePrice: number;
   dDayChangeRate: number;
   marketCap: number;
+  turnoverRate: number;
+  turnoverGroup: string;
   isRepeated: boolean;
   repeatedDates: string[];
   market: string;
@@ -621,6 +623,19 @@ export default function VolumeExplosionPage() {
                               {s.marketCap > 0 && (
                                 <span className="text-muted-foreground/70">
                                   시총 {formatBillion(s.marketCap)}
+                                </span>
+                              )}
+                              {s.turnoverRate > 0 && (
+                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                                  s.turnoverGroup === "50%+"
+                                    ? "bg-red-500/20 text-red-400"
+                                    : s.turnoverGroup === "20~50%"
+                                      ? "bg-orange-500/20 text-orange-400"
+                                      : s.turnoverGroup === "5~20%"
+                                        ? "bg-blue-500/20 text-blue-400"
+                                        : "bg-muted text-muted-foreground"
+                                }`}>
+                                  회전율 {s.turnoverRate}%
                                 </span>
                               )}
                             </div>
