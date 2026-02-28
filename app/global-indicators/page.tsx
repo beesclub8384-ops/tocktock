@@ -179,7 +179,7 @@ const MODAL_CONTENTS: Record<string, ModalInfo> = {
       { icon: "◆", text: "4~5% 이상 → 주식 부담 구간", color: "#eab308" },
     ],
     sources: [
-      { name: "FRED — DGS10", url: "https://fred.stlouisfed.org/series/DGS10" },
+      { name: "Yahoo Finance — ^TNX", url: "https://finance.yahoo.com/quote/%5ETNX/" },
       { name: "TradingView", url: "https://www.tradingview.com/symbols/TVC-US10Y/" },
       { name: "Investing.com", url: "https://www.investing.com/rates-bonds/u.s.-10-year-bond-yield" },
     ],
@@ -248,7 +248,7 @@ const MODAL_CONTENTS: Record<string, ModalInfo> = {
     ],
     sources: [
       { name: "multpl.com", url: "https://www.multpl.com/s-p-500-earnings-yield" },
-      { name: "FRED — DGS10", url: "https://fred.stlouisfed.org/series/DGS10" },
+      { name: "Yahoo Finance — ^TNX", url: "https://finance.yahoo.com/quote/%5ETNX/" },
     ],
   },
   dxy: {

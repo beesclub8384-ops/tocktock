@@ -81,7 +81,7 @@ async function fetchYahoo(
 export async function GET() {
   const tasks: Promise<LiveIndicatorData>[] = [
     // FRED (8)
-    fetchSimpleFred("us10y", "DGS10"),
+    fetchYahoo("us10y", "^TNX", "%"),
     fetchSimpleFred("us02y", "DGS2"),
     fetchSimpleFred("t10y2y", "T10Y2Y"),
     fetchSimpleFred("tips", "DFII10"),
