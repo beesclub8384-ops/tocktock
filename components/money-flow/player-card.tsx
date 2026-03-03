@@ -52,6 +52,9 @@ function IndicatorRow({ indicator }: { indicator: Indicator }) {
       <div className="flex flex-col items-end gap-0.5 shrink-0">
         <span className="font-mono text-sm font-semibold">{indicator.value}</span>
         <ChangeIndicator change={indicator.change} />
+        {indicator.isManual && (
+          <span className="text-xs text-muted-foreground">수동 업데이트</span>
+        )}
       </div>
     </div>
   );

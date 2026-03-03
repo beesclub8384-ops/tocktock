@@ -84,8 +84,8 @@ async function cachedYahoo(
 // 지표 헬퍼
 // ---------------------------------------------------------------------------
 
-function ind(name: string, value: string, change: number, description: string): Indicator {
-  return { name, value, change, description };
+function ind(name: string, value: string, change: number, description: string, isManual?: boolean): Indicator {
+  return { name, value, change, description, ...(isManual && { isManual }) };
 }
 
 function fmt(n: number, decimals: number = 2): string {
@@ -130,6 +130,7 @@ async function fetchFedData(): Promise<PlayerData> {
         manualData.fomcDotPlot.value,
         manualData.fomcDotPlot.change,
         meta.indicatorMeta[2].description,
+        true,
       ),
     ],
   };
@@ -153,6 +154,7 @@ async function fetchInstitutionsData(): Promise<PlayerData> {
         manualData.filing13F.value,
         manualData.filing13F.change,
         meta.indicatorMeta[0].description,
+        true,
       ),
       ind(
         meta.indicatorMeta[1].name,
@@ -182,12 +184,14 @@ async function fetchHedgefundsData(): Promise<PlayerData> {
         manualData.shortInterest.value,
         manualData.shortInterest.change,
         meta.indicatorMeta[0].description,
+        true,
       ),
       ind(
         meta.indicatorMeta[1].name,
         manualData.cotReport.value,
         manualData.cotReport.change,
         meta.indicatorMeta[1].description,
+        true,
       ),
       ind(
         meta.indicatorMeta[2].name,
@@ -224,18 +228,21 @@ async function fetchBigtechData(): Promise<PlayerData> {
         manualData.earnings.value,
         manualData.earnings.change,
         meta.indicatorMeta[0].description,
+        true,
       ),
       ind(
         meta.indicatorMeta[1].name,
         manualData.capex.value,
         manualData.capex.change,
         meta.indicatorMeta[1].description,
+        true,
       ),
       ind(
         meta.indicatorMeta[2].name,
         manualData.buybacks.value,
         manualData.buybacks.change,
         meta.indicatorMeta[2].description,
+        true,
       ),
     ],
   };
@@ -277,6 +284,7 @@ async function fetchGovernmentData(): Promise<PlayerData> {
         manualData.regulationPolicy.value,
         manualData.regulationPolicy.change,
         meta.indicatorMeta[2].description,
+        true,
       ),
     ],
   };
@@ -288,9 +296,9 @@ async function fetchRegulatorsData(): Promise<PlayerData> {
   return {
     id: "regulators",
     indicators: [
-      ind(meta.indicatorMeta[0].name, manualData.financialRegulation.value, manualData.financialRegulation.change, meta.indicatorMeta[0].description),
-      ind(meta.indicatorMeta[1].name, manualData.antitrustProbe.value, manualData.antitrustProbe.change, meta.indicatorMeta[1].description),
-      ind(meta.indicatorMeta[2].name, manualData.fxIntervention.value, manualData.fxIntervention.change, meta.indicatorMeta[2].description),
+      ind(meta.indicatorMeta[0].name, manualData.financialRegulation.value, manualData.financialRegulation.change, meta.indicatorMeta[0].description, true),
+      ind(meta.indicatorMeta[1].name, manualData.antitrustProbe.value, manualData.antitrustProbe.change, meta.indicatorMeta[1].description, true),
+      ind(meta.indicatorMeta[2].name, manualData.fxIntervention.value, manualData.fxIntervention.change, meta.indicatorMeta[2].description, true),
     ],
   };
 }
@@ -325,6 +333,7 @@ async function fetchRetailData(): Promise<PlayerData> {
         manualData.retailFlow.value,
         manualData.retailFlow.change,
         meta.indicatorMeta[2].description,
+        true,
       ),
     ],
   };

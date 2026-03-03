@@ -22,6 +22,7 @@ export interface Indicator {
   value: string;
   change: number; // 양수 = 상승, 음수 = 하락, 0 = 보합
   description: string;
+  isManual?: boolean;
 }
 
 export interface Player {
@@ -240,13 +241,13 @@ export const FALLBACK_PLAYERS: PlayerData[] = [
     indicators: [
       { name: "기준금리 (Fed Funds Rate)", value: "4.50%", change: 0, description: "돈의 가격. 낮을수록 시장에 돈이 풀린다" },
       { name: "Fed 대차대조표", value: "$6.81T", change: -0.3, description: "중앙은행이 실제로 시중에 푼 돈의 총량" },
-      { name: "FOMC 점도표", value: "연내 2회 인하 전망", change: 1, description: "앞으로 금리를 어떻게 할지 보여주는 힌트" },
+      { name: "FOMC 점도표", value: "연내 2회 인하 전망", change: 1, description: "앞으로 금리를 어떻게 할지 보여주는 힌트", isManual: true },
     ],
   },
   {
     id: "institutions",
     indicators: [
-      { name: "13F 보고서", value: "빅테크 비중 확대", change: 1, description: "대형 기관들이 분기마다 '뭘 샀는지' SEC에 공개하는 서류" },
+      { name: "13F 보고서", value: "빅테크 비중 확대", change: 1, description: "대형 기관들이 분기마다 '뭘 샀는지' SEC에 공개하는 서류", isManual: true },
       { name: "SOFR 금리", value: "4.55%", change: -0.02, description: "금융기관끼리 돈을 빌려주는 금리. 급등하면 기관끼리도 불안하다는 뜻" },
       { name: "신용 스프레드", value: "1.12%p", change: -0.05, description: "국채와 회사채의 금리 차이. 벌어지면 불안, 좁으면 안심" },
     ],
@@ -254,17 +255,17 @@ export const FALLBACK_PLAYERS: PlayerData[] = [
   {
     id: "hedgefunds",
     indicators: [
-      { name: "공매도 비율 (Short Interest)", value: "S&P 500: 2.3%", change: 0.2, description: "특정 자산에 '떨어질 거다'라고 베팅한 비율" },
-      { name: "COT 보고서 (CFTC)", value: "투기적 롱 우위", change: 1, description: "선물 시장에서 투기 세력이 어느 방향에 베팅하는지 보여줌" },
+      { name: "공매도 비율 (Short Interest)", value: "S&P 500: 2.3%", change: 0.2, description: "특정 자산에 '떨어질 거다'라고 베팅한 비율", isManual: true },
+      { name: "COT 보고서 (CFTC)", value: "투기적 롱 우위", change: 1, description: "선물 시장에서 투기 세력이 어느 방향에 베팅하는지 보여줌", isManual: true },
       { name: "VIX 지수 (공포 지수)", value: "18.2", change: -2.1, description: "시장의 공포 수준. 30 이상이면 극도의 공포, 20 이하면 안정" },
     ],
   },
   {
     id: "bigtech",
     indicators: [
-      { name: "실적 발표 (Earnings)", value: "AI 관련 매출 급증", change: 1, description: "분기마다 나오는 매출, 이익, 전망. 주가를 직접 움직이는 핵심" },
-      { name: "설비투자 CAPEX", value: "$78B (전분기 대비 +15%)", change: 1, description: "기업이 공장, 연구소, 장비에 얼마를 쓰는지. 미래 투자 방향" },
-      { name: "자사주 매입", value: "$42B (분기)", change: 0.5, description: "기업이 자기 주식을 사들여 주가를 떠받치는 것" },
+      { name: "실적 발표 (Earnings)", value: "AI 관련 매출 급증", change: 1, description: "분기마다 나오는 매출, 이익, 전망. 주가를 직접 움직이는 핵심", isManual: true },
+      { name: "설비투자 CAPEX", value: "$78B (전분기 대비 +15%)", change: 1, description: "기업이 공장, 연구소, 장비에 얼마를 쓰는지. 미래 투자 방향", isManual: true },
+      { name: "자사주 매입", value: "$42B (분기)", change: 0.5, description: "기업이 자기 주식을 사들여 주가를 떠받치는 것", isManual: true },
     ],
   },
   {
@@ -272,15 +273,15 @@ export const FALLBACK_PLAYERS: PlayerData[] = [
     indicators: [
       { name: "재정적자 / 국가부채", value: "$35.9T (GDP 대비 123%)", change: 0.8, description: "정부가 번 것보다 얼마나 더 쓰는지. 적자가 크면 국채 발행 증가" },
       { name: "고용 지표 (Non-Farm Payroll)", value: "+175K (전월 대비)", change: -0.3, description: "매월 첫째 금요일 발표. 정부 정책의 결과가 가장 직접 나타남" },
-      { name: "규제·법안 동향", value: "관세 확대 기조", change: -1, description: "관세, 세금, 산업 규제 변화. 수천억 달러의 흐름을 바꿀 수 있음" },
+      { name: "규제·법안 동향", value: "관세 확대 기조", change: -1, description: "관세, 세금, 산업 규제 변화. 수천억 달러의 흐름을 바꿀 수 있음", isManual: true },
     ],
   },
   {
     id: "regulators",
     indicators: [
-      { name: "금융 규제 변화", value: "자본 요건 완화 논의", change: 1, description: "자본 요건, 공매도 규제 등 게임의 규칙을 바꾸는 결정" },
-      { name: "반독점 / 기업 조사", value: "빅테크 AI 반독점 조사 진행 중", change: -0.5, description: "대형 기업을 직접 견제하는 수단. 조사 소식만으로 주가 변동" },
-      { name: "외환 개입", value: "일본 BOJ 구두개입 주시", change: 0, description: "환율을 직접 건드리는 것. 수출입 기업 전체에 영향" },
+      { name: "금융 규제 변화", value: "자본 요건 완화 논의", change: 1, description: "자본 요건, 공매도 규제 등 게임의 규칙을 바꾸는 결정", isManual: true },
+      { name: "반독점 / 기업 조사", value: "빅테크 AI 반독점 조사 진행 중", change: -0.5, description: "대형 기업을 직접 견제하는 수단. 조사 소식만으로 주가 변동", isManual: true },
+      { name: "외환 개입", value: "일본 BOJ 구두개입 주시", change: 0, description: "환율을 직접 건드리는 것. 수출입 기업 전체에 영향", isManual: true },
     ],
   },
   {
@@ -288,7 +289,7 @@ export const FALLBACK_PLAYERS: PlayerData[] = [
     indicators: [
       { name: "소비자 신뢰지수", value: "98.3", change: -2.5, description: "개인들이 '경제가 좋다/나쁘다'고 느끼는 정도" },
       { name: "가계부채 비율", value: "GDP 대비 75.2%", change: 0.3, description: "개인들이 얼마나 빚을 지고 있는지. 추가 투자 여력의 척도" },
-      { name: "개인 매매 동향 (Retail Flow)", value: "AI·반도체 순매수 집중", change: 1, description: "개인들이 뭘 사고 파는지 보여주는 데이터" },
+      { name: "개인 매매 동향 (Retail Flow)", value: "AI·반도체 순매수 집중", change: 1, description: "개인들이 뭘 사고 파는지 보여주는 데이터", isManual: true },
     ],
   },
 ];
