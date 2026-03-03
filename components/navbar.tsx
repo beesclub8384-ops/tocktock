@@ -42,6 +42,9 @@ export function Navbar() {
             <Link href="/global-indicators">글로벌 지표</Link>
           </Button>
           <Button variant="ghost" size="sm" asChild>
+            <Link href="/money-flow">돈의 흐름</Link>
+          </Button>
+          <Button variant="ghost" size="sm" asChild>
             <Link href="/volume-explosion">거래대금 폭발</Link>
           </Button>
           <Button variant="ghost" size="sm" asChild>
