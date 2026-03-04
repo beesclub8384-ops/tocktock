@@ -245,7 +245,7 @@ function toStockVolumes(
     tradingValue: parseNum(s.accumulatedTradingValue) * 1_000_000, // 백만원 → 원
     closePrice: parseNum(s.closePrice),
     changeRate: parseNum(s.fluctuationsRatio), // 이미 부호 포함 (e.g. "-11.13")
-    marketCap: parseNum(s.marketValue) * 1_000_000, // 백만원 → 원
+    marketCap: parseNum(s.marketValue) * 100_000_000, // 억원 → 원
     market,
   }));
 }

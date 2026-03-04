@@ -149,7 +149,7 @@ function toStockVolumes(
     tradingValue: parseNum(s.accumulatedTradingValue) * 1_000_000,
     closePrice: parseNum(s.closePrice),
     changeRate: parseNum(s.fluctuationsRatio),
-    marketCap: parseNum(s.marketValue) * 1_000_000,
+    marketCap: parseNum(s.marketValue) * 100_000_000, // 억원 → 원
     market,
   }));
 }
