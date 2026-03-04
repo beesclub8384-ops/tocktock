@@ -65,14 +65,15 @@ const NAVER_HEADERS = {
 };
 
 // --- 타입 ---
+/** 네이버 금융 시가총액 API 응답 — 정규장(09:00~15:30) 데이터만 포함, 시간외 거래 미포함 */
 interface NaverStockRaw {
   itemCode: string;
   stockName: string;
-  closePrice: string;
-  fluctuationsRatio: string;
+  closePrice: string; // 정규장 종가
+  fluctuationsRatio: string; // 정규장 등락률
   compareToPreviousPrice: { code: string };
-  accumulatedTradingValue: string;
-  marketValue: string; // 시가총액 (백만원 단위)
+  accumulatedTradingValue: string; // 정규장 누적 거래대금 (백만원 단위)
+  marketValue: string; // 시가총액 (억원 단위)
   localTradedAt: string;
 }
 
@@ -132,6 +133,8 @@ export interface VolumeExplosionResponse {
     isLimitUp: boolean; // D일 상한가(29.5%+) 여부
     isRepeated: boolean; // 10거래일 내 반복 폭발 여부
     repeatedDates: string[]; // 반복 폭발 날짜 목록
+    dPlusOneClosePrice: number; // D+1일 종가
+    dPlusOneChangeRate: number; // D+1일 등락률
     market: string;
     dDate: string;
   }[];
@@ -807,6 +810,8 @@ export async function GET() {
                 isLimitUp: s.changeRate >= 29.5,
                 isRepeated: repeatedDates.length >= 2,
                 repeatedDates,
+                dPlusOneClosePrice: todayStock.closePrice,
+                dPlusOneChangeRate: todayStock.changeRate,
                 market: s.market,
                 dDate: prevDate,
               };

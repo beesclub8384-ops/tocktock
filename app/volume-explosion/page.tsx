@@ -33,6 +33,8 @@ interface SuspectedStock {
   isLimitUp: boolean;
   isRepeated: boolean;
   repeatedDates: string[];
+  dPlusOneClosePrice: number;
+  dPlusOneChangeRate: number;
   market: string;
   dDate: string;
 }
@@ -363,7 +365,7 @@ export default function VolumeExplosionPage() {
 
   // 장 마감 후 + 폭발 종목 있을 때 분석 fetch
   useEffect(() => {
-    if (!data || data.marketOpen || data.explosionStocks.length === 0) return;
+    if (!data || data.marketOpen || data.suspectedStocks.length === 0) return;
     setAnalysisLoading(true);
     fetch("/api/volume-explosion/analysis")
       .then((r) => r.json())
@@ -559,6 +561,25 @@ export default function VolumeExplosionPage() {
                                 (D일)
                               </span>
                             </div>
+                            {s.dPlusOneClosePrice > 0 && (
+                              <div className="mt-1">
+                                <span
+                                  className="text-xs text-muted-foreground"
+                                  style={{ fontFamily: "'DM Mono', monospace" }}
+                                >
+                                  {s.dPlusOneClosePrice.toLocaleString()}원
+                                </span>
+                                <span
+                                  className={`text-xs font-medium ml-1 ${s.dPlusOneChangeRate >= 0 ? "text-red-400/80" : "text-blue-400/80"}`}
+                                >
+                                  {s.dPlusOneChangeRate >= 0 ? "+" : ""}
+                                  {s.dPlusOneChangeRate.toFixed(2)}%
+                                </span>
+                                <span className="text-muted-foreground/60 text-[10px] ml-1">
+                                  (D+1)
+                                </span>
+                              </div>
+                            )}
                           </div>
                         </div>
 
@@ -617,11 +638,11 @@ export default function VolumeExplosionPage() {
                         장 마감 후 분석이 제공됩니다
                       </p>
                       <p className="text-muted-foreground/60 text-xs">
-                        15:30 이후 폭발 종목의 공통 테마·리스크를 분석합니다
+                        15:30 이후 세력의심 종목의 패턴·리스크를 분석합니다
                       </p>
                     </div>
                   </div>
-                ) : data.explosionStocks.length === 0 ? (
+                ) : data.suspectedStocks.length === 0 ? (
                   <div className="flex items-center justify-center h-full">
                     <p className="text-muted-foreground text-sm">
                       분석할 종목이 없습니다
