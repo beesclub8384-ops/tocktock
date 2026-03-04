@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { ChevronDown, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { useState, useEffect } from "react";
+import { ChevronDown, TrendingUp, TrendingDown, Minus, HelpCircle, X } from "lucide-react";
 import {
   Card,
   CardHeader,
@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import { type Player, type Indicator, PLAYER_COLORS } from "@/lib/money-flow-data";
+import { MONEY_FLOW_GUIDES } from "@/lib/money-flow-guides";
 
 function ChangeIndicator({ change }: { change: number }) {
   if (change > 0) {
@@ -42,21 +43,90 @@ function ChangeIndicator({ change }: { change: number }) {
   );
 }
 
-function IndicatorRow({ indicator }: { indicator: Indicator }) {
+function IndicatorGuideModal({
+  name,
+  onClose,
+}: {
+  name: string;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, []);
+
+  const guide = MONEY_FLOW_GUIDES[name] ?? "미작성";
+
   return (
-    <div className="flex items-start justify-between gap-3 py-2">
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium">{indicator.name}</p>
-        <p className="text-xs text-muted-foreground">{indicator.description}</p>
-      </div>
-      <div className="flex flex-col items-end gap-0.5 shrink-0">
-        <span className="font-mono text-sm font-semibold">{indicator.value}</span>
-        <ChangeIndicator change={indicator.change} />
-        {indicator.isManual && (
-          <span className="text-xs text-muted-foreground">수동 업데이트</span>
-        )}
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="w-full max-w-lg overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
+        <div className="relative max-h-[85vh] overflow-y-auto p-6">
+          <button
+            onClick={onClose}
+            className="absolute right-4 top-4 rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          >
+            <X size={20} />
+          </button>
+
+          <h2 className="mb-4 text-lg font-bold">{name} 보는 법</h2>
+          <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-line">
+            {guide}
+          </p>
+        </div>
       </div>
     </div>
+  );
+}
+
+function IndicatorRow({ indicator }: { indicator: Indicator }) {
+  const [guideOpen, setGuideOpen] = useState(false);
+
+  return (
+    <>
+      <div className="flex items-start justify-between gap-3 py-2">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5">
+            <p className="text-sm font-medium">{indicator.name}</p>
+            <button
+              onClick={() => setGuideOpen(true)}
+              className="guide-btn inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[10px] transition-all shrink-0"
+            >
+              <HelpCircle size={11} />
+              보는 법
+            </button>
+          </div>
+          <p className="text-xs text-muted-foreground">{indicator.description}</p>
+        </div>
+        <div className="flex flex-col items-end gap-0.5 shrink-0">
+          <span className="font-mono text-sm font-semibold">{indicator.value}</span>
+          <ChangeIndicator change={indicator.change} />
+          {indicator.isManual && (
+            <span className="text-xs text-muted-foreground">수동 업데이트</span>
+          )}
+        </div>
+      </div>
+      {guideOpen && (
+        <IndicatorGuideModal
+          name={indicator.name}
+          onClose={() => setGuideOpen(false)}
+        />
+      )}
+    </>
   );
 }
 
