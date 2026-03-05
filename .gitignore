@@ -36,6 +36,10 @@ yarn-error.log*
 # vercel
 .vercel
 
+# large data files (regenerate with: npm run collect-data)
+data/krx-history/krx-daily-all.json
+data/krx-history/.collect-checkpoint.json
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

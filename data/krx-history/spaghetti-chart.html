@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>세력진입 의심 패턴 분석 — TockTock</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Malgun Gothic', -apple-system, sans-serif;
+    background: #0a0a0a;
+    color: #e5e5e5;
+    padding: 24px;
+  }
+  h1 { font-size: 1.4rem; font-weight: 700; margin-bottom: 4px; }
+  .subtitle { font-size: 0.8rem; color: #888; margin-bottom: 20px; }
+  #chart { width: 100%; max-width: 1200px; margin: 0 auto; }
+  .tooltip {
+    position: absolute;
+    pointer-events: none;
+    background: rgba(20, 20, 20, 0.95);
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 12px;
+    line-height: 1.6;
+    color: #ddd;
+    display: none;
+    z-index: 100;
+    max-width: 280px;
+  }
+  .tooltip .stock-name { font-weight: 700; font-size: 13px; color: #fff; }
+  .tooltip .stock-code { color: #888; font-size: 11px; }
+  .legend {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #aaa;
+  }
+  .legend-swatch {
+    width: 24px;
+    height: 3px;
+    border-radius: 2px;
+  }
+  .legend-swatch.thick { height: 4px; }
+  .legend-swatch.dashed {
+    background: repeating-linear-gradient(90deg, currentColor 0, currentColor 4px, transparent 4px, transparent 8px);
+    height: 3px;
+  }
+  .controls {
+    display: flex; gap: 10px; justify-content: center; margin-bottom: 12px; flex-wrap: wrap;
+  }
+  .controls button {
+    background: #1a1a1a; border: 1px solid #333; color: #aaa;
+    padding: 5px 14px; border-radius: 6px; cursor: pointer; font-size: 12px;
+    transition: all 0.15s;
+  }
+  .controls button:hover { background: #222; color: #fff; }
+  .controls button.active { background: #333; color: #fff; border-color: #555; }
+</style>
+</head>
+<body>
+<div style="max-width:1200px;margin:0 auto;">
+  <h1>세력진입 의심 패턴 후 15거래일 추적</h1>
+  <p class="subtitle" id="subtitle">D+1 종가 = 0% 기준 | 개별 종목에 마우스를 올려 상세 확인</p>
+
+  <div class="controls">
+    <button class="active" data-show="all">전체</button>
+    <button data-show="open">시가</button>
+    <button data-show="close">종가</button>
+    <button data-show="high">고가</button>
+    <button data-show="low">저가</button>
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><div class="legend-swatch" style="background:#555;border:1px solid #666;"></div>시가 (개별)</div>
+    <div class="legend-item"><div class="legend-swatch" style="background:#DC2626;"></div>종가 (개별)</div>
+    <div class="legend-item"><div class="legend-swatch" style="background:#16A34A;"></div>고가 (개별)</div>
+    <div class="legend-item"><div class="legend-swatch" style="background:#2563EB;"></div>저가 (개별)</div>
+    <div class="legend-item"><div class="legend-swatch thick" style="background:#DC2626;"></div>평균 (굵은선)</div>
+    <div class="legend-item"><div class="legend-swatch dashed" style="color:#DC2626;"></div>중앙값 (점선)</div>
+  </div>
+
+  <div id="chart"></div>
+</div>
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+// Try relative path first (standalone), then API path (Next.js)
+const paths = ['./institutional-entry-analysis.json', '/api/volume-explosion/pattern-analysis'];
+(async () => {
+  let data = null;
+  for (const p of paths) {
+    try {
+      const r = await fetch(p);
+      if (r.ok) { data = await r.json(); break; }
+    } catch {}
+  }
+  if (!data || !data.events) {
+    document.getElementById('chart').innerHTML = '<p style="color:#f66;text-align:center;padding:40px;">데이터를 불러올 수 없습니다.</p>';
+    return;
+  }
+  renderChart(data);
+})();
+
+function renderChart(data) {
+  const { events, stats } = data;
+  const n = events.length;
+  document.getElementById('subtitle').textContent =
+    `D+1 종가 = 0% 기준 | n=${n.toLocaleString()}건 | ${data.dateRange.start}~${data.dateRange.end} | 마우스로 개별 종목 확인`;
+
+  const margin = { top: 30, right: 30, bottom: 50, left: 60 };
+  const container = document.getElementById('chart');
+  const width = container.clientWidth;
+  const height = Math.min(600, width * 0.55);
+  const innerW = width - margin.left - margin.right;
+  const innerH = height - margin.top - margin.bottom;
+
+  const COLORS = { open: '#555555', close: '#DC2626', high: '#16A34A', low: '#2563EB' };
+  const TYPES = ['open', 'high', 'low', 'close'];
+
+  const days = d3.range(2, 17);
+
+  // Y domain from stats (avoid scanning all events for performance)
+  const statVals = [...stats.mean, ...stats.median].flatMap(s => [s.open, s.high, s.low, s.close]);
+  // Sample 200 events for Y range
+  const sampleSize = Math.min(200, events.length);
+  const step = Math.max(1, Math.floor(events.length / sampleSize));
+  for (let i = 0; i < events.length; i += step) {
+    const pe = events[i].postExplosion;
+    for (const d of pe) {
+      if (d.day >= 2 && d.day <= 16) {
+        statVals.push(d.open, d.high, d.low, d.close);
+      }
+    }
+  }
+  // Clamp Y to ±60% to avoid extreme outliers stretching the chart
+  const rawMin = d3.min(statVals);
+  const rawMax = d3.max(statVals);
+  const yMin = Math.max(rawMin - 2, -60);
+  const yMax = Math.min(rawMax + 2, 60);
+
+  const x = d3.scaleLinear().domain([2, 16]).range([0, innerW]);
+  const y = d3.scaleLinear().domain([yMin, yMax]).range([innerH, 0]);
+
+  const svg = d3.select('#chart')
+    .append('svg')
+    .attr('width', width)
+    .attr('height', height);
+
+  const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+  // Grid
+  g.append('g').selectAll('line')
+    .data(y.ticks(10))
+    .join('line')
+    .attr('x1', 0).attr('x2', innerW)
+    .attr('y1', d => y(d)).attr('y2', d => y(d))
+    .attr('stroke', '#1a1a1a').attr('stroke-width', 1);
+
+  // Zero line
+  g.append('line')
+    .attr('x1', 0).attr('x2', innerW)
+    .attr('y1', y(0)).attr('y2', y(0))
+    .attr('stroke', '#555').attr('stroke-width', 1.5).attr('stroke-dasharray', '4,3');
+
+  // Axes
+  g.append('g')
+    .attr('transform', `translate(0,${innerH})`)
+    .call(d3.axisBottom(x).tickValues(days).tickFormat(d => `D+${d}`))
+    .call(g => g.select('.domain').attr('stroke', '#333'))
+    .call(g => g.selectAll('.tick text').attr('fill', '#888').attr('font-size', 11))
+    .call(g => g.selectAll('.tick line').attr('stroke', '#333'));
+
+  g.append('g')
+    .call(d3.axisLeft(y).ticks(10).tickFormat(d => d + '%'))
+    .call(g => g.select('.domain').attr('stroke', '#333'))
+    .call(g => g.selectAll('.tick text').attr('fill', '#888').attr('font-size', 11))
+    .call(g => g.selectAll('.tick line').attr('stroke', '#333'));
+
+  const lineGen = (type) => d3.line()
+    .defined(d => d[type] !== undefined)
+    .x(d => x(d.day))
+    .y(d => y(Math.max(yMin, Math.min(yMax, d[type]))))
+    .curve(d3.curveMonotoneX);
+
+  // Individual lines — for large n, render as a single <path> per type using Canvas-like batching
+  const individualAlpha = Math.max(0.01, Math.min(0.15, 8 / n));
+  const individualGroup = g.append('g').attr('class', 'individual-lines');
+
+  // For performance with many events, draw every Nth event
+  const drawStep = n > 500 ? Math.ceil(n / 500) : 1;
+
+  const casePathData = []; // store for hover
+  events.forEach((ev, ci) => {
+    const peMap = new Map(ev.postExplosion.map(d => [d.day, d]));
+    const trackingDays = days.map(day => peMap.get(day)).filter(Boolean);
+    if (trackingDays.length < 10) return;
+    casePathData.push({ ev, ci, trackingDays });
+
+    if (ci % drawStep !== 0) return;
+
+    TYPES.forEach(type => {
+      individualGroup.append('path')
+        .attr('d', lineGen(type)(trackingDays))
+        .attr('fill', 'none')
+        .attr('stroke', COLORS[type])
+        .attr('stroke-width', 0.5)
+        .attr('opacity', individualAlpha)
+        .attr('class', `line-${type} individual ind-${ci}`);
+    });
+  });
+
+  // Mean lines
+  TYPES.forEach(type => {
+    g.append('path')
+      .attr('d', lineGen(type)(stats.mean))
+      .attr('fill', 'none')
+      .attr('stroke', COLORS[type])
+      .attr('stroke-width', 3)
+      .attr('opacity', 0.95)
+      .attr('class', `line-${type} mean-line`);
+  });
+
+  // Median lines
+  TYPES.forEach(type => {
+    g.append('path')
+      .attr('d', lineGen(type)(stats.median))
+      .attr('fill', 'none')
+      .attr('stroke', COLORS[type])
+      .attr('stroke-width', 2.5)
+      .attr('stroke-dasharray', '6,4')
+      .attr('opacity', 0.7)
+      .attr('class', `line-${type} median-line`);
+  });
+
+  // Tooltip via Voronoi
+  const tooltip = d3.select('#tooltip');
+
+  // Build flat points for nearest-neighbor search
+  const flatPoints = [];
+  casePathData.forEach(({ ev, ci, trackingDays }) => {
+    for (const d of trackingDays) {
+      flatPoints.push({ x: x(d.day), y: y(d.close), ev, ci });
+    }
+  });
+
+  // Overlay rect for mouse events
+  const overlay = g.append('rect')
+    .attr('width', innerW).attr('height', innerH)
+    .attr('fill', 'transparent')
+    .style('cursor', 'crosshair');
+
+  let highlightGroup = g.append('g').attr('class', 'highlight');
+
+  overlay.on('mousemove', (event) => {
+    const [mx, my] = d3.pointer(event);
+    // Find nearest point
+    let minDist = Infinity, nearest = null;
+    for (const p of flatPoints) {
+      const dist = (p.x - mx) ** 2 + (p.y - my) ** 2;
+      if (dist < minDist) { minDist = dist; nearest = p; }
+    }
+    if (!nearest || minDist > 2000) {
+      highlightGroup.selectAll('*').remove();
+      tooltip.style('display', 'none');
+      return;
+    }
+
+    const ev = nearest.ev;
+    const peMap = new Map(ev.postExplosion.map(d => [d.day, d]));
+    const trackingDays = days.map(day => peMap.get(day)).filter(Boolean);
+
+    highlightGroup.selectAll('*').remove();
+    TYPES.forEach(type => {
+      highlightGroup.append('path')
+        .attr('d', lineGen(type)(trackingDays))
+        .attr('fill', 'none')
+        .attr('stroke', COLORS[type])
+        .attr('stroke-width', 2.5)
+        .attr('opacity', 0.9);
+    });
+
+    const lastDay = trackingDays[trackingDays.length - 1];
+    const maxHigh = Math.max(...trackingDays.map(t => t.high));
+    const minLow = Math.min(...trackingDays.map(t => t.low));
+    const dDate = ev.dDate;
+    const m = parseInt(dDate.substring(4, 6));
+    const d = parseInt(dDate.substring(6, 8));
+
+    tooltip.style('display', 'block').html(`
+      <div class="stock-name">${ev.name}</div>
+      <div class="stock-code">${ev.code} · ${ev.market} · D일: ${dDate.slice(0,4)}.${m}.${d}</div>
+      <hr style="border-color:#333;margin:6px 0;">
+      <div>D일 등락률: <span style="color:${ev.dDayChangeRate > 0 ? '#f66' : '#6af'};">${ev.dDayChangeRate > 0 ? '+' : ''}${ev.dDayChangeRate}%</span></div>
+      <div>거래대금 급감: ${ev.dropRatio}%</div>
+      <hr style="border-color:#333;margin:6px 0;">
+      <div>D+16 종가: <span style="color:${lastDay.close > 0 ? '#f66' : '#6af'};">${lastDay.close > 0 ? '+' : ''}${lastDay.close}%</span></div>
+      <div>최고가(고가): <span style="color:#4ade80;">+${maxHigh.toFixed(1)}%</span></div>
+      <div>최저가(저가): <span style="color:#60a5fa;">${minLow.toFixed(1)}%</span></div>
+    `);
+
+    const tooltipEl = document.getElementById('tooltip');
+    const tw = tooltipEl.offsetWidth;
+    const pageX = event.pageX, pageY = event.pageY;
+    const leftPos = pageX + 15 + tw > window.innerWidth ? pageX - tw - 15 : pageX + 15;
+    tooltip.style('left', leftPos + 'px').style('top', (pageY - 10) + 'px');
+  });
+
+  overlay.on('mouseleave', () => {
+    highlightGroup.selectAll('*').remove();
+    tooltip.style('display', 'none');
+  });
+
+  // Filter controls
+  document.querySelectorAll('.controls button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.controls button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const filter = btn.dataset.show;
+      TYPES.forEach(type => {
+        const show = filter === 'all' || filter === type;
+        svg.selectAll(`.line-${type}`).attr('display', show ? null : 'none');
+      });
+    });
+  });
+
+  // Info
+  svg.append('text')
+    .attr('x', width - margin.right)
+    .attr('y', height - 5)
+    .attr('text-anchor', 'end')
+    .attr('fill', '#555')
+    .attr('font-size', 10)
+    .text(`n=${n.toLocaleString()}건 · ${data.dateRange.start}~${data.dateRange.end} · TockTock`);
+}
+</script>
+</body>
+</html>

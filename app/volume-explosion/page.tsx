@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, HelpCircle, Sparkles } from "lucide-react";
+import { X, HelpCircle, Sparkles, BarChart2 } from "lucide-react";
+import Link from "next/link";
 
 interface YesterdayStock {
   code: string;
@@ -419,13 +420,22 @@ export default function VolumeExplosionPage() {
             어제 조용했던 종목(거래대금 300억 이하) 중 오늘 거래대금이 950억
             이상 터진 종목을 찾습니다. 데이터 출처: 네이버 금융
           </p>
-          <button
-            onClick={() => setShowGuide(true)}
-            className="guide-btn mt-3 inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs transition-all"
-          >
-            <HelpCircle size={13} />
-            거래대금 폭발 보는 법
-          </button>
+          <div className="flex items-center gap-2 mt-3">
+            <button
+              onClick={() => setShowGuide(true)}
+              className="guide-btn inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs transition-all"
+            >
+              <HelpCircle size={13} />
+              거래대금 폭발 보는 법
+            </button>
+            <Link
+              href="/volume-explosion/pattern-analysis"
+              className="inline-flex items-center gap-1 rounded-md border border-amber-500/30 bg-amber-500/5 px-2.5 py-1 text-xs text-amber-400 transition-all hover:bg-amber-500/10"
+            >
+              <BarChart2 size={13} />
+              세력진입 패턴 분석
+            </Link>
+          </div>
         </header>
 
         {showGuide && <VolumeGuideModal onClose={() => setShowGuide(false)} />}
