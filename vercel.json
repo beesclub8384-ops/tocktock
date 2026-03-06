@@ -11,6 +11,14 @@
     {
       "path": "/api/cron/virtual-trading-trade",
       "schedule": "5 0 * * 1-5"
+    },
+    {
+      "path": "/api/cron/ai-trading-scan",
+      "schedule": "0 7 * * 1-5"
+    },
+    {
+      "path": "/api/cron/ai-trading-trade",
+      "schedule": "5 0 * * 1-5"
     }
   ]
 }

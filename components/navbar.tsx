@@ -51,6 +51,9 @@ export function Navbar() {
             <Link href="/virtual-trading">자동매매</Link>
           </Button>
           <Button variant="ghost" size="sm" asChild>
+            <Link href="/ai-trading">AI 자동매매</Link>
+          </Button>
+          <Button variant="ghost" size="sm" asChild>
             <Link href="/stock/TSLA">차트</Link>
           </Button>
         </nav>
