@@ -1,5 +1,7 @@
 import type { CreditBalanceItem } from "@/lib/types/credit-balance";
 
+// ── 공공데이터포털 API ──
+
 interface ApiItem {
   basDt?: string;
   crdTrFingWhl?: string;
@@ -33,6 +35,11 @@ function toEok(val?: string): number {
   const n = Number(val.replace(/,/g, ""));
   if (isNaN(n)) return 0;
   return Math.round(n / 100_000_000);
+}
+
+/** 백만원 → 억원 변환 (FreeSIS 데이터용) */
+function millionsToEok(val: number): number {
+  return Math.round(val / 100);
 }
 
 export interface FetchCreditBalanceOptions {
@@ -88,6 +95,73 @@ export async function fetchCreditBalanceData(
       kosdaqLoan: toEok(item.crdTrFingKosdaq),
       totalShortSell: toEok(item.crdTrLndrWhl),
       depositLoan: toEok(item.dpsgScrtMogFing),
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+// ── FreeSIS 직접 조회 (최신 데이터 보완용) ──
+
+interface FreeSISItem {
+  TMPV1?: string; // 날짜 YYYYMMDD
+  TMPV2?: string; // 신용거래융자 전체 (백만원)
+  TMPV3?: string; // 유가증권 융자 (백만원)
+  TMPV4?: string; // 코스닥 융자 (백만원)
+}
+
+interface FreeSISResponse {
+  ds1?: FreeSISItem[];
+}
+
+/**
+ * FreeSIS(금융투자협회)에서 최근 신용융자잔고 데이터를 직접 조회합니다.
+ * 공공데이터포털보다 1일 빠르게 반영됩니다.
+ */
+export async function fetchFreeSISRecentData(
+  days: number = 14
+): Promise<CreditBalanceItem[]> {
+  const now = new Date();
+  const start = new Date(now);
+  start.setDate(start.getDate() - days);
+
+  const fmt = (d: Date) =>
+    `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
+
+  const res = await fetch("https://freesis.kofia.or.kr/meta/getMetaDataList.do", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json;charset=UTF-8",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({
+      dmSearch: {
+        tmpV40: "1000000", // 백만원 단위
+        tmpV41: "1",
+        tmpV1: "D",        // 일간
+        tmpV45: fmt(start),
+        tmpV46: fmt(now),
+        OBJ_NM: "STATSCU0100000070BO",
+      },
+    }),
+    next: { revalidate: 3600 },
+  });
+
+  if (!res.ok) {
+    console.warn(`FreeSIS API responded with ${res.status}`);
+    return [];
+  }
+
+  const json: FreeSISResponse = await res.json();
+  const list = json?.ds1 ?? [];
+
+  return list
+    .filter((item) => item.TMPV1?.match(/^\d{8}$/) && Number(item.TMPV2) > 0)
+    .map((item) => ({
+      date: formatDate(item.TMPV1!),
+      totalLoan: millionsToEok(Number(item.TMPV2 || 0)),
+      kospiLoan: millionsToEok(Number(item.TMPV3 || 0)),
+      kosdaqLoan: millionsToEok(Number(item.TMPV4 || 0)),
+      totalShortSell: 0,
+      depositLoan: 0,
     }))
     .sort((a, b) => a.date.localeCompare(b.date));
 }

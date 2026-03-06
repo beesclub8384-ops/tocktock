@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import YahooFinance from "yahoo-finance2";
-import { fetchCreditBalanceData } from "@/lib/fetch-credit-balance";
+import { fetchCreditBalanceData, fetchFreeSISRecentData } from "@/lib/fetch-credit-balance";
 import type { CreditBalanceItem } from "@/lib/types/credit-balance";
 
 const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
@@ -68,22 +68,32 @@ export async function GET() {
     // 1) FreeSIS 히스토리컬 데이터 (1998-07 ~ 2021-11-08)
     const freesisData = loadFreesisCSV();
 
-    // 2) 공공데이터포털 API 데이터 (2021-11-09 ~ 현재) + KOSPI 지수
-    const [apiData, kospiIndex] = await Promise.all([
+    // 2) 공공데이터포털 API (2021-11-09~) + FreeSIS 최신 + KOSPI 지수
+    const [apiData, freesisRecent, kospiIndex] = await Promise.all([
       fetchCreditBalanceData({
         beginBasDt: "20211101",
         numOfRows: 1200,
       }),
+      fetchFreeSISRecentData(14).catch((err) => {
+        console.warn("FreeSIS recent fetch failed:", err);
+        return [] as CreditBalanceItem[];
+      }),
       fetchKospiIndex(),
     ]);
 
-    // 3) 병합: Map으로 날짜 중복 시 API 데이터 우선
+    // 3) 병합: FreeSIS CSV → 공공데이터포털 → FreeSIS 최신 (후순위가 우선)
     const merged = new Map<string, CreditBalanceItem>();
     for (const item of freesisData) {
       merged.set(item.date, item);
     }
     for (const item of apiData) {
-      merged.set(item.date, item); // API 데이터가 덮어씀
+      merged.set(item.date, item);
+    }
+    // FreeSIS 최신 데이터: 공공데이터포털에 없는 날짜만 보완
+    for (const item of freesisRecent) {
+      if (!merged.has(item.date)) {
+        merged.set(item.date, item);
+      }
     }
 
     // 4) 날짜 오름차순 정렬

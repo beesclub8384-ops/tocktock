@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import YahooFinance from "yahoo-finance2";
-import { fetchCreditBalanceData } from "@/lib/fetch-credit-balance";
+import { fetchCreditBalanceData, fetchFreeSISRecentData } from "@/lib/fetch-credit-balance";
+import type { CreditBalanceItem } from "@/lib/types/credit-balance";
 
 const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
 
@@ -45,14 +46,29 @@ export interface CreditVsIndexItem {
 
 export async function GET() {
   try {
-    const [creditData, kospiMap, kosdaqMap] = await Promise.all([
+    const [apiData, freesisRecent, kospiMap, kosdaqMap] = await Promise.all([
       fetchCreditBalanceData({
         beginBasDt: DATA_START.replace(/-/g, ""),
         numOfRows: 1200,
       }),
+      fetchFreeSISRecentData(14).catch(() => [] as CreditBalanceItem[]),
       fetchIndexClose("^KS11"),
       fetchIndexClose("^KQ11"),
     ]);
+
+    // 병합: 공공데이터포털 + FreeSIS 최신 (미반영분만 보완)
+    const creditMap = new Map<string, CreditBalanceItem>();
+    for (const item of apiData) {
+      creditMap.set(item.date, item);
+    }
+    for (const item of freesisRecent) {
+      if (!creditMap.has(item.date)) {
+        creditMap.set(item.date, item);
+      }
+    }
+    const creditData = [...creditMap.values()].sort((a, b) =>
+      a.date.localeCompare(b.date)
+    );
 
     const data: CreditVsIndexItem[] = creditData
       .filter((c) => kospiMap.has(c.date) && kosdaqMap.has(c.date))

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import YahooFinance from "yahoo-finance2";
-import { fetchCreditBalanceData } from "@/lib/fetch-credit-balance";
+import { fetchCreditBalanceData, fetchFreeSISRecentData } from "@/lib/fetch-credit-balance";
 import { fetchMarketCap } from "@/lib/fetch-market-index";
 import type {
   CreditBalanceItem,
@@ -116,19 +116,27 @@ async function getMergedCreditMap(): Promise<Map<string, number>> {
   // 1) FreeSIS CSV
   const csvData = loadFreesisCreditCSV();
 
-  // 2) 공공데이터포털 API
-  const apiData = await fetchCreditBalanceData({
-    beginBasDt: "20211101",
-    numOfRows: 1200,
-  });
+  // 2) 공공데이터포털 API + FreeSIS 최신
+  const [apiData, freesisRecent] = await Promise.all([
+    fetchCreditBalanceData({
+      beginBasDt: "20211101",
+      numOfRows: 1200,
+    }),
+    fetchFreeSISRecentData(14).catch(() => [] as CreditBalanceItem[]),
+  ]);
 
-  // 3) 병합: CSV 기반, API 덮어씀
+  // 3) 병합: CSV → 공공데이터포털 → FreeSIS 최신 (미반영분만 보완)
   const map = new Map<string, number>();
   for (const item of csvData) {
     map.set(item.date, item.totalLoan);
   }
   for (const item of apiData) {
     map.set(item.date, item.totalLoan);
+  }
+  for (const item of freesisRecent) {
+    if (!map.has(item.date)) {
+      map.set(item.date, item.totalLoan);
+    }
   }
 
   return map;
