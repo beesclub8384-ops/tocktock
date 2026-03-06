@@ -3,6 +3,14 @@
     {
       "path": "/api/cron/refresh-credit",
       "schedule": "0 1 * * 1-5"
+    },
+    {
+      "path": "/api/cron/virtual-trading-scan",
+      "schedule": "0 7 * * 1-5"
+    },
+    {
+      "path": "/api/cron/virtual-trading-trade",
+      "schedule": "5 0 * * 1-5"
     }
   ]
 }

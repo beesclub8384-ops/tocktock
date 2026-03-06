@@ -48,6 +48,9 @@ export function Navbar() {
             <Link href="/volume-explosion">거래대금 폭발</Link>
           </Button>
           <Button variant="ghost" size="sm" asChild>
+            <Link href="/virtual-trading">자동매매</Link>
+          </Button>
+          <Button variant="ghost" size="sm" asChild>
             <Link href="/stock/TSLA">차트</Link>
           </Button>
         </nav>
