@@ -93,6 +93,45 @@ function IndicatorGuideModal({
   );
 }
 
+const STALE_THRESHOLD_DAYS = 90;
+
+function isStale(updatedAt?: string): boolean {
+  if (!updatedAt) return false;
+  const updated = new Date(updatedAt);
+  const now = new Date();
+  const diffMs = now.getTime() - updated.getTime();
+  return diffMs > STALE_THRESHOLD_DAYS * 24 * 60 * 60 * 1000;
+}
+
+function ManualBadge({ indicator }: { indicator: Indicator }) {
+  if (!indicator.isManual) return null;
+
+  const stale = isStale(indicator.updatedAt);
+  const tooltipText = indicator.updatedAt
+    ? `마지막 업데이트: ${indicator.updatedAt} · ${indicator.name}는 분기별 수동 업데이트가 필요합니다`
+    : `${indicator.name}는 수동 업데이트 항목입니다`;
+
+  if (stale) {
+    return (
+      <span
+        className="inline-flex items-center gap-0.5 rounded-full bg-orange-500/15 px-1.5 py-0.5 text-[10px] font-medium text-orange-400 cursor-help"
+        title={tooltipText}
+      >
+        ⚠️ 업데이트 필요
+      </span>
+    );
+  }
+
+  return (
+    <span
+      className="inline-flex items-center rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground cursor-help"
+      title={tooltipText}
+    >
+      수동 데이터
+    </span>
+  );
+}
+
 function IndicatorRow({ indicator }: { indicator: Indicator }) {
   const [guideOpen, setGuideOpen] = useState(false);
 
@@ -115,9 +154,7 @@ function IndicatorRow({ indicator }: { indicator: Indicator }) {
         <div className="flex flex-col items-end gap-0.5 shrink-0">
           <span className="font-mono text-sm font-semibold">{indicator.value}</span>
           <ChangeIndicator change={indicator.change} />
-          {indicator.isManual && (
-            <span className="text-xs text-muted-foreground">수동 업데이트</span>
-          )}
+          <ManualBadge indicator={indicator} />
         </div>
       </div>
       {guideOpen && (

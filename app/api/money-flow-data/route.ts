@@ -84,8 +84,8 @@ async function cachedYahoo(
 // 지표 헬퍼
 // ---------------------------------------------------------------------------
 
-function ind(name: string, value: string, change: number, description: string, isManual?: boolean): Indicator {
-  return { name, value, change, description, ...(isManual && { isManual }) };
+function ind(name: string, value: string, change: number, description: string, isManual?: boolean, updatedAt?: string): Indicator {
+  return { name, value, change, description, ...(isManual && { isManual }), ...(updatedAt && { updatedAt }) };
 }
 
 function fmt(n: number, decimals: number = 2): string {
@@ -131,6 +131,7 @@ async function fetchFedData(): Promise<PlayerData> {
         manualData.fomcDotPlot.change,
         meta.indicatorMeta[2].description,
         true,
+        manualData.fomcDotPlot.updatedAt,
       ),
     ],
   };
@@ -155,6 +156,7 @@ async function fetchInstitutionsData(): Promise<PlayerData> {
         manualData.filing13F.change,
         meta.indicatorMeta[0].description,
         true,
+        manualData.filing13F.updatedAt,
       ),
       ind(
         meta.indicatorMeta[1].name,
@@ -185,6 +187,7 @@ async function fetchHedgefundsData(): Promise<PlayerData> {
         manualData.shortInterest.change,
         meta.indicatorMeta[0].description,
         true,
+        manualData.shortInterest.updatedAt,
       ),
       ind(
         meta.indicatorMeta[1].name,
@@ -192,6 +195,7 @@ async function fetchHedgefundsData(): Promise<PlayerData> {
         manualData.cotReport.change,
         meta.indicatorMeta[1].description,
         true,
+        manualData.cotReport.updatedAt,
       ),
       ind(
         meta.indicatorMeta[2].name,
@@ -229,6 +233,7 @@ async function fetchBigtechData(): Promise<PlayerData> {
         manualData.earnings.change,
         meta.indicatorMeta[0].description,
         true,
+        manualData.earnings.updatedAt,
       ),
       ind(
         meta.indicatorMeta[1].name,
@@ -236,6 +241,7 @@ async function fetchBigtechData(): Promise<PlayerData> {
         manualData.capex.change,
         meta.indicatorMeta[1].description,
         true,
+        manualData.capex.updatedAt,
       ),
       ind(
         meta.indicatorMeta[2].name,
@@ -243,6 +249,7 @@ async function fetchBigtechData(): Promise<PlayerData> {
         manualData.buybacks.change,
         meta.indicatorMeta[2].description,
         true,
+        manualData.buybacks.updatedAt,
       ),
     ],
   };
@@ -285,6 +292,7 @@ async function fetchGovernmentData(): Promise<PlayerData> {
         manualData.regulationPolicy.change,
         meta.indicatorMeta[2].description,
         true,
+        manualData.regulationPolicy.updatedAt,
       ),
     ],
   };
@@ -296,9 +304,9 @@ async function fetchRegulatorsData(): Promise<PlayerData> {
   return {
     id: "regulators",
     indicators: [
-      ind(meta.indicatorMeta[0].name, manualData.financialRegulation.value, manualData.financialRegulation.change, meta.indicatorMeta[0].description, true),
-      ind(meta.indicatorMeta[1].name, manualData.antitrustProbe.value, manualData.antitrustProbe.change, meta.indicatorMeta[1].description, true),
-      ind(meta.indicatorMeta[2].name, manualData.fxIntervention.value, manualData.fxIntervention.change, meta.indicatorMeta[2].description, true),
+      ind(meta.indicatorMeta[0].name, manualData.financialRegulation.value, manualData.financialRegulation.change, meta.indicatorMeta[0].description, true, manualData.financialRegulation.updatedAt),
+      ind(meta.indicatorMeta[1].name, manualData.antitrustProbe.value, manualData.antitrustProbe.change, meta.indicatorMeta[1].description, true, manualData.antitrustProbe.updatedAt),
+      ind(meta.indicatorMeta[2].name, manualData.fxIntervention.value, manualData.fxIntervention.change, meta.indicatorMeta[2].description, true, manualData.fxIntervention.updatedAt),
     ],
   };
 }
@@ -334,6 +342,7 @@ async function fetchRetailData(): Promise<PlayerData> {
         manualData.retailFlow.change,
         meta.indicatorMeta[2].description,
         true,
+        manualData.retailFlow.updatedAt,
       ),
     ],
   };

@@ -1,159 +1,217 @@
 /**
- * 세력진입 의심 패턴 백테스트
- *
- * krx-daily-all.json (전종목 3년치 일봉)에서 패턴을 탐지합니다.
- * 네이버 API 호출 없이 로컬 데이터만 사용합니다.
- *
- * 패턴 조건:
- * 1. D-1 거래대금 ≤ 300억
- * 2. D일 거래대금 ≥ 950억 & 등락률 > 0 (갭상승10%+음봉 제외)
- * 3. D+1 거래대금 ≤ D일의 1/3
- * → D+1 종가 = 0% 기준, D+2~D+16 OHLC 등락률(%) 추적
- *
- * 입력: data/krx-history/krx-daily-all.json
- * 출력: data/krx-history/institutional-entry-analysis.json
+ * 세력진입 의심 종목 백테스트
+ * - krx-daily-all.json 3년치 데이터에 실제 필터 조건 적용
+ * - 각 이벤트별 D+1~D+60 가격/거래대금 추적
  */
+import fs from "fs";
 
-import { readFileSync, writeFileSync } from "fs";
-import { join, dirname } from "path";
-import { fileURLToPath } from "url";
+const INPUT = "data/krx-history/krx-daily-all.json";
+const OUTPUT = "data/krx-history/institutional-entry-analysis.json";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const INPUT_PATH = join(__dirname, "..", "data", "krx-history", "krx-daily-all.json");
-const OUTPUT_PATH = join(__dirname, "..", "data", "krx-history", "institutional-entry-analysis.json");
-
+// --- 상수 (route.ts와 동일) ---
 const YESTERDAY_THRESHOLD = 30_000_000_000; // 300억
 const TODAY_THRESHOLD = 95_000_000_000; // 950억
-const TRACKING_DAYS = 15; // D+2 ~ D+16
 
-// --- 메인 ---
-const startTime = Date.now();
-console.log("=== 세력진입 의심 패턴 백테스트 시작 ===\n");
+// --- isRegularStock (route.ts와 동일) ---
+const ETF_BRAND_RE =
+  /^(KODEX|TIGER|KBSTAR|ACE|ARIRANG|HANARO|SOL|KOSEF|KINDEX|TIMEFOLIO|PLUS|FOCUS|WOORI|BNK|RISE|KIWOOM|KoAct|WON|HK|1Q|TIME|DAISHIN\d+|UNICORN|TRUSTON|VITA|에셋플러스|마이다스|더제이|파워|마이티|히어로)\s/;
 
-console.log("[1/4] krx-daily-all.json 로딩...");
-const raw = readFileSync(INPUT_PATH, "utf-8");
-const krxData = JSON.parse(raw);
-console.log(`  ${krxData.totalStocks}종목, ${krxData.dateRange.start}~${krxData.dateRange.end}\n`);
+function isRegularStock(name) {
+  if (/ETF|ETN/i.test(name)) return false;
+  if (ETF_BRAND_RE.test(name)) return false;
+  if (name.includes("리츠") || /REIT/i.test(name)) return false;
+  if (/스팩/.test(name)) return false;
+  if (/채권|선물|인버스|레버리지/.test(name)) return false;
+  if (/^(맥쿼리|KB발해)인프라/.test(name)) return false;
+  if (/우[A-C]?$/.test(name)) return false;
+  return true;
+}
 
-console.log("[2/4] 패턴 탐지 중...");
+// --- 데이터 로드 ---
+console.log("[1/4] 데이터 로드 중...");
+const raw = JSON.parse(fs.readFileSync(INPUT, "utf8"));
+
+// 날짜 정렬
+const allDates = Object.keys(raw).sort();
+console.log(`  날짜 범위: ${allDates[0]} ~ ${allDates[allDates.length - 1]} (${allDates.length}거래일)`);
+
+// 날짜별 종목 맵 구축: dateMap[YYYYMMDD][code] = { open, high, low, close, trdval, chgRate, name }
+console.log("[2/4] 종목 맵 구축 중...");
+const dateMap = {};
+for (const date of allDates) {
+  const dayData = raw[date];
+  const stocks = Object.values(dayData).flat();
+  const map = {};
+  for (const s of stocks) {
+    map[s.code] = s;
+  }
+  dateMap[date] = map;
+}
+
+// --- 폭발 종목 탐지 ---
+console.log("[3/4] 세력진입 의심 종목 탐지 중...");
 const events = [];
-let scanned = 0;
+let explosionCount = 0;
 
-for (const stock of krxData.stocks) {
-  const { code, name, market, daily } = stock;
-  if (!daily || daily.length < 20) continue;
-  scanned++;
+for (let i = 1; i < allDates.length - 1; i++) {
+  const yesterdayDate = allDates[i - 1];
+  const todayDate = allDates[i]; // D일 (폭발일)
+  const tomorrowDate = allDates[i + 1]; // D+1일
 
-  for (let idx = 1; idx < daily.length - 1; idx++) {
-    const dMinus1 = daily[idx - 1];
-    const dDay = daily[idx];
-    const dPlus1 = daily[idx + 1];
+  const yesterdayMap = dateMap[yesterdayDate];
+  const todayMap = dateMap[todayDate];
+  const tomorrowMap = dateMap[tomorrowDate];
 
-    // D-1 거래대금 ≤ 300억
-    if (dMinus1.tradingValue > YESTERDAY_THRESHOLD) continue;
-    // D 거래대금 ≥ 950억
-    if (dDay.tradingValue < TODAY_THRESHOLD) continue;
-    // D일 등락률 > 0
-    if (dMinus1.close <= 0) continue;
-    const dChangeRate = ((dDay.close - dMinus1.close) / dMinus1.close) * 100;
-    if (dChangeRate <= 0) continue;
-    // 갭상승(10%+) + 음봉 제외
-    const gapPct = ((dDay.open - dMinus1.close) / dMinus1.close) * 100;
-    if (gapPct >= 10 && dDay.close < dDay.open) continue;
-    // D+1 거래대금 ≤ D일의 1/3
-    if (dPlus1.tradingValue > dDay.tradingValue / 3) continue;
+  // D일 전종목 순회
+  for (const code of Object.keys(todayMap)) {
+    const today = todayMap[code];
+    const yesterday = yesterdayMap[code];
+    const tomorrow = tomorrowMap[code];
 
-    // D+1 종가가 기준점
-    const basePrice = dPlus1.close;
-    if (basePrice <= 0) continue;
+    if (!today || !yesterday || !tomorrow) continue;
+    if (!isRegularStock(today.name)) continue;
 
-    // postExplosion: D+1(day=1) ~ D+16(day=16)
-    const maxDayIdx = Math.min(idx + 1 + 16, daily.length);
-    if (maxDayIdx - (idx + 1) < 16) continue; // 16일 미만이면 스킵
+    // 조건 1: D-1일 거래대금 ≤ 300억 (조용한 종목)
+    if (yesterday.trdval <= 0 || yesterday.trdval > YESTERDAY_THRESHOLD) continue;
 
-    const postExplosion = [];
-    for (let t = idx + 1; t < maxDayIdx; t++) {
-      const d = daily[t];
-      const dayNum = t - idx;
-      postExplosion.push({
-        day: dayNum,
-        date: d.date,
-        open: +((d.open / basePrice - 1) * 100).toFixed(2),
-        high: +((d.high / basePrice - 1) * 100).toFixed(2),
-        low: +((d.low / basePrice - 1) * 100).toFixed(2),
-        close: +((d.close / basePrice - 1) * 100).toFixed(2),
-      });
+    // 조건 2: D일 거래대금 ≥ 950억 (폭발)
+    if (today.trdval < TODAY_THRESHOLD) continue;
+
+    // 조건 3: D일 등락률 > 0
+    if (today.chgRate <= 0) continue;
+
+    // 조건 4: 갭상승 10%+ 음봉 제외
+    const prevClose = today.close / (1 + today.chgRate / 100);
+    const gapPct = ((today.open - prevClose) / prevClose) * 100;
+    if (gapPct >= 10 && today.close < today.open) continue;
+
+    explosionCount++;
+
+    // 조건 5: D+1 거래대금 ≤ D일의 1/3
+    const ratio = tomorrow.trdval / today.trdval;
+    if (ratio > 1 / 3) continue;
+
+    // (시총 필터 스킵 — 데이터에 시총 없음)
+
+    // D+1 ~ D+60 추적
+    const tracking = [];
+    for (let j = 1; j <= 60; j++) {
+      const idx = i + j;
+      if (idx >= allDates.length) break;
+      const futureDate = allDates[idx];
+      const futureStock = dateMap[futureDate][code];
+      if (!futureStock) {
+        tracking.push({ day: j, date: futureDate, data: null });
+      } else {
+        tracking.push({
+          day: j,
+          date: futureDate,
+          open: futureStock.open,
+          high: futureStock.high,
+          low: futureStock.low,
+          close: futureStock.close,
+          trdval: futureStock.trdval,
+          chgRate: futureStock.chgRate,
+        });
+      }
     }
 
     events.push({
       code,
-      name,
-      market,
-      dDate: dDay.date,
-      dDayTradingValue: dDay.tradingValue,
-      dDayChangeRate: +dChangeRate.toFixed(2),
-      dPlusOneClose: basePrice,
-      dPlusOneTradingValue: dPlus1.tradingValue,
-      dropRatio: +((dPlus1.tradingValue / dDay.tradingValue) * 100).toFixed(1),
-      postExplosion,
+      name: today.name,
+      dDate: todayDate,
+      dMinusOne: {
+        date: yesterdayDate,
+        close: yesterday.close,
+        trdval: yesterday.trdval,
+      },
+      dDay: {
+        open: today.open,
+        high: today.high,
+        low: today.low,
+        close: today.close,
+        trdval: today.trdval,
+        chgRate: today.chgRate,
+        gapPct: Math.round(gapPct * 100) / 100,
+      },
+      dPlusOne: {
+        date: tomorrowDate,
+        open: tomorrow.open,
+        high: tomorrow.high,
+        low: tomorrow.low,
+        close: tomorrow.close,
+        trdval: tomorrow.trdval,
+        chgRate: tomorrow.chgRate,
+        trdvalRatio: Math.round(ratio * 1000) / 10, // %
+      },
+      tracking,
     });
   }
-}
 
-console.log(`  스캔: ${scanned}종목 → 발견: ${events.length}건\n`);
-
-// 통계 계산 (D+2 ~ D+16)
-console.log("[3/4] 통계 계산 중...");
-const stats = { mean: [], median: [] };
-
-for (let dayNum = 2; dayNum <= 16; dayNum++) {
-  const opens = [], highs = [], lows = [], closes = [];
-
-  for (const ev of events) {
-    const d = ev.postExplosion.find((p) => p.day === dayNum);
-    if (d) {
-      opens.push(d.open);
-      highs.push(d.high);
-      lows.push(d.low);
-      closes.push(d.close);
-    }
+  // 진행 표시
+  if (i % 100 === 0) {
+    process.stderr.write(`  ${i}/${allDates.length} 거래일 처리... (폭발 ${explosionCount}건, 세력의심 ${events.length}건)\r`);
   }
-
-  if (opens.length === 0) continue;
-
-  opens.sort((a, b) => a - b);
-  highs.sort((a, b) => a - b);
-  lows.sort((a, b) => a - b);
-  closes.sort((a, b) => a - b);
-
-  const avg = (arr) => +(arr.reduce((s, v) => s + v, 0) / arr.length).toFixed(2);
-  const med = (arr) => {
-    const mid = Math.floor(arr.length / 2);
-    return arr.length % 2 !== 0 ? arr[mid] : +((arr[mid - 1] + arr[mid]) / 2).toFixed(2);
-  };
-
-  stats.mean.push({ day: dayNum, open: avg(opens), high: avg(highs), low: avg(lows), close: avg(closes) });
-  stats.median.push({ day: dayNum, open: med(opens), high: med(highs), low: med(lows), close: med(closes) });
 }
 
-// JSON 저장
-console.log("[4/4] JSON 저장 중...");
-const output = {
-  generated: new Date().toISOString().slice(0, 10),
-  description: "세력진입 의심 패턴(거래대금 폭발 후 D+1 1/3 이하 급감) 후 15거래일 OHLC 추적",
-  baseDescription: "D+1 종가(day=1) = 0%. D+2~D+16의 시가/고가/저가/종가를 D+1 종가 대비 등락률(%)로 표시. postExplosion[0]은 day=1(D+1)로 기준점.",
-  totalCases: events.length,
-  trackingDays: TRACKING_DAYS,
-  dateRange: krxData.dateRange,
-  stats,
-  events,
+console.log(`\n  폭발 종목: ${explosionCount}건`);
+console.log(`  세력진입 의심: ${events.length}건`);
+
+// --- 결과 저장 ---
+console.log("[4/4] 결과 저장 중...");
+const result = {
+  meta: {
+    description: "세력진입 의심 종목 백테스트 — krx-daily-all.json 3년치",
+    generatedAt: new Date().toISOString(),
+    dataRange: `${allDates[0]} ~ ${allDates[allDates.length - 1]}`,
+    tradingDays: allDates.length,
+    filters: {
+      "D-1 거래대금": "<= 300억",
+      "D일 거래대금": ">= 950억",
+      "D일 등락률": "> 0%",
+      "갭상승+음봉": "갭 10%+ && 종가<시가 제외",
+      "D+1 거래대금": "<= D일의 1/3",
+      "시총 필터": "미적용 (데이터 없음)",
+      "종목 유형": "일반 주식만 (ETF/ETN/스팩/리츠/우선주 제외)",
+    },
+    totalExplosions: explosionCount,
+    totalSuspected: events.length,
+  },
+  events: events.sort((a, b) => a.dDate.localeCompare(b.dDate)),
 };
 
-writeFileSync(OUTPUT_PATH, JSON.stringify(output, null, 2), "utf-8");
+fs.writeFileSync(OUTPUT, JSON.stringify(result, null, 2), "utf8");
+const sizeMB = (fs.statSync(OUTPUT).size / 1024 / 1024).toFixed(1);
+console.log(`  저장 완료: ${OUTPUT} (${sizeMB}MB, ${events.length}건)`);
 
-const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-console.log(`\n=== 완료 ===`);
-console.log(`  파일: ${OUTPUT_PATH}`);
-console.log(`  이벤트: ${events.length}건`);
-console.log(`  기간: ${krxData.dateRange.start} ~ ${krxData.dateRange.end}`);
-console.log(`  소요: ${elapsed}s`);
+// --- 요약 통계 ---
+console.log("\n=== 요약 ===");
+const byYear = {};
+for (const e of events) {
+  const y = e.dDate.slice(0, 4);
+  byYear[y] = (byYear[y] || 0) + 1;
+}
+for (const [y, cnt] of Object.entries(byYear).sort()) {
+  console.log(`  ${y}년: ${cnt}건`);
+}
+
+// D+5, D+20, D+60 수익률 분포
+for (const dPlus of [5, 20, 60]) {
+  const returns = events
+    .map((e) => {
+      const t = e.tracking.find((t) => t.day === dPlus);
+      if (!t || !t.close) return null;
+      return ((t.close - e.dDay.close) / e.dDay.close) * 100;
+    })
+    .filter((r) => r !== null);
+
+  if (returns.length === 0) continue;
+  returns.sort((a, b) => a - b);
+  const avg = returns.reduce((a, b) => a + b, 0) / returns.length;
+  const median = returns[Math.floor(returns.length / 2)];
+  const positive = returns.filter((r) => r > 0).length;
+
+  console.log(
+    `  D+${dPlus}: 평균 ${avg.toFixed(1)}%, 중앙값 ${median.toFixed(1)}%, 승률 ${((positive / returns.length) * 100).toFixed(0)}% (${returns.length}건)`
+  );
+}

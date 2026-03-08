@@ -34,7 +34,29 @@
       "Bash(npx tsx:*)",
       "Bash(git pull:*)",
       "Bash(git stash:*)",
-      "Bash(cd:*)"
+      "Bash(cd:*)",
+      "Bash(where python:*)",
+      "Bash(/c/Users/beesc/AppData/Local/Microsoft/WindowsApps/python3.exe:*)",
+      "Bash(grep:*)",
+      "Bash(head:*)",
+      "WebFetch(domain:m.stock.naver.com)",
+      "Bash(TZ='Asia/Seoul' date +%Y-%m-%d %H:%M:%S %A \\(KST\\):*)",
+      "Bash(sleep 2:*)",
+      "Bash(curl -s http://localhost:3099/api/volume-explosion 2>/dev/null | python3 -c \"\nimport json, sys\ndata = json.load\\(sys.stdin\\)\nprint\\('=== 기본 정보 ==='\\)\nprint\\(f\\\\\"todayDate: {data.get\\('todayDate'\\)}\\\\\"\\)\nprint\\(f\\\\\"yesterdayDate: {data.get\\('yesterdayDate'\\)}\\\\\"\\)\nprint\\(f\\\\\"marketOpen: {data.get\\('marketOpen'\\)}\\\\\"\\)\nprint\\(f\\\\\"updatedAt: {data.get\\('updatedAt'\\)}\\\\\"\\)\nprint\\(f\\\\\"\\\\\\\\n=== 어제 종목 수 ===\\\\\"\\)\nys = data.get\\('yesterdayStocks', []\\)\nprint\\(f\\\\\"yesterdayStocks 총 개수: {len\\(ys\\)}\\\\\"\\)\nprint\\(f\\\\\"\\\\\\\\n=== 폭발 종목 수 ===\\\\\"\\)\nes = data.get\\('explosionStocks', []\\)\nprint\\(f\\\\\"explosionStocks 총 개수: {len\\(es\\)}\\\\\"\\)\nif es:\n    print\\(f\\\\\"\\\\\\\\n=== 폭발 종목 상위 5개 ===\\\\\"\\)\n    for s in es[:5]:\n        y_val = s.get\\('yesterdayValue', 0\\)\n        t_val = s.get\\('todayValue', 0\\)\n        ratio = t_val / y_val if y_val > 0 else 0\n        print\\(f\\\\\"  {s['name']} \\({s['code']}\\) - 어제: {y_val/1e8:.0f}억 → 오늘: {t_val/1e8:.0f}억 \\({ratio:.1f}배\\) 등락률: {s.get\\('changeRate', 0\\)}%\\\\\"\\)\nif ys:\n    print\\(f\\\\\"\\\\\\\\n=== 어제 종목 상위 5개 ===\\\\\"\\)\n    for s in ys[:5]:\n        print\\(f\\\\\"  {s['name']} \\({s['code']}\\) - 거래대금: {s.get\\('value', 0\\)/1e8:.0f}억\\\\\"\\)\n\" 2>&1)",
+      "Bash(npx kill-port:*)",
+      "WebFetch(domain:publicholidays.co.kr)",
+      "WebFetch(domain:vclock.kr)",
+      "WebFetch(domain:superkts.com)",
+      "Bash(tail:*)",
+      "Bash(python:*)",
+      "Bash(cat:*)",
+      "WebFetch(domain:tocktock.kr)",
+      "WebFetch(domain:www.tocktock.kr)",
+      "Bash(ls .env*:*)",
+      "Bash(seq 1:*)",
+      "Bash(source:*)",
+      "WebFetch(domain:tocktock.vercel.app)",
+      "Bash(npx tsc:*)"
     ]
   }
 }

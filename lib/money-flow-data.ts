@@ -23,6 +23,7 @@ export interface Indicator {
   change: number; // 양수 = 상승, 음수 = 하락, 0 = 보합
   description: string;
   isManual?: boolean;
+  updatedAt?: string; // YYYY-MM-DD, 수동 데이터의 마지막 업데이트 날짜
 }
 
 export interface Player {

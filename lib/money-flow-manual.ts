@@ -36,9 +36,9 @@ export interface ManualData {
 export const manualData: ManualData = {
   // ── 중앙은행 ──
   fomcDotPlot: {
-    value: "연내 2회 인하 전망",
-    change: 1,
-    updatedAt: "2025-03-19",
+    value: "연내 1회 인하 전망",
+    change: 0,
+    updatedAt: "2025-12-10",
   },
 
   // ── 대형 금융기관 ──
