@@ -93,22 +93,55 @@ function fmt(n: number, decimals: number = 2): string {
 }
 
 // ---------------------------------------------------------------------------
+// FOMC 점도표 — Redis 우선, manual fallback
+// ---------------------------------------------------------------------------
+
+interface FomcDotPlotData {
+  value: string;
+  change: number;
+  updatedAt: string;
+}
+
+async function getFomcDotPlot(): Promise<FomcDotPlotData> {
+  try {
+    const cached = await redis.get<FomcDotPlotData>("fomc-dot-plot");
+    if (cached) return cached;
+  } catch { /* miss */ }
+
+  // Redis에 없으면 manual fallback
+  return {
+    value: manualData.fomcDotPlot.value,
+    change: manualData.fomcDotPlot.change,
+    updatedAt: manualData.fomcDotPlot.updatedAt,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // 주체별 데이터 수집
 // ---------------------------------------------------------------------------
 
 async function fetchFedData(): Promise<PlayerData> {
   const meta = PLAYER_META.find((p) => p.id === "fed")!;
-  const [rate, walcl] = await Promise.allSettled([
+  const [rate, walcl, fomc] = await Promise.allSettled([
     cachedFred("DFEDTARU", 2),
     cachedFred("WALCL", 2),
+    getFomcDotPlot(),
   ]);
 
   const rateVal = rate.status === "fulfilled" ? rate.value : null;
   const walclVal = walcl.status === "fulfilled" ? walcl.value : null;
+  const fomcVal = fomc.status === "fulfilled" ? fomc.value : null;
 
   // WALCL: millions → trillions
   const balanceT = walclVal ? walclVal.value / 1_000_000 : null;
   const balanceChange = walclVal ? walclVal.change / 1_000_000 : 0;
+
+  // FOMC 점도표: Redis → manual fallback
+  const dotPlot = fomcVal ?? {
+    value: manualData.fomcDotPlot.value,
+    change: manualData.fomcDotPlot.change,
+    updatedAt: manualData.fomcDotPlot.updatedAt,
+  };
 
   return {
     id: "fed",
@@ -127,11 +160,11 @@ async function fetchFedData(): Promise<PlayerData> {
       ),
       ind(
         meta.indicatorMeta[2].name,
-        manualData.fomcDotPlot.value,
-        manualData.fomcDotPlot.change,
+        dotPlot.value,
+        dotPlot.change,
         meta.indicatorMeta[2].description,
         true,
-        manualData.fomcDotPlot.updatedAt,
+        dotPlot.updatedAt,
       ),
     ],
   };
@@ -381,7 +414,25 @@ async function fetchSummaryIndicators(): Promise<SummaryIndicator[]> {
 // Main handler
 // ---------------------------------------------------------------------------
 
-export async function GET() {
+export async function GET(request: Request) {
+  // 수동 FOMC 점도표 갱신 트리거
+  const { searchParams } = new URL(request.url);
+  if (searchParams.get("refresh-fomc") === "1") {
+    try {
+      const baseUrl = new URL(request.url).origin;
+      const cronRes = await fetch(
+        `${baseUrl}/api/cron/update-fomc-dot-plot`,
+        {
+          headers: { authorization: `Bearer ${process.env.CRON_SECRET}` },
+        }
+      );
+      const cronData = await cronRes.json();
+      console.log("[money-flow-data] FOMC 수동 갱신 결과:", cronData);
+    } catch (e) {
+      console.error("[money-flow-data] FOMC 수동 갱신 실패:", e);
+    }
+  }
+
   const playerTasks = [
     fetchFedData(),
     fetchInstitutionsData(),
