@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, Globe, Snowflake, ArrowRightLeft } from "lucide-react";
+import { ChevronDown, Droplets, Snowflake, Radio } from "lucide-react";
 import {
   Card,
   CardHeader,
   CardTitle,
+  CardDescription,
   CardContent,
 } from "@/components/ui/card";
 import {
@@ -13,14 +14,18 @@ import {
   CollapsibleTrigger,
   CollapsibleContent,
 } from "@/components/ui/collapsible";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface LearnTopic {
   id: string;
   title: string;
+  description: string;
   icon: React.ReactNode;
   color: string;
   content: React.ReactNode;
+  ctaLabel: string;
+  ctaTab: string;
 }
 
 function Quote({ children }: { children: React.ReactNode }) {
@@ -31,170 +36,268 @@ function Quote({ children }: { children: React.ReactNode }) {
   );
 }
 
-const TOPICS: LearnTopic[] = [
-  {
-    id: "100kyung",
-    title: "100경 원의 세계",
-    icon: <Globe className="size-5" />,
-    color: "text-blue-400",
-    content: (
-      <div className="space-y-4 text-sm leading-relaxed text-muted-foreground">
-        <p>
-          전 세계 모든 자산을 합하면 얼마나 될까요?{" "}
-          <strong className="text-foreground">약 750조 달러</strong>, 한화로 약{" "}
-          <strong className="text-foreground">100경 원</strong>입니다.
-          한국 GDP의 약 375배에 해당하는 금액이에요.
-        </p>
-
-        <div className="rounded-lg border bg-muted/30 p-4">
-          <p className="mb-2 text-xs font-semibold text-foreground">
-            전 세계 자산 구성 (약 750조 달러)
+function buildTopics(onNavigate?: (tab: string) => void): LearnTopic[] {
+  return [
+    {
+      id: "money-flows-down",
+      title: "💧 돈은 위에서 아래로 흐릅니다",
+      description: "Fed가 돈을 풀면, 누가 제일 먼저 받을까요?",
+      icon: <Droplets className="size-5" />,
+      color: "text-blue-400",
+      ctaLabel: "👉 1~6번의 움직임 보기",
+      ctaTab: "players",
+      content: (
+        <div className="space-y-4 text-sm leading-relaxed text-muted-foreground">
+          <p>
+            비가 산꼭대기에 내리면, 물은 계곡을 타고 강으로, 강에서 들판으로,
+            들판에서 마을로 흘러갑니다. 꼭대기가 먼저 젖고, 마을은 가장 나중에
+            젖어요.
           </p>
-          <ul className="space-y-1.5 text-xs">
-            <li className="flex justify-between">
-              <span>부동산</span>
-              <span className="font-mono text-foreground">~$380T (51%)</span>
-            </li>
-            <li className="flex justify-between">
-              <span>금융자산 (주식·채권 등)</span>
-              <span className="font-mono text-foreground">~$310T (41%)</span>
-            </li>
-            <li className="flex justify-between">
-              <span>실물자산 (금·원자재 등)</span>
-              <span className="font-mono text-foreground">~$40T (5%)</span>
-            </li>
-            <li className="flex justify-between">
-              <span>파생상품 (실제 가치)</span>
-              <span className="font-mono text-foreground">~$12T (2%)</span>
-            </li>
-            <li className="flex justify-between">
-              <span>암호화폐</span>
-              <span className="font-mono text-foreground">~$2T (&lt;1%)</span>
-            </li>
+
+          <p>
+            <strong className="text-foreground">돈도 똑같습니다.</strong>
+          </p>
+
+          <p>
+            미국 중앙은행(Fed)이 돈을 풀면, 모든 사람에게 동시에 가는 게
+            아닙니다. 순서가 있어요.
+          </p>
+
+          <div className="rounded-lg border bg-muted/30 p-4">
+            <ol className="space-y-1.5 text-xs">
+              <li className="flex gap-2">
+                <span className="font-mono font-semibold text-foreground">①</span>
+                <span>Fed (돈을 만드는 곳)</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="font-mono font-semibold text-foreground">②</span>
+                <span>대형 금융기관 (JP모건, 블랙록 — 제일 먼저 받음)</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="font-mono font-semibold text-foreground">③</span>
+                <span>정부 (국채 발행으로 돈을 받음)</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="font-mono font-semibold text-foreground">④</span>
+                <span>대형 기업 (은행에서 대출)</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="font-mono font-semibold text-foreground">⑤</span>
+                <span>투기 자본/헤지펀드 (기회를 잡아 뛰어듦)</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="font-mono font-semibold text-foreground">⑥</span>
+                <span>규제기관 (흐름의 규칙을 정하는 심판)</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="font-mono font-semibold text-foreground">⑦</span>
+                <span><strong className="text-foreground">개인 투자자 — 우리 (제일 마지막에 도착)</strong></span>
+              </li>
+            </ol>
+          </div>
+
+          <p>
+            문제는 이겁니다.{" "}
+            <strong className="text-foreground">
+              돈이 위에서부터 흘러내려오는 동안, 자산 가격은 이미 오르기 시작합니다.
+            </strong>{" "}
+            ②번(금융기관)이 받았을 때 집값이 1억이었다면, ⑦번(우리)이 받을
+            때쯤이면 이미 1억 3천이 되어 있을 수 있어요.
+          </p>
+
+          <p>
+            같은 돈인데, 먼저 받은 쪽이 무조건 유리합니다. 이걸 경제학에서는{" "}
+            <strong className="text-foreground">
+              &quot;칸티용 효과(Cantillon Effect)&quot;
+            </strong>
+            라고 부릅니다.
+          </p>
+
+          <p>
+            <strong className="text-foreground">
+              이 페이지가 존재하는 이유가 바로 이겁니다.
+            </strong>{" "}
+            ①~⑥번이 지금 뭘 하고 있는지 관찰하면, ⑦번인 우리도 미리 준비할 수
+            있습니다.
+          </p>
+
+          <Quote>
+            우리는 7번입니다. 바꿀 수는 없지만, 위에서 물이 내려오는 걸 보고
+            미리 준비할 수는 있습니다.
+          </Quote>
+        </div>
+      ),
+    },
+    {
+      id: "melting-ice",
+      title: "🧊 현금은 천천히 녹는 얼음입니다",
+      description: "가만히 있는 것이 가장 위험한 선택인 이유",
+      icon: <Snowflake className="size-5" />,
+      color: "text-cyan-400",
+      ctaLabel: "👉 지금 돈이 어디로 흐르는지 보기",
+      ctaTab: "ai",
+      content: (
+        <div className="space-y-4 text-sm leading-relaxed text-muted-foreground">
+          <p>
+            전 세계 가계 순자산은{" "}
+            <strong className="text-foreground">
+              약 400~500조 달러(약 600경 원)
+            </strong>
+            입니다. 이 안을 들여다보면:
+          </p>
+
+          <div className="rounded-lg border bg-muted/30 p-4">
+            <ul className="space-y-1.5 text-xs">
+              <li className="flex justify-between">
+                <span>부동산 (집, 건물, 땅)</span>
+                <span className="font-mono text-foreground">약 40~50%</span>
+              </li>
+              <li className="flex justify-between">
+                <span>금융자산 (주식, 채권, 예금, 연금)</span>
+                <span className="font-mono text-foreground">약 40~50%</span>
+              </li>
+              <li className="flex justify-between">
+                <span>기타 (금, 비상장 기업 등)</span>
+                <span className="font-mono text-foreground">나머지</span>
+              </li>
+            </ul>
+          </div>
+
+          <p>
+            여기서 중요한 건 이겁니다.
+          </p>
+
+          <p>
+            <strong className="text-foreground">
+              Fed가 돈을 찍으면 화폐량이 늘어납니다.
+            </strong>{" "}
+            화폐량이 늘면:
+          </p>
+
+          <ul className="space-y-1 text-sm">
+            <li>— 부동산 가진 사람 → 집값이 따라 올라갑니다</li>
+            <li>— 주식 가진 사람 → 기업 가치가 따라 올라갑니다</li>
+            <li>— 채권 가진 사람 → 이자라도 받습니다</li>
           </ul>
-        </div>
 
-        <p>
-          이 중 <strong className="text-foreground">미국 달러로 표기되는 자산이 약 200~250조 달러</strong>로
-          전체의 30~35%를 차지합니다. 달러가 왜 &quot;기축통화&quot;인지 숫자로 보이죠.
-        </p>
-
-        <Quote>
-          전 세계의 돈이 한 곳에서 다른 곳으로 끊임없이 흐르고 있습니다.
-          이 100경 원의 흐름을 이해하는 것이 투자의 첫걸음입니다.
-        </Quote>
-      </div>
-    ),
-  },
-  {
-    id: "melting-ice",
-    title: "천천히 녹는 얼음 — 현금의 숙명",
-    icon: <Snowflake className="size-5" />,
-    color: "text-cyan-400",
-    content: (
-      <div className="space-y-4 text-sm leading-relaxed text-muted-foreground">
-        <p>
-          각국의 중앙은행은 돈을 계속 찍어낼 수밖에 없는 구조입니다.
-          경기부양, 부채 상환, 선거를 앞둔 정치적 압력 등 다양한 이유로
-          <strong className="text-foreground"> 필요한 양보다 더 많은 돈</strong>이 풀리게 됩니다.
-        </p>
-
-        <div className="rounded-lg border bg-muted/30 p-4">
-          <p className="mb-2 text-xs font-semibold text-foreground">
-            미국 달러의 구매력 변화
+          <p>
+            그런데{" "}
+            <strong className="text-foreground">
+              현금만 들고 있는 사람은? 아무 일도 안 일어납니다.
+            </strong>{" "}
+            물가가 오르는데 돈의 양은 그대로니까, 구매력이 조용히 줄어듭니다.
           </p>
-          <div className="flex items-center justify-between">
-            <div className="text-center">
-              <p className="text-lg font-bold font-mono text-foreground">$1</p>
-              <p className="text-[10px]">1913년</p>
-            </div>
-            <div className="flex-1 mx-4 h-px bg-gradient-to-r from-green-500 to-red-500" />
-            <div className="text-center">
-              <p className="text-lg font-bold font-mono text-foreground">$30</p>
-              <p className="text-[10px]">2024년 (같은 물건 가격)</p>
-            </div>
-          </div>
-          <p className="mt-2 text-center text-xs">
-            110년간 달러의 구매력이{" "}
-            <strong className="text-red-400">97% 하락</strong>
+
+          <p>
+            미국 달러 기준으로, 1913년의 1달러는 오늘날 약 30달러의 구매력에
+            해당합니다.{" "}
+            <strong className="text-foreground">
+              110년간 가치가 약 97% 녹아내린 겁니다.
+            </strong>
           </p>
+
+          <p>
+            녹은 가치는 사라진 게 아닙니다.{" "}
+            <strong className="text-foreground">
+              자산을 가진 쪽으로 조용히 이동한 겁니다.
+            </strong>
+          </p>
+
+          <Quote>
+            현금은 천천히 녹는 얼음입니다. 가만히 있는 것이 가장 위험한
+            선택입니다.
+          </Quote>
         </div>
+      ),
+    },
+    {
+      id: "read-signals",
+      title: "📡 신호를 읽는 자가 살아남습니다",
+      description: "금리가 바뀐 뒤에 보면 이미 늦습니다",
+      icon: <Radio className="size-5" />,
+      color: "text-amber-400",
+      ctaLabel: "👉 21개 신호 확인하기",
+      ctaTab: "players",
+      content: (
+        <div className="space-y-4 text-sm leading-relaxed text-muted-foreground">
+          <p>
+            <strong className="text-foreground">
+              Fed가 기준금리를 정합니다.
+            </strong>{" "}
+            이 금리가 세상 모든 이자의 바닥이 됩니다.
+          </p>
 
-        <p>
-          1913년에 1달러로 살 수 있던 물건을, 오늘날에는 약 30달러를 내야 합니다.
-          돈을 그냥 들고 있으면 가치가 계속 줄어드는 겁니다.
-        </p>
+          <ul className="space-y-1 text-sm">
+            <li>— 기준금리 5%면 → 주택대출 8%, 기업대출 7%</li>
+            <li>— 기준금리 2%면 → 주택대출 5%, 기업대출 4%</li>
+          </ul>
 
-        <Quote>
-          현금은 천천히 녹는 얼음입니다.
-          아무것도 하지 않는 것도 선택이지만, 가만히 있으면 가치는 줄어듭니다.
-        </Quote>
-      </div>
-    ),
-  },
-  {
-    id: "value-transfer",
-    title: "피할 수 없는 가치의 이동",
-    icon: <ArrowRightLeft className="size-5" />,
-    color: "text-amber-400",
-    content: (
-      <div className="space-y-4 text-sm leading-relaxed text-muted-foreground">
-        <p>
-          인간은 본능적으로 남보다 더 갖고 싶어 합니다.
-          이 경쟁은 경제 시스템 안에서 끊임없는 <strong className="text-foreground">가치의 이동</strong>을
-          만들어냅니다.
-        </p>
+          <p>
+            금리가 내려가면 대출이 쉬워지고, 그 돈이 부동산과 주식으로
+            흘러갑니다. 자산 가격이 올라가요.
+          </p>
 
-        <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
-          <div>
-            <p className="text-xs font-semibold text-foreground mb-1">
-              직접 이동 — 제로섬
-            </p>
-            <p className="text-xs">
-              주식시장에서 누군가 수익을 내면, 반대편에서는 누군가 손실을 봅니다.
-              선물·옵션 시장이 대표적입니다.
-            </p>
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-foreground mb-1">
-              새로운 가치 창출 — 파이 키우기
-            </p>
-            <p className="text-xs">
-              혁신적인 기업이 새 시장을 만들면 전체 파이가 커집니다.
-              하지만 이때도 기존 산업에서 자금이 이동합니다.
-            </p>
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-foreground mb-1">
-              신용창출 — 보이지 않는 희석
-            </p>
-            <p className="text-xs">
-              은행이 대출로 새 돈을 만들면 전체 돈의 양이 늘어납니다.
-              새 돈이지만, 인플레이션으로 기존 돈의 가치가 희석됩니다.
-            </p>
-          </div>
+          <p>
+            그런데 핵심은 이겁니다.{" "}
+            <strong className="text-foreground">
+              자산 가격은 금리가 실제로 내려간 뒤에 오르는 게 아닙니다.
+            </strong>{" "}
+            &quot;곧 내릴 것 같다&quot;는 신호가 나올 때 이미 오르기 시작합니다.
+          </p>
+
+          <p>
+            왜냐하면 ②번(대형 금융기관)과 ⑤번(헤지펀드)은 전문가 수백 명이 Fed를
+            분석하고 있거든요. &quot;곧 내리겠다&quot;를 미리 판단하고 먼저
+            삽니다. 그래서 가격이 먼저 올라요.
+          </p>
+
+          <p>
+            ⑦번(우리)이 뉴스에서 &quot;금리 인하!&quot; 보고 들어갈 때쯤이면,{" "}
+            <strong className="text-foreground">
+              이미 가격이 올라있는 경우가 많습니다.
+            </strong>
+          </p>
+
+          <p>
+            그래서{" "}
+            <strong className="text-foreground">
+              금리 자체보다 &quot;앞으로 올릴지 내릴지&quot;가 더 중요합니다.
+            </strong>{" "}
+            이걸 알려주는 게 FOMC 점도표, 파월 의장 발언, 경제 지표 같은
+            것들입니다.
+          </p>
+
+          <p>
+            이 페이지의 &quot;주체별 지표&quot; 탭에 있는{" "}
+            <strong className="text-foreground">21개 지표</strong>가 바로 그
+            신호들입니다. ①~⑥번이 지금 뭘 하고 있는지 보여주는 계기판이에요.
+          </p>
+
+          <Quote>
+            금리가 바뀐 뒤에 보면 이미 늦습니다. 바뀌기 전 신호를 읽어야 합니다.
+          </Quote>
         </div>
+      ),
+    },
+  ];
+}
 
-        <Quote>
-          직접 이동이든 간접 이동이든, 가치의 이전은 피할 수 없습니다.
-          중요한 것은 이 흐름을 이해하고, 흐름의 방향에 서는 것입니다.
-        </Quote>
-      </div>
-    ),
-  },
-];
+interface LearnSectionProps {
+  onNavigate?: (tab: string) => void;
+}
 
-export function LearnSection() {
+export function LearnSection({ onNavigate }: LearnSectionProps) {
   const [openId, setOpenId] = useState<string | null>(null);
+  const topics = buildTopics(onNavigate);
 
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        돈의 흐름을 이해하기 위한 기본 개념 3가지를 정리했습니다. 카드를 클릭해
-        펼쳐보세요.
+        돈의 흐름을 이해하기 위한 핵심 스토리 3가지를 준비했습니다. 카드를
+        클릭해 펼쳐보세요.
       </p>
 
-      {TOPICS.map((topic) => {
+      {topics.map((topic) => {
         const isOpen = openId === topic.id;
         return (
           <Collapsible
@@ -207,9 +310,14 @@ export function LearnSection() {
                 <CardHeader>
                   <div className="flex items-center gap-3">
                     <span className={topic.color}>{topic.icon}</span>
-                    <CardTitle className="flex-1 text-base">
-                      {topic.title}
-                    </CardTitle>
+                    <div className="flex-1">
+                      <CardTitle className="text-base">
+                        {topic.title}
+                      </CardTitle>
+                      <CardDescription className="mt-1 text-xs">
+                        {topic.description}
+                      </CardDescription>
+                    </div>
                     <ChevronDown
                       className={cn(
                         "size-4 text-muted-foreground transition-transform",
@@ -220,7 +328,22 @@ export function LearnSection() {
                 </CardHeader>
               </CollapsibleTrigger>
               <CollapsibleContent>
-                <CardContent>{topic.content}</CardContent>
+                <CardContent>
+                  {topic.content}
+                  {onNavigate && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-4"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onNavigate(topic.ctaTab);
+                      }}
+                    >
+                      {topic.ctaLabel}
+                    </Button>
+                  )}
+                </CardContent>
               </CollapsibleContent>
             </Card>
           </Collapsible>

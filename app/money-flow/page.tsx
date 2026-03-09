@@ -78,6 +78,7 @@ export default function MoneyFlowPage() {
   const [fetchedAt, setFetchedAt] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [activeTab, setActiveTab] = useState("learn");
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -144,14 +145,24 @@ export default function MoneyFlowPage() {
       {/* 종합 지표 바 */}
       <SummaryBar indicators={summary} />
 
-      <Tabs defaultValue="players">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="mb-8 w-full justify-start">
-          <TabsTrigger value="players">주체별 지표</TabsTrigger>
-          <TabsTrigger value="ai">AI 분석</TabsTrigger>
           <TabsTrigger value="learn">쉽게 배우기</TabsTrigger>
+          <TabsTrigger value="ai">AI 분석</TabsTrigger>
+          <TabsTrigger value="players">주체별 지표</TabsTrigger>
         </TabsList>
 
-        {/* 탭 1: 주체별 지표 */}
+        {/* 탭 1: 쉽게 배우기 */}
+        <TabsContent value="learn">
+          <LearnSection onNavigate={setActiveTab} />
+        </TabsContent>
+
+        {/* 탭 2: AI 분석 */}
+        <TabsContent value="ai">
+          <AiAnalysisSection />
+        </TabsContent>
+
+        {/* 탭 3: 주체별 지표 */}
         <TabsContent value="players">
           {loading ? (
             <div className="grid gap-6 md:grid-cols-2">
@@ -166,16 +177,6 @@ export default function MoneyFlowPage() {
               ))}
             </div>
           )}
-        </TabsContent>
-
-        {/* 탭 2: AI 분석 */}
-        <TabsContent value="ai">
-          <AiAnalysisSection />
-        </TabsContent>
-
-        {/* 탭 3: 쉽게 배우기 */}
-        <TabsContent value="learn">
-          <LearnSection />
         </TabsContent>
       </Tabs>
 
