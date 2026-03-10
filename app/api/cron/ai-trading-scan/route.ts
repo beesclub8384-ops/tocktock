@@ -184,7 +184,7 @@ function getKSTDate(): string {
  * 2. 기존 D1_WAITING → D+1 체크 (D+1 거래대금 ≤ D × 1/3)
  * 3. 기존 D2_CHECKING → D+2 체크 (D+2 종가 > D+1 종가, D+2 거래대금 ≥ 300억)
  */
-export async function POST() {
+export async function GET() {
   const todayDate = getKSTDate();
   const state = await loadState();
 

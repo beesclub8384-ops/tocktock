@@ -59,7 +59,7 @@ function getKSTDate(): string {
  * 1. 보유 종목 매도 체크 (트레일링 스탑 or 절대 손절)
  * 2. D3_BUY_READY 종목 시가 매수
  */
-export async function POST() {
+export async function GET() {
   const todayDate = getKSTDate();
   const state = await loadState();
 
