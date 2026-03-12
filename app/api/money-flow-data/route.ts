@@ -424,6 +424,7 @@ export async function GET(request: Request) {
         `${baseUrl}/api/cron/update-fomc-dot-plot`,
         {
           headers: { authorization: `Bearer ${process.env.CRON_SECRET}` },
+          signal: AbortSignal.timeout(10000),
         }
       );
       const cronData = await cronRes.json();

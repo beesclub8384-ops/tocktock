@@ -185,6 +185,7 @@ function getKSTDate(): string {
  * 3. 기존 D2_CHECKING → D+2 체크 (D+2 종가 > D+1 종가, D+2 거래대금 ≥ 300억)
  */
 export async function GET() {
+  try {
   const todayDate = getKSTDate();
   const state = await loadState();
 
@@ -351,4 +352,11 @@ export async function GET() {
     totalCandidates: state.candidates.length,
     positions: state.positions.length,
   });
+  } catch (error) {
+    console.error("[ai-trading-scan] 스캔 중 에러:", error);
+    return NextResponse.json(
+      { success: false, error: error instanceof Error ? error.message : String(error) },
+      { status: 500 }
+    );
+  }
 }

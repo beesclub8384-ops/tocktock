@@ -17,7 +17,7 @@ export async function fetchFredLatest(
   if (!apiKey) throw new Error("FRED_API_KEY not set");
 
   const url = `${FRED_BASE}?series_id=${seriesId}&api_key=${apiKey}&file_type=json&sort_order=desc&limit=${count}`;
-  const res = await fetch(url, { next: { revalidate: 3600 } });
+  const res = await fetch(url, { next: { revalidate: 3600 }, signal: AbortSignal.timeout(10000) });
   if (!res.ok) throw new Error(`FRED ${seriesId}: ${res.status}`);
 
   const json: FredResponse = await res.json();

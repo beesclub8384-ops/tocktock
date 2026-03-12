@@ -50,9 +50,11 @@ export async function GET() {
     const [upcomingRes, resultsRes] = await Promise.allSettled([
       fetch(
         "https://www.treasurydirect.gov/TA_WS/securities/upcoming?format=json",
+        { signal: AbortSignal.timeout(10000) },
       ),
       fetch(
         `https://www.treasurydirect.gov/TA_WS/securities/search?startDate=${startDate}&endDate=${endDate}&dateFieldName=auctionDate&format=json`,
+        { signal: AbortSignal.timeout(10000) },
       ),
     ]);
 

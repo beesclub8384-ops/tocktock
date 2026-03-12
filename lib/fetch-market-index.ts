@@ -76,7 +76,7 @@ export async function fetchMarketCap(
   url.searchParams.set("beginBasDt", beginBasDt);
   url.searchParams.set("idxNm", idxNm);
 
-  const res = await fetch(url.toString(), { next: { revalidate: 3600 } });
+  const res = await fetch(url.toString(), { next: { revalidate: 3600 }, signal: AbortSignal.timeout(10000) });
   if (!res.ok) {
     throw new Error(`Market index API responded with ${res.status}`);
   }

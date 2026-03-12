@@ -32,6 +32,7 @@ async function findLatestFomcStatementUrl(): Promise<string> {
     "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm";
   const res = await fetch(calendarUrl, {
     headers: { "User-Agent": USER_AGENT },
+    signal: AbortSignal.timeout(10000),
   });
   if (!res.ok) throw new Error(`FOMC calendar fetch failed: ${res.status}`);
 
@@ -81,6 +82,7 @@ function stripHtml(html: string): string {
 async function fetchStatementText(url: string): Promise<string> {
   const res = await fetch(url, {
     headers: { "User-Agent": USER_AGENT },
+    signal: AbortSignal.timeout(10000),
   });
   if (!res.ok) throw new Error(`FOMC statement fetch failed: ${res.status}`);
 

@@ -61,6 +61,7 @@ function getKSTDate(): string {
  * 2. D3_BUY_READY 종목 시가 매수
  */
 export async function GET() {
+  try {
   const todayDate = getKSTDate();
   const state = await loadState();
 
@@ -231,4 +232,11 @@ export async function GET() {
     positions: state.positions.length,
     cash: state.cash,
   });
+  } catch (error) {
+    console.error("[ai-trading-trade] 매매 체크 중 에러:", error);
+    return NextResponse.json(
+      { success: false, error: error instanceof Error ? error.message : String(error) },
+      { status: 500 }
+    );
+  }
 }

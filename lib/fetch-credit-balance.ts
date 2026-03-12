@@ -72,7 +72,7 @@ export async function fetchCreditBalanceData(
   url.searchParams.set("numOfRows", String(numOfRows));
   url.searchParams.set("beginBasDt", beginBasDt);
 
-  const res = await fetch(url.toString(), { next: { revalidate: 3600 } });
+  const res = await fetch(url.toString(), { next: { revalidate: 3600 }, signal: AbortSignal.timeout(10000) });
   if (!res.ok) {
     throw new Error(`API responded with ${res.status}`);
   }
@@ -143,6 +143,7 @@ export async function fetchFreeSISRecentData(
       },
     }),
     next: { revalidate: 3600 },
+    signal: AbortSignal.timeout(10000),
   });
 
   if (!res.ok) {

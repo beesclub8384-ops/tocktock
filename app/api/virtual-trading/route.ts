@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { loadState, saveState } from "@/lib/virtual-trading-store";
 import {
   INITIAL_CAPITAL,
@@ -51,7 +51,16 @@ export async function GET() {
 }
 
 // 리셋 기능
-export async function DELETE() {
+export async function DELETE(request: NextRequest) {
+  const secret = process.env.CRON_SECRET;
+  if (secret) {
+    const auth = request.headers.get("authorization");
+    if (auth !== `Bearer ${secret}`) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+  } else {
+    console.warn("[virtual-trading] CRON_SECRET 환경변수 미설정 — 인증 없이 리셋 허용");
+  }
   const freshState: VirtualTradingState = {
     cash: INITIAL_CAPITAL,
     initialCapital: INITIAL_CAPITAL,

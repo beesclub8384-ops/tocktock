@@ -79,6 +79,7 @@ async function fetchYahoo(
 /* ── Main handler ── */
 
 export async function GET() {
+  try {
   const tasks: Promise<LiveIndicatorData>[] = [
     // FRED (8)
     fetchYahoo("us10y", "^TNX", "%"),
@@ -118,4 +119,11 @@ export async function GET() {
     data,
     fetchedAt: new Date().toISOString(),
   });
+  } catch (error) {
+    console.error("global-indicators API error:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch global indicators" },
+      { status: 500 }
+    );
+  }
 }
