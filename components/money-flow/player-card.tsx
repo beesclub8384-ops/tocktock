@@ -65,7 +65,7 @@ function IndicatorGuideModal({
     };
   }, []);
 
-  const guide = MONEY_FLOW_GUIDES[name] ?? "미작성";
+  const guide = MONEY_FLOW_GUIDES[name] ?? "";
 
   return (
     <div
@@ -134,6 +134,7 @@ function ManualBadge({ indicator }: { indicator: Indicator }) {
 
 function IndicatorRow({ indicator }: { indicator: Indicator }) {
   const [guideOpen, setGuideOpen] = useState(false);
+  const hasGuide = !!(MONEY_FLOW_GUIDES[indicator.name]);
 
   return (
     <>
@@ -141,6 +142,7 @@ function IndicatorRow({ indicator }: { indicator: Indicator }) {
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
             <p className="text-sm font-medium">{indicator.name}</p>
+            {hasGuide && (
             <button
               onClick={() => setGuideOpen(true)}
               className="guide-btn inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[10px] transition-all shrink-0"
@@ -148,6 +150,7 @@ function IndicatorRow({ indicator }: { indicator: Indicator }) {
               <HelpCircle size={11} />
               보는 법
             </button>
+            )}
           </div>
           <p className="text-xs text-muted-foreground">{indicator.description}</p>
         </div>
@@ -157,7 +160,7 @@ function IndicatorRow({ indicator }: { indicator: Indicator }) {
           <ManualBadge indicator={indicator} />
         </div>
       </div>
-      {guideOpen && (
+      {guideOpen && hasGuide && (
         <IndicatorGuideModal
           name={indicator.name}
           onClose={() => setGuideOpen(false)}

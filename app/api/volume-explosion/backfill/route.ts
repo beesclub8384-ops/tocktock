@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { redis } from "@/lib/redis";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 300; // 5분 타임아웃
+export const maxDuration = 600; // 10분 타임아웃
 
 // --- 상수 (route.ts와 동일) ---
 const SNAPSHOT_PREFIX = "volume-snapshot";

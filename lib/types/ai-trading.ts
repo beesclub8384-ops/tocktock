@@ -64,8 +64,8 @@ export const MAX_POSITIONS = 5;
 export const POSITION_SIZE_RATIO = 0.1; // 자금의 10%
 export const MIN_CASH_RATIO = 0.5; // 현금 50% 유지
 export const MIN_CASH_FOR_BUY = 1_000_000; // 100만원
-export const TARGET_PROFIT_PCT = 0.05; // +5% 목표가
-export const STOP_LOSS_PCT = 0.03; // -3% 손절가
+export const TARGET_PROFIT_PCT = Number(process.env.AI_TAKE_PROFIT_PCT ?? "5") / 100; // +5% 목표가
+export const STOP_LOSS_PCT = Number(process.env.AI_STOP_LOSS_PCT ?? "3") / 100; // -3% 손절가
 
 // 매수 조건 상수
 export const D_MINUS_1_MAX_VALUE = 30_000_000_000; // D-1 거래대금 ≤ 300억

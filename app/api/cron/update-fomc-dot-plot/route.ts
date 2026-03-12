@@ -139,7 +139,7 @@ ${statementText}`;
 
   const message = await client.messages.create({
     model: "claude-sonnet-4-20250514",
-    max_tokens: 256,
+    max_tokens: 1024,
     messages: [{ role: "user", content: prompt }],
   });
 
@@ -152,7 +152,7 @@ ${statementText}`;
   const jsonMatch = block.text.match(/\{[\s\S]*?\}/);
   if (!jsonMatch) {
     console.error(
-      `[fomc-dot-plot] Claude 응답에서 JSON 추출 실패: ${block.text}`
+      `[fomc-dot-plot] Claude 응답에서 JSON 추출 실패 (길이=${block.text.length}): ${block.text.slice(0, 500)}`
     );
     return null;
   }
@@ -172,7 +172,7 @@ ${statementText}`;
       typeof parsed.updatedAt !== "string"
     ) {
       console.error(
-        `[fomc-dot-plot] 잘못된 응답 형식: ${JSON.stringify(parsed)}`
+        `[fomc-dot-plot] 잘못된 응답 형식 (value=${typeof parsed.value}, change=${typeof parsed.change}, updatedAt=${typeof parsed.updatedAt}): ${JSON.stringify(parsed)}`
       );
       return null;
     }
