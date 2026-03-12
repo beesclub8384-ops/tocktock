@@ -22,7 +22,7 @@
     },
     {
       "path": "/api/cron/update-fomc-dot-plot",
-      "schedule": "0 1 15-21 3,6,9,12 4"
+      "schedule": "0 1 15-21 3,6,9,12 *"
     }
   ]
 }
