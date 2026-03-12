@@ -16,6 +16,7 @@ const navLinks = [
   { href: "/foreign-ownership", label: "외국인 지분율" },
   { href: "/global-indicators", label: "글로벌 지표" },
   { href: "/money-flow", label: "돈의 흐름" },
+  { href: "/money-flow/treasury-auction", label: "미국채 경매" },
   { href: "/volume-explosion", label: "거래대금 폭발" },
   { href: "/virtual-trading", label: "자동매매" },
   { href: "/ai-trading", label: "AI 자동매매" },
