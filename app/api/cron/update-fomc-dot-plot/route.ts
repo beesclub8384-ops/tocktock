@@ -196,6 +196,18 @@ export async function GET(request: Request) {
   }
 
   try {
+    // 0) 목요일(KST)이 아니면 스킵 — Vercel cron이 day-of-week 동시 지정 불가하므로 코드에서 체크
+    const nowKST = new Date(
+      new Date().toLocaleString("en-US", { timeZone: "Asia/Seoul" })
+    );
+    if (nowKST.getDay() !== 4) {
+      return NextResponse.json({
+        status: "skipped",
+        reason: "목요일이 아님 — 스킵",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
     // 1) 최신 FOMC 보도자료 URL 찾기
     const statementUrl = await findLatestFomcStatementUrl();
     console.log(`[fomc-dot-plot] 최신 보도자료: ${statementUrl}`);

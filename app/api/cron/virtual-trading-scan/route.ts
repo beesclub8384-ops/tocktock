@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { redis } from "@/lib/redis";
 import { loadState, saveState } from "@/lib/virtual-trading-store";
 import { redis } from "@/lib/redis";
 import {

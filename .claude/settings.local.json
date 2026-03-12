@@ -60,7 +60,8 @@
       "Bash(node -e \"console.log\\(require\\('./node_modules/recharts/package.json'\\).version\\)\" 2>/dev/null || echo \"recharts not found\")",
       "Bash(node -e \"console.log\\(require\\('./node_modules/recharts/package.json'\\).version\\)\")",
       "WebFetch(domain:vercel.com)",
-      "Bash(git revert:*)"
+      "Bash(git revert:*)",
+      "Bash(git:*)"
     ]
   }
 }
