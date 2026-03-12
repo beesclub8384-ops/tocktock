@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { redis } from "@/lib/redis";
 import { loadState, saveState } from "@/lib/virtual-trading-store";
+import { redis } from "@/lib/redis";
 import {
   BuySignalCandidate,
   D_MINUS_1_MAX_VALUE,
@@ -358,6 +359,13 @@ export async function GET() {
   });
 
   await saveState(state);
+
+  // cron 실행 상태 Redis 저장
+  await redis.set("virtual-trading:cron-status", JSON.stringify({
+    lastScanTime: new Date().toISOString(),
+    newCandidates: newCandidates.length,
+    totalCandidates: state.candidates.length,
+  }));
 
   return NextResponse.json({
     message: "스캔 완료",

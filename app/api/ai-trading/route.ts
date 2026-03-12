@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { loadState, saveState } from "@/lib/ai-trading-store";
+import { redis } from "@/lib/redis";
 import {
   INITIAL_CAPITAL,
   AiTradingState,
@@ -34,6 +35,14 @@ export async function GET() {
   const profitLossRatio = avgLoss > 0 ? avgWin / avgLoss : avgWin > 0 ? Infinity : 0;
   const winRate = sells.length > 0 ? (wins.length / sells.length) * 100 : 0;
 
+  // cron 실행 상태 조회
+  const cronStatusRaw = await redis.get("ai-trading:cron-status");
+  const cronStatus = cronStatusRaw
+    ? typeof cronStatusRaw === "string"
+      ? JSON.parse(cronStatusRaw)
+      : cronStatusRaw
+    : null;
+
   return NextResponse.json({
     ...state,
     summary: {
@@ -47,6 +56,7 @@ export async function GET() {
       wins: wins.length,
       losses: losses.length,
     },
+    cronStatus,
   });
 }
 

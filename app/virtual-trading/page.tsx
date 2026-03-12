@@ -74,6 +74,12 @@ interface Summary {
   losses: number;
 }
 
+interface CronStatus {
+  lastScanTime: string;
+  newCandidates: number;
+  totalCandidates: number;
+}
+
 interface TradingData {
   positions: Position[];
   trades: TradeRecord[];
@@ -81,6 +87,7 @@ interface TradingData {
   equityCurve: EquityCurvePoint[];
   summary: Summary;
   updatedAt: string;
+  cronStatus: CronStatus | null;
 }
 
 function formatDate(yyyymmdd: string): string {
@@ -431,7 +438,7 @@ export default function VirtualTradingPage() {
     );
   }
 
-  const { summary, positions, trades, candidates, equityCurve } = data;
+  const { summary, positions, trades, candidates, equityCurve, cronStatus } = data;
   const isProfit = summary.returnRate >= 0;
 
   return (
@@ -472,6 +479,34 @@ export default function VirtualTradingPage() {
         </header>
 
         {showGuide && <GuideModal onClose={() => setShowGuide(false)} />}
+
+        {/* Cron 실행 상태 */}
+        <div className="mb-4 flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-xs text-muted-foreground">
+          <Clock size={13} />
+          {cronStatus ? (
+            <span>
+              마지막 스캔:{" "}
+              <strong className="text-foreground">
+                {new Date(cronStatus.lastScanTime).toLocaleString("ko-KR", {
+                  timeZone: "Asia/Seoul",
+                  month: "2-digit",
+                  day: "2-digit",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </strong>
+              <span className="mx-1.5">|</span>
+              발견 종목:{" "}
+              <strong className="text-foreground">
+                {cronStatus.newCandidates}개
+              </strong>
+            </span>
+          ) : (
+            <span className="text-muted-foreground/60">
+              아직 스캔이 실행되지 않았습니다
+            </span>
+          )}
+        </div>
 
         {/* 상단 요약 카드 */}
         <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
