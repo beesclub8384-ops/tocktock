@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import YahooFinance from "yahoo-finance2";
-import * as fs from "fs";
+import * as fs from "fs/promises";
 import * as path from "path";
 
 const yahooFinance = new YahooFinance();
@@ -16,11 +16,11 @@ interface StockEntry {
 // 로컬 종목 데이터 로드 (한 번만 읽어 메모리에 캐싱)
 let localStocks: StockEntry[] | null = null;
 
-function getLocalStocks(): StockEntry[] {
+async function getLocalStocks(): Promise<StockEntry[]> {
   if (localStocks) return localStocks;
   try {
     const filePath = path.join(process.cwd(), "data", "stock-names.json");
-    const raw = fs.readFileSync(filePath, "utf-8");
+    const raw = await fs.readFile(filePath, "utf-8");
     localStocks = JSON.parse(raw) as StockEntry[];
   } catch {
     console.warn("stock-names.json not found, local search disabled");
@@ -40,8 +40,8 @@ function isNumericOnly(s: string): boolean {
 }
 
 // 로컬 JSON 검색
-function searchLocal(query: string): StockEntry[] {
-  const stocks = getLocalStocks();
+async function searchLocal(query: string): Promise<StockEntry[]> {
+  const stocks = await getLocalStocks();
   if (stocks.length === 0) return [];
 
   const q = query.trim();
@@ -89,7 +89,7 @@ export async function GET(request: NextRequest) {
   const q = query.trim();
 
   // 1) 로컬 검색
-  const localResults = searchLocal(q);
+  const localResults = await searchLocal(q);
   const localMapped = localResults.map((s) => ({
     symbol: s.symbol,
     name: s.name || s.nameEn || s.symbol,

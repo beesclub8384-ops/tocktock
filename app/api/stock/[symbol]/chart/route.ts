@@ -24,6 +24,11 @@ export async function GET(
   { params }: { params: Promise<{ symbol: string }> }
 ) {
   const { symbol } = await params;
+
+  if (!/^[a-zA-Z0-9.\-^=]{1,20}$/.test(symbol)) {
+    return NextResponse.json({ error: "Invalid symbol" }, { status: 400 });
+  }
+
   const { searchParams } = request.nextUrl;
   const interval = (searchParams.get("interval") || "1d") as ChartInterval;
 

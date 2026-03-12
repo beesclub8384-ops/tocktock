@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { readFileSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import YahooFinance from "yahoo-finance2";
 import { fetchCreditBalanceData, fetchFreeSISRecentData } from "@/lib/fetch-credit-balance";
@@ -27,9 +27,9 @@ interface ChartQuote {
  * FreeSIS 시가총액 CSV (2001-01-02 ~ 2021-11-08, 억원 단위) 로드
  * → Map<date, { kospi: 억원, kosdaq: 억원 }>
  */
-function loadFreesisMarketCapCSV(): Map<string, { kospi: number; kosdaq: number }> {
+async function loadFreesisMarketCapCSV(): Promise<Map<string, { kospi: number; kosdaq: number }>> {
   const csvPath = join(process.cwd(), "data", "freesis-market-cap.csv");
-  const raw = readFileSync(csvPath, "utf-8");
+  const raw = await readFile(csvPath, "utf-8");
   const lines = raw.trim().split("\n");
 
   const map = new Map<string, { kospi: number; kosdaq: number }>();
@@ -46,9 +46,9 @@ function loadFreesisMarketCapCSV(): Map<string, { kospi: number; kosdaq: number 
 /**
  * FreeSIS 신용잔고 CSV (1998-07-01 ~ 2021-11-08, 백만원 단위) → 억원 변환
  */
-function loadFreesisCreditCSV(): CreditBalanceItem[] {
+async function loadFreesisCreditCSV(): Promise<CreditBalanceItem[]> {
   const csvPath = join(process.cwd(), "data", "freesis-credit-balance.csv");
-  const raw = readFileSync(csvPath, "utf-8");
+  const raw = await readFile(csvPath, "utf-8");
   const lines = raw.trim().split("\n");
 
   const items: CreditBalanceItem[] = [];
@@ -77,7 +77,7 @@ function loadFreesisCreditCSV(): CreditBalanceItem[] {
  */
 async function getMergedMarketCapMap(): Promise<Map<string, number>> {
   // 1) FreeSIS CSV 로드
-  const csvMap = loadFreesisMarketCapCSV();
+  const csvMap = await loadFreesisMarketCapCSV();
 
   // 2) 공공데이터포털 API (최근 ~5년, CSV와 겹치는 구간 포함)
   const mcOptions = { beginBasDt: "20200101", numOfRows: 2000 };
@@ -114,7 +114,7 @@ async function getMergedMarketCapMap(): Promise<Map<string, number>> {
  */
 async function getMergedCreditMap(): Promise<Map<string, number>> {
   // 1) FreeSIS CSV
-  const csvData = loadFreesisCreditCSV();
+  const csvData = await loadFreesisCreditCSV();
 
   // 2) 공공데이터포털 API + FreeSIS 최신
   const [apiData, freesisRecent] = await Promise.all([

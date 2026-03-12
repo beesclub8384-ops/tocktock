@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { redis } from "@/lib/redis";
 import { loadState, saveState } from "@/lib/virtual-trading-store";
 import {
   BuySignalCandidate,
@@ -185,6 +186,11 @@ function getKSTDate(): string {
  * 3. 기존 D2_CHECKING → D+2 체크 (D+2 종가 > D+1 종가, D+2 거래대금 ≥ 300억)
  */
 export async function GET() {
+  const LOCK_KEY = "lock:cron:virtual-trading-scan";
+  const locked = await redis.set(LOCK_KEY, "1", { ex: 600, nx: true });
+  if (!locked) {
+    return NextResponse.json({ message: "이미 실행 중 (lock)" });
+  }
   try {
   const todayDate = getKSTDate();
   const state = await loadState();
@@ -367,5 +373,7 @@ export async function GET() {
       { success: false, error: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
+  } finally {
+    await redis.del(LOCK_KEY).catch(() => {});
   }
 }

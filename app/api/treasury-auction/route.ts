@@ -74,7 +74,9 @@ export async function GET() {
       updatedAt: now.toISOString(),
     };
 
-    await redis.set(CACHE_KEY, data, { ex: CACHE_TTL });
+    try {
+      await redis.set(CACHE_KEY, data, { ex: CACHE_TTL });
+    } catch { /* cache write fail ok */ }
 
     return NextResponse.json(data);
   } catch (e) {

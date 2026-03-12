@@ -78,7 +78,9 @@ export async function GET() {
     analysis.updatedAt = new Date().toISOString();
 
     // Redis 캐싱
-    await redis.set(CACHE_KEY, analysis, { ex: CACHE_TTL });
+    try {
+      await redis.set(CACHE_KEY, analysis, { ex: CACHE_TTL });
+    } catch { /* cache write fail ok */ }
 
     return NextResponse.json(analysis);
   } catch (error) {

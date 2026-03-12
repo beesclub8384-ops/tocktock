@@ -46,7 +46,7 @@ export interface CreditVsIndexItem {
 
 export async function GET() {
   try {
-    const [apiData, freesisRecent, kospiMap, kosdaqMap] = await Promise.all([
+    const results = await Promise.allSettled([
       fetchCreditBalanceData({
         beginBasDt: DATA_START.replace(/-/g, ""),
         numOfRows: 1200,
@@ -55,6 +55,15 @@ export async function GET() {
       fetchIndexClose("^KS11"),
       fetchIndexClose("^KQ11"),
     ]);
+
+    const apiData = results[0].status === "fulfilled" ? results[0].value : [];
+    const freesisRecent = results[1].status === "fulfilled" ? results[1].value : [];
+    const kospiMap = results[2].status === "fulfilled" ? results[2].value : new Map<string, number>();
+    const kosdaqMap = results[3].status === "fulfilled" ? results[3].value : new Map<string, number>();
+
+    if (results[0].status === "rejected") console.error("[credit-vs-index] API fetch failed:", results[0].reason);
+    if (results[2].status === "rejected") console.error("[credit-vs-index] KOSPI fetch failed:", results[2].reason);
+    if (results[3].status === "rejected") console.error("[credit-vs-index] KOSDAQ fetch failed:", results[3].reason);
 
     // 병합: 공공데이터포털 + FreeSIS 최신 (미반영분만 보완)
     const creditMap = new Map<string, CreditBalanceItem>();

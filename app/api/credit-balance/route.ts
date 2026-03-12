@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { readFileSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import YahooFinance from "yahoo-finance2";
 import { fetchCreditBalanceData, fetchFreeSISRecentData } from "@/lib/fetch-credit-balance";
@@ -37,9 +37,9 @@ async function fetchKospiIndex(): Promise<{ date: string; close: number }[]> {
 /**
  * FreeSIS CSV (1998-07-01 ~ 2021-11-08, 백만원 단위)를 읽어서 억원 단위로 변환
  */
-function loadFreesisCSV(): CreditBalanceItem[] {
+async function loadFreesisCSV(): Promise<CreditBalanceItem[]> {
   const csvPath = join(process.cwd(), "data", "freesis-credit-balance.csv");
-  const raw = readFileSync(csvPath, "utf-8");
+  const raw = await readFile(csvPath, "utf-8");
   const lines = raw.trim().split("\n");
 
   // 첫 줄은 헤더: date,totalLoan,kospiLoan,kosdaqLoan
@@ -66,7 +66,7 @@ function loadFreesisCSV(): CreditBalanceItem[] {
 export async function GET() {
   try {
     // 1) FreeSIS 히스토리컬 데이터 (1998-07 ~ 2021-11-08)
-    const freesisData = loadFreesisCSV();
+    const freesisData = await loadFreesisCSV();
 
     // 2) 공공데이터포털 API (2021-11-09~) + FreeSIS 최신 + KOSPI 지수
     const [apiData, freesisRecent, kospiIndex] = await Promise.all([

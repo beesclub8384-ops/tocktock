@@ -7,6 +7,10 @@ export async function GET(
 ) {
   const { symbol } = await params;
 
+  if (!/^[a-zA-Z0-9.\-^=]{1,20}$/.test(symbol)) {
+    return NextResponse.json({ error: "Invalid symbol" }, { status: 400 });
+  }
+
   try {
     const result = await calculateGrowthScore(symbol.toUpperCase());
     return NextResponse.json(result);

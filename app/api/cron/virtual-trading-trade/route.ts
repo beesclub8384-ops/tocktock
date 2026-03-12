@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { redis } from "@/lib/redis";
 import { loadState, saveState } from "@/lib/virtual-trading-store";
 import {
   Position,
@@ -60,6 +61,11 @@ function getKSTDate(): string {
  * 2. D3_BUY_READY 종목 시가 매수
  */
 export async function GET() {
+  const LOCK_KEY = "lock:cron:virtual-trading-trade";
+  const locked = await redis.set(LOCK_KEY, "1", { ex: 600, nx: true });
+  if (!locked) {
+    return NextResponse.json({ message: "이미 실행 중 (lock)" });
+  }
   try {
   const todayDate = getKSTDate();
   const state = await loadState();
@@ -246,5 +252,7 @@ export async function GET() {
       { success: false, error: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
+  } finally {
+    await redis.del(LOCK_KEY).catch(() => {});
   }
 }
