@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { ChevronDown, TrendingUp, TrendingDown, Minus, HelpCircle, X } from "lucide-react";
+import { useDraggable } from "@/hooks/useDraggable";
 import {
   Card,
   CardHeader,
@@ -66,6 +67,7 @@ function IndicatorGuideModal({
   }, []);
 
   const guide = MONEY_FLOW_GUIDES[name] ?? "";
+  const { position, handleMouseDown } = useDraggable();
 
   return (
     <div
@@ -74,7 +76,7 @@ function IndicatorGuideModal({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="w-full max-w-lg overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
+      <div data-draggable-modal className="w-full max-w-lg overflow-hidden rounded-2xl border border-border bg-card shadow-2xl" style={{ transform: `translate(${position.x}px, ${position.y}px)` }}>
         <div className="relative max-h-[85vh] overflow-y-auto p-6">
           <button
             onClick={onClose}
@@ -83,7 +85,7 @@ function IndicatorGuideModal({
             <X size={20} />
           </button>
 
-          <h2 className="mb-4 text-lg font-bold">{name} 보는 법</h2>
+          <h2 className="mb-4 text-lg font-bold cursor-move select-none" onMouseDown={handleMouseDown}>{name} 보는 법</h2>
           <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-line">
             {guide}
           </p>

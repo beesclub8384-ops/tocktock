@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { HelpCircle, X } from "lucide-react";
+import { useDraggable } from "@/hooks/useDraggable";
 
 const VIX_MAX = 50;
 const REFRESH_MS = 60_000;
@@ -48,6 +49,8 @@ function statusOf(vix: number) {
    가이드 모달
    ──────────────────────────────────────────── */
 function VixGuideModal({ onClose }: { onClose: () => void }) {
+  const { position, handleMouseDown } = useDraggable();
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -70,7 +73,7 @@ function VixGuideModal({ onClose }: { onClose: () => void }) {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="w-full max-w-2xl overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
+      <div data-draggable-modal className="w-full max-w-2xl overflow-hidden rounded-2xl border border-border bg-card shadow-2xl" style={{ transform: `translate(${position.x}px, ${position.y}px)` }}>
       <div className="relative max-h-[85vh] overflow-y-auto p-6 sm:p-8">
         {/* 닫기 버튼 */}
         <button
@@ -80,7 +83,7 @@ function VixGuideModal({ onClose }: { onClose: () => void }) {
           <X size={20} />
         </button>
 
-        <h2 className="mb-6 text-xl font-bold">공포지수(VIX) 보는 법</h2>
+        <h2 className="mb-6 text-xl font-bold cursor-move select-none" onMouseDown={handleMouseDown}>공포지수(VIX) 보는 법</h2>
 
         {/* 1. 공포지수가 뭔가요? */}
         <section className="mb-6">

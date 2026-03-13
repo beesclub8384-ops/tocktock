@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useDraggable } from "@/hooks/useDraggable";
 import type { GlobalIndicatorsResponse } from "@/lib/types/global-indicators";
 
 /* ═══════════════════ 타입 ═══════════════════ */
@@ -744,6 +745,7 @@ function CategoryBlock({
 /* ═══════════════════ 모달 ═══════════════════ */
 
 function IndicatorModal({ item, onClose }: { item: Indicator; onClose: () => void }) {
+  const { position, handleMouseDown } = useDraggable();
   const info = MODAL_CONTENTS[item.id];
   if (!info) return null;
 
@@ -753,6 +755,7 @@ function IndicatorModal({ item, onClose }: { item: Indicator; onClose: () => voi
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
       <div
+        data-draggable-modal
         className="relative w-full overflow-y-auto"
         style={{
           maxWidth: 600,
@@ -761,11 +764,12 @@ function IndicatorModal({ item, onClose }: { item: Indicator; onClose: () => voi
           border: "1px solid #2a3444",
           borderRadius: 12,
           padding: 24,
+          transform: `translate(${position.x}px, ${position.y}px)`,
         }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* 헤더 */}
-        <div className="flex items-start justify-between mb-4">
+        <div className="flex items-start justify-between mb-4 cursor-move select-none" onMouseDown={handleMouseDown}>
           <div>
             <div className="flex items-center gap-2 mb-1">
               <span

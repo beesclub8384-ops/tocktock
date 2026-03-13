@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { HelpCircle, X } from "lucide-react";
+import { useDraggable } from "@/hooks/useDraggable";
 
 interface ForeignEntry {
   date: string;
@@ -40,6 +41,8 @@ function filterByPeriod(data: ForeignEntry[], period: Period): ForeignEntry[] {
 
 // --- Guide Modal ---
 function GuideModal({ onClose }: { onClose: () => void }) {
+  const { position, handleMouseDown } = useDraggable();
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -62,7 +65,7 @@ function GuideModal({ onClose }: { onClose: () => void }) {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="w-full max-w-2xl overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
+      <div data-draggable-modal className="w-full max-w-2xl overflow-hidden rounded-2xl border border-border bg-card shadow-2xl" style={{ transform: `translate(${position.x}px, ${position.y}px)` }}>
       <div className="relative max-h-[85vh] overflow-y-auto p-6 sm:p-8">
         <button
           onClick={onClose}
@@ -71,7 +74,7 @@ function GuideModal({ onClose }: { onClose: () => void }) {
           <X size={20} />
         </button>
 
-        <h2 className="mb-6 text-xl font-bold">
+        <h2 className="mb-6 text-xl font-bold cursor-move select-none" onMouseDown={handleMouseDown}>
           외국인 지분율, 이렇게 읽으세요
         </h2>
 

@@ -15,6 +15,7 @@ import {
   HelpCircle,
   X,
 } from "lucide-react";
+import { useDraggable } from "@/hooks/useDraggable";
 
 interface Position {
   code: string;
@@ -113,6 +114,8 @@ const stageLabels: Record<string, { text: string; color: string }> = {
 };
 
 function GuideModal({ onClose }: { onClose: () => void }) {
+  const { position, handleMouseDown } = useDraggable();
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -132,7 +135,7 @@ function GuideModal({ onClose }: { onClose: () => void }) {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="w-full max-w-3xl overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
+      <div data-draggable-modal className="w-full max-w-3xl overflow-hidden rounded-2xl border border-border bg-card shadow-2xl" style={{ transform: `translate(${position.x}px, ${position.y}px)` }}>
         <div className="relative max-h-[85vh] overflow-y-auto p-6 sm:p-8">
           <button
             onClick={onClose}
@@ -141,7 +144,7 @@ function GuideModal({ onClose }: { onClose: () => void }) {
             <X size={20} />
           </button>
 
-          <h2 className="mb-6 text-xl font-bold">AI 자동매매 시뮬레이터 안내</h2>
+          <h2 className="mb-6 text-xl font-bold cursor-move select-none" onMouseDown={handleMouseDown}>AI 자동매매 시뮬레이터 안내</h2>
 
           <section className="mb-5">
             <h3 className="mb-2 text-base font-semibold">이게 뭔가요?</h3>
