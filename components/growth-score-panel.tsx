@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Search, Loader2, HelpCircle, X } from "lucide-react";
 import { useDraggable } from "@/hooks/useDraggable";
+import { useResizable } from "@/hooks/useResizable";
 import type { GrowthScoreResult } from "@/lib/stock-score";
 
 interface SearchResult {
@@ -29,6 +30,7 @@ function barColor(score: number): string {
    ──────────────────────────────────────────── */
 function ScoreGuideModal({ onClose }: { onClose: () => void }) {
   const { position, handleMouseDown } = useDraggable();
+  const { size, handleResizeMouseDown } = useResizable();
 
   // ESC 키로 닫기
   useEffect(() => {
@@ -54,12 +56,12 @@ function ScoreGuideModal({ onClose }: { onClose: () => void }) {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div data-draggable-modal className="w-full max-w-4xl overflow-hidden rounded-2xl border border-border bg-card shadow-2xl" style={{ transform: `translate(${position.x}px, ${position.y}px)` }}>
-      <div className="relative max-h-[85vh] overflow-y-auto p-6 sm:p-8">
+      <div data-draggable-modal className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-2xl" style={{ transform: `translate(${position.x}px, ${position.y}px)`, ...(size.width ? { width: size.width, height: size.height } : { width: "100%", maxWidth: "56rem" }) }}>
+      <div className="overflow-y-auto p-6 sm:p-8" style={{ maxHeight: size.height ? size.height - 2 : "85vh" }}>
         {/* 닫기 버튼 */}
         <button
           onClick={onClose}
-          className="absolute right-4 top-4 rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          className="absolute right-4 top-4 z-10 rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
         >
           <X size={20} />
         </button>
@@ -330,6 +332,7 @@ function ScoreGuideModal({ onClose }: { onClose: () => void }) {
           </div>
         </div>
       </div>
+      <div onMouseDown={handleResizeMouseDown} className="absolute bottom-0 right-0 cursor-se-resize p-1 text-muted-foreground/50 hover:text-muted-foreground select-none" style={{ fontSize: 14, lineHeight: 1 }}>⋱</div>
       </div>
     </div>
   );

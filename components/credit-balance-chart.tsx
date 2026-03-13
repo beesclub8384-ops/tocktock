@@ -10,6 +10,7 @@ import {
 } from "lightweight-charts";
 import { HelpCircle, Maximize2, Minimize2, X } from "lucide-react";
 import { useDraggable } from "@/hooks/useDraggable";
+import { useResizable } from "@/hooks/useResizable";
 import { Button } from "@/components/ui/button";
 import { CreditBalanceAnalysis } from "@/components/credit-balance-analysis";
 import type { CreditBalanceItem } from "@/lib/types/credit-balance";
@@ -114,6 +115,7 @@ function sampleIndexData(
    ──────────────────────────────────────────── */
 function CreditBalanceGuideModal({ onClose }: { onClose: () => void }) {
   const { position, handleMouseDown } = useDraggable();
+  const { size, handleResizeMouseDown } = useResizable();
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -137,12 +139,12 @@ function CreditBalanceGuideModal({ onClose }: { onClose: () => void }) {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div data-draggable-modal className="w-full max-w-2xl overflow-hidden rounded-2xl border border-border bg-card shadow-2xl" style={{ transform: `translate(${position.x}px, ${position.y}px)` }}>
-      <div className="relative max-h-[85vh] overflow-y-auto p-6 sm:p-8">
+      <div data-draggable-modal className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-2xl" style={{ transform: `translate(${position.x}px, ${position.y}px)`, ...(size.width ? { width: size.width, height: size.height } : { width: "100%", maxWidth: "42rem" }) }}>
+      <div className="overflow-y-auto p-6 sm:p-8" style={{ maxHeight: size.height ? size.height - 2 : "85vh" }}>
         {/* 닫기 버튼 */}
         <button
           onClick={onClose}
-          className="absolute right-4 top-4 rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          className="absolute right-4 top-4 z-10 rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
         >
           <X size={20} />
         </button>
@@ -392,6 +394,7 @@ function CreditBalanceGuideModal({ onClose }: { onClose: () => void }) {
           </ul>
         </section>
       </div>
+      <div onMouseDown={handleResizeMouseDown} className="absolute bottom-0 right-0 cursor-se-resize p-1 text-muted-foreground/50 hover:text-muted-foreground select-none" style={{ fontSize: 14, lineHeight: 1 }}>⋱</div>
       </div>
     </div>
   );

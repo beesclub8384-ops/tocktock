@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { ChevronDown, TrendingUp, TrendingDown, Minus, HelpCircle, X } from "lucide-react";
 import { useDraggable } from "@/hooks/useDraggable";
+import { useResizable } from "@/hooks/useResizable";
 import {
   Card,
   CardHeader,
@@ -68,6 +69,7 @@ function IndicatorGuideModal({
 
   const guide = MONEY_FLOW_GUIDES[name] ?? "";
   const { position, handleMouseDown } = useDraggable();
+  const { size, handleResizeMouseDown } = useResizable();
 
   return (
     <div
@@ -76,11 +78,11 @@ function IndicatorGuideModal({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div data-draggable-modal className="w-full max-w-lg overflow-hidden rounded-2xl border border-border bg-card shadow-2xl" style={{ transform: `translate(${position.x}px, ${position.y}px)` }}>
-        <div className="relative max-h-[85vh] overflow-y-auto p-6">
+      <div data-draggable-modal className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-2xl" style={{ transform: `translate(${position.x}px, ${position.y}px)`, ...(size.width ? { width: size.width, height: size.height } : { width: "100%", maxWidth: "32rem" }) }}>
+        <div className="overflow-y-auto p-6" style={{ maxHeight: size.height ? size.height - 2 : "85vh" }}>
           <button
             onClick={onClose}
-            className="absolute right-4 top-4 rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            className="absolute right-4 top-4 z-10 rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           >
             <X size={20} />
           </button>
@@ -90,6 +92,7 @@ function IndicatorGuideModal({
             {guide}
           </p>
         </div>
+        <div onMouseDown={handleResizeMouseDown} className="absolute bottom-0 right-0 cursor-se-resize p-1 text-muted-foreground/50 hover:text-muted-foreground select-none" style={{ fontSize: 14, lineHeight: 1 }}>⋱</div>
       </div>
     </div>
   );

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useDraggable } from "@/hooks/useDraggable";
+import { useResizable } from "@/hooks/useResizable";
 import type { GlobalIndicatorsResponse } from "@/lib/types/global-indicators";
 
 /* ═══════════════════ 타입 ═══════════════════ */
@@ -746,6 +747,7 @@ function CategoryBlock({
 
 function IndicatorModal({ item, onClose }: { item: Indicator; onClose: () => void }) {
   const { position, handleMouseDown } = useDraggable();
+  const { size, handleResizeMouseDown } = useResizable();
   const info = MODAL_CONTENTS[item.id];
   if (!info) return null;
 
@@ -756,18 +758,17 @@ function IndicatorModal({ item, onClose }: { item: Indicator; onClose: () => voi
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
       <div
         data-draggable-modal
-        className="relative w-full overflow-y-auto"
+        className="relative w-full"
         style={{
-          maxWidth: 600,
-          maxHeight: "85vh",
+          ...(size.width ? { width: size.width, height: size.height } : { maxWidth: 600 }),
           backgroundColor: "#161b24",
           border: "1px solid #2a3444",
           borderRadius: 12,
-          padding: 24,
           transform: `translate(${position.x}px, ${position.y}px)`,
         }}
         onClick={(e) => e.stopPropagation()}
       >
+        <div className="overflow-y-auto" style={{ maxHeight: size.height ? size.height - 2 : "85vh", padding: 24 }}>
         {/* 헤더 */}
         <div className="flex items-start justify-between mb-4 cursor-move select-none" onMouseDown={handleMouseDown}>
           <div>
@@ -847,6 +848,8 @@ function IndicatorModal({ item, onClose }: { item: Indicator; onClose: () => voi
             </div>
           </section>
         </div>
+        </div>
+        <div onMouseDown={handleResizeMouseDown} className="absolute bottom-0 right-0 cursor-se-resize p-1 select-none" style={{ fontSize: 14, lineHeight: 1, color: "rgba(255,255,255,0.3)" }}>⋱</div>
       </div>
     </div>
   );
