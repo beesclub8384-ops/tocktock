@@ -849,7 +849,7 @@ function IndicatorModal({ item, onClose }: { item: Indicator; onClose: () => voi
           </section>
         </div>
         </div>
-        <div onMouseDown={handleResizeMouseDown} className="absolute bottom-0 right-0 cursor-se-resize p-1 select-none" style={{ fontSize: 14, lineHeight: 1, color: "rgba(255,255,255,0.3)" }}>⋱</div>
+        <div onMouseDown={handleResizeMouseDown} className="absolute bottom-0 right-0 cursor-se-resize px-2 py-1 text-xs text-gray-400 hover:text-gray-200 select-none">↔ 크기조절</div>
       </div>
     </div>
   );
