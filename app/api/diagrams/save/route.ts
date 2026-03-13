@@ -9,6 +9,6 @@ export async function POST(req: Request) {
   const id = uuidv4();
   const item = { id, createdAt: new Date().toISOString(), ...body };
   await redis.set(`diagram:${id}`, JSON.stringify(item));
-  await redis.lpush("diagrams:list", id);
+  await redis.lpush("diagram:list", id);
   return NextResponse.json({ id });
 }

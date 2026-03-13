@@ -16,7 +16,7 @@ export const revalidate = 0;
 
 export default async function MoneyFlowPage() {
   const redis = Redis.fromEnv();
-  const ids: string[] = (await redis.lrange("diagrams:list", 0, -1)) ?? [];
+  const ids: string[] = (await redis.lrange("diagram:list", 0, -1)) ?? [];
   const diagrams: DiagramMeta[] = (
     await Promise.all(ids.map(id => redis.get<string>(`diagram:${id}`)))
   )
