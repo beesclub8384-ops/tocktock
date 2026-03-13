@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.77.0",
-    "@upstash/redis": "^1.36.2",
+    "@upstash/redis": "^1.37.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "gray-matter": "^4.0.3",
@@ -20,13 +20,14 @@
     "next": "16.1.6",
     "radix-ui": "^1.4.3",
     "react": "19.2.3",
-    "recharts": "^3.8.0",
     "react-dom": "19.2.3",
+    "recharts": "^3.8.0",
     "remark": "^15.0.1",
     "remark-gfm": "^4.0.1",
     "remark-html": "^16.0.1",
     "rss-parser": "^3.13.0",
     "tailwind-merge": "^3.4.1",
+    "uuid": "^13.0.0",
     "yahoo-finance2": "^3.13.0"
   },
   "devDependencies": {
@@ -34,6 +35,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/uuid": "^10.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
     "shadcn": "^3.8.5",
