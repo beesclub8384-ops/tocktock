@@ -4,9 +4,10 @@ import DiagramView from "./DiagramView";
 
 export const dynamic = "force-dynamic";
 
-export default async function DiagramPage({ params }: { params: { id: string } }) {
+export default async function DiagramPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const redis = Redis.fromEnv();
-  const raw = await redis.get<any>(`diagram:${params.id}`);
+  const raw = await redis.get<any>(`diagram:${id}`);
   if (!raw) notFound();
-  return <DiagramView data={raw as any} />;
+  return <DiagramView data={raw} />;
 }
