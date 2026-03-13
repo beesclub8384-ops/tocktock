@@ -21,7 +21,7 @@ export default async function MoneyFlowPage() {
     await Promise.all(ids.map(id => redis.get<string>(`diagram:${id}`)))
   )
     .filter(Boolean)
-    .map(raw => JSON.parse(raw as string));
+    .map(raw => raw as DiagramMeta);
 
   return (
     <main className="max-w-3xl px-6 py-16 sm:px-8">

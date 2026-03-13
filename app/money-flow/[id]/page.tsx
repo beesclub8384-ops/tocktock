@@ -8,6 +8,6 @@ export default async function DiagramPage({ params }: { params: { id: string } }
   const redis = Redis.fromEnv();
   const raw = await redis.get<string>(`diagram:${params.id}`);
   if (!raw) notFound();
-  const data = JSON.parse(raw as string);
+  const data = raw as any;
   return <DiagramView data={data} />;
 }
