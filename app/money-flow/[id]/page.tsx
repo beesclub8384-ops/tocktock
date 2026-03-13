@@ -2,14 +2,11 @@ import { Redis } from "@upstash/redis";
 import { notFound } from "next/navigation";
 import DiagramView from "./DiagramView";
 
-export const revalidate = 0;
+export const dynamic = "force-dynamic";
 
 export default async function DiagramPage({ params }: { params: { id: string } }) {
   const redis = Redis.fromEnv();
-  const raw = await redis.get<string>(`diagram:${params.id}`);
-  console.log("id:", params.id);
-  console.log("raw:", raw);
+  const raw = await redis.get(`diagram:${params.id}`);
   if (!raw) notFound();
-  const data = raw as any;
-  return <DiagramView data={data} />;
+  return <DiagramView data={raw as any} />;
 }
