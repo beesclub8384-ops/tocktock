@@ -5,7 +5,7 @@ import YahooFinance from "yahoo-finance2";
 export const maxDuration = 300;
 
 const FRED_BASE = "https://api.stlouisfed.org/fred/series/observations";
-const CACHE_KEY = "liquidity:us:backtest";
+const CACHE_KEY = "liquidity:us:backtest:v2";
 const CACHE_TTL = 86400;
 
 /* ── Types ── */
@@ -93,6 +93,23 @@ function windowValues(
   const vals: number[] = [];
   for (const [m, v] of map) {
     if (m >= startYM && m <= endMonth) vals.push(v);
+  }
+  return vals;
+}
+
+function windowMomentumValues(
+  map: Map<string, number>,
+  endMonth: string,
+  lookbackMonths: number,
+  momOffset: number = 3
+): number[] {
+  const startYM = addMonths(endMonth, -lookbackMonths);
+  const vals: number[] = [];
+  for (const [m, v] of map) {
+    if (m >= startYM && m <= endMonth) {
+      const prev = map.get(addMonths(m, -momOffset));
+      if (prev != null) vals.push(v - prev);
+    }
   }
   return vals;
 }
@@ -231,6 +248,7 @@ async function computeBacktest(): Promise<BacktestResponse> {
     const nfHist = windowValues(nfciMap, month, LOOKBACK);
     const vxHist = windowValues(vixMonthMap, month, LOOKBACK);
 
+    // Level scores
     const nlS = calc(nl, nlHist, false);
     const mgS = calc(mg, mgHist, false);
     const hyS = calc(hyVal, hyHist, true);
@@ -238,8 +256,32 @@ async function computeBacktest(): Promise<BacktestResponse> {
     const nfS = calc(nfVal, nfHist, true);
     const vxS = calc(vxVal, vxHist, true);
 
-    const macro = (nlS + mgS + hyS + igS) / 4;
-    const market = (nfS + vxS) / 2;
+    // Momentum scores (3-month change percentile, rolling window)
+    const momCalc = (map: Map<string, number>, cur: number, inv: boolean) => {
+      const prev = map.get(addMonths(month, -3));
+      if (prev == null) return 50;
+      const momVal = cur - prev;
+      const momHist = windowMomentumValues(map, month, LOOKBACK);
+      return calc(momVal, momHist, inv);
+    };
+
+    const nlMomS = momCalc(netLiqMap, nl, false);
+    const mgMomS = momCalc(m2GrowthMap, mg, false);
+    const hyMomS = momCalc(hyMap, hyVal, true);
+    const igMomS = momCalc(igMap, igVal, true);
+    const nfMomS = momCalc(nfciMap, nfVal, true);
+    const vxMomS = momCalc(vixMonthMap, vxVal, true);
+
+    // Combined (level 60% + momentum 40%)
+    const nlC = nlS * 0.6 + nlMomS * 0.4;
+    const mgC = mgS * 0.6 + mgMomS * 0.4;
+    const hyC = hyS * 0.6 + hyMomS * 0.4;
+    const igC = igS * 0.6 + igMomS * 0.4;
+    const nfC = nfS * 0.6 + nfMomS * 0.4;
+    const vxC = vxS * 0.6 + vxMomS * 0.4;
+
+    const macro = (nlC + mgC + hyC + igC) / 4;
+    const market = (nfC + vxC) / 2;
     const finalScore = macro * 0.5 + market * 0.5;
 
     // QQQ forward returns

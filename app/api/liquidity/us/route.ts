@@ -5,7 +5,7 @@ import YahooFinance from "yahoo-finance2";
 export const maxDuration = 60;
 
 const FRED_BASE = "https://api.stlouisfed.org/fred/series/observations";
-const CACHE_KEY = "liquidity:us";
+const CACHE_KEY = "liquidity:us:v2";
 const CACHE_TTL = 86400; // 24h
 
 interface FredObs {
@@ -31,11 +31,38 @@ function percentileRank(values: number[], current: number): number {
   return (below / values.length) * 100;
 }
 
+function calcMomentumScore(
+  history: number[],
+  offset: number,
+  inverted: boolean,
+  chronological: boolean = false
+): number {
+  if (chronological) {
+    if (history.length <= offset) return 50;
+    const momHist: number[] = [];
+    for (let i = offset; i < history.length; i++) {
+      momHist.push(history[i] - history[i - offset]);
+    }
+    const pct = percentileRank(momHist, momHist[momHist.length - 1]);
+    return inverted ? 100 - pct : pct;
+  }
+  if (history.length <= offset) return 50;
+  const momHist: number[] = [];
+  for (let i = 0; i <= history.length - offset - 1; i++) {
+    momHist.push(history[i] - history[i + offset]);
+  }
+  const pct = percentileRank(momHist, momHist[0]);
+  return inverted ? 100 - pct : pct;
+}
+
 export interface IndicatorResult {
   id: string;
   name: string;
   value: number;
   score: number;
+  levelScore: number;
+  momentumScore: number;
+  combinedScore: number;
   unit: string;
   description: string;
   category: "macro" | "market";
@@ -143,12 +170,29 @@ async function computeLiquidity(): Promise<LiquidityResponse> {
     return inverted ? 100 - pct : pct;
   };
 
-  const netLiqScore = calcScore(netLiquidity, netLiqHistory, false);
-  const m2Score = calcScore(m2Growth, m2GrowthHistory, false);
-  const hyScore = calcScore(hyLatest, hyValues, true);
-  const igScore = calcScore(igLatest, igValues, true);
-  const nfciScore = calcScore(nfciLatest, nfciValues, true);
-  const vixScore = calcScore(vix3mAvg, vixAvgHistory, true);
+  // Level scores
+  const netLiqLevel = calcScore(netLiquidity, netLiqHistory, false);
+  const m2Level = calcScore(m2Growth, m2GrowthHistory, false);
+  const hyLevel = calcScore(hyLatest, hyValues, true);
+  const igLevel = calcScore(igLatest, igValues, true);
+  const nfciLevel = calcScore(nfciLatest, nfciValues, true);
+  const vixLevel = calcScore(vix3mAvg, vixAvgHistory, true);
+
+  // Momentum scores (3-month change percentile)
+  const netLiqMom = calcMomentumScore(netLiqHistory, 13, false);      // weekly ~3mo
+  const m2Mom = calcMomentumScore(m2GrowthHistory, 3, false);         // monthly 3mo
+  const hyMom = calcMomentumScore(hyValues, 63, true);                // daily ~3mo
+  const igMom = calcMomentumScore(igValues, 63, true);                // daily ~3mo
+  const nfciMom = calcMomentumScore(nfciValues, 13, true);            // weekly ~3mo
+  const vixMom = calcMomentumScore(vixAvgHistory, 63, true, true);    // daily chrono
+
+  // Combined scores (level 60% + momentum 40%)
+  const netLiqScore = netLiqLevel * 0.6 + netLiqMom * 0.4;
+  const m2Score = m2Level * 0.6 + m2Mom * 0.4;
+  const hyScore = hyLevel * 0.6 + hyMom * 0.4;
+  const igScore = igLevel * 0.6 + igMom * 0.4;
+  const nfciScore = nfciLevel * 0.6 + nfciMom * 0.4;
+  const vixScore = vixLevel * 0.6 + vixMom * 0.4;
 
   const macroScore = (netLiqScore + m2Score + hyScore + igScore) / 4;
   const marketScore = (nfciScore + vixScore) / 2;
@@ -158,8 +202,11 @@ async function computeLiquidity(): Promise<LiquidityResponse> {
     {
       id: "net-liquidity",
       name: "연준 순유동성",
-      value: Math.round(netLiquidity / 1000) / 1000, // to trillions with 3 decimals
+      value: Math.round(netLiquidity / 1000) / 1000,
       score: Math.round(netLiqScore * 10) / 10,
+      levelScore: Math.round(netLiqLevel * 10) / 10,
+      momentumScore: Math.round(netLiqMom * 10) / 10,
+      combinedScore: Math.round(netLiqScore * 10) / 10,
       unit: "조 달러",
       description: "연준 대차대조표에서 역레포·재무부 계좌를 뺀 실질 유동성",
       category: "macro",
@@ -170,6 +217,9 @@ async function computeLiquidity(): Promise<LiquidityResponse> {
       name: "M2 통화량 증가율",
       value: Math.round(m2Growth * 100) / 100,
       score: Math.round(m2Score * 10) / 10,
+      levelScore: Math.round(m2Level * 10) / 10,
+      momentumScore: Math.round(m2Mom * 10) / 10,
+      combinedScore: Math.round(m2Score * 10) / 10,
       unit: "% YoY",
       description: "시중에 풀린 돈의 총량 변화. 플러스면 유동성 확장",
       category: "macro",
@@ -180,6 +230,9 @@ async function computeLiquidity(): Promise<LiquidityResponse> {
       name: "하이일드 스프레드",
       value: Math.round(hyLatest * 100) / 100,
       score: Math.round(hyScore * 10) / 10,
+      levelScore: Math.round(hyLevel * 10) / 10,
+      momentumScore: Math.round(hyMom * 10) / 10,
+      combinedScore: Math.round(hyScore * 10) / 10,
       unit: "%",
       description: "정크본드와 국채의 금리 차이. 낮을수록 크레딧 시장 안정",
       category: "macro",
@@ -190,6 +243,9 @@ async function computeLiquidity(): Promise<LiquidityResponse> {
       name: "IG 크레딧 스프레드",
       value: Math.round(igLatest * 100) / 100,
       score: Math.round(igScore * 10) / 10,
+      levelScore: Math.round(igLevel * 10) / 10,
+      momentumScore: Math.round(igMom * 10) / 10,
+      combinedScore: Math.round(igScore * 10) / 10,
       unit: "%",
       description: "투자등급 회사채와 국채 금리 차이. 낮을수록 기업 자금조달 원활",
       category: "macro",
@@ -200,6 +256,9 @@ async function computeLiquidity(): Promise<LiquidityResponse> {
       name: "NFCI (금융상황지수)",
       value: Math.round(nfciLatest * 1000) / 1000,
       score: Math.round(nfciScore * 10) / 10,
+      levelScore: Math.round(nfciLevel * 10) / 10,
+      momentumScore: Math.round(nfciMom * 10) / 10,
+      combinedScore: Math.round(nfciScore * 10) / 10,
       unit: "",
       description: "시카고 연준 금융상황지수. 0 이하이면 완화적, 양수이면 긴축적",
       category: "market",
@@ -210,6 +269,9 @@ async function computeLiquidity(): Promise<LiquidityResponse> {
       name: "VIX 3개월 평균",
       value: Math.round(vix3mAvg * 100) / 100,
       score: Math.round(vixScore * 10) / 10,
+      levelScore: Math.round(vixLevel * 10) / 10,
+      momentumScore: Math.round(vixMom * 10) / 10,
+      combinedScore: Math.round(vixScore * 10) / 10,
       unit: "",
       description: "변동성지수 63거래일 평균. 낮을수록 시장 안정",
       category: "market",

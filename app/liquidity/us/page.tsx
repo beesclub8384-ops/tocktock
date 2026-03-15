@@ -10,6 +10,9 @@ interface IndicatorResult {
   name: string;
   value: number;
   score: number;
+  levelScore: number;
+  momentumScore: number;
+  combinedScore: number;
   unit: string;
   description: string;
   category: "macro" | "market";
@@ -161,8 +164,11 @@ function IndicatorCard({ ind }: { ind: IndicatorResult }) {
         />
       </div>
       <p className="text-xs text-muted-foreground leading-relaxed">{ind.description}</p>
+      <p className="text-[10px] text-muted-foreground/60 mt-1">
+        레벨 {ind.levelScore} · 모멘텀 {ind.momentumScore}
+      </p>
       {ind.inverted && (
-        <p className="text-[10px] text-muted-foreground/60 mt-1">* 낮을수록 유동성에 유리 (점수 역산)</p>
+        <p className="text-[10px] text-muted-foreground/60 mt-0.5">* 낮을수록 유동성에 유리 (점수 역산)</p>
       )}
     </div>
   );
