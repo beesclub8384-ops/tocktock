@@ -53,16 +53,16 @@ export interface LiquidityResponse {
 async function computeLiquidity(): Promise<LiquidityResponse> {
   const yahooFinance = new YahooFinance();
 
-  // Fetch ~5 years of weekly FRED data (260 weeks) or monthly (60 months)
+  // Fetch ~10 years of FRED data for percentile ranking
   const [walclObs, rrpObs, tgaObs, m2Obs, hyObs, igObs, nfciObs] =
     await Promise.all([
-      fetchFredSeries("WALCL", 280),   // weekly
-      fetchFredSeries("RRPONTSYD", 1400), // daily
-      fetchFredSeries("WTREGEN", 280),  // weekly
-      fetchFredSeries("M2SL", 72),      // monthly
-      fetchFredSeries("BAMLH0A0HYM2", 1300), // daily
-      fetchFredSeries("BAMLC0A0CM", 1300),    // daily
-      fetchFredSeries("NFCI", 280),     // weekly
+      fetchFredSeries("WALCL", 530),      // weekly ~10yr
+      fetchFredSeries("RRPONTSYD", 2600), // daily ~10yr
+      fetchFredSeries("WTREGEN", 530),    // weekly ~10yr
+      fetchFredSeries("M2SL", 132),       // monthly ~11yr (need 12 extra for YoY)
+      fetchFredSeries("BAMLH0A0HYM2", 2600), // daily ~10yr
+      fetchFredSeries("BAMLC0A0CM", 2600),    // daily ~10yr
+      fetchFredSeries("NFCI", 530),       // weekly ~10yr
     ]);
 
   // 1. Fed Net Liquidity = WALCL - RRPONTSYD - WTREGEN
@@ -71,7 +71,7 @@ async function computeLiquidity(): Promise<LiquidityResponse> {
   const tgaLatest = parseFloat(tgaObs[0].value);
   const netLiquidity = walclLatest - rrpLatest - tgaLatest;
 
-  // Build 5-year historical net liquidity (approximate using weekly WALCL dates)
+  // Build 10-year historical net liquidity (approximate using weekly WALCL dates)
   const walclMap = new Map(walclObs.map((o) => [o.date, parseFloat(o.value)]));
   const tgaMap = new Map(tgaObs.map((o) => [o.date, parseFloat(o.value)]));
   const rrpByDate = new Map(
@@ -115,7 +115,7 @@ async function computeLiquidity(): Promise<LiquidityResponse> {
 
   // 6. VIX 3-month average
   const vixChart = await yahooFinance.chart("^VIX", {
-    period1: new Date(Date.now() - 5 * 365 * 24 * 60 * 60 * 1000),
+    period1: new Date(Date.now() - 10 * 365 * 24 * 60 * 60 * 1000),
     interval: "1d",
   });
   const vixCloses = (vixChart.quotes ?? [])
