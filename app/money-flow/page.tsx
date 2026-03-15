@@ -3,14 +3,7 @@ import { Redis } from "@upstash/redis";
 
 type DiagramMeta = { id: string; title: string; type: string; center: string; createdAt: string };
 
-const articles = [
-  {
-    href: "/money-flow/us-bond-market",
-    title: "미국 채권시장의 구조",
-    description:
-      "재무부 채권 45%, 회사채 26%... 돈이 어디에 얼마나 쌓여 있는가",
-  },
-];
+const articles: { href: string; title: string; description: string }[] = [];
 
 export const revalidate = 0;
 
