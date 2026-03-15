@@ -5,7 +5,7 @@ import YahooFinance from "yahoo-finance2";
 export const maxDuration = 60;
 
 const FRED_BASE = "https://api.stlouisfed.org/fred/series/observations";
-const CACHE_KEY = "liquidity:us:v2";
+const CACHE_KEY = "liquidity:us:v3";
 const CACHE_TTL = 86400; // 24h
 
 interface FredObs {
@@ -31,28 +31,39 @@ function percentileRank(values: number[], current: number): number {
   return (below / values.length) * 100;
 }
 
-function calcMomentumScore(
+function buildMomHist(
   history: number[],
   offset: number,
-  inverted: boolean,
   chronological: boolean = false
-): number {
+): number[] {
+  if (history.length <= offset) return [];
+  const mh: number[] = [];
   if (chronological) {
-    if (history.length <= offset) return 50;
-    const momHist: number[] = [];
-    for (let i = offset; i < history.length; i++) {
-      momHist.push(history[i] - history[i - offset]);
-    }
-    const pct = percentileRank(momHist, momHist[momHist.length - 1]);
-    return inverted ? 100 - pct : pct;
+    for (let i = offset; i < history.length; i++) mh.push(history[i] - history[i - offset]);
+  } else {
+    for (let i = 0; i <= history.length - offset - 1; i++) mh.push(history[i] - history[i + offset]);
   }
-  if (history.length <= offset) return 50;
-  const momHist: number[] = [];
-  for (let i = 0; i <= history.length - offset - 1; i++) {
-    momHist.push(history[i] - history[i + offset]);
-  }
-  const pct = percentileRank(momHist, momHist[0]);
+  return mh;
+}
+
+function momScore(momHist: number[], idx: number, inverted: boolean): number {
+  if (momHist.length === 0 || idx < 0 || idx >= momHist.length) return 50;
+  const pct = percentileRank(momHist, momHist[idx]);
   return inverted ? 100 - pct : pct;
+}
+
+type RegimeType = "RECOVERY" | "EXPANSION" | "SLOWDOWN" | "CONTRACTION";
+
+function classifyRegime(score: number, rising: boolean): {
+  regime: RegimeType; regimeLabel: string; regimeColor: string; regimeSignal: string;
+} {
+  if (score < 50 && rising)
+    return { regime: "RECOVERY", regimeLabel: "바닥 탈출", regimeColor: "blue", regimeSignal: "강한 매수 신호 — 역사적으로 가장 강한 반등 구간" };
+  if (score >= 50 && rising)
+    return { regime: "EXPANSION", regimeLabel: "상승 지속", regimeColor: "green", regimeSignal: "상승 지속 가능성 높음" };
+  if (score >= 50 && !rising)
+    return { regime: "SLOWDOWN", regimeLabel: "고점 경고", regimeColor: "orange", regimeSignal: "상승 둔화, 주의 필요" };
+  return { regime: "CONTRACTION", regimeLabel: "하락 지속", regimeColor: "red", regimeSignal: "하락 위험, 회피" };
 }
 
 export interface IndicatorResult {
@@ -74,6 +85,11 @@ export interface LiquidityResponse {
   macroScore: number;
   marketScore: number;
   indicators: IndicatorResult[];
+  regime: RegimeType;
+  regimeLabel: string;
+  regimeColor: string;
+  regimeSignal: string;
+  scoreChange3m: number | null;
   fetchedAt: string;
 }
 
@@ -178,13 +194,21 @@ async function computeLiquidity(): Promise<LiquidityResponse> {
   const nfciLevel = calcScore(nfciLatest, nfciValues, true);
   const vixLevel = calcScore(vix3mAvg, vixAvgHistory, true);
 
-  // Momentum scores (3-month change percentile)
-  const netLiqMom = calcMomentumScore(netLiqHistory, 13, false);      // weekly ~3mo
-  const m2Mom = calcMomentumScore(m2GrowthHistory, 3, false);         // monthly 3mo
-  const hyMom = calcMomentumScore(hyValues, 63, true);                // daily ~3mo
-  const igMom = calcMomentumScore(igValues, 63, true);                // daily ~3mo
-  const nfciMom = calcMomentumScore(nfciValues, 13, true);            // weekly ~3mo
-  const vixMom = calcMomentumScore(vixAvgHistory, 63, true, true);    // daily chrono
+  // Build momentum histories
+  const nlMomH = buildMomHist(netLiqHistory, 13);
+  const m2MomH = buildMomHist(m2GrowthHistory, 3);
+  const hyMomH = buildMomHist(hyValues, 63);
+  const igMomH = buildMomHist(igValues, 63);
+  const nfciMomH = buildMomHist(nfciValues, 13);
+  const vixMomH = buildMomHist(vixAvgHistory, 63, true);
+
+  // Current momentum scores (idx 0 = most recent for reverse chrono, last for chrono)
+  const netLiqMom = momScore(nlMomH, 0, false);
+  const m2Mom = momScore(m2MomH, 0, false);
+  const hyMom = momScore(hyMomH, 0, true);
+  const igMom = momScore(igMomH, 0, true);
+  const nfciMom = momScore(nfciMomH, 0, true);
+  const vixMom = momScore(vixMomH, vixMomH.length - 1, true);
 
   // Combined scores (level 60% + momentum 40%)
   const netLiqScore = netLiqLevel * 0.6 + netLiqMom * 0.4;
@@ -197,6 +221,40 @@ async function computeLiquidity(): Promise<LiquidityResponse> {
   const macroScore = (netLiqScore + m2Score + hyScore + igScore) / 4;
   const marketScore = (nfciScore + vixScore) / 2;
   const finalScore = macroScore * 0.5 + marketScore * 0.5;
+
+  // 3-month-ago final score for regime classification
+  const computePastScore = (): number | null => {
+    const pNl = netLiqHistory.length > 13 ? netLiqHistory[13] : undefined;
+    const pM2 = m2GrowthHistory.length > 3 ? m2GrowthHistory[3] : undefined;
+    const pHy = hyValues.length > 63 ? hyValues[63] : undefined;
+    const pIg = igValues.length > 63 ? igValues[63] : undefined;
+    const pNf = nfciValues.length > 13 ? nfciValues[13] : undefined;
+    const pVx = vixAvgHistory.length > 63 ? vixAvgHistory[vixAvgHistory.length - 1 - 63] : undefined;
+    if (pNl == null || pM2 == null || pHy == null || pIg == null || pNf == null || pVx == null) return null;
+
+    const pNlL = calcScore(pNl, netLiqHistory, false);
+    const pM2L = calcScore(pM2, m2GrowthHistory, false);
+    const pHyL = calcScore(pHy, hyValues, true);
+    const pIgL = calcScore(pIg, igValues, true);
+    const pNfL = calcScore(pNf, nfciValues, true);
+    const pVxL = calcScore(pVx, vixAvgHistory, true);
+
+    const pNlM = momScore(nlMomH, 13, false);
+    const pM2M = momScore(m2MomH, 3, false);
+    const pHyM = momScore(hyMomH, 63, true);
+    const pIgM = momScore(igMomH, 63, true);
+    const pNfM = momScore(nfciMomH, 13, true);
+    const pVxM = momScore(vixMomH, vixMomH.length - 1 - 63, true);
+
+    const pMacro = ((pNlL*0.6+pNlM*0.4) + (pM2L*0.6+pM2M*0.4) + (pHyL*0.6+pHyM*0.4) + (pIgL*0.6+pIgM*0.4)) / 4;
+    const pMarket = ((pNfL*0.6+pNfM*0.4) + (pVxL*0.6+pVxM*0.4)) / 2;
+    return pMacro * 0.5 + pMarket * 0.5;
+  };
+
+  const pastFinal = computePastScore();
+  const scoreChange3m = pastFinal != null ? Math.round((finalScore - pastFinal) * 10) / 10 : null;
+  const rising = scoreChange3m != null ? scoreChange3m > 0 : true;
+  const { regime, regimeLabel, regimeColor, regimeSignal } = classifyRegime(finalScore, rising);
 
   const indicators: IndicatorResult[] = [
     {
@@ -284,6 +342,11 @@ async function computeLiquidity(): Promise<LiquidityResponse> {
     macroScore: Math.round(macroScore * 10) / 10,
     marketScore: Math.round(marketScore * 10) / 10,
     indicators,
+    regime,
+    regimeLabel,
+    regimeColor,
+    regimeSignal,
+    scoreChange3m,
     fetchedAt: new Date().toISOString(),
   };
 }

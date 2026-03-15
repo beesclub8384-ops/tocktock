@@ -33,10 +33,22 @@ interface BucketStats {
   avg3m: number;
 }
 
+type RegimeType = "RECOVERY" | "EXPANSION" | "SLOWDOWN" | "CONTRACTION";
+
+interface RegimeStat {
+  count: number;
+  avg1m: number;
+  avg2m: number;
+  avg3m: number;
+  winRate3m: number;
+}
+
 interface BacktestData {
   points: BacktestPoint[];
   buckets: BucketStats[];
   accuracy: { overall: number; month1: number; month2: number; month3: number };
+  regimeStats: Record<RegimeType, RegimeStat>;
+  regimeAccuracy: { overall: number; month1: number; month2: number; month3: number };
   periodStart: string;
   periodEnd: string;
   totalMonths: number;
@@ -151,6 +163,88 @@ function BucketTable({ buckets }: { buckets: BucketStats[] }) {
             ))}
           </tbody>
         </table>
+      </div>
+    </div>
+  );
+}
+
+const REGIME_META: { type: RegimeType; label: string; color: string }[] = [
+  { type: "RECOVERY", label: "바닥 탈출", color: "#3b82f6" },
+  { type: "EXPANSION", label: "상승 지속", color: "#16a34a" },
+  { type: "SLOWDOWN", label: "고점 경고", color: "#ea580c" },
+  { type: "CONTRACTION", label: "하락 지속", color: "#dc2626" },
+];
+
+function RegimeTable({
+  regimeStats,
+  regimeAccuracy,
+}: {
+  regimeStats: Record<RegimeType, RegimeStat>;
+  regimeAccuracy: BacktestData["regimeAccuracy"];
+}) {
+  const fmtReturn = (v: number) => (
+    <span style={{ color: v >= 0 ? "#16a34a" : "#dc2626" }}>
+      {v >= 0 ? "+" : ""}
+      {v}%
+    </span>
+  );
+
+  const getColor = (v: number) =>
+    v >= 60 ? "#16a34a" : v >= 50 ? "#ca8a04" : "#dc2626";
+
+  return (
+    <div className="rounded-xl border bg-card overflow-hidden">
+      <div className="px-6 py-4 border-b">
+        <p className="font-semibold">국면별 QQQ 평균 수익률</p>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b text-muted-foreground">
+              <th className="px-4 py-3 text-left font-medium">국면</th>
+              <th className="px-4 py-3 text-center font-medium">해당 월 수</th>
+              <th className="px-4 py-3 text-right font-medium">1개월 뒤</th>
+              <th className="px-4 py-3 text-right font-medium">2개월 뒤</th>
+              <th className="px-4 py-3 text-right font-medium">3개월 뒤</th>
+              <th className="px-4 py-3 text-right font-medium">3개월 승률</th>
+            </tr>
+          </thead>
+          <tbody>
+            {REGIME_META.map(({ type, label, color }) => {
+              const s = regimeStats[type];
+              if (!s) return null;
+              return (
+                <tr key={type} className="border-b last:border-0">
+                  <td className="px-4 py-3">
+                    <span className="flex items-center gap-2">
+                      <span
+                        className="w-3 h-3 rounded-full shrink-0"
+                        style={{ backgroundColor: color }}
+                      />
+                      {label}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-center tabular-nums">{s.count}</td>
+                  <td className="px-4 py-3 text-right tabular-nums">{fmtReturn(s.avg1m)}</td>
+                  <td className="px-4 py-3 text-right tabular-nums">{fmtReturn(s.avg2m)}</td>
+                  <td className="px-4 py-3 text-right tabular-nums">{fmtReturn(s.avg3m)}</td>
+                  <td className="px-4 py-3 text-right tabular-nums font-semibold" style={{ color: getColor(s.winRate3m) }}>
+                    {s.winRate3m}%
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <div className="px-6 py-3 border-t bg-muted/30">
+        <p className="text-xs text-muted-foreground">
+          국면 예측 정확도: 전체{" "}
+          <span className="font-semibold" style={{ color: getColor(regimeAccuracy.overall) }}>
+            {regimeAccuracy.overall}%
+          </span>
+          {" "}(1개월 {regimeAccuracy.month1}% · 2개월 {regimeAccuracy.month2}% · 3개월 {regimeAccuracy.month3}%)
+        </p>
       </div>
     </div>
   );
@@ -332,6 +426,7 @@ export default function BacktestPage() {
         <div className="flex flex-col gap-6">
           <AccuracyCard accuracy={data.accuracy} />
           <BucketTable buckets={data.buckets} />
+          <RegimeTable regimeStats={data.regimeStats} regimeAccuracy={data.regimeAccuracy} />
           <BacktestChart points={data.points} />
 
           {/* 한계 안내 */}

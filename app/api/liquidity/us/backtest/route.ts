@@ -5,17 +5,28 @@ import YahooFinance from "yahoo-finance2";
 export const maxDuration = 300;
 
 const FRED_BASE = "https://api.stlouisfed.org/fred/series/observations";
-const CACHE_KEY = "liquidity:us:backtest:v2";
+const CACHE_KEY = "liquidity:us:backtest:v3";
 const CACHE_TTL = 86400;
 
 /* ── Types ── */
 
+type RegimeType = "RECOVERY" | "EXPANSION" | "SLOWDOWN" | "CONTRACTION";
+
 export interface BacktestPoint {
   date: string;
   score: number;
+  regime: RegimeType;
   qqq1m: number | null;
   qqq2m: number | null;
   qqq3m: number | null;
+}
+
+export interface RegimeStat {
+  count: number;
+  avg1m: number;
+  avg2m: number;
+  avg3m: number;
+  winRate3m: number;
 }
 
 export interface BucketStats {
@@ -31,6 +42,8 @@ export interface BacktestResponse {
   points: BacktestPoint[];
   buckets: BucketStats[];
   accuracy: { overall: number; month1: number; month2: number; month3: number };
+  regimeStats: Record<RegimeType, RegimeStat>;
+  regimeAccuracy: { overall: number; month1: number; month2: number; month3: number };
   periodStart: string;
   periodEnd: string;
   totalMonths: number;
@@ -293,10 +306,22 @@ async function computeBacktest(): Promise<BacktestResponse> {
     points.push({
       date: month,
       score: r1(finalScore),
+      regime: "EXPANSION" as RegimeType, // placeholder, classified below
       qqq1m: qNow && q1 ? r2((q1 / qNow - 1) * 100) : null,
       qqq2m: qNow && q2 ? r2((q2 / qNow - 1) * 100) : null,
       qqq3m: qNow && q3 ? r2((q3 / qNow - 1) * 100) : null,
     });
+  }
+
+  // Classify regimes (compare with score 3 months ago)
+  const scoreMap = new Map(points.map((p) => [p.date, p.score]));
+  for (const p of points) {
+    const past = scoreMap.get(addMonths(p.date, -3));
+    const rising = past != null ? p.score > past : true;
+    if (p.score < 50 && rising) p.regime = "RECOVERY";
+    else if (p.score >= 50 && rising) p.regime = "EXPANSION";
+    else if (p.score >= 50 && !rising) p.regime = "SLOWDOWN";
+    else p.regime = "CONTRACTION";
   }
 
   // Bucket stats
@@ -344,6 +369,56 @@ async function computeBacktest(): Promise<BacktestResponse> {
   const a2 = calcAcc("qqq2m");
   const a3 = calcAcc("qqq3m");
 
+  // Regime stats
+  const regimeDefs: { type: RegimeType; label: string }[] = [
+    { type: "RECOVERY", label: "바닥 탈출" },
+    { type: "EXPANSION", label: "상승 지속" },
+    { type: "SLOWDOWN", label: "고점 경고" },
+    { type: "CONTRACTION", label: "하락 지속" },
+  ];
+
+  const regimeStats = {} as Record<RegimeType, RegimeStat>;
+  for (const { type } of regimeDefs) {
+    const inR = points.filter((p) => p.regime === type);
+    const avgKey = (key: "qqq1m" | "qqq2m" | "qqq3m") => {
+      const valid = inR.filter((p) => p[key] != null);
+      return valid.length > 0
+        ? r2(valid.reduce((s, p) => s + p[key]!, 0) / valid.length)
+        : 0;
+    };
+    const wr3 = (() => {
+      const valid = inR.filter((p) => p.qqq3m != null);
+      if (valid.length === 0) return 0;
+      return r1((valid.filter((p) => p.qqq3m! > 0).length / valid.length) * 100);
+    })();
+    regimeStats[type] = {
+      count: inR.length,
+      avg1m: avgKey("qqq1m"),
+      avg2m: avgKey("qqq2m"),
+      avg3m: avgKey("qqq3m"),
+      winRate3m: wr3,
+    };
+  }
+
+  // Regime accuracy: RECOVERY+EXPANSION → QQQ up, SLOWDOWN+CONTRACTION → QQQ down
+  const calcRegimeAcc = (key: "qqq1m" | "qqq2m" | "qqq3m"): number => {
+    const valid = points.filter((p) => p[key] != null);
+    if (valid.length === 0) return 0;
+    const bullish = valid.filter((p) => p.regime === "RECOVERY" || p.regime === "EXPANSION");
+    const bearish = valid.filter((p) => p.regime === "SLOWDOWN" || p.regime === "CONTRACTION");
+    const bullOk = bullish.filter((p) => p[key]! > 0).length;
+    const bearOk = bearish.filter((p) => p[key]! <= 0).length;
+    const bA = bullish.length > 0 ? bullOk / bullish.length : 0;
+    const bB = bearish.length > 0 ? bearOk / bearish.length : 0;
+    if (bullish.length === 0) return r1(bB * 100);
+    if (bearish.length === 0) return r1(bA * 100);
+    return r1(((bA + bB) / 2) * 100);
+  };
+
+  const ra1 = calcRegimeAcc("qqq1m");
+  const ra2 = calcRegimeAcc("qqq2m");
+  const ra3 = calcRegimeAcc("qqq3m");
+
   const validPts = points.filter((p) => p.qqq1m != null);
 
   return {
@@ -354,6 +429,13 @@ async function computeBacktest(): Promise<BacktestResponse> {
       month2: a2,
       month3: a3,
       overall: r1((a1 + a2 + a3) / 3),
+    },
+    regimeStats,
+    regimeAccuracy: {
+      month1: ra1,
+      month2: ra2,
+      month3: ra3,
+      overall: r1((ra1 + ra2 + ra3) / 3),
     },
     periodStart: validPts[0]?.date ?? "",
     periodEnd: validPts[validPts.length - 1]?.date ?? "",

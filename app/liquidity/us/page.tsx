@@ -19,11 +19,18 @@ interface IndicatorResult {
   inverted: boolean;
 }
 
+type RegimeType = "RECOVERY" | "EXPANSION" | "SLOWDOWN" | "CONTRACTION";
+
 interface LiquidityData {
   finalScore: number;
   macroScore: number;
   marketScore: number;
   indicators: IndicatorResult[];
+  regime: RegimeType;
+  regimeLabel: string;
+  regimeColor: string;
+  regimeSignal: string;
+  scoreChange3m: number | null;
   fetchedAt: string;
 }
 
@@ -135,6 +142,74 @@ function SubScore({ label, score }: { label: string; score: number }) {
           className="h-full rounded-full transition-all duration-700"
           style={{ width: `${score}%`, backgroundColor: getBarColor(score) }}
         />
+      </div>
+    </div>
+  );
+}
+
+const REGIME_STYLES: Record<RegimeType, { color: string; bg: string; border: string; emoji: string }> = {
+  RECOVERY: { color: "#3b82f6", bg: "rgba(59,130,246,.12)", border: "rgba(59,130,246,.3)", emoji: "↗" },
+  EXPANSION: { color: "#16a34a", bg: "rgba(22,163,74,.12)", border: "rgba(22,163,74,.3)", emoji: "↑" },
+  SLOWDOWN: { color: "#ea580c", bg: "rgba(234,88,12,.12)", border: "rgba(234,88,12,.3)", emoji: "↘" },
+  CONTRACTION: { color: "#dc2626", bg: "rgba(220,38,38,.12)", border: "rgba(220,38,38,.3)", emoji: "↓" },
+};
+
+const REGIME_QUADRANTS: { type: RegimeType; label: string; desc: string }[] = [
+  { type: "RECOVERY", label: "바닥 탈출", desc: "점수 낮지만 상승 중" },
+  { type: "EXPANSION", label: "상승 지속", desc: "점수 높고 상승 중" },
+  { type: "SLOWDOWN", label: "고점 경고", desc: "점수 높지만 하락 중" },
+  { type: "CONTRACTION", label: "하락 지속", desc: "점수 낮고 하락 중" },
+];
+
+function RegimeCard({ data }: { data: LiquidityData }) {
+  const style = REGIME_STYLES[data.regime];
+  return (
+    <div className="rounded-xl border bg-card p-6 sm:p-8 mt-4">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <p className="text-sm text-muted-foreground mb-1">현재 유동성 국면</p>
+          <div className="flex items-center gap-3">
+            <span className="text-3xl font-bold" style={{ color: style.color }}>
+              {style.emoji} {data.regimeLabel}
+            </span>
+          </div>
+        </div>
+        <div
+          className="rounded-lg px-4 py-2 text-sm font-semibold"
+          style={{ backgroundColor: style.bg, color: style.color, border: `1px solid ${style.border}` }}
+        >
+          {data.regime}
+        </div>
+      </div>
+      <p className="text-sm text-muted-foreground mb-4">{data.regimeSignal}</p>
+      {data.scoreChange3m != null && (
+        <p className="text-sm mb-4">
+          3개월 전 대비{" "}
+          <span className="font-semibold" style={{ color: data.scoreChange3m > 0 ? "#16a34a" : data.scoreChange3m < 0 ? "#dc2626" : "#888" }}>
+            {data.scoreChange3m > 0 ? "+" : ""}{data.scoreChange3m}점
+          </span>
+        </p>
+      )}
+      {/* 4-quadrant legend */}
+      <div className="grid grid-cols-2 gap-2 mt-4">
+        {REGIME_QUADRANTS.map((q) => {
+          const s = REGIME_STYLES[q.type];
+          const isActive = q.type === data.regime;
+          return (
+            <div
+              key={q.type}
+              className="rounded-lg px-3 py-2 text-xs"
+              style={{
+                backgroundColor: isActive ? s.bg : "transparent",
+                border: `1px solid ${isActive ? s.border : "rgba(255,255,255,0.08)"}`,
+                opacity: isActive ? 1 : 0.5,
+              }}
+            >
+              <span className="font-semibold" style={{ color: s.color }}>{s.emoji} {q.label}</span>
+              <span className="text-muted-foreground ml-1">— {q.desc}</span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -267,6 +342,9 @@ export default function UsLiquidityPage() {
             <SubScore label="거시 유동성" score={data.macroScore} />
             <SubScore label="마켓 유동성" score={data.marketScore} />
           </div>
+
+          {/* 국면 카드 */}
+          <RegimeCard data={data} />
 
           {/* 거시 유동성 지표 */}
           <section className="mt-10">
