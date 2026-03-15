@@ -22,6 +22,9 @@ interface BacktestPoint {
   qqq1m: number | null;
   qqq2m: number | null;
   qqq3m: number | null;
+  qqq4m: number | null;
+  qqq5m: number | null;
+  qqq6m: number | null;
 }
 
 interface BucketStats {
@@ -31,6 +34,9 @@ interface BucketStats {
   avg1m: number;
   avg2m: number;
   avg3m: number;
+  avg4m: number;
+  avg5m: number;
+  avg6m: number;
 }
 
 type RegimeType = "RECOVERY" | "EXPANSION" | "SLOWDOWN" | "CONTRACTION";
@@ -40,15 +46,28 @@ interface RegimeStat {
   avg1m: number;
   avg2m: number;
   avg3m: number;
-  winRate3m: number;
+  avg4m: number;
+  avg5m: number;
+  avg6m: number;
+  winRate6m: number;
 }
+
+type AccuracyObj = {
+  overall: number;
+  month1: number;
+  month2: number;
+  month3: number;
+  month4: number;
+  month5: number;
+  month6: number;
+};
 
 interface BacktestData {
   points: BacktestPoint[];
   buckets: BucketStats[];
-  accuracy: { overall: number; month1: number; month2: number; month3: number };
+  accuracy: AccuracyObj;
   regimeStats: Record<RegimeType, RegimeStat>;
-  regimeAccuracy: { overall: number; month1: number; month2: number; month3: number };
+  regimeAccuracy: AccuracyObj;
   periodStart: string;
   periodEnd: string;
   totalMonths: number;
@@ -68,9 +87,18 @@ function formatYM(ym: string) {
 
 /* ── 컴포넌트 ── */
 
-function AccuracyCard({ accuracy }: { accuracy: BacktestData["accuracy"] }) {
+function AccuracyCard({ accuracy }: { accuracy: AccuracyObj }) {
   const getColor = (v: number) =>
     v >= 60 ? "#16a34a" : v >= 50 ? "#ca8a04" : "#dc2626";
+
+  const months = [
+    { label: "1개월", value: accuracy.month1 },
+    { label: "2개월", value: accuracy.month2 },
+    { label: "3개월", value: accuracy.month3 },
+    { label: "4개월", value: accuracy.month4 },
+    { label: "5개월", value: accuracy.month5 },
+    { label: "6개월", value: accuracy.month6 },
+  ];
 
   return (
     <div className="rounded-xl border bg-card p-6 sm:p-8">
@@ -84,19 +112,17 @@ function AccuracyCard({ accuracy }: { accuracy: BacktestData["accuracy"] }) {
         </span>
         <span className="text-sm text-muted-foreground">전체 평균</span>
       </div>
-      <div className="grid grid-cols-3 gap-4">
-        {[
-          { label: "1개월 뒤", value: accuracy.month1 },
-          { label: "2개월 뒤", value: accuracy.month2 },
-          { label: "3개월 뒤", value: accuracy.month3 },
-        ].map((item) => (
+      <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
+        {months.map((item) => (
           <div
             key={item.label}
             className="rounded-lg bg-muted/50 p-3 text-center"
           >
-            <p className="text-xs text-muted-foreground mb-1">{item.label}</p>
+            <p className="text-xs text-muted-foreground mb-1">
+              {item.label}
+            </p>
             <p
-              className="text-xl font-bold tabular-nums"
+              className="text-lg font-bold tabular-nums"
               style={{ color: getColor(item.value) }}
             >
               {item.value}%
@@ -105,7 +131,8 @@ function AccuracyCard({ accuracy }: { accuracy: BacktestData["accuracy"] }) {
         ))}
       </div>
       <p className="mt-4 text-xs text-muted-foreground">
-        점수 50점 이상일 때 QQQ 상승 + 점수 50점 미만일 때 QQQ 하락 비율의 평균
+        점수 50점 이상일 때 QQQ 상승 + 점수 50점 미만일 때 QQQ 하락 비율의
+        평균
       </p>
     </div>
   );
@@ -128,11 +155,16 @@ function BucketTable({ buckets }: { buckets: BucketStats[] }) {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b text-muted-foreground">
-              <th className="px-4 py-3 text-left font-medium">유동성 구간</th>
-              <th className="px-4 py-3 text-center font-medium">해당 월 수</th>
-              <th className="px-4 py-3 text-right font-medium">1개월 뒤</th>
-              <th className="px-4 py-3 text-right font-medium">2개월 뒤</th>
-              <th className="px-4 py-3 text-right font-medium">3개월 뒤</th>
+              <th className="px-4 py-3 text-left font-medium">
+                유동성 구간
+              </th>
+              <th className="px-4 py-3 text-center font-medium">월 수</th>
+              <th className="px-4 py-3 text-right font-medium">1개월</th>
+              <th className="px-4 py-3 text-right font-medium">2개월</th>
+              <th className="px-4 py-3 text-right font-medium">3개월</th>
+              <th className="px-4 py-3 text-right font-medium">4개월</th>
+              <th className="px-4 py-3 text-right font-medium">5개월</th>
+              <th className="px-4 py-3 text-right font-medium">6개월</th>
             </tr>
           </thead>
           <tbody>
@@ -159,6 +191,15 @@ function BucketTable({ buckets }: { buckets: BucketStats[] }) {
                 <td className="px-4 py-3 text-right tabular-nums">
                   {fmtReturn(b.avg3m)}
                 </td>
+                <td className="px-4 py-3 text-right tabular-nums">
+                  {fmtReturn(b.avg4m)}
+                </td>
+                <td className="px-4 py-3 text-right tabular-nums">
+                  {fmtReturn(b.avg5m)}
+                </td>
+                <td className="px-4 py-3 text-right tabular-nums">
+                  {fmtReturn(b.avg6m)}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -180,7 +221,7 @@ function RegimeTable({
   regimeAccuracy,
 }: {
   regimeStats: Record<RegimeType, RegimeStat>;
-  regimeAccuracy: BacktestData["regimeAccuracy"];
+  regimeAccuracy: AccuracyObj;
 }) {
   const fmtReturn = (v: number) => (
     <span style={{ color: v >= 0 ? "#16a34a" : "#dc2626" }}>
@@ -202,11 +243,14 @@ function RegimeTable({
           <thead>
             <tr className="border-b text-muted-foreground">
               <th className="px-4 py-3 text-left font-medium">국면</th>
-              <th className="px-4 py-3 text-center font-medium">해당 월 수</th>
-              <th className="px-4 py-3 text-right font-medium">1개월 뒤</th>
-              <th className="px-4 py-3 text-right font-medium">2개월 뒤</th>
-              <th className="px-4 py-3 text-right font-medium">3개월 뒤</th>
-              <th className="px-4 py-3 text-right font-medium">3개월 승률</th>
+              <th className="px-4 py-3 text-center font-medium">월 수</th>
+              <th className="px-4 py-3 text-right font-medium">1개월</th>
+              <th className="px-4 py-3 text-right font-medium">2개월</th>
+              <th className="px-4 py-3 text-right font-medium">3개월</th>
+              <th className="px-4 py-3 text-right font-medium">4개월</th>
+              <th className="px-4 py-3 text-right font-medium">5개월</th>
+              <th className="px-4 py-3 text-right font-medium">6개월</th>
+              <th className="px-4 py-3 text-right font-medium">6개월 승률</th>
             </tr>
           </thead>
           <tbody>
@@ -224,12 +268,32 @@ function RegimeTable({
                       {label}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-center tabular-nums">{s.count}</td>
-                  <td className="px-4 py-3 text-right tabular-nums">{fmtReturn(s.avg1m)}</td>
-                  <td className="px-4 py-3 text-right tabular-nums">{fmtReturn(s.avg2m)}</td>
-                  <td className="px-4 py-3 text-right tabular-nums">{fmtReturn(s.avg3m)}</td>
-                  <td className="px-4 py-3 text-right tabular-nums font-semibold" style={{ color: getColor(s.winRate3m) }}>
-                    {s.winRate3m}%
+                  <td className="px-4 py-3 text-center tabular-nums">
+                    {s.count}
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums">
+                    {fmtReturn(s.avg1m)}
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums">
+                    {fmtReturn(s.avg2m)}
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums">
+                    {fmtReturn(s.avg3m)}
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums">
+                    {fmtReturn(s.avg4m)}
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums">
+                    {fmtReturn(s.avg5m)}
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums">
+                    {fmtReturn(s.avg6m)}
+                  </td>
+                  <td
+                    className="px-4 py-3 text-right tabular-nums font-semibold"
+                    style={{ color: getColor(s.winRate6m) }}
+                  >
+                    {s.winRate6m}%
                   </td>
                 </tr>
               );
@@ -240,10 +304,14 @@ function RegimeTable({
       <div className="px-6 py-3 border-t bg-muted/30">
         <p className="text-xs text-muted-foreground">
           국면 예측 정확도: 전체{" "}
-          <span className="font-semibold" style={{ color: getColor(regimeAccuracy.overall) }}>
+          <span
+            className="font-semibold"
+            style={{ color: getColor(regimeAccuracy.overall) }}
+          >
             {regimeAccuracy.overall}%
-          </span>
-          {" "}(1개월 {regimeAccuracy.month1}% · 2개월 {regimeAccuracy.month2}% · 3개월 {regimeAccuracy.month3}%)
+          </span>{" "}
+          (4개월 {regimeAccuracy.month4}% · 5개월{" "}
+          {regimeAccuracy.month5}% · 6개월 {regimeAccuracy.month6}%)
         </p>
       </div>
     </div>
@@ -254,12 +322,14 @@ function BacktestChart({ points }: { points: BacktestPoint[] }) {
   const chartData = points.map((p) => ({
     date: formatYM(p.date),
     score: p.score,
-    qqq3m: p.qqq3m,
+    qqq6m: p.qqq6m,
   }));
 
   return (
     <div className="rounded-xl border bg-card p-4 sm:p-6">
-      <p className="font-semibold mb-4">유동성 점수 vs QQQ 3개월 수익률</p>
+      <p className="font-semibold mb-4">
+        유동성 점수 vs QQQ 6개월 수익률
+      </p>
       <ResponsiveContainer width="100%" height={400}>
         <LineChart data={chartData}>
           <CartesianGrid
@@ -332,8 +402,8 @@ function BacktestChart({ points }: { points: BacktestPoint[] }) {
           <Line
             yAxisId="right"
             type="monotone"
-            dataKey="qqq3m"
-            name="QQQ 3개월 수익률"
+            dataKey="qqq6m"
+            name="QQQ 6개월 수익률"
             stroke="#f59e0b"
             dot={false}
             strokeWidth={1.5}
@@ -373,7 +443,7 @@ export default function BacktestPage() {
           ← 미국 유동성 지표
         </Link>
         <h1 className="mt-3 text-3xl sm:text-4xl font-bold tracking-tight">
-          미국 유동성 지표 백테스트
+          나스닥 4~6개월 선행 지표 백테스트
         </h1>
         <p className="mt-2 text-muted-foreground">
           과거 10년간 유동성 점수와 나스닥(QQQ) 실제 수익률 검증
@@ -410,7 +480,8 @@ export default function BacktestPage() {
               d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
             />
           </svg>
-          백테스트 데이터를 계산하는 중... (최초 로딩 시 시간이 걸릴 수 있습니다)
+          백테스트 데이터를 계산하는 중... (최초 로딩 시 시간이 걸릴 수
+          있습니다)
         </div>
       )}
 
@@ -426,7 +497,10 @@ export default function BacktestPage() {
         <div className="flex flex-col gap-6">
           <AccuracyCard accuracy={data.accuracy} />
           <BucketTable buckets={data.buckets} />
-          <RegimeTable regimeStats={data.regimeStats} regimeAccuracy={data.regimeAccuracy} />
+          <RegimeTable
+            regimeStats={data.regimeStats}
+            regimeAccuracy={data.regimeAccuracy}
+          />
           <BacktestChart points={data.points} />
 
           {/* 한계 안내 */}
