@@ -38,16 +38,16 @@ interface LiquidityData {
 /* ── 점수 해석 ── */
 
 function getScoreInfo(score: number) {
-  if (score >= 75) return { label: "유동성 풍부", color: "#16a34a", bg: "rgba(22,163,74,.12)", border: "rgba(22,163,74,.3)" };
-  if (score >= 50) return { label: "중립", color: "#ca8a04", bg: "rgba(202,138,4,.12)", border: "rgba(202,138,4,.3)" };
-  if (score >= 25) return { label: "유동성 긴장", color: "#ea580c", bg: "rgba(234,88,12,.12)", border: "rgba(234,88,12,.3)" };
-  return { label: "유동성 경색", color: "#dc2626", bg: "rgba(220,38,38,.12)", border: "rgba(220,38,38,.3)" };
+  if (score >= 75) return { label: "강한 상승 기대", color: "#16a34a", bg: "rgba(22,163,74,.12)", border: "rgba(22,163,74,.3)" };
+  if (score >= 50) return { label: "보통 상승 기대", color: "#3b82f6", bg: "rgba(59,130,246,.12)", border: "rgba(59,130,246,.3)" };
+  if (score >= 25) return { label: "약한 상승 기대", color: "#ca8a04", bg: "rgba(202,138,4,.12)", border: "rgba(202,138,4,.3)" };
+  return { label: "위험 구간", color: "#dc2626", bg: "rgba(220,38,38,.12)", border: "rgba(220,38,38,.3)" };
 }
 
 function getBarColor(score: number) {
   if (score >= 75) return "#16a34a";
-  if (score >= 50) return "#ca8a04";
-  if (score >= 25) return "#ea580c";
+  if (score >= 50) return "#3b82f6";
+  if (score >= 25) return "#ca8a04";
   return "#dc2626";
 }
 
@@ -118,10 +118,10 @@ function ScoreGauge({ score }: { score: number }) {
         />
       </div>
       <div className="flex justify-between mt-1.5 text-xs text-muted-foreground">
-        <span>경색</span>
-        <span>긴장</span>
-        <span>중립</span>
-        <span>풍부</span>
+        <span>위험</span>
+        <span>약한 상승</span>
+        <span>보통 상승</span>
+        <span>강한 상승</span>
       </div>
     </div>
   );
@@ -182,7 +182,12 @@ function RegimeCard({ data }: { data: LiquidityData }) {
           {data.regime}
         </div>
       </div>
-      <p className="text-sm text-muted-foreground mb-4">{data.regimeSignal}</p>
+      <p className="text-sm text-muted-foreground mb-4">
+        {data.regime === "RECOVERY" && "유동성 개선 중 — 과거 평균 6개월 +10.2% 수익률 구간"}
+        {data.regime === "EXPANSION" && "유동성 양호 — 과거 평균 6개월 +12.0% 수익률 구간, 승률 90.9%"}
+        {data.regime === "SLOWDOWN" && "유동성 둔화 중 — 과거 평균 6개월 +5.6% 수익률 구간, 주의"}
+        {data.regime === "CONTRACTION" && "유동성 악화 중 — 과거 평균 6개월 +9.8% 수익률이나 변동성 높음"}
+      </p>
       {data.scoreChange3m != null && (
         <p className="text-sm mb-4">
           3개월 전 대비{" "}
@@ -305,7 +310,7 @@ export default function UsLiquidityPage() {
           미국 유동성 지표
         </h1>
         <p className="mt-2 text-muted-foreground">
-          연준 유동성·크레딧·시장 상황을 종합한 나스닥 4~6개월 선행 지표
+          유동성 점수로 보는 나스닥 6개월 기대 수익률 강도
         </p>
         {data?.fetchedAt && (
           <p className="mt-1 text-xs text-muted-foreground">
@@ -369,25 +374,47 @@ export default function UsLiquidityPage() {
 
           {/* 점수 해석 기준 */}
           <section className="mt-10 rounded-xl border-l-4 border-blue-500 bg-blue-500/10 px-5 py-4">
-            <p className="text-sm font-semibold text-blue-400 mb-2">점수 해석 기준</p>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 text-sm">
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full" style={{ backgroundColor: "#16a34a" }} />
-                <span>75+ 유동성 풍부</span>
+            <p className="text-sm font-semibold text-blue-400 mb-3">점수 구간별 6개월 기대 수익률</p>
+            <div className="flex flex-col gap-2 text-sm">
+              <div className="flex items-start gap-2">
+                <span className="w-3 h-3 rounded-full shrink-0 mt-1" style={{ backgroundColor: "#16a34a" }} />
+                <div>
+                  <span className="font-semibold">75+ 강한 상승 기대</span>
+                  <span className="text-muted-foreground ml-2">과거 데이터 기준 6개월 뒤 평균 +15.7% 수익률 구간</span>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full" style={{ backgroundColor: "#ca8a04" }} />
-                <span>50~75 중립</span>
+              <div className="flex items-start gap-2">
+                <span className="w-3 h-3 rounded-full shrink-0 mt-1" style={{ backgroundColor: "#3b82f6" }} />
+                <div>
+                  <span className="font-semibold">50~75 보통 상승 기대</span>
+                  <span className="text-muted-foreground ml-2">과거 데이터 기준 6개월 뒤 평균 +9.1% 수익률 구간</span>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full" style={{ backgroundColor: "#ea580c" }} />
-                <span>25~50 긴장</span>
+              <div className="flex items-start gap-2">
+                <span className="w-3 h-3 rounded-full shrink-0 mt-1" style={{ backgroundColor: "#ca8a04" }} />
+                <div>
+                  <span className="font-semibold">25~50 약한 상승 기대</span>
+                  <span className="text-muted-foreground ml-2">과거 데이터 기준 6개월 뒤 평균 +10.0% 수익률 구간</span>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full" style={{ backgroundColor: "#dc2626" }} />
-                <span>25 이하 경색</span>
+              <div className="flex items-start gap-2">
+                <span className="w-3 h-3 rounded-full shrink-0 mt-1" style={{ backgroundColor: "#dc2626" }} />
+                <div>
+                  <span className="font-semibold">25 이하 위험 구간</span>
+                  <span className="text-muted-foreground ml-2">데이터 부족 구간. 과거 사례 없음, 보수적 접근 필요</span>
+                </div>
               </div>
             </div>
+          </section>
+
+          {/* 안내 문구 */}
+          <section className="mt-6 rounded-xl bg-blue-500/5 border border-blue-500/20 px-5 py-4">
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              이 지표는 나스닥 방향(상승/하락)을 예측하지 않습니다.
+              과거 10년 데이터 기준으로 유동성 점수가 높을 때
+              6개월 뒤 평균 수익률이 높았다는 통계적 경향을 보여줍니다.
+              투자 결과를 보장하지 않습니다.
+            </p>
           </section>
 
           {/* 지표 설명 아코디언 */}

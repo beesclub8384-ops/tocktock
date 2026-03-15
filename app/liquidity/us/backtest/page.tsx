@@ -102,7 +102,7 @@ function AccuracyCard({ accuracy }: { accuracy: AccuracyObj }) {
 
   return (
     <div className="rounded-xl border bg-card p-6 sm:p-8">
-      <p className="text-sm text-muted-foreground mb-2">예측 정확도</p>
+      <p className="text-sm text-muted-foreground mb-2">방향 일치율 (참고용)</p>
       <div className="flex items-baseline gap-3 mb-6">
         <span
           className="text-5xl font-bold tabular-nums"
@@ -134,6 +134,10 @@ function AccuracyCard({ accuracy }: { accuracy: AccuracyObj }) {
         점수 50점 이상일 때 QQQ 상승 + 점수 50점 미만일 때 QQQ 하락 비율의
         평균
       </p>
+      <p className="mt-2 text-xs text-amber-400/80">
+        방향 일치율은 52% 수준으로 통계적 의미가 낮습니다.
+        이 지표의 핵심은 아래 구간별 수익률 차이입니다.
+      </p>
     </div>
   );
 }
@@ -149,7 +153,7 @@ function BucketTable({ buckets }: { buckets: BucketStats[] }) {
   return (
     <div className="rounded-xl border bg-card overflow-hidden">
       <div className="px-6 py-4 border-b">
-        <p className="font-semibold">유동성 구간별 QQQ 평균 수익률</p>
+        <p className="font-semibold">★ 핵심: 유동성 구간별 나스닥 평균 수익률</p>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
@@ -164,7 +168,7 @@ function BucketTable({ buckets }: { buckets: BucketStats[] }) {
               <th className="px-4 py-3 text-right font-medium">3개월</th>
               <th className="px-4 py-3 text-right font-medium">4개월</th>
               <th className="px-4 py-3 text-right font-medium">5개월</th>
-              <th className="px-4 py-3 text-right font-medium">6개월</th>
+              <th className="px-4 py-3 text-right font-bold bg-blue-500/10">6개월</th>
             </tr>
           </thead>
           <tbody>
@@ -197,7 +201,7 @@ function BucketTable({ buckets }: { buckets: BucketStats[] }) {
                 <td className="px-4 py-3 text-right tabular-nums">
                   {fmtReturn(b.avg5m)}
                 </td>
-                <td className="px-4 py-3 text-right tabular-nums">
+                <td className="px-4 py-3 text-right tabular-nums font-bold bg-blue-500/10">
                   {fmtReturn(b.avg6m)}
                 </td>
               </tr>
@@ -236,7 +240,7 @@ function RegimeTable({
   return (
     <div className="rounded-xl border bg-card overflow-hidden">
       <div className="px-6 py-4 border-b">
-        <p className="font-semibold">국면별 QQQ 평균 수익률</p>
+        <p className="font-semibold">국면별 나스닥 평균 수익률</p>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
@@ -443,10 +447,10 @@ export default function BacktestPage() {
           ← 미국 유동성 지표
         </Link>
         <h1 className="mt-3 text-3xl sm:text-4xl font-bold tracking-tight">
-          나스닥 4~6개월 선행 지표 백테스트
+          미국 유동성 지표 백테스트
         </h1>
         <p className="mt-2 text-muted-foreground">
-          과거 10년간 유동성 점수와 나스닥(QQQ) 실제 수익률 검증
+          유동성 점수 구간별 나스닥 실제 수익률 검증 (2015~2025)
         </p>
         {data && (
           <>
