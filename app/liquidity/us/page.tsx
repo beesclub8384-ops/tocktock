@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 
 /* ── 타입 ── */
 
@@ -307,7 +308,16 @@ export default function UsLiquidityPage() {
           {/* 지표 설명 아코디언 */}
           <GuideAccordion />
 
-          <p className="mt-12 text-xs text-muted-foreground text-center">
+          <div className="mt-10 text-center">
+            <Link
+              href="/liquidity/us/backtest"
+              className="inline-flex items-center gap-1 text-sm text-blue-400 hover:text-blue-300 transition-colors"
+            >
+              백테스트 결과 보기 →
+            </Link>
+          </div>
+
+          <p className="mt-6 text-xs text-muted-foreground text-center">
             본 페이지의 모든 지표와 점수는 참고용이며, 투자 권유가 아닙니다.
           </p>
         </>
