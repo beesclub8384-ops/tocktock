@@ -5,7 +5,7 @@ import YahooFinance from "yahoo-finance2";
 export const maxDuration = 60;
 
 const FRED_BASE = "https://api.stlouisfed.org/fred/series/observations";
-const CACHE_KEY = "liquidity:us:v4";
+const CACHE_KEY = "liquidity:us:v5";
 const CACHE_TTL = 86400;
 
 interface FredObs {
@@ -201,10 +201,10 @@ async function computeLiquidity(): Promise<LiquidityResponse> {
     tgaObs.map((o) => [o.date, parseFloat(o.value)])
   );
   const rrpByDate = new Map(
-    rrpObs.map((o) => [o.date, parseFloat(o.value) / 1000])
+    rrpObs.map((o) => [o.date, parseFloat(o.value) * 1000])
   );
   const walclLatest = parseFloat(walclObs[0].value);
-  const rrpLatest = parseFloat(rrpObs[0].value) / 1000;
+  const rrpLatest = parseFloat(rrpObs[0].value) * 1000;
   const tgaLatest = parseFloat(tgaObs[0].value);
   const netLiquidity = walclLatest - rrpLatest - tgaLatest;
 

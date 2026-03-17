@@ -5,7 +5,7 @@ import YahooFinance from "yahoo-finance2";
 export const maxDuration = 300;
 
 const FRED_BASE = "https://api.stlouisfed.org/fred/series/observations";
-const CACHE_KEY = "liquidity:us:backtest:v4";
+const CACHE_KEY = "liquidity:us:backtest:v5";
 const CACHE_TTL = 86400;
 
 /* ── Types ── */
@@ -211,7 +211,7 @@ async function computeBacktest(): Promise<BacktestResponse> {
   // Build base maps
   const walclMap = new Map(walclData.map((o) => [o.date, o.value]));
   const rrpMap = new Map(
-    rrpData.map((o) => [o.date, o.value / 1000])
+    rrpData.map((o) => [o.date, o.value * 1000])
   );
   const tgaMap = new Map(tgaData.map((o) => [o.date, o.value]));
   const m2Map = new Map(m2Data.map((o) => [o.date, o.value]));
