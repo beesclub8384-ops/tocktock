@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useDraggable } from "@/hooks/useDraggable";
+import { useResizable } from "@/hooks/useResizable";
 
 /* ── 타입 ── */
 
@@ -221,12 +223,23 @@ function RegimeCard({ data }: { data: LiquidityData }) {
   );
 }
 
-function IndicatorCard({ ind }: { ind: IndicatorResult }) {
+function IndicatorCard({ ind, onGuideOpen }: { ind: IndicatorResult; onGuideOpen?: () => void }) {
   const barColor = getBarColor(ind.score);
   return (
     <div className="rounded-lg border bg-card p-4">
       <div className="flex items-center justify-between mb-2">
-        <p className="text-sm font-semibold">{ind.name}</p>
+        <div className="flex items-center gap-2">
+          <p className="text-sm font-semibold">{ind.name}</p>
+          {onGuideOpen && (
+            <button
+              onClick={onGuideOpen}
+              className="guide-btn inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] transition-all"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
+              보는 법
+            </button>
+          )}
+        </div>
         <span
           className="text-xs font-mono font-semibold px-2 py-0.5 rounded"
           style={{ backgroundColor: `${barColor}20`, color: barColor }}
@@ -282,12 +295,184 @@ function GuideAccordion() {
   );
 }
 
+/* ── 연준 순유동성 보는 법 모달 ── */
+
+function NetLiquidityGuideModal({ onClose }: { onClose: () => void }) {
+  const { position, handleMouseDown } = useDraggable();
+  const { size, handleResizeMouseDown } = useResizable();
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, []);
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div data-draggable-modal className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-2xl" style={{ transform: `translate(${position.x}px, ${position.y}px)`, ...(size.width ? { width: size.width, height: size.height } : { width: "100%", maxWidth: "56rem" }) }}>
+      <div className="overflow-y-auto p-6 sm:p-8" style={{ maxHeight: size.height ? size.height - 2 : "85vh" }}>
+        {/* 닫기 버튼 */}
+        <button
+          onClick={onClose}
+          className="absolute right-4 top-4 z-10 rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+
+        <h2 className="mb-6 text-xl font-bold cursor-move select-none" onMouseDown={handleMouseDown}>연준 순유동성 보는 법</h2>
+
+        {/* 섹션1: 한 줄 요약 */}
+        <section className="mb-6">
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            연준이 시장에 실제로 풀어놓은 돈이 얼마나 되는지 보는 지표입니다.
+          </p>
+        </section>
+
+        <hr className="my-5 border-border" />
+
+        {/* 섹션2: 왜 단순히 연준 자산만 보면 안 되나 */}
+        <section className="mb-6">
+          <h3 className="mb-2 text-base font-semibold">연준이 돈을 풀었다고 다 시장에 오는 게 아니에요</h3>
+          <div className="rounded-lg border border-border bg-muted/30 p-4 text-sm leading-relaxed text-muted-foreground space-y-2">
+            <p>태양님이 식당을 운영해요. 오늘 매출이 1,000만원이에요.</p>
+            <p>근데 직원 월급, 식재료, 임대료를 빼면 실제 내 손에 남는 돈은 350만원이에요.</p>
+            <p><strong className="text-foreground">매출만 보면 착각해요. 연준도 마찬가지예요.</strong></p>
+            <p>연준이 아무리 많은 돈을 풀어도, 그 돈이 전부 시장에 도는 게 아니에요.</p>
+          </div>
+        </section>
+
+        <hr className="my-5 border-border" />
+
+        {/* 섹션3: 3가지 항목 설명 */}
+        <section className="mb-6">
+          <h3 className="mb-3 text-base font-semibold">계산식: WALCL - RRP - TGA</h3>
+
+          <div className="flex flex-col gap-4">
+            <div className="rounded-lg border border-border bg-muted/30 p-4">
+              <h4 className="mb-1.5 text-sm font-semibold">
+                WALCL (연준 자산 전체){" "}
+                <span className="font-normal text-muted-foreground">— 수도꼭지에서 나온 물 전체</span>
+              </h4>
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                연준이 시장에서 사들인 국채, 주택담보채권 등의 총합이에요.
+              </p>
+            </div>
+
+            <div className="rounded-lg border border-border bg-muted/30 p-4">
+              <h4 className="mb-1.5 text-sm font-semibold">
+                역레포 RRP (다시 빨아들인 돈){" "}
+                <span className="font-normal text-muted-foreground">— 배수구로 다시 빠진 물</span>
+              </h4>
+              <div className="text-sm leading-relaxed text-muted-foreground space-y-2">
+                <p>은행들이 &ldquo;나 지금 쓸 데 없어&rdquo; 하면서 연준에 다시 맡긴 돈이에요.</p>
+                <p className="text-xs text-muted-foreground/70">
+                  실제 사례: 2021~2022년 코로나 때 연준이 돈을 엄청 풀었는데, 은행들이 그 돈을 다 쓰지 못하고 연준에 다시 맡겨버렸어요. RRP가 2조 달러까지 올라갔었어요.
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-border bg-muted/30 p-4">
+              <h4 className="mb-1.5 text-sm font-semibold">
+                TGA (정부 금고){" "}
+                <span className="font-normal text-muted-foreground">— 저수지에 가둬놓은 물</span>
+              </h4>
+              <div className="text-sm leading-relaxed text-muted-foreground space-y-2">
+                <p>미국 재무부(정부)가 연준에 갖고 있는 통장이에요.</p>
+                <p>세금 걷으면 여기 쌓이고, 정부가 돈 쓸 때 여기서 나가요. 저수지에 있는 동안은 동네에 안 와요.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <hr className="my-5 border-border" />
+
+        {/* 섹션4: 실제 계산 예시 */}
+        <section className="mb-6">
+          <h3 className="mb-2 text-base font-semibold">실제로 이렇게 계산해요</h3>
+          <div className="rounded-lg border border-border bg-muted/30 p-4 font-mono text-sm leading-relaxed text-muted-foreground">
+            <div className="space-y-1">
+              <p>연준 자산 (WALCL): &nbsp;&nbsp;&nbsp; 6,700억 달러</p>
+              <p>역레포 (RRP): &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; - &nbsp;400억 달러</p>
+              <p>정부 금고 (TGA): &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; - &nbsp;500억 달러</p>
+              <p className="border-t border-border pt-1 font-semibold text-foreground">실제 순유동성: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 5,800억 달러</p>
+            </div>
+          </div>
+          <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+            WALCL만 보면 &ldquo;6,700억이나 있네, 풍부하다&rdquo;고 착각해요.
+            순유동성을 보면 <strong className="text-foreground">&ldquo;실제로 시장에 도는 건 5,800억이네&rdquo;</strong>가 맞아요.
+          </p>
+        </section>
+
+        <hr className="my-5 border-border" />
+
+        {/* 섹션5: 점수 해석 */}
+        <section className="mb-6">
+          <h3 className="mb-2 text-base font-semibold">점수를 어떻게 읽나요?</h3>
+          <div className="text-sm leading-relaxed text-muted-foreground space-y-2">
+            <p>이 지표는 지금 값이 높냐 낮냐보다 <strong className="text-foreground">방향이 중요</strong>해요.</p>
+            <div className="flex flex-col gap-1.5 mt-2">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: "#16a34a" }} />
+                <span><strong className="text-foreground">늘어나는 중</strong> → 좋아지는 신호</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: "#dc2626" }} />
+                <span><strong className="text-foreground">줄어드는 중</strong> → 나빠지는 신호</span>
+              </div>
+            </div>
+            <p className="mt-2">과거 10년 데이터와 비교해서 현재 변화 속도가 빠를수록 점수가 높아요.</p>
+          </div>
+        </section>
+
+        <hr className="my-5 border-border" />
+
+        {/* 섹션6: 왜 4~6개월 선행인가 */}
+        <section className="mb-2">
+          <h3 className="mb-2 text-base font-semibold">왜 지금 변화가 4~6개월 뒤 나스닥에 영향을 주나요?</h3>
+          <div className="rounded-lg border border-border bg-muted/30 p-4 text-sm leading-relaxed text-muted-foreground space-y-2">
+            <p>봄에 씨앗을 심으면 (연준이 돈을 풀기 시작)</p>
+            <p>씨앗이 발아하고 자라는 데 시간이 걸려요.</p>
+            <p>4~6개월 뒤에 수확해요. (나스닥이 반응)</p>
+          </div>
+          <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+            돈이 풀리면 → 기업들이 대출을 받고 → 투자를 하고 → 실적이 좋아지고 → 그때서야 주가가 반응해요.
+            <strong className="text-foreground"> 이 과정이 4~6개월 걸려요.</strong>
+          </p>
+        </section>
+      </div>
+
+      {/* 리사이즈 핸들 */}
+      <div
+        className="absolute right-0 bottom-0 w-5 h-5 cursor-se-resize"
+        onMouseDown={handleResizeMouseDown}
+        style={{ background: "linear-gradient(135deg, transparent 50%, rgba(255,255,255,0.15) 50%)" }}
+      />
+      </div>
+    </div>
+  );
+}
+
 /* ── 메인 페이지 ── */
 
 export default function UsLiquidityPage() {
   const [data, setData] = useState<LiquidityData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [guideOpen, setGuideOpen] = useState(false);
 
   useEffect(() => {
     fetch("/api/liquidity/us")
@@ -357,7 +542,7 @@ export default function UsLiquidityPage() {
             <h2 className="text-lg font-bold mb-4">거시 유동성</h2>
             <div className="grid gap-3 sm:grid-cols-2">
               {macroIndicators.map((ind) => (
-                <IndicatorCard key={ind.id} ind={ind} />
+                <IndicatorCard key={ind.id} ind={ind} onGuideOpen={ind.id === "net-liquidity" ? () => setGuideOpen(true) : undefined} />
               ))}
             </div>
           </section>
@@ -434,6 +619,9 @@ export default function UsLiquidityPage() {
           </p>
         </>
       )}
+
+      {/* 연준 순유동성 보는 법 모달 */}
+      {guideOpen && <NetLiquidityGuideModal onClose={() => setGuideOpen(false)} />}
     </main>
   );
 }
