@@ -466,13 +466,554 @@ function NetLiquidityGuideModal({ onClose }: { onClose: () => void }) {
   );
 }
 
+/* ── M2 통화량 증가율 보는 법 모달 ── */
+
+function M2GrowthGuideModal({ onClose }: { onClose: () => void }) {
+  const { position, handleMouseDown } = useDraggable();
+  const { size, handleResizeMouseDown } = useResizable();
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = ""; };
+  }, []);
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div data-draggable-modal className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-2xl" style={{ transform: `translate(${position.x}px, ${position.y}px)`, ...(size.width ? { width: size.width, height: size.height } : { width: "100%", maxWidth: "56rem" }) }}>
+      <div className="overflow-y-auto p-6 sm:p-8" style={{ maxHeight: size.height ? size.height - 2 : "85vh" }}>
+        <button onClick={onClose} className="absolute right-4 top-4 z-10 rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+
+        <h2 className="mb-6 text-xl font-bold cursor-move select-none" onMouseDown={handleMouseDown}>M2 통화량 증가율 보는 법</h2>
+
+        <section className="mb-6">
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            시중 은행 전체에 돈이 작년보다 얼마나 늘었는지 보는 지표입니다.
+          </p>
+        </section>
+
+        <hr className="my-5 border-border" />
+
+        <section className="mb-6">
+          <h3 className="mb-2 text-base font-semibold">연준 순유동성과 뭐가 달라요?</h3>
+          <div className="rounded-lg border border-border bg-muted/30 p-4 text-sm leading-relaxed text-muted-foreground space-y-2">
+            <p>연준 순유동성이 &ldquo;중앙은행 본사에서 나오는 돈&rdquo;이라면,</p>
+            <p>M2는 <strong className="text-foreground">&ldquo;전국 모든 은행 지점에 실제로 있는 돈&rdquo;</strong>이에요.</p>
+            <p>본사에서 돈을 풀어도 지점들에 실제로 얼마나 퍼졌는지는 M2를 봐야 알 수 있어요.</p>
+          </div>
+        </section>
+
+        <hr className="my-5 border-border" />
+
+        <section className="mb-6">
+          <h3 className="mb-2 text-base font-semibold">계산 방법</h3>
+          <div className="rounded-lg border border-border bg-muted/30 p-4 font-mono text-sm leading-relaxed text-muted-foreground">
+            <p>M2 증가율 = (이번 달 M2 - 작년 같은 달 M2) &divide; 작년 같은 달 M2 &times; 100</p>
+          </div>
+          <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+            쉽게 말하면 작년 이맘때보다 시중에 돈이 몇 % 늘었냐예요.
+          </p>
+        </section>
+
+        <hr className="my-5 border-border" />
+
+        <section className="mb-6">
+          <h3 className="mb-2 text-base font-semibold">실제 사례로 이해해요</h3>
+          <div className="flex flex-col gap-3">
+            <div className="rounded-lg border border-border bg-muted/30 p-4 text-sm leading-relaxed text-muted-foreground">
+              <p><strong className="text-foreground">2021년:</strong> M2 증가율 +27% → 코로나 때 돈을 엄청 풀었어요 → 나스닥 폭등</p>
+            </div>
+            <div className="rounded-lg border border-border bg-muted/30 p-4 text-sm leading-relaxed text-muted-foreground">
+              <p><strong className="text-foreground">2022년:</strong> M2 증가율 급감 → 금리 인상으로 돈이 줄었어요 → 나스닥 폭락</p>
+            </div>
+          </div>
+          <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+            증가율이 높을수록 시중에 돈이 풍부한 상태예요.
+          </p>
+        </section>
+
+        <hr className="my-5 border-border" />
+
+        <section className="mb-6">
+          <h3 className="mb-2 text-base font-semibold">점수를 어떻게 읽나요?</h3>
+          <div className="text-sm leading-relaxed text-muted-foreground space-y-2">
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: "#16a34a" }} />
+                <span><strong className="text-foreground">늘어나는 중</strong> → 시중에 돈이 풍부해지는 신호</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: "#dc2626" }} />
+                <span><strong className="text-foreground">줄어드는 중</strong> → 시중에서 돈이 빠져나가는 신호</span>
+              </div>
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground/70">단, 이 데이터는 한 달 늦게 발표돼요. 실시간이 아닌 점 참고하세요.</p>
+          </div>
+        </section>
+
+        <hr className="my-5 border-border" />
+
+        <section className="mb-2">
+          <h3 className="mb-2 text-base font-semibold">왜 4~6개월 선행인가요?</h3>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            M2가 늘어나면 → 사람들이 쓸 돈이 많아지고 → 기업 실적이 좋아지고 → <strong className="text-foreground">4~6개월 뒤 주가에 반영</strong>돼요.
+          </p>
+        </section>
+      </div>
+      <div className="absolute right-0 bottom-0 w-5 h-5 cursor-se-resize" onMouseDown={handleResizeMouseDown} style={{ background: "linear-gradient(135deg, transparent 50%, rgba(255,255,255,0.15) 50%)" }} />
+      </div>
+    </div>
+  );
+}
+
+/* ── 장단기 금리차 보는 법 모달 ── */
+
+function T10Y2YGuideModal({ onClose }: { onClose: () => void }) {
+  const { position, handleMouseDown } = useDraggable();
+  const { size, handleResizeMouseDown } = useResizable();
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = ""; };
+  }, []);
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div data-draggable-modal className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-2xl" style={{ transform: `translate(${position.x}px, ${position.y}px)`, ...(size.width ? { width: size.width, height: size.height } : { width: "100%", maxWidth: "56rem" }) }}>
+      <div className="overflow-y-auto p-6 sm:p-8" style={{ maxHeight: size.height ? size.height - 2 : "85vh" }}>
+        <button onClick={onClose} className="absolute right-4 top-4 z-10 rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+
+        <h2 className="mb-6 text-xl font-bold cursor-move select-none" onMouseDown={handleMouseDown}>장단기 금리차 보는 법</h2>
+
+        <section className="mb-6">
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            10년짜리 금리와 2년짜리 금리의 차이. 경기침체 신호를 미리 알려주는 지표입니다.
+          </p>
+        </section>
+
+        <hr className="my-5 border-border" />
+
+        <section className="mb-6">
+          <h3 className="mb-2 text-base font-semibold">이게 왜 중요한가요?</h3>
+          <div className="rounded-lg border border-border bg-muted/30 p-4 text-sm leading-relaxed text-muted-foreground space-y-2">
+            <p>보통 5년짜리 예금이 1년짜리 예금보다 이자가 높아요.</p>
+            <p>기다리는 시간이 길수록 더 많이 받아야 하니까요.</p>
+            <p>근데 이게 뒤집히면? 1년짜리가 5년짜리보다 이자가 높아진다면?</p>
+            <p>→ 시장이 <strong className="text-foreground">&ldquo;미래보다 지금이 더 위험하다&rdquo;</strong>고 판단한 거예요.</p>
+            <p>→ 이걸 <strong className="text-foreground">금리 역전</strong>이라고 해요.</p>
+          </div>
+        </section>
+
+        <hr className="my-5 border-border" />
+
+        <section className="mb-6">
+          <h3 className="mb-2 text-base font-semibold">정상 vs 역전</h3>
+          <div className="flex flex-col gap-3">
+            <div className="rounded-lg border border-border bg-muted/30 p-4 text-sm leading-relaxed text-muted-foreground">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: "#16a34a" }} />
+                <strong className="text-foreground">정상:</strong>
+              </div>
+              <p>10년 금리 &gt; 2년 금리 → 양수 → 경기 건강</p>
+            </div>
+            <div className="rounded-lg border border-border bg-muted/30 p-4 text-sm leading-relaxed text-muted-foreground">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: "#dc2626" }} />
+                <strong className="text-foreground">역전:</strong>
+              </div>
+              <p>10년 금리 &lt; 2년 금리 → 음수 → 경기침체 경고</p>
+            </div>
+          </div>
+          <div className="mt-3 text-sm leading-relaxed text-muted-foreground space-y-1">
+            <p>역전이 발생한 후 평균 12~18개월 뒤에 경기침체가 왔어요.</p>
+            <p>1970년 이후 거의 모든 경기침체 전에 역전이 먼저 발생했어요.</p>
+          </div>
+        </section>
+
+        <hr className="my-5 border-border" />
+
+        <section className="mb-6">
+          <h3 className="mb-2 text-base font-semibold">실제 사례</h3>
+          <div className="flex flex-col gap-3">
+            <div className="rounded-lg border border-border bg-muted/30 p-4 text-sm leading-relaxed text-muted-foreground">
+              <p><strong className="text-foreground">2019년 하반기:</strong> 역전 발생 → 2020년 코로나 경기침체</p>
+            </div>
+            <div className="rounded-lg border border-border bg-muted/30 p-4 text-sm leading-relaxed text-muted-foreground">
+              <p><strong className="text-foreground">2022년 중반:</strong> 역전 발생 → 2022~2023년 경기 둔화</p>
+            </div>
+          </div>
+        </section>
+
+        <hr className="my-5 border-border" />
+
+        <section className="mb-2">
+          <h3 className="mb-2 text-base font-semibold">점수를 어떻게 읽나요?</h3>
+          <div className="text-sm leading-relaxed text-muted-foreground space-y-2">
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: "#16a34a" }} />
+                <span><strong className="text-foreground">역전이 풀리는 중</strong> (음수 → 양수로 회복) → 나스닥 반등 신호</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: "#dc2626" }} />
+                <span><strong className="text-foreground">역전이 심해지는 중</strong> → 경기침체 우려 커지는 중</span>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+      <div className="absolute right-0 bottom-0 w-5 h-5 cursor-se-resize" onMouseDown={handleResizeMouseDown} style={{ background: "linear-gradient(135deg, transparent 50%, rgba(255,255,255,0.15) 50%)" }} />
+      </div>
+    </div>
+  );
+}
+
+/* ── 구리/금 비율 보는 법 모달 ── */
+
+function CopperGoldGuideModal({ onClose }: { onClose: () => void }) {
+  const { position, handleMouseDown } = useDraggable();
+  const { size, handleResizeMouseDown } = useResizable();
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = ""; };
+  }, []);
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div data-draggable-modal className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-2xl" style={{ transform: `translate(${position.x}px, ${position.y}px)`, ...(size.width ? { width: size.width, height: size.height } : { width: "100%", maxWidth: "56rem" }) }}>
+      <div className="overflow-y-auto p-6 sm:p-8" style={{ maxHeight: size.height ? size.height - 2 : "85vh" }}>
+        <button onClick={onClose} className="absolute right-4 top-4 z-10 rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+
+        <h2 className="mb-6 text-xl font-bold cursor-move select-none" onMouseDown={handleMouseDown}>구리/금 비율 보는 법</h2>
+
+        <section className="mb-6">
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            경기 낙관(구리)과 경기 비관(금)의 싸움. 비율이 낮을수록 역설적으로 반등 신호입니다.
+          </p>
+        </section>
+
+        <hr className="my-5 border-border" />
+
+        <section className="mb-6">
+          <h3 className="mb-2 text-base font-semibold">구리와 금이 각각 뭘 의미하나요?</h3>
+          <div className="flex flex-col gap-3">
+            <div className="rounded-lg border border-border bg-muted/30 p-4 text-sm leading-relaxed text-muted-foreground space-y-1">
+              <p><strong className="text-foreground">구리:</strong> 공장, 건설, 전자제품에 쓰이는 원자재예요.</p>
+              <p>경기가 좋으면 수요가 늘어서 가격이 올라요. → &ldquo;경기 낙관의 금속&rdquo;</p>
+            </div>
+            <div className="rounded-lg border border-border bg-muted/30 p-4 text-sm leading-relaxed text-muted-foreground space-y-1">
+              <p><strong className="text-foreground">금:</strong> 위기 때 사람들이 몰리는 안전자산이에요.</p>
+              <p>불안할 때 가격이 올라요. → &ldquo;경기 비관의 금속&rdquo;</p>
+            </div>
+          </div>
+          <div className="mt-3 text-sm leading-relaxed text-muted-foreground space-y-1">
+            <p><strong className="text-foreground">구리/금 비율이 높다</strong> → 경기 낙관 심리 강함</p>
+            <p><strong className="text-foreground">구리/금 비율이 낮다</strong> → 경기 비관 심리 강함</p>
+          </div>
+        </section>
+
+        <hr className="my-5 border-border" />
+
+        <section className="mb-6">
+          <h3 className="mb-2 text-base font-semibold">왜 역발상 지표인가요?</h3>
+          <div className="rounded-lg border border-border bg-muted/30 p-4 text-sm leading-relaxed text-muted-foreground space-y-2">
+            <p>이 지표는 다른 지표들과 반대로 작동해요.</p>
+            <p>비율이 낮다 = 시장이 이미 많이 불안하고 빠진 상태</p>
+            <p>= 바닥일 가능성이 높음</p>
+            <p>= <strong className="text-foreground">6개월 뒤 반등 가능성 높음</strong></p>
+          </div>
+          <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+            비유: 모든 사람이 겁먹고 팔 때가 사실 살 때인 것처럼요.
+          </p>
+        </section>
+
+        <hr className="my-5 border-border" />
+
+        <section className="mb-6">
+          <h3 className="mb-2 text-base font-semibold">실제 사례</h3>
+          <div className="rounded-lg border border-border bg-muted/30 p-4 text-sm leading-relaxed text-muted-foreground space-y-2">
+            <p><strong className="text-foreground">2020년 3월 코로나 바닥:</strong></p>
+            <p>구리/금 비율 역사적 최저</p>
+            <p>→ 6개월 뒤 나스닥 역사상 최대 반등</p>
+          </div>
+        </section>
+
+        <hr className="my-5 border-border" />
+
+        <section className="mb-2">
+          <h3 className="mb-2 text-base font-semibold">점수를 어떻게 읽나요?</h3>
+          <div className="text-sm leading-relaxed text-muted-foreground space-y-2">
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: "#16a34a" }} />
+                <span><strong className="text-foreground">비율이 역사적으로 낮은 상태</strong> → 역설적으로 높은 점수 (반등 기대)</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: "#dc2626" }} />
+                <span><strong className="text-foreground">비율이 역사적으로 높은 상태</strong> → 낮은 점수 (고점 주의)</span>
+              </div>
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground/70">현재 구리/금 비율이 매우 낮은 상태 (11점대) → 역사적으로 강한 반등이 나왔던 구간</p>
+          </div>
+        </section>
+      </div>
+      <div className="absolute right-0 bottom-0 w-5 h-5 cursor-se-resize" onMouseDown={handleResizeMouseDown} style={{ background: "linear-gradient(135deg, transparent 50%, rgba(255,255,255,0.15) 50%)" }} />
+      </div>
+    </div>
+  );
+}
+
+/* ── 테드 스프레드 보는 법 모달 ── */
+
+function TedSpreadGuideModal({ onClose }: { onClose: () => void }) {
+  const { position, handleMouseDown } = useDraggable();
+  const { size, handleResizeMouseDown } = useResizable();
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = ""; };
+  }, []);
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div data-draggable-modal className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-2xl" style={{ transform: `translate(${position.x}px, ${position.y}px)`, ...(size.width ? { width: size.width, height: size.height } : { width: "100%", maxWidth: "56rem" }) }}>
+      <div className="overflow-y-auto p-6 sm:p-8" style={{ maxHeight: size.height ? size.height - 2 : "85vh" }}>
+        <button onClick={onClose} className="absolute right-4 top-4 z-10 rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+
+        <h2 className="mb-6 text-xl font-bold cursor-move select-none" onMouseDown={handleMouseDown}>테드 스프레드 보는 법</h2>
+
+        <section className="mb-6">
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            은행들이 서로를 얼마나 믿는지 보는 지표. 높을수록 금융 시스템이 불안한 상태입니다.
+          </p>
+        </section>
+
+        <hr className="my-5 border-border" />
+
+        <section className="mb-6">
+          <h3 className="mb-2 text-base font-semibold">테드 스프레드가 뭔가요?</h3>
+          <div className="rounded-lg border border-border bg-muted/30 p-4 text-sm leading-relaxed text-muted-foreground space-y-2">
+            <p><strong className="text-foreground">테드 스프레드 = 은행들끼리 돈 빌릴 때 이자 - 미국 국채 이자</strong></p>
+            <p>친한 친구한테 돈 빌려줄 때: 이자 0% (완전히 신뢰)</p>
+            <p>잘 모르는 사람한테 빌려줄 때: 이자 10% (불신)</p>
+            <p>테드 스프레드가 크다 = 은행들이 서로를 못 믿는 상태 = 금융 시스템 위기 신호</p>
+          </div>
+        </section>
+
+        <hr className="my-5 border-border" />
+
+        <section className="mb-6">
+          <h3 className="mb-2 text-base font-semibold">왜 역발상 지표인가요?</h3>
+          <div className="text-sm leading-relaxed text-muted-foreground space-y-2">
+            <p>높을수록 금융 시스템이 불안한 상태예요.</p>
+            <p>근데 <strong className="text-foreground">불안이 극에 달했을 때가 오히려 바닥</strong>이에요.</p>
+            <p>테드 스프레드가 매우 높았던 이후 5개월 뒤 나스닥이 반등하는 경향이 있어요.</p>
+          </div>
+        </section>
+
+        <hr className="my-5 border-border" />
+
+        <section className="mb-6">
+          <h3 className="mb-2 text-base font-semibold">실제 사례</h3>
+          <div className="flex flex-col gap-3">
+            <div className="rounded-lg border border-border bg-muted/30 p-4 text-sm leading-relaxed text-muted-foreground space-y-1">
+              <p><strong className="text-foreground">2008년 금융위기:</strong> 테드 스프레드 4.6%까지 폭등</p>
+              <p>→ 은행들이 서로를 전혀 못 믿는 상태</p>
+              <p>→ 이후 2009년 대반등</p>
+            </div>
+            <div className="rounded-lg border border-border bg-muted/30 p-4 text-sm leading-relaxed text-muted-foreground space-y-1">
+              <p><strong className="text-foreground">현재 (2026년 3월):</strong> 0.09%</p>
+              <p>→ 역사적 최저 수준</p>
+              <p>→ 은행들이 서로를 완전히 신뢰하는 상태</p>
+            </div>
+          </div>
+        </section>
+
+        <hr className="my-5 border-border" />
+
+        <section className="mb-2">
+          <h3 className="mb-2 text-base font-semibold">점수를 어떻게 읽나요?</h3>
+          <div className="text-sm leading-relaxed text-muted-foreground space-y-2">
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: "#16a34a" }} />
+                <span><strong className="text-foreground">낮을수록</strong> → 금융 안정 → 높은 점수</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: "#dc2626" }} />
+                <span><strong className="text-foreground">높을수록</strong> → 금융 불안 → 낮은 점수</span>
+              </div>
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground/70">단, 극단적으로 높으면 오히려 반등 신호일 수 있어요.</p>
+          </div>
+        </section>
+      </div>
+      <div className="absolute right-0 bottom-0 w-5 h-5 cursor-se-resize" onMouseDown={handleResizeMouseDown} style={{ background: "linear-gradient(135deg, transparent 50%, rgba(255,255,255,0.15) 50%)" }} />
+      </div>
+    </div>
+  );
+}
+
+/* ── NFCI 보는 법 모달 ── */
+
+function NfciGuideModal({ onClose }: { onClose: () => void }) {
+  const { position, handleMouseDown } = useDraggable();
+  const { size, handleResizeMouseDown } = useResizable();
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = ""; };
+  }, []);
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div data-draggable-modal className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-2xl" style={{ transform: `translate(${position.x}px, ${position.y}px)`, ...(size.width ? { width: size.width, height: size.height } : { width: "100%", maxWidth: "56rem" }) }}>
+      <div className="overflow-y-auto p-6 sm:p-8" style={{ maxHeight: size.height ? size.height - 2 : "85vh" }}>
+        <button onClick={onClose} className="absolute right-4 top-4 z-10 rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+
+        <h2 className="mb-6 text-xl font-bold cursor-move select-none" onMouseDown={handleMouseDown}>NFCI 보는 법</h2>
+
+        <section className="mb-6">
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            미국 금융 상황 전체를 105가지 항목으로 종합한 건강검진 점수입니다.
+          </p>
+        </section>
+
+        <hr className="my-5 border-border" />
+
+        <section className="mb-6">
+          <h3 className="mb-2 text-base font-semibold">NFCI가 뭔가요?</h3>
+          <div className="rounded-lg border border-border bg-muted/30 p-4 text-sm leading-relaxed text-muted-foreground space-y-2">
+            <p>병원 건강검진을 받았어요.</p>
+            <p>혈압, 혈당, 콜레스테롤, 체중... 105가지 항목을 다 재서 종합 점수를 내는 거예요.</p>
+            <p><strong className="text-foreground">NFCI = 미국 금융 시스템 건강검진 종합 점수</strong></p>
+            <p>시카고 연준이 매주 직접 계산해서 발표해요.</p>
+          </div>
+        </section>
+
+        <hr className="my-5 border-border" />
+
+        <section className="mb-6">
+          <h3 className="mb-2 text-base font-semibold">다른 지표와 뭐가 달라요?</h3>
+          <div className="text-sm leading-relaxed text-muted-foreground space-y-2">
+            <div className="flex flex-col gap-1.5">
+              <p><strong className="text-foreground">다른 지표들:</strong> 내가 직접 계산</p>
+              <p><strong className="text-foreground">NFCI:</strong> 연준 전문가들이 이미 계산해서 발표</p>
+            </div>
+            <p className="mt-2">계산 오류 위험이 없고, <strong className="text-foreground">신뢰도가 6개 지표 중 가장 높아요.</strong></p>
+            <p>금리, 신용, 레버리지, 위험자산 등 105개 항목을 종합하기 때문에 어느 한 곳에서 문제가 생겨도 잡아낼 수 있어요.</p>
+          </div>
+        </section>
+
+        <hr className="my-5 border-border" />
+
+        <section className="mb-6">
+          <h3 className="mb-2 text-base font-semibold">어떻게 읽나요?</h3>
+          <div className="flex flex-col gap-3">
+            <div className="rounded-lg border border-border bg-muted/30 p-4 text-sm leading-relaxed text-muted-foreground">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: "#16a34a" }} />
+                <strong className="text-foreground">NFCI 0 미만 (음수)</strong>
+              </div>
+              <p>→ 평균보다 건강한 상태 → 좋음</p>
+            </div>
+            <div className="rounded-lg border border-border bg-muted/30 p-4 text-sm leading-relaxed text-muted-foreground">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: "#dc2626" }} />
+                <strong className="text-foreground">NFCI 0 이상 (양수)</strong>
+              </div>
+              <p>→ 평균보다 불건강한 상태 → 나쁨</p>
+            </div>
+          </div>
+          <div className="mt-3 text-sm leading-relaxed text-muted-foreground space-y-1">
+            <p><strong className="text-foreground">2020년 3월 코로나:</strong> +1.27 (매우 불건강)</p>
+            <p><strong className="text-foreground">2021년 중반:</strong> -0.8 (매우 건강)</p>
+            <p><strong className="text-foreground">현재:</strong> -0.514 (건강한 상태)</p>
+          </div>
+        </section>
+
+        <hr className="my-5 border-border" />
+
+        <section className="mb-2">
+          <h3 className="mb-2 text-base font-semibold">점수를 어떻게 읽나요?</h3>
+          <div className="text-sm leading-relaxed text-muted-foreground space-y-2">
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: "#16a34a" }} />
+                <span><strong className="text-foreground">음수이고 더 내려가는 중</strong> → 금융 상황 좋아지는 중 → 높은 점수</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: "#dc2626" }} />
+                <span><strong className="text-foreground">양수이고 올라가는 중</strong> → 금융 상황 나빠지는 중 → 낮은 점수</span>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+      <div className="absolute right-0 bottom-0 w-5 h-5 cursor-se-resize" onMouseDown={handleResizeMouseDown} style={{ background: "linear-gradient(135deg, transparent 50%, rgba(255,255,255,0.15) 50%)" }} />
+      </div>
+    </div>
+  );
+}
+
+/* ── 지표 ID → 모달 매핑 ── */
+
+const GUIDE_MODALS: Record<string, React.ComponentType<{ onClose: () => void }>> = {
+  "net-liquidity": NetLiquidityGuideModal,
+  "m2-growth": M2GrowthGuideModal,
+  "t10y2y": T10Y2YGuideModal,
+  "copper-gold": CopperGoldGuideModal,
+  "ted-spread": TedSpreadGuideModal,
+  "nfci": NfciGuideModal,
+};
+
 /* ── 메인 페이지 ── */
 
 export default function UsLiquidityPage() {
   const [data, setData] = useState<LiquidityData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [guideOpen, setGuideOpen] = useState(false);
+  const [openGuide, setOpenGuide] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/liquidity/us")
@@ -542,7 +1083,7 @@ export default function UsLiquidityPage() {
             <h2 className="text-lg font-bold mb-4">거시 유동성</h2>
             <div className="grid gap-3 sm:grid-cols-2">
               {macroIndicators.map((ind) => (
-                <IndicatorCard key={ind.id} ind={ind} onGuideOpen={ind.id === "net-liquidity" ? () => setGuideOpen(true) : undefined} />
+                <IndicatorCard key={ind.id} ind={ind} onGuideOpen={ind.id in GUIDE_MODALS ? () => setOpenGuide(ind.id) : undefined} />
               ))}
             </div>
           </section>
@@ -552,7 +1093,7 @@ export default function UsLiquidityPage() {
             <h2 className="text-lg font-bold mb-4">마켓 유동성</h2>
             <div className="grid gap-3 sm:grid-cols-2">
               {marketIndicators.map((ind) => (
-                <IndicatorCard key={ind.id} ind={ind} />
+                <IndicatorCard key={ind.id} ind={ind} onGuideOpen={ind.id in GUIDE_MODALS ? () => setOpenGuide(ind.id) : undefined} />
               ))}
             </div>
           </section>
@@ -620,8 +1161,11 @@ export default function UsLiquidityPage() {
         </>
       )}
 
-      {/* 연준 순유동성 보는 법 모달 */}
-      {guideOpen && <NetLiquidityGuideModal onClose={() => setGuideOpen(false)} />}
+      {/* 보는 법 모달 */}
+      {openGuide && GUIDE_MODALS[openGuide] && (() => {
+        const Modal = GUIDE_MODALS[openGuide];
+        return <Modal onClose={() => setOpenGuide(null)} />;
+      })()}
     </main>
   );
 }
