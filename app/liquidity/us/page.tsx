@@ -335,7 +335,7 @@ function NetLiquidityGuideModal({ onClose }: { onClose: () => void }) {
 
         <h2 className="mb-6 text-xl font-bold cursor-move select-none" onMouseDown={handleMouseDown}>연준 순유동성 보는 법</h2>
 
-        {/* 섹션1: 한 줄 요약 */}
+        {/* 한 줄 요약 */}
         <section className="mb-6">
           <p className="text-sm leading-relaxed text-muted-foreground">
             연준이 시장에 실제로 풀어놓은 돈이 얼마나 되는지 보는 지표입니다.
@@ -344,63 +344,75 @@ function NetLiquidityGuideModal({ onClose }: { onClose: () => void }) {
 
         <hr className="my-5 border-border" />
 
-        {/* 섹션2: 왜 단순히 연준 자산만 보면 안 되나 */}
+        {/* 섹션1: 계산식 */}
         <section className="mb-6">
-          <h3 className="mb-2 text-base font-semibold">연준이 돈을 풀었다고 다 시장에 오는 게 아니에요</h3>
+          <h3 className="mb-2 text-base font-semibold">연준이 아무리 많은 돈을 풀어도, 그 돈이 전부 시장으로 들어오진 않습니다</h3>
+          <div className="rounded-lg border border-border bg-muted/30 p-4 font-mono text-sm text-muted-foreground">
+            <p><strong className="text-foreground">순유동성 계산식: WALCL - RRP - TGA</strong></p>
+          </div>
+        </section>
+
+        <hr className="my-5 border-border" />
+
+        {/* 섹션2: WALCL */}
+        <section className="mb-6">
+          <h3 className="mb-2 text-base font-semibold">WALCL (연준 자산 전체)</h3>
+          <div className="text-sm leading-relaxed text-muted-foreground space-y-3">
+            <p>연준이 시장에서 사들인 것들의 총합이에요.</p>
+            <div className="flex flex-col gap-3">
+              <div className="rounded-lg border border-border bg-muted/30 p-4">
+                <p className="font-semibold text-foreground mb-1">1. 미국 국채</p>
+              </div>
+              <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-1">
+                <p className="font-semibold text-foreground mb-1">2. 주택저당증권(MBS)</p>
+                <p>주택담보대출을 묶어서 만든 에이전시 보증 채권이에요. (Fannie Mae, Freddie Mac, Ginnie Mae)</p>
+                <p>연준이 QE 등으로 MBS를 매입할 때, 그 MBS를 들고 있던 은행·기관투자자·딜러에게 현금(준비금)이 지급돼요.</p>
+                <p>MBS 보유는 연준 자산 포트폴리오에 포함되어 WALCL에 잡혀요.</p>
+              </div>
+              <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-1">
+                <p className="font-semibold text-foreground mb-1">3. 대출, 환매조건부채권(Repo) 등 신용공급 자산</p>
+                <p>은행·딜러가 보유한 국채·채권을 연준에 잠시 팔고, 나중에 정해진 가격에 다시 사오겠다고 약속해요.</p>
+                <p>연준은 그 대가로 지금 현금(준비금)을 빌려주는 거예요.</p>
+                <p>빌려준 돈(곧 받을 돈)을 자산으로 기록해요.</p>
+              </div>
+              <div className="rounded-lg border border-border bg-muted/30 p-4">
+                <p className="font-semibold text-foreground mb-1">4. 기타 자산</p>
+                <p>금, 외환 보유액, 외국 중앙은행과의 통화스왑 자산 등</p>
+              </div>
+            </div>
+            <p className="mt-2"><strong className="text-foreground">결론:</strong> WALCL은 연준이 돈을 찍어서 사들인 총합이에요. 그 돈은 은행 등을 통해 시장으로 풀려요.</p>
+          </div>
+        </section>
+
+        <hr className="my-5 border-border" />
+
+        {/* 섹션3: RRP */}
+        <section className="mb-6">
+          <h3 className="mb-2 text-base font-semibold">역레포 = RRP (Reverse Repurchase Agreement)</h3>
           <div className="rounded-lg border border-border bg-muted/30 p-4 text-sm leading-relaxed text-muted-foreground space-y-2">
-            <p>태양님이 식당을 운영해요. 오늘 매출이 1,000만원이에요.</p>
-            <p>근데 직원 월급, 식재료, 임대료를 빼면 실제 내 손에 남는 돈은 350만원이에요.</p>
-            <p><strong className="text-foreground">매출만 보면 착각해요. 연준도 마찬가지예요.</strong></p>
-            <p>연준이 아무리 많은 돈을 풀어도, 그 돈이 전부 시장에 도는 게 아니에요.</p>
+            <p>연준이 보유한 국채·채권을 은행/딜러에게 잠시 팔고, 나중에 정해진 가격에 다시 사오겠다고 약속하면서 지금 현금(준비금)을 받는 거래예요.</p>
+            <p>연준 입장에선 시중 유동성을 흡수하는 수단이에요.</p>
+            <p>이때 생긴 RRP 잔액은 연준 부채로 잡혀요.</p>
+            <p><strong className="text-foreground">→ 시장에서 돈을 빨아들이는 구조예요.</strong></p>
           </div>
         </section>
 
         <hr className="my-5 border-border" />
 
-        {/* 섹션3: 3가지 항목 설명 */}
+        {/* 섹션4: TGA */}
         <section className="mb-6">
-          <h3 className="mb-3 text-base font-semibold">계산식: WALCL - RRP - TGA</h3>
-
-          <div className="flex flex-col gap-4">
-            <div className="rounded-lg border border-border bg-muted/30 p-4">
-              <h4 className="mb-1.5 text-sm font-semibold">
-                WALCL (연준 자산 전체){" "}
-                <span className="font-normal text-muted-foreground">— 수도꼭지에서 나온 물 전체</span>
-              </h4>
-              <p className="text-sm leading-relaxed text-muted-foreground">
-                연준이 시장에서 사들인 국채, 주택담보채권 등의 총합이에요.
-              </p>
-            </div>
-
-            <div className="rounded-lg border border-border bg-muted/30 p-4">
-              <h4 className="mb-1.5 text-sm font-semibold">
-                역레포 RRP (다시 빨아들인 돈){" "}
-                <span className="font-normal text-muted-foreground">— 배수구로 다시 빠진 물</span>
-              </h4>
-              <div className="text-sm leading-relaxed text-muted-foreground space-y-2">
-                <p>은행들이 &ldquo;나 지금 쓸 데 없어&rdquo; 하면서 연준에 다시 맡긴 돈이에요.</p>
-                <p className="text-xs text-muted-foreground/70">
-                  실제 사례: 2021~2022년 코로나 때 연준이 돈을 엄청 풀었는데, 은행들이 그 돈을 다 쓰지 못하고 연준에 다시 맡겨버렸어요. RRP가 2조 달러까지 올라갔었어요.
-                </p>
-              </div>
-            </div>
-
-            <div className="rounded-lg border border-border bg-muted/30 p-4">
-              <h4 className="mb-1.5 text-sm font-semibold">
-                TGA (정부 금고){" "}
-                <span className="font-normal text-muted-foreground">— 저수지에 가둬놓은 물</span>
-              </h4>
-              <div className="text-sm leading-relaxed text-muted-foreground space-y-2">
-                <p>미국 재무부(정부)가 연준에 갖고 있는 통장이에요.</p>
-                <p>세금 걷으면 여기 쌓이고, 정부가 돈 쓸 때 여기서 나가요. 저수지에 있는 동안은 동네에 안 와요.</p>
-              </div>
-            </div>
+          <h3 className="mb-2 text-base font-semibold">TGA = Treasury General Account (연준에 있는 미국 정부 통장)</h3>
+          <div className="rounded-lg border border-border bg-muted/30 p-4 text-sm leading-relaxed text-muted-foreground space-y-2">
+            <p>세금 또는 국채 판 돈이 TGA로 들어가면 시중에 돈이 줄어들어요.</p>
+            <p>정부가 돈을 쓸 때 여기서 나가요.</p>
+            <p>저수지에 물이 갇혀 있는 동안은 동네에 안 와요.</p>
+            <p><strong className="text-foreground">→ TGA가 늘면 시중 유동성 감소, TGA가 줄면 시중 유동성 증가예요.</strong></p>
           </div>
         </section>
 
         <hr className="my-5 border-border" />
 
-        {/* 섹션4: 실제 계산 예시 */}
+        {/* 섹션5: 실제 계산 예시 */}
         <section className="mb-6">
           <h3 className="mb-2 text-base font-semibold">실제로 이렇게 계산해요</h3>
           <div className="rounded-lg border border-border bg-muted/30 p-4 font-mono text-sm leading-relaxed text-muted-foreground">
@@ -419,7 +431,7 @@ function NetLiquidityGuideModal({ onClose }: { onClose: () => void }) {
 
         <hr className="my-5 border-border" />
 
-        {/* 섹션5: 점수 해석 */}
+        {/* 섹션6: 점수 해석 */}
         <section className="mb-6">
           <h3 className="mb-2 text-base font-semibold">점수를 어떻게 읽나요?</h3>
           <div className="text-sm leading-relaxed text-muted-foreground space-y-2">
@@ -440,8 +452,8 @@ function NetLiquidityGuideModal({ onClose }: { onClose: () => void }) {
 
         <hr className="my-5 border-border" />
 
-        {/* 섹션6: 왜 4~6개월 선행인가 */}
-        <section className="mb-2">
+        {/* 섹션7: 왜 4~6개월 선행인가 */}
+        <section className="mb-6">
           <h3 className="mb-2 text-base font-semibold">왜 지금 변화가 4~6개월 뒤 나스닥에 영향을 주나요?</h3>
           <div className="rounded-lg border border-border bg-muted/30 p-4 text-sm leading-relaxed text-muted-foreground space-y-2">
             <p>봄에 씨앗을 심으면 (연준이 돈을 풀기 시작)</p>
@@ -452,6 +464,35 @@ function NetLiquidityGuideModal({ onClose }: { onClose: () => void }) {
             돈이 풀리면 → 기업들이 대출을 받고 → 투자를 하고 → 실적이 좋아지고 → 그때서야 주가가 반응해요.
             <strong className="text-foreground"> 이 과정이 4~6개월 걸려요.</strong>
           </p>
+        </section>
+
+        <hr className="my-5 border-border" />
+
+        {/* 섹션8: 한 줄 요약 */}
+        <section className="mb-6">
+          <h3 className="mb-2 text-base font-semibold">한 줄 요약</h3>
+          <div className="rounded-lg border border-border bg-muted/30 p-4 text-sm leading-relaxed text-muted-foreground">
+            <p><strong className="text-foreground">WALCL - RRP - TGA가 커진다는 건,</strong></p>
+            <p>&ldquo;연준·정부까지 합쳐 봤을 때, 시장에 풀려 돌아다니는 달러(기초 유동성)가 늘고 있다&rdquo;는 뜻이에요.</p>
+          </div>
+        </section>
+
+        <hr className="my-5 border-border" />
+
+        {/* 섹션9: TradingView 링크 */}
+        <section className="mb-2">
+          <h3 className="mb-2 text-base font-semibold">직접 차트로 보고 싶다면</h3>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            TradingView에서 연준 순유동성 차트를 직접 볼 수 있어요.
+          </p>
+          <a
+            href="https://kr.tradingview.com/script/AWrUtm2d-FED-Net-Liquidity-WALCL-TGA-RRP/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 mt-2 text-sm text-blue-400 hover:text-blue-300 transition-colors"
+          >
+            TradingView에서 보기 →
+          </a>
         </section>
       </div>
 
