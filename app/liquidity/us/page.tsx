@@ -534,6 +534,7 @@ function M2GrowthGuideModal({ onClose }: { onClose: () => void }) {
 
         <h2 className="mb-6 text-xl font-bold cursor-move select-none" onMouseDown={handleMouseDown}>M2 통화량 증가율 보는 법</h2>
 
+        {/* 한 줄 요약 */}
         <section className="mb-6">
           <p className="text-sm leading-relaxed text-muted-foreground">
             시중 은행 전체에 돈이 작년보다 얼마나 늘었는지 보는 지표입니다.
@@ -542,6 +543,51 @@ function M2GrowthGuideModal({ onClose }: { onClose: () => void }) {
 
         <hr className="my-5 border-border" />
 
+        {/* 섹션1: M2가 뭔가요? */}
+        <section className="mb-6">
+          <h3 className="mb-2 text-base font-semibold">M2가 뭔가요?</h3>
+          <div className="text-sm leading-relaxed text-muted-foreground space-y-3">
+            <p>M2는 쉽게 말해 &ldquo;현금 + 당장 쓸 수 있는 예금(M1) + 곧바로 현금으로 바꾸기 쉬운 예금·상품&rdquo;을 모두 합쳐 놓은 통화량 지표예요.</p>
+            <div className="flex flex-col gap-3">
+              <div className="rounded-lg border border-border bg-muted/30 p-4">
+                <p className="font-semibold text-foreground mb-1">1. 현금</p>
+                <p>지폐, 동전</p>
+              </div>
+              <div className="rounded-lg border border-border bg-muted/30 p-4">
+                <p className="font-semibold text-foreground mb-1">2. 당장 쓸 수 있는 예금 (M1)</p>
+                <p>체크카드·이체로 지금 바로 쓰는 통장</p>
+              </div>
+              <div className="rounded-lg border border-border bg-muted/30 p-4">
+                <p className="font-semibold text-foreground mb-1">3. 곧바로 현금으로 바꾸기 쉬운 예금·상품</p>
+                <p>정기예금·단기 채권처럼 &ldquo;깨면 바로 쓸 수 있지만 약간 귀찮거나 비용이 있는&rdquo; 통장·상품</p>
+              </div>
+            </div>
+            <div className="rounded-lg border border-border bg-muted/30 p-4 mt-2">
+              <p><strong className="text-foreground">한 줄 정리:</strong></p>
+              <p>M1은 &ldquo;지금 바로 결제에 쓸 수 있는 돈&rdquo;.</p>
+              <p>M2는 M1 + &ldquo;조금만 움직이면 바로 쓸 수 있는 돈(저축·단기상품까지 포함한 넓은 돈)&rdquo;이에요.</p>
+            </div>
+          </div>
+        </section>
+
+        <hr className="my-5 border-border" />
+
+        {/* 섹션2: 투자자 관점 */}
+        <section className="mb-6">
+          <h3 className="mb-2 text-base font-semibold">투자자 관점에서 어떻게 보나요?</h3>
+          <div className="flex flex-col gap-3">
+            <div className="rounded-lg border border-border bg-muted/30 p-4 text-sm leading-relaxed text-muted-foreground">
+              <p><strong className="text-foreground">M2가 빠르게 늘면:</strong> 시중에 돈이 많이 풀린 것 → 인플레 압력·위험자산 선호가 커질 수 있어요.</p>
+            </div>
+            <div className="rounded-lg border border-border bg-muted/30 p-4 text-sm leading-relaxed text-muted-foreground">
+              <p><strong className="text-foreground">M2가 줄거나 정체되면:</strong> 유동성 조임, 신용·경기 둔화 신호로 보는 경우가 많아요.</p>
+            </div>
+          </div>
+        </section>
+
+        <hr className="my-5 border-border" />
+
+        {/* 섹션3: 연준 순유동성과 차이 */}
         <section className="mb-6">
           <h3 className="mb-2 text-base font-semibold">연준 순유동성과 뭐가 달라요?</h3>
           <div className="rounded-lg border border-border bg-muted/30 p-4 text-sm leading-relaxed text-muted-foreground space-y-2">
@@ -553,8 +599,9 @@ function M2GrowthGuideModal({ onClose }: { onClose: () => void }) {
 
         <hr className="my-5 border-border" />
 
+        {/* 섹션4: 계산 방법 */}
         <section className="mb-6">
-          <h3 className="mb-2 text-base font-semibold">계산 방법</h3>
+          <h3 className="mb-2 text-base font-semibold">M2 통화량 증가율 계산 방법</h3>
           <div className="rounded-lg border border-border bg-muted/30 p-4 font-mono text-sm leading-relaxed text-muted-foreground">
             <p>M2 증가율 = (이번 달 M2 - 작년 같은 달 M2) &divide; 작년 같은 달 M2 &times; 100</p>
           </div>
@@ -565,6 +612,7 @@ function M2GrowthGuideModal({ onClose }: { onClose: () => void }) {
 
         <hr className="my-5 border-border" />
 
+        {/* 섹션5: 실제 사례 */}
         <section className="mb-6">
           <h3 className="mb-2 text-base font-semibold">실제 사례로 이해해요</h3>
           <div className="flex flex-col gap-3">
@@ -582,6 +630,7 @@ function M2GrowthGuideModal({ onClose }: { onClose: () => void }) {
 
         <hr className="my-5 border-border" />
 
+        {/* 섹션6: 점수 해석 */}
         <section className="mb-6">
           <h3 className="mb-2 text-base font-semibold">점수를 어떻게 읽나요?</h3>
           <div className="text-sm leading-relaxed text-muted-foreground space-y-2">
@@ -601,11 +650,30 @@ function M2GrowthGuideModal({ onClose }: { onClose: () => void }) {
 
         <hr className="my-5 border-border" />
 
-        <section className="mb-2">
+        {/* 섹션7: 왜 4~6개월 선행 */}
+        <section className="mb-6">
           <h3 className="mb-2 text-base font-semibold">왜 4~6개월 선행인가요?</h3>
           <p className="text-sm leading-relaxed text-muted-foreground">
             M2가 늘어나면 → 사람들이 쓸 돈이 많아지고 → 기업 실적이 좋아지고 → <strong className="text-foreground">4~6개월 뒤 주가에 반영</strong>돼요.
           </p>
+        </section>
+
+        <hr className="my-5 border-border" />
+
+        {/* 섹션8: 차트 링크 */}
+        <section className="mb-2">
+          <h3 className="mb-2 text-base font-semibold">직접 차트로 보고 싶다면</h3>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            M2 통화량 증가율 차트를 직접 볼 수 있어요.
+          </p>
+          <a
+            href="https://ycharts.com/indicators/us_m2_money_supply_yoy"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 mt-2 text-sm text-blue-400 hover:text-blue-300 transition-colors"
+          >
+            ycharts에서 보기 →
+          </a>
         </section>
       </div>
       <div className="absolute right-0 bottom-0 w-5 h-5 cursor-se-resize" onMouseDown={handleResizeMouseDown} style={{ background: "linear-gradient(135deg, transparent 50%, rgba(255,255,255,0.15) 50%)" }} />
