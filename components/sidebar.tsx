@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { BarChart3, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { GrowthScorePanel } from "@/components/growth-score-panel";
-import { VixSidebarWidget } from "@/components/vix-sidebar-widget";
+import { VixGaugeWidget } from "@/components/vix-gauge-widget";
 import { DollarIndexWidget } from "@/components/dollar-index-widget";
 import { UsTreasury10yWidget } from "@/components/us-treasury-10y-widget";
 
@@ -67,7 +67,7 @@ export function Sidebar() {
 
         <GrowthScorePanel />
         <div className="mt-3">
-          <VixSidebarWidget />
+          <VixGaugeWidget />
           <div className="mt-1.5">
             <DollarIndexWidget />
           </div>
