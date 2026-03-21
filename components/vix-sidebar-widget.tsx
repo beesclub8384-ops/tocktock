@@ -54,7 +54,7 @@ export function VixSidebarWidget() {
 
   return (
     <Link
-      href="/indices"
+      href="/indices/fear-greed"
       className="group flex flex-col items-start rounded-md border-2 border-foreground/40 px-2.5 py-1 transition-colors hover:bg-accent"
     >
       <div className="flex items-center gap-1.5">
