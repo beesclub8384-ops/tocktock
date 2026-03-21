@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { HelpCircle, X } from "lucide-react";
 import { useDraggable } from "@/hooks/useDraggable";
 import { useResizable } from "@/hooks/useResizable";
@@ -68,7 +69,7 @@ function VixGuideModal({ onClose }: { onClose: () => void }) {
     };
   }, []);
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4"
       onClick={(e) => {
@@ -329,7 +330,8 @@ function VixGuideModal({ onClose }: { onClose: () => void }) {
       </div>
       <div onMouseDown={handleResizeMouseDown} className="absolute bottom-0 right-0 cursor-se-resize px-2 py-1 text-xs text-gray-400 hover:text-gray-200 select-none">↔ 크기조절</div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
