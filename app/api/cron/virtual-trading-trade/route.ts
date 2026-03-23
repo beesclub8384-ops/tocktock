@@ -24,9 +24,10 @@ function parseNum(s: string): number {
   return Number(s.replace(/,/g, "")) || 0;
 }
 
-/** 개별 종목 현재가 + 고가 조회 */
+/** 개별 종목 현재가 + 고가 조회 (todayDate가 주어지면 당일 데이터만 반환) */
 async function fetchCurrentPrice(
-  code: string
+  code: string,
+  todayDate?: string
 ): Promise<{ close: number; high: number; open: number } | null> {
   try {
     const res = await fetch(
@@ -37,6 +38,16 @@ async function fetchCurrentPrice(
     const data = await res.json();
     const item = Array.isArray(data) ? data[0] : data;
     if (!item) return null;
+
+    // 당일 날짜 검증: localTradedAt(YYYY-MM-DD)을 YYYYMMDD로 변환 후 비교
+    if (todayDate && item.localTradedAt) {
+      const itemDate = String(item.localTradedAt).replace(/-/g, "");
+      if (itemDate !== todayDate) {
+        console.log(`[fetchCurrentPrice] ${code}: 오늘(${todayDate}) 데이터 없음 (최신: ${itemDate})`);
+        return null;
+      }
+    }
+
     return {
       close: parseNum(String(item.closePrice || item.currentPrice || 0)),
       high: parseNum(String(item.highPrice || item.highestPrice || 0)),
@@ -178,10 +189,10 @@ export async function GET() {
       break;
     }
 
-    // D+3 시가에 매수
-    const price = await fetchCurrentPrice(candidate.code);
+    // D+3 시가에 매수 (당일 데이터만 사용)
+    const price = await fetchCurrentPrice(candidate.code, todayDate);
     if (!price || price.open <= 0) {
-      console.log(`[trade] ${candidate.name}: 시가 조회 실패`);
+      console.log(`[trade] ${candidate.name}: 당일 시가 조회 실패 (오늘 데이터 없음)`);
       continue;
     }
 
