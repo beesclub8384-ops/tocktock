@@ -296,7 +296,7 @@ function OilChartModal({
 
           {/* 출처 */}
           <p className="mt-3 text-right text-[10px] text-muted-foreground">
-            FRED 일별 기준
+            Yahoo Finance 일별 기준
           </p>
         </div>
 
@@ -370,7 +370,7 @@ export function OilPriceWidget() {
       <div className="mb-2 flex items-center justify-between">
         <span className="text-xs font-semibold">국제유가</span>
         <span className="text-[9px] text-muted-foreground">
-          FRED 일별 기준
+          Yahoo Finance 일별 기준
         </span>
       </div>
 

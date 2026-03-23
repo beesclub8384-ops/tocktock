@@ -1,13 +1,17 @@
 import { NextResponse } from "next/server";
 import { redis } from "@/lib/redis";
+import yahooFinance from "yahoo-finance2";
 
-const FRED_BASE = "https://api.stlouisfed.org/fred/series/observations";
 const CACHE_KEY = "oil-prices:v5";
 const CACHE_TTL = 21600; // 6시간
 
-interface FredObservation {
-  date: string;
-  value: string;
+interface ChartQuote {
+  date: Date;
+  open: number | null;
+  high: number | null;
+  low: number | null;
+  close: number | null;
+  volume: number | null;
 }
 
 interface OilSeries {
@@ -23,30 +27,31 @@ interface OilPricesData {
   updatedAt: string;
 }
 
-async function fetchFredSeries(seriesId: string): Promise<{ date: string; value: number }[]> {
-  const apiKey = process.env.FRED_API_KEY;
-  if (!apiKey) throw new Error("FRED_API_KEY not set");
+async function fetchYahooSeries(symbol: string): Promise<OilSeries> {
+  const fiveYearsAgo = new Date();
+  fiveYearsAgo.setFullYear(fiveYearsAgo.getFullYear() - 5);
 
-  const url = `${FRED_BASE}?series_id=${seriesId}&api_key=${apiKey}&file_type=json&sort_order=desc&limit=1500`;
-  const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
-  if (!res.ok) throw new Error(`FRED ${seriesId}: ${res.status}`);
+  const result = await yahooFinance.chart(symbol, {
+    period1: fiveYearsAgo,
+    period2: new Date(),
+    interval: "1d",
+    return: "array",
+  } as Parameters<typeof yahooFinance.chart>[1]);
 
-  const json = await res.json();
-  const observations: FredObservation[] = json.observations;
+  const quotes = (result as unknown as { quotes: ChartQuote[] }).quotes;
 
-  return observations
-    .filter((o) => o.value !== ".")
-    .map((o) => ({ date: o.date, value: parseFloat(o.value) }))
-    .filter((o) => !isNaN(o.value));
-}
+  // close가 null인 항목 필터링 (주말/공휴일)
+  const history = quotes
+    .filter((q) => q.close != null)
+    .map((q) => ({
+      date: new Date(q.date).toISOString().split("T")[0],
+      value: Math.round(q.close! * 100) / 100,
+    }));
 
-function buildSeries(data: { date: string; value: number }[]): OilSeries {
-  // data는 desc 정렬 → 차트용으로 asc 변환
-  const history = [...data].reverse();
-  const current = data[0]?.value ?? 0;
-  const prev = data[1]?.value ?? current;
-  const change = current - prev;
-  const changePct = prev !== 0 ? (change / prev) * 100 : 0;
+  const current = history[history.length - 1]?.value ?? 0;
+  const prev = history[history.length - 2]?.value ?? current;
+  const change = Math.round((current - prev) * 100) / 100;
+  const changePct = prev !== 0 ? Math.round(((current - prev) / prev) * 10000) / 100 : 0;
 
   return { current, change, changePct, history };
 }
@@ -59,15 +64,16 @@ export async function GET() {
       return NextResponse.json(cached);
     }
 
-    // FRED API에서 두 시리즈 동시 fetch
-    const [brentData, wtiData] = await Promise.all([
-      fetchFredSeries("DCOILBRENTEU"),
-      fetchFredSeries("DCOILWTICO"),
+    // Yahoo Finance에서 두 시리즈 동시 fetch
+    // BZ=F = 브렌트, CL=F = WTI
+    const [brent, wti] = await Promise.all([
+      fetchYahooSeries("BZ=F"),
+      fetchYahooSeries("CL=F"),
     ]);
 
     const result: OilPricesData = {
-      brent: buildSeries(brentData),
-      wti: buildSeries(wtiData),
+      brent,
+      wti,
       updatedAt: new Date().toISOString(),
     };
 
