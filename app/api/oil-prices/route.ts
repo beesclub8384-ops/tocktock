@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { redis } from "@/lib/redis";
-import yahooFinance from "yahoo-finance2";
+import YahooFinance from "yahoo-finance2";
+
+const yahooFinance = new YahooFinance();
 
 const CACHE_KEY = "oil-prices:v5";
 const CACHE_TTL = 21600; // 6시간
