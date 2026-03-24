@@ -1,19 +1,10 @@
-import { getAllNews, type NewsCategory } from "@/lib/news-rss";
+import { getAllNews } from "@/lib/news-rss";
 
 export const revalidate = 3600; // 1시간 ISR
 
 export const metadata = {
   title: "뉴스 - TockTock",
-  description: "실시간 투자 뉴스 - 주식, 증시, 경제, 미국시장, 미국정치, 한국정치",
-};
-
-const CATEGORY_COLORS: Record<NewsCategory, string> = {
-  주식: "bg-blue-500/15 text-blue-400",
-  증시: "bg-violet-500/15 text-violet-400",
-  경제: "bg-emerald-500/15 text-emerald-400",
-  미국시장: "bg-orange-500/15 text-orange-400",
-  미국정치: "bg-rose-500/15 text-rose-400",
-  한국정치: "bg-amber-500/15 text-amber-400",
+  description: "실시간 투자 뉴스 - 주식, 증시, 경제, 미국시장",
 };
 
 function timeAgo(dateStr: string): string {
@@ -47,14 +38,6 @@ export default async function NewsPage() {
         <div className="flex flex-col gap-8">
           {news.map((item, i) => (
             <article key={`${item.link}-${i}`} className="group">
-              <div className="flex items-center gap-2 mb-1.5">
-                <span
-                  className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${CATEGORY_COLORS[item.category]}`}
-                >
-                  {item.category}
-                </span>
-              </div>
-
               <h2 className="text-lg font-semibold leading-snug">
                 {item.title}
               </h2>
