@@ -319,10 +319,10 @@ function AuctionHistoryChart() {
               <Line
                 type="monotone"
                 dataKey="rate"
-                stroke="hsl(var(--foreground))"
+                stroke="#60a5fa"
                 strokeWidth={1.5}
                 dot={false}
-                activeDot={{ r: 4, fill: "hsl(var(--foreground))" }}
+                activeDot={{ r: 4, fill: "#60a5fa" }}
               />
             </LineChart>
           </ResponsiveContainer>
