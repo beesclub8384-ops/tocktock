@@ -22,7 +22,6 @@ const navLinks = [
   { href: "/volume-explosion", label: "거래대금 폭발" },
   { href: "/virtual-trading", label: "자동매매" },
   { href: "/ai-trading", label: "AI 자동매매" },
-  { href: "/stock/TSLA", label: "차트" },
 ];
 
 export function Navbar() {

@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 import { Sidebar } from "@/components/sidebar";
+import { TradingViewButton } from "@/components/tradingview-button";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -36,6 +37,7 @@ export default function RootLayout({
           <main className="min-h-screen flex-1">{children}</main>
         </div>
         <Footer />
+        <TradingViewButton />
       </body>
     </html>
   );
