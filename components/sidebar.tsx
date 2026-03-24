@@ -35,7 +35,7 @@ export function Sidebar() {
       {/* 모바일 토글 버튼 */}
       <button
         onClick={() => setOpen(true)}
-        className="fixed bottom-5 left-5 z-40 flex h-12 w-12 items-center justify-center rounded-full border border-border bg-background shadow-lg transition-colors hover:bg-accent lg:hidden"
+        className="fixed bottom-5 left-5 z-40 flex h-12 w-12 items-center justify-center rounded-full border-2 border-blue-500 bg-white text-blue-600 shadow-lg transition-colors hover:bg-blue-50 lg:hidden"
         aria-label="성장 점수 패널 열기"
       >
         <BarChart3 size={20} />
