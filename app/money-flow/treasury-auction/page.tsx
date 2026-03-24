@@ -1,9 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { HelpCircle, X } from "lucide-react";
 import { useDraggable } from "@/hooks/useDraggable";
 import { useResizable } from "@/hooks/useResizable";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 
 interface AuctionItem {
   cusip: string;
@@ -114,6 +123,248 @@ function GuideTable({ headers, rows }: { headers: string[]; rows: string[][] }) 
         </tbody>
       </table>
     </div>
+  );
+}
+
+/* ────────────────────────────────────────────
+   경매 낙찰금리 추이 차트
+   ──────────────────────────────────────────── */
+
+type SecurityCategory = "Bill" | "Note" | "Bond" | "TIPS" | "FRN";
+type Period = "1y" | "3y" | "5y" | "all";
+
+const TERM_MAP: Record<SecurityCategory, string[]> = {
+  Bill: ["4-Week", "8-Week", "13-Week", "17-Week", "26-Week", "52-Week"],
+  Note: ["2-Year", "3-Year", "5-Year", "7-Year", "10-Year"],
+  Bond: ["20-Year", "30-Year"],
+  TIPS: ["5-Year", "10-Year", "30-Year"],
+  FRN: ["2-Year"],
+};
+
+const PERIOD_LABELS: { key: Period; label: string }[] = [
+  { key: "1y", label: "1년" },
+  { key: "3y", label: "3년" },
+  { key: "5y", label: "5년" },
+  { key: "all", label: "전체" },
+];
+
+interface HistoryPoint {
+  date: string;
+  rate: number | null;
+  bidToCover: number | null;
+}
+
+function formatChartDate(dateStr: string) {
+  const d = new Date(dateStr);
+  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function formatTooltipDate(dateStr: string) {
+  const d = new Date(dateStr);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function ChartTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: HistoryPoint }> }) {
+  if (!active || !payload?.length) return null;
+  const p = payload[0].payload;
+  return (
+    <div className="rounded-lg border border-border bg-card px-3 py-2 shadow-lg text-xs">
+      <p className="font-medium text-foreground">{formatTooltipDate(p.date)}</p>
+      <p className="text-muted-foreground mt-1">
+        낙찰금리: <span className="text-foreground font-medium">{p.rate !== null ? `${p.rate.toFixed(3)}%` : "-"}</span>
+      </p>
+      <p className="text-muted-foreground">
+        Bid-to-Cover: <span className="text-foreground font-medium">{p.bidToCover !== null ? p.bidToCover.toFixed(2) : "-"}</span>
+      </p>
+    </div>
+  );
+}
+
+function AuctionHistoryChart() {
+  const [category, setCategory] = useState<SecurityCategory>("Note");
+  const [term, setTerm] = useState("10-Year");
+  const [period, setPeriod] = useState<Period>("1y");
+  const [data, setData] = useState<HistoryPoint[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const params = new URLSearchParams({
+        security_type: category,
+        security_term: term,
+        period,
+      });
+      const res = await fetch(`/api/treasury-bill-history?${params}`);
+      if (!res.ok) throw new Error("API 오류");
+      const json = await res.json();
+      setData(json.data || []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "데이터 로드 실패");
+    } finally {
+      setLoading(false);
+    }
+  }, [category, term, period]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // 종류 변경 시 첫 번째 만기로 초기화
+  const handleCategoryChange = (cat: SecurityCategory) => {
+    setCategory(cat);
+    setTerm(TERM_MAP[cat][0]);
+  };
+
+  const chartData = data.filter((d) => d.rate !== null);
+  const recent5 = [...chartData].reverse().slice(0, 5);
+
+  return (
+    <section className="mt-12">
+      <h2 className="text-xl font-bold mb-6">경매 낙찰금리 추이</h2>
+
+      {/* 종류 탭 */}
+      <div className="flex flex-wrap gap-1.5 mb-3">
+        {(Object.keys(TERM_MAP) as SecurityCategory[]).map((cat) => (
+          <button
+            key={cat}
+            onClick={() => handleCategoryChange(cat)}
+            className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              category === cat
+                ? "bg-foreground text-background"
+                : "bg-muted text-muted-foreground hover:bg-accent"
+            }`}
+          >
+            {cat}
+          </button>
+        ))}
+      </div>
+
+      {/* 만기 탭 */}
+      <div className="flex flex-wrap gap-1.5 mb-3">
+        {TERM_MAP[category].map((t) => (
+          <button
+            key={t}
+            onClick={() => setTerm(t)}
+            className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+              term === t
+                ? "bg-foreground/10 text-foreground border border-foreground/20"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {t}
+          </button>
+        ))}
+      </div>
+
+      {/* 기간 탭 */}
+      <div className="flex gap-1.5 mb-6">
+        {PERIOD_LABELS.map((p) => (
+          <button
+            key={p.key}
+            onClick={() => setPeriod(p.key)}
+            className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+              period === p.key
+                ? "bg-foreground/10 text-foreground border border-foreground/20"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {p.label}
+          </button>
+        ))}
+      </div>
+
+      {/* 차트 영역 */}
+      <div className="rounded-lg border border-border bg-card p-4">
+        {loading && (
+          <div className="flex items-center justify-center py-16 text-muted-foreground">
+            <svg className="animate-spin h-5 w-5 mr-3" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+            데이터를 불러오는 중...
+          </div>
+        )}
+
+        {error && (
+          <div className="py-16 text-center text-red-500 text-sm">{error}</div>
+        )}
+
+        {!loading && !error && chartData.length === 0 && (
+          <div className="py-16 text-center text-muted-foreground text-sm">
+            해당 조건의 경매 데이터가 없습니다.
+          </div>
+        )}
+
+        {!loading && !error && chartData.length > 0 && (
+          <ResponsiveContainer width="100%" height={320}>
+            <LineChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis
+                dataKey="date"
+                tickFormatter={formatChartDate}
+                tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                interval="preserveStartEnd"
+                minTickGap={60}
+              />
+              <YAxis
+                tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                tickFormatter={(v: number) => `${v.toFixed(1)}%`}
+                domain={["auto", "auto"]}
+                width={56}
+              />
+              <Tooltip content={<ChartTooltip />} />
+              <Line
+                type="monotone"
+                dataKey="rate"
+                stroke="hsl(var(--foreground))"
+                strokeWidth={1.5}
+                dot={false}
+                activeDot={{ r: 4, fill: "hsl(var(--foreground))" }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        )}
+      </div>
+
+      {/* 최근 5개 결과 테이블 */}
+      {!loading && !error && recent5.length > 0 && (
+        <div className="mt-4 overflow-x-auto rounded-lg border border-border">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border bg-muted/50">
+                <th className="text-left px-4 py-2.5 font-medium">경매일</th>
+                <th className="text-right px-4 py-2.5 font-medium">낙찰금리 (%)</th>
+                <th className="text-right px-4 py-2.5 font-medium">입찰률 (Bid-to-Cover)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {recent5.map((item) => (
+                <tr key={item.date} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                  <td className="px-4 py-2.5 tabular-nums">{formatTooltipDate(item.date)}</td>
+                  <td className="px-4 py-2.5 text-right tabular-nums">
+                    {item.rate !== null ? item.rate.toFixed(3) : "-"}
+                  </td>
+                  <td className={`px-4 py-2.5 text-right tabular-nums ${
+                    item.bidToCover !== null
+                      ? item.bidToCover >= 2.5
+                        ? "text-emerald-600 dark:text-emerald-400 font-semibold"
+                        : item.bidToCover < 2.0
+                          ? "text-red-500 dark:text-red-400 font-semibold"
+                          : ""
+                      : ""
+                  }`}>
+                    {item.bidToCover !== null ? item.bidToCover.toFixed(2) : "-"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -526,6 +777,9 @@ export default function TreasuryAuctionPage() {
           마지막 업데이트: {formatKST(data.updatedAt)}
         </p>
       )}
+
+      {/* 경매 낙찰금리 추이 차트 */}
+      <AuctionHistoryChart />
 
       {/* 용어 설명 */}
       <section className="mt-12 rounded-lg border border-border bg-muted/30 p-6 space-y-4">
