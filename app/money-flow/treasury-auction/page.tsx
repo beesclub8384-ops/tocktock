@@ -130,15 +130,13 @@ function GuideTable({ headers, rows }: { headers: string[]; rows: string[][] }) 
    경매 낙찰금리 추이 차트
    ──────────────────────────────────────────── */
 
-type SecurityCategory = "Bill" | "Note" | "Bond" | "TIPS" | "FRN";
+type SecurityCategory = "Bill" | "Note" | "Bond";
 type Period = "1y" | "3y" | "5y" | "all";
 
 const TERM_MAP: Record<SecurityCategory, string[]> = {
   Bill: ["4-Week", "8-Week", "13-Week", "17-Week", "26-Week", "52-Week"],
   Note: ["2-Year", "3-Year", "5-Year", "7-Year", "10-Year"],
   Bond: ["20-Year", "30-Year"],
-  TIPS: ["5-Year", "10-Year", "30-Year"],
-  FRN: ["2-Year"],
 };
 
 const PERIOD_LABELS: { key: Period; label: string }[] = [
@@ -658,6 +656,9 @@ export default function TreasuryAuctionPage() {
         </button>
       </header>
 
+      {/* 경매 낙찰금리 추이 차트 */}
+      <AuctionHistoryChart />
+
       {/* 탭 */}
       <div className="flex gap-2 mb-4">
         {(["results", "upcoming"] as Tab[]).map((t) => (
@@ -777,9 +778,6 @@ export default function TreasuryAuctionPage() {
           마지막 업데이트: {formatKST(data.updatedAt)}
         </p>
       )}
-
-      {/* 경매 낙찰금리 추이 차트 */}
-      <AuctionHistoryChart />
 
       {/* 용어 설명 */}
       <section className="mt-12 rounded-lg border border-border bg-muted/30 p-6 space-y-4">
