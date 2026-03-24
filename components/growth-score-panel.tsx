@@ -458,7 +458,7 @@ export function GrowthScorePanel() {
   const showDropdown = isOpen && query.length > 0;
 
   return (
-    <div className="rounded-xl border border-border bg-card p-3">
+    <div className="rounded-md border-2 border-foreground/40 bg-card p-3">
       <h2 className="mb-3 text-sm font-semibold">성장성 종합 점수</h2>
 
       {/* 검색창 */}

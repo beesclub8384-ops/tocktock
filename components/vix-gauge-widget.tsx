@@ -368,7 +368,7 @@ export function VixGaugeWidget() {
   const status = vix != null ? statusOf(vix) : null;
 
   return (
-    <div className="rounded-xl border border-border bg-card p-6">
+    <div className="rounded-md border-2 border-foreground/40 bg-card p-6">
       {guideOpen && <VixGuideModal onClose={() => setGuideOpen(false)} />}
 
       <div className="mb-2 flex items-center justify-center gap-2">

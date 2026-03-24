@@ -345,7 +345,7 @@ export function OilPriceWidget() {
 
   if (error) {
     return (
-      <div className="rounded-lg border border-border bg-card p-3 text-xs text-muted-foreground">
+      <div className="rounded-md border-2 border-foreground/40 bg-card p-3 text-xs text-muted-foreground">
         유가 데이터 로딩 실패
       </div>
     );
@@ -353,7 +353,7 @@ export function OilPriceWidget() {
 
   if (!data) {
     return (
-      <div className="rounded-lg border border-border bg-card p-3">
+      <div className="rounded-md border-2 border-foreground/40 bg-card p-3">
         <div className="text-[10px] font-medium text-muted-foreground">
           국제유가 로딩중...
         </div>
@@ -362,7 +362,7 @@ export function OilPriceWidget() {
   }
 
   return (
-    <div className="rounded-lg border border-border bg-card p-3">
+    <div className="rounded-md border-2 border-foreground/40 bg-card p-3">
       {isModalOpen && (
         <OilChartModal data={data} onClose={() => setIsModalOpen(false)} />
       )}
