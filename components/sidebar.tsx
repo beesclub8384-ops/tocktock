@@ -8,6 +8,7 @@ import { VixGaugeWidget } from "@/components/vix-gauge-widget";
 import { DollarIndexWidget } from "@/components/dollar-index-widget";
 import { UsTreasury10yWidget } from "@/components/us-treasury-10y-widget";
 import { OilPriceWidget } from "@/components/oil-price-widget";
+import { UsdKrwWidget } from "@/components/usd-krw";
 
 export function Sidebar() {
   const [open, setOpen] = useState(false);
@@ -69,6 +70,9 @@ export function Sidebar() {
         <GrowthScorePanel />
         <div className="mt-3">
           <VixGaugeWidget />
+          <div className="mt-1.5">
+            <UsdKrwWidget />
+          </div>
           <div className="mt-1.5">
             <DollarIndexWidget />
           </div>
