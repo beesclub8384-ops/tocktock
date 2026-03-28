@@ -388,7 +388,7 @@ export function VixGaugeWidget() {
       </div>
 
       <Link href="/stock/%5EVIX" className="flex flex-row items-center gap-2 transition-colors hover:opacity-80">
-        <svg viewBox="0 0 200 110" className="shrink-0 w-full max-w-[120px]">
+        <svg viewBox="0 0 200 110" className="shrink-0 w-full max-w-[96px]">
           {/* Colored arc segments */}
           {SEGMENTS.map((seg) => (
             <path
@@ -430,8 +430,8 @@ export function VixGaugeWidget() {
           </text>
         </svg>
 
-        {/* Value + status */}
-        <div className="text-center">
+        {/* Value + status + legend */}
+        <div className="flex flex-col items-start">
           {vix != null ? (
             <>
               <p className="text-lg font-extrabold tabular-nums">
@@ -444,21 +444,19 @@ export function VixGaugeWidget() {
           ) : (
             <p className="text-lg text-muted-foreground">—</p>
           )}
+          <div className="mt-1.5 flex flex-col gap-0.5 text-[10px] text-muted-foreground">
+            {SEGMENTS.map((seg) => (
+              <span key={seg.min} className="flex items-center gap-1">
+                <span
+                  className="inline-block h-2 w-2 rounded-full"
+                  style={{ backgroundColor: seg.color }}
+                />
+                {seg.label}
+              </span>
+            ))}
+          </div>
         </div>
       </Link>
-
-      {/* Zone legend */}
-      <div className="mt-2 flex flex-wrap justify-center gap-x-3 gap-y-1 text-[10px] text-muted-foreground">
-        {SEGMENTS.map((seg) => (
-          <span key={seg.min} className="flex items-center gap-1">
-            <span
-              className="inline-block h-2 w-2 rounded-full"
-              style={{ backgroundColor: seg.color }}
-            />
-            {seg.label}
-          </span>
-        ))}
-      </div>
     </div>
   );
 }
