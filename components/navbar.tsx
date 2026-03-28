@@ -10,6 +10,7 @@ const navLinks = [
   { href: "/blog", label: "거시전망" },
   { href: "/stock-analysis", label: "종목분석" },
   { href: "/indices", label: "지수" },
+  { href: "/market-events", label: "급등락분석" },
   { href: "/fed-rate", label: "연준과 금리" },
   { href: "/column", label: "톡톡 칼럼" },
   { href: "/economics", label: "경제공부" },
