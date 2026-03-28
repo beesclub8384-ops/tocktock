@@ -368,7 +368,7 @@ export function VixGaugeWidget() {
   const status = vix != null ? statusOf(vix) : null;
 
   return (
-    <div className="rounded-md border-2 border-foreground/40 bg-card p-6">
+    <div className="rounded-md border-2 border-foreground/40 bg-card p-3">
       {guideOpen && <VixGuideModal onClose={() => setGuideOpen(false)} />}
 
       <div className="mb-2 flex items-center justify-center gap-2">
@@ -387,8 +387,8 @@ export function VixGaugeWidget() {
         </button>
       </div>
 
-      <Link href="/stock/%5EVIX" className="block transition-colors hover:opacity-80">
-        <svg viewBox="0 0 200 110" className="mx-auto w-full max-w-[180px]">
+      <Link href="/stock/%5EVIX" className="flex flex-row items-center gap-2 transition-colors hover:opacity-80">
+        <svg viewBox="0 0 200 110" className="shrink-0 w-full max-w-[120px]">
           {/* Colored arc segments */}
           {SEGMENTS.map((seg) => (
             <path
@@ -431,10 +431,10 @@ export function VixGaugeWidget() {
         </svg>
 
         {/* Value + status */}
-        <div className="-mt-1 text-center">
+        <div className="text-center">
           {vix != null ? (
             <>
-              <p className="text-xl font-extrabold tabular-nums">
+              <p className="text-lg font-extrabold tabular-nums">
                 {vix.toFixed(2)}
               </p>
               <p className={`text-sm font-medium ${status!.cls}`}>
@@ -448,7 +448,7 @@ export function VixGaugeWidget() {
       </Link>
 
       {/* Zone legend */}
-      <div className="mt-3 flex flex-wrap justify-center gap-x-3 gap-y-1 text-[10px] text-muted-foreground">
+      <div className="mt-2 flex flex-wrap justify-center gap-x-3 gap-y-1 text-[10px] text-muted-foreground">
         {SEGMENTS.map((seg) => (
           <span key={seg.min} className="flex items-center gap-1">
             <span
