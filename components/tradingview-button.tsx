@@ -1,6 +1,21 @@
 "use client";
 
+import { useEffect, useState } from "react";
+
 export function TradingViewButton() {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setSidebarOpen(document.documentElement.hasAttribute("data-sidebar-open"));
+    });
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-sidebar-open"],
+    });
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <>
       {/* PC: 오른쪽 하단 */}
@@ -15,15 +30,17 @@ export function TradingViewButton() {
       </a>
 
       {/* 모바일: 왼쪽 하단, 사이드바 토글(bottom-5) 위 */}
-      <a
-        href="https://kr.tradingview.com/"
-        target="_blank"
-        rel="noopener noreferrer"
-        title="TradingView"
-        className="fixed bottom-[4.5rem] left-5 z-50 flex lg:hidden h-12 w-12 items-center justify-center rounded-full border-2 border-blue-500 bg-white text-blue-600 text-lg shadow-lg transition-colors hover:bg-blue-50"
-      >
-        📈
-      </a>
+      {!sidebarOpen && (
+        <a
+          href="https://kr.tradingview.com/"
+          target="_blank"
+          rel="noopener noreferrer"
+          title="TradingView"
+          className="fixed bottom-[4.5rem] left-5 z-50 flex lg:hidden h-12 w-12 items-center justify-center rounded-full border-2 border-blue-500 bg-white text-blue-600 text-lg shadow-lg transition-colors hover:bg-blue-50"
+        >
+          📈
+        </a>
+      )}
     </>
   );
 }

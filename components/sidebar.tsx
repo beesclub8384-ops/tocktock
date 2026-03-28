@@ -19,15 +19,18 @@ export function Sidebar() {
     setOpen(false);
   }, [pathname]);
 
-  // 모바일 사이드바 열릴 때 배경 스크롤 방지
+  // 모바일 사이드바 열릴 때 배경 스크롤 방지 + data attribute 설정
   useEffect(() => {
     if (open) {
       document.body.style.overflow = "hidden";
+      document.documentElement.setAttribute("data-sidebar-open", "");
     } else {
       document.body.style.overflow = "";
+      document.documentElement.removeAttribute("data-sidebar-open");
     }
     return () => {
       document.body.style.overflow = "";
+      document.documentElement.removeAttribute("data-sidebar-open");
     };
   }, [open]);
 
