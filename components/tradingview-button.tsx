@@ -3,15 +3,19 @@
 import { useEffect, useState } from "react";
 
 export function TradingViewButton() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [hidden, setHidden] = useState(false);
 
   useEffect(() => {
-    const observer = new MutationObserver(() => {
-      setSidebarOpen(document.documentElement.hasAttribute("data-sidebar-open"));
-    });
+    const update = () => {
+      setHidden(
+        document.documentElement.hasAttribute("data-sidebar-open") ||
+        document.documentElement.hasAttribute("data-menu-open")
+      );
+    };
+    const observer = new MutationObserver(update);
     observer.observe(document.documentElement, {
       attributes: true,
-      attributeFilter: ["data-sidebar-open"],
+      attributeFilter: ["data-sidebar-open", "data-menu-open"],
     });
     return () => observer.disconnect();
   }, []);
@@ -30,7 +34,7 @@ export function TradingViewButton() {
       </a>
 
       {/* 모바일: 왼쪽 하단, 사이드바 토글(bottom-5) 위 */}
-      {!sidebarOpen && (
+      {!hidden && (
         <a
           href="https://kr.tradingview.com/"
           target="_blank"

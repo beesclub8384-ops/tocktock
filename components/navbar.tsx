@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { InvestmentQuoteBanner } from "@/components/investment-quote-banner";
@@ -26,6 +26,17 @@ const navLinks = [
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      document.documentElement.setAttribute("data-menu-open", "");
+    } else {
+      document.documentElement.removeAttribute("data-menu-open");
+    }
+    return () => {
+      document.documentElement.removeAttribute("data-menu-open");
+    };
+  }, [isOpen]);
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
