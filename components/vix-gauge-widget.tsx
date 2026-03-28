@@ -374,7 +374,7 @@ export function VixGaugeWidget() {
       <div className="mb-2 flex items-center justify-center gap-2">
         <Link
           href="/stock/%5EVIX"
-          className="text-lg font-semibold hover:text-muted-foreground transition-colors"
+          className="text-sm font-semibold hover:text-muted-foreground transition-colors"
         >
           공포지수 (VIX)
         </Link>
@@ -388,7 +388,7 @@ export function VixGaugeWidget() {
       </div>
 
       <Link href="/stock/%5EVIX" className="block transition-colors hover:opacity-80">
-        <svg viewBox="0 0 200 110" className="mx-auto w-full max-w-[280px]">
+        <svg viewBox="0 0 200 110" className="mx-auto w-full max-w-[180px]">
           {/* Colored arc segments */}
           {SEGMENTS.map((seg) => (
             <path
@@ -434,7 +434,7 @@ export function VixGaugeWidget() {
         <div className="-mt-1 text-center">
           {vix != null ? (
             <>
-              <p className="text-3xl font-extrabold tabular-nums">
+              <p className="text-xl font-extrabold tabular-nums">
                 {vix.toFixed(2)}
               </p>
               <p className={`text-sm font-medium ${status!.cls}`}>
