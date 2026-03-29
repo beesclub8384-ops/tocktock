@@ -8,7 +8,7 @@ export function Footer() {
           <div>
             <img src="/logo.png" height={80} alt="TockTock" style={{ height: 80 }} />
             <p className="mt-1 text-sm text-muted-foreground">
-              실시간 주식 정보 공유 커뮤니티
+              내가 매매하는데 보려고 만든 사이트
             </p>
           </div>
         </div>
