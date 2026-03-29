@@ -124,7 +124,7 @@ export default function MarketEventsPage() {
           지수 급등락 원인 분석
         </h1>
         <p className="mt-2 text-muted-foreground">
-          ±1.5% 이상 움직인 날의 원인을 AI가 자동으로 분석합니다
+          ±1.5% 이상 움직인 날의 원인을 찾아서 경제 흐름을 읽어봅시다.
         </p>
       </header>
 
