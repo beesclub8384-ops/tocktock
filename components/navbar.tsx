@@ -20,7 +20,6 @@ const navLinks = [
   { href: "/money-flow/treasury-auction", label: "미국채 경매" },
   { href: "/liquidity/us", label: "미국 유동성" },
   { href: "/liquidity/global", label: "글로벌 유동성" },
-  { href: "/volume-explosion", label: "거래대금 폭발" },
   { href: "/virtual-trading", label: "자동매매" },
   { href: "/ai-trading", label: "AI 자동매매" },
 ];
