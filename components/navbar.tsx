@@ -42,15 +42,13 @@ export function Navbar() {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <InvestmentQuoteBanner />
-      <div className="flex h-16 items-center justify-between px-6">
-        <div className="flex items-center gap-3">
-          <Link href="/" className="text-xl font-bold tracking-tight">
-            <img src="/logo.png" height={80} alt="TockTock" style={{ height: 80 }} />
-          </Link>
-        </div>
+      <div className="flex h-14 items-center px-6 gap-4">
+        <Link href="/" className="shrink-0">
+          <img src="/logo.png" alt="TockTock" style={{ height: 40 }} />
+        </Link>
 
         {/* PC: 가로 메뉴 */}
-        <nav className="hidden md:flex items-center gap-1">
+        <nav className="hidden md:flex items-center gap-1 flex-1 min-w-0">
           {navLinks.map(({ href, label }) => (
             <Button key={href} variant="ghost" size="sm" asChild>
               <Link href={href}>{label}</Link>
@@ -60,7 +58,7 @@ export function Navbar() {
 
         {/* 모바일: 햄버거 버튼 */}
         <button
-          className="md:hidden p-2 text-2xl"
+          className="md:hidden ml-auto p-2 text-2xl"
           onClick={() => setIsOpen(!isOpen)}
           aria-label={isOpen ? "메뉴 닫기" : "메뉴 열기"}
         >
