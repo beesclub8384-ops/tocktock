@@ -24,28 +24,100 @@ export function CandlestickChart({
   events,
   onMarkerClick,
 }: CandlestickChartProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const chartContainerRef = useRef<HTMLDivElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const chartRef = useRef<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const candleSeriesRef = useRef<any>(null);
   const eventsRef = useRef(events);
   eventsRef.current = events;
   const onMarkerClickRef = useRef(onMarkerClick);
   onMarkerClickRef.current = onMarkerClick;
+  const ohlcMapRef = useRef<Map<string, OHLCPoint>>(new Map());
+
+  // 마커를 HTML로 그리는 함수
+  const drawMarkers = useCallback(() => {
+    const overlay = overlayRef.current;
+    const chart = chartRef.current;
+    const series = candleSeriesRef.current;
+    if (!overlay || !chart || !series) return;
+
+    // 기존 마커 전부 제거
+    overlay.innerHTML = "";
+
+    const symbolEvents = eventsRef.current
+      .filter((e) => e.symbol === symbol)
+      .filter((e) => ohlcMapRef.current.has(e.date));
+
+    for (const evt of symbolEvents) {
+      const ohlc = ohlcMapRef.current.get(evt.date);
+      if (!ohlc) continue;
+
+      const x = chart.timeScale().timeToCoordinate(evt.date);
+      if (x === null || x === undefined) continue;
+
+      const isUp = evt.changePercent > 0;
+      const price = isUp ? ohlc.high : ohlc.low;
+      const y = series.priceToCoordinate(price);
+      if (y === null || y === undefined) continue;
+
+      const offsetY = isUp ? -20 : 20;
+
+      const btn = document.createElement("button");
+      btn.style.position = "absolute";
+      btn.style.left = `${x}px`;
+      btn.style.top = `${y + offsetY}px`;
+      btn.style.transform = "translate(-50%, -50%)";
+      btn.style.width = "28px";
+      btn.style.height = "28px";
+      btn.style.borderRadius = "50%";
+      btn.style.backgroundColor = isUp ? "#10b981" : "#ef4444";
+      btn.style.border = "2px solid white";
+      btn.style.color = "white";
+      btn.style.fontSize = "12px";
+      btn.style.fontWeight = "bold";
+      btn.style.cursor = "pointer";
+      btn.style.display = "flex";
+      btn.style.alignItems = "center";
+      btn.style.justifyContent = "center";
+      btn.style.pointerEvents = "auto";
+      btn.style.boxShadow = "0 2px 6px rgba(0,0,0,0.4)";
+      btn.style.lineHeight = "1";
+      btn.style.padding = "0";
+      btn.textContent = isUp ? "▲" : "▼";
+      btn.title = `${evt.date} ${evt.name} ${isUp ? "+" : ""}${evt.changePercent.toFixed(2)}%`;
+
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        onMarkerClickRef.current(evt);
+      });
+
+      overlay.appendChild(btn);
+    }
+  }, [symbol]);
 
   const initChart = useCallback(async () => {
-    if (!containerRef.current || ohlcData.length === 0) return;
+    if (!chartContainerRef.current || ohlcData.length === 0) return;
 
     if (chartRef.current) {
       chartRef.current.remove();
       chartRef.current = null;
+      candleSeriesRef.current = null;
     }
+
+    // OHLC 맵 구축
+    ohlcMapRef.current = new Map(ohlcData.map((d) => [d.time, d]));
 
     const { createChart, CrosshairMode } = await import("lightweight-charts");
 
-    const container = containerRef.current;
+    const container = chartContainerRef.current;
+    const chartHeight = window.innerWidth < 640 ? 280 : 400;
+
     const chart = createChart(container, {
       width: container.clientWidth,
-      height: window.innerWidth < 640 ? 280 : 400,
+      height: chartHeight,
       layout: {
         background: { color: "transparent" },
         textColor: "#9ca3af",
@@ -78,90 +150,21 @@ export function CandlestickChart({
     });
 
     candleSeries.setData(ohlcData);
+    candleSeriesRef.current = candleSeries;
 
-    // 이벤트를 마커로 표시
-    const symbolEvents = eventsRef.current
-      .filter((e) => e.symbol === symbol)
-      .sort((a, b) => a.date.localeCompare(b.date));
-
-    const eventDateSet = new Set<string>();
-
-    if (symbolEvents.length > 0) {
-      const ohlcSet = new Set(ohlcData.map((d) => d.time));
-      const validEvents = symbolEvents.filter((e) => ohlcSet.has(e.date));
-
-      // circle(테두리) 먼저, arrow(화살표) 나중에 — 같은 날짜끼리 정렬
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const markers: any[] = [];
-
-      for (const e of validEvents) {
-        eventDateSet.add(e.date);
-        const pos =
-          e.changePercent > 0
-            ? ("aboveBar" as const)
-            : ("belowBar" as const);
-
-        // 원형 테두리 (먼저 렌더링)
-        markers.push({
-          time: e.date,
-          position: pos,
-          color:
-            e.changePercent > 0
-              ? "rgba(16, 185, 129, 0.2)"
-              : "rgba(239, 68, 68, 0.2)",
-          shape: "circle" as const,
-          size: 2,
-          text: "",
-        });
-
-        // 화살표 마커 (나중에 렌더링)
-        markers.push({
-          time: e.date,
-          position: pos,
-          color: e.changePercent > 0 ? "#10b981" : "#ef4444",
-          shape:
-            e.changePercent > 0
-              ? ("arrowUp" as const)
-              : ("arrowDown" as const),
-          text:
-            (e.changePercent > 0 ? "+" : "") +
-            e.changePercent.toFixed(1) +
-            "%",
-        });
-      }
-
-      // lightweight-charts는 마커를 time 순으로 정렬 필요
-      markers.sort((a, b) => a.time.localeCompare(b.time));
-
-      if (markers.length > 0) {
-        candleSeries.setMarkers(markers);
-      }
+    // 오버레이 높이를 차트에 맞춤
+    if (overlayRef.current) {
+      overlayRef.current.style.height = `${chartHeight}px`;
     }
 
     chart.timeScale().fitContent();
 
-    // 호버 시 마커 날짜 근처에서 커서 pointer 변경
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    chart.subscribeCrosshairMove((param: any) => {
-      if (!containerRef.current) return;
-      if (param.time && eventDateSet.has(String(param.time))) {
-        containerRef.current.style.cursor = "pointer";
-      } else {
-        containerRef.current.style.cursor = "default";
-      }
-    });
+    // 초기 마커 그리기
+    drawMarkers();
 
-    // 클릭 이벤트
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    chart.subscribeClick((param: any) => {
-      if (!param.time) return;
-      const clickedDate = String(param.time);
-      const matchedEvent = eventsRef.current.find(
-        (e) => e.date === clickedDate && e.symbol === symbol
-      );
-      if (matchedEvent) {
-        onMarkerClickRef.current(matchedEvent);
-      }
+    // 스크롤/줌 시 마커 위치 재계산
+    chart.timeScale().subscribeVisibleLogicalRangeChange(() => {
+      drawMarkers();
     });
 
     // ResizeObserver
@@ -170,6 +173,7 @@ export function CandlestickChart({
         const { width } = entry.contentRect;
         if (width > 0) {
           chart.applyOptions({ width });
+          drawMarkers();
         }
       }
     });
@@ -179,8 +183,9 @@ export function CandlestickChart({
       resizeObserver.disconnect();
       chart.remove();
       chartRef.current = null;
+      candleSeriesRef.current = null;
     };
-  }, [ohlcData, symbol]);
+  }, [ohlcData, symbol, drawMarkers]);
 
   useEffect(() => {
     const cleanup = initChart();
@@ -190,10 +195,13 @@ export function CandlestickChart({
   }, [initChart]);
 
   return (
-    <div
-      ref={containerRef}
-      className="w-full"
-      style={{ height: "auto", minHeight: 280 }}
-    />
+    <div ref={wrapperRef} className="relative w-full" style={{ minHeight: 280 }}>
+      <div ref={chartContainerRef} className="w-full" />
+      <div
+        ref={overlayRef}
+        className="absolute top-0 left-0 w-full"
+        style={{ pointerEvents: "none" }}
+      />
+    </div>
   );
 }
