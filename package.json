@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
+    "lint": "eslint app/ components/ lib/ hooks/",
     "collect-data": "node scripts/collect-krx-daily.mjs"
   },
   "dependencies": {

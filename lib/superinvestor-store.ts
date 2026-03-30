@@ -47,7 +47,8 @@ export async function fetchAllActivity(): Promise<ActivityRecord[]> {
   const allActHtml = await allActRes.text();
   const $a = cheerio.load(allActHtml);
 
-  $a("table#grid tbody tr").each((_, row) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  $a("table#grid tbody tr").each((_: any, row: any) => {
     const cells = $a(row).find("td");
     if (cells.length < 5) return;
 
@@ -154,7 +155,8 @@ export async function fetchStockPrice(
     let insiderBuyTotal = 0;
 
     const insSumRows = $("table#ins_sum tr");
-    insSumRows.each((_, row) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    insSumRows.each((_: any, row: any) => {
       const $row = $(row);
       if ($row.hasClass("buys")) {
         const cells = $row.find("td");
