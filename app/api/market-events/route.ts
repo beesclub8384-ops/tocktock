@@ -13,6 +13,7 @@ interface OHLCPoint {
   high: number;
   low: number;
   close: number;
+  volume: number;
 }
 
 export async function GET() {
@@ -48,6 +49,7 @@ export async function GET() {
             high: Number(q.high.toFixed(2)),
             low: Number(q.low.toFixed(2)),
             close: Number(q.close.toFixed(2)),
+            volume: Number(q.volume ?? 0),
           }));
 
         return { symbol: idx.symbol, quotes };

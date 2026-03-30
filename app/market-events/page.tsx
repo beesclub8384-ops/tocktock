@@ -11,6 +11,7 @@ interface OHLCPoint {
   high: number;
   low: number;
   close: number;
+  volume: number;
 }
 
 type SymbolTab = "^GSPC" | "^IXIC" | "^KS11" | "^KQ11";

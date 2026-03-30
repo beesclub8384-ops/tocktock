@@ -9,6 +9,7 @@ interface OHLCPoint {
   high: number;
   low: number;
   close: number;
+  volume: number;
 }
 
 interface CandlestickChartProps {
@@ -151,6 +152,25 @@ export function CandlestickChart({
 
     candleSeries.setData(ohlcData);
     candleSeriesRef.current = candleSeries;
+
+    // 거래량 바
+    const volumeSeries = chart.addHistogramSeries({
+      priceFormat: { type: "volume" },
+      priceScaleId: "volume",
+    });
+    chart.priceScale("volume").applyOptions({
+      scaleMargins: { top: 0.8, bottom: 0 },
+    });
+    volumeSeries.setData(
+      ohlcData.map((d) => ({
+        time: d.time,
+        value: d.volume,
+        color:
+          d.close >= d.open
+            ? "rgba(38,166,154,0.5)"
+            : "rgba(239,83,80,0.5)",
+      }))
+    );
 
     // 오버레이 높이를 차트에 맞춤
     if (overlayRef.current) {
