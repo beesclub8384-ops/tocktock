@@ -5,7 +5,6 @@ import { ChevronDown } from "lucide-react";
 import {
   createChart,
   ColorType,
-  LineSeries,
   type IChartApi,
   type ISeriesApi,
   type Time,
@@ -123,7 +122,7 @@ export function CreditVsIndexChart() {
     };
 
     // 코스피 지수 변화율
-    const kospiSeries = chart.addSeries(LineSeries, {
+    const kospiSeries = chart.addLineSeries({
       color: COLORS.kospi,
       lineWidth: 2,
       title: "",
@@ -138,7 +137,7 @@ export function CreditVsIndexChart() {
     newSeriesMap.set(kospiSeries as ISeriesApi<SeriesType>, "kospi");
 
     // 코스닥 지수 변화율
-    const kosdaqSeries = chart.addSeries(LineSeries, {
+    const kosdaqSeries = chart.addLineSeries({
       color: COLORS.kosdaq,
       lineWidth: 2,
       title: "",
@@ -153,7 +152,7 @@ export function CreditVsIndexChart() {
     newSeriesMap.set(kosdaqSeries as ISeriesApi<SeriesType>, "kosdaq");
 
     // 전체 신용융자잔고 변화율
-    const loanSeries = chart.addSeries(LineSeries, {
+    const loanSeries = chart.addLineSeries({
       color: COLORS.loan,
       lineWidth: 2,
       title: "",

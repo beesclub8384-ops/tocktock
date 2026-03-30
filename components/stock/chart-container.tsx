@@ -4,8 +4,6 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import {
   createChart,
   ColorType,
-  CandlestickSeries,
-  HistogramSeries,
   type IChartApi,
   type ISeriesApi,
   type Time,
@@ -69,7 +67,7 @@ export function ChartContainer({ data, symbol }: ChartContainerProps) {
     seriesRefs.current = [];
 
     // 1) 캔들
-    const candles = chart.addSeries(CandlestickSeries, {
+    const candles = chart.addCandlestickSeries({
       upColor: "#22c55e", downColor: "#ef4444",
       borderDownColor: "#ef4444", borderUpColor: "#22c55e",
       wickDownColor: "#ef4444", wickUpColor: "#22c55e",
@@ -80,7 +78,7 @@ export function ChartContainer({ data, symbol }: ChartContainerProps) {
     seriesRefs.current.push(candles);
 
     // 2) 거래량
-    const volume = chart.addSeries(HistogramSeries, {
+    const volume = chart.addHistogramSeries({
       priceFormat: { type: "volume" }, priceScaleId: "volume",
     });
     chart.priceScale("volume").applyOptions({ scaleMargins: { top: 0.8, bottom: 0 } });

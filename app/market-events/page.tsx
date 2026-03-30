@@ -1,88 +1,45 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import {
-  ScatterChart,
-  Scatter,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Cell,
-  ReferenceLine,
-} from "recharts";
+import { CandlestickChart } from "@/components/CandlestickChart";
+import { MarketEventModal } from "@/components/MarketEventModal";
 import type { MarketEvent } from "@/lib/types/market-events";
 
-const REFRESH_MS = 30_000;
-
-type Filter = "전체" | "S&P 500" | "나스닥" | "코스피" | "코스닥";
-const FILTERS: Filter[] = ["전체", "S&P 500", "나스닥", "코스피", "코스닥"];
-
-const FILTER_SYMBOL_MAP: Record<Filter, string | null> = {
-  전체: null,
-  "S&P 500": "^GSPC",
-  나스닥: "^IXIC",
-  코스피: "^KS11",
-  코스닥: "^KQ11",
-};
-
-function formatDate(dateStr: string) {
-  const d = new Date(dateStr);
-  return `${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")}`;
+interface OHLCPoint {
+  time: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
 }
 
-function formatFullDate(dateStr: string) {
-  const d = new Date(dateStr);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
+type SymbolTab = "^GSPC" | "^IXIC" | "^KS11" | "^KQ11";
 
-interface ChartPoint {
-  index: number;
-  date: string;
-  name: string;
-  changePercent: number;
-  symbol: string;
-  eventIdx: number;
-}
+const TABS: { symbol: SymbolTab; label: string }[] = [
+  { symbol: "^GSPC", label: "S&P 500" },
+  { symbol: "^IXIC", label: "나스닥" },
+  { symbol: "^KS11", label: "코스피" },
+  { symbol: "^KQ11", label: "코스닥" },
+];
 
-function ChartTooltipContent({
-  active,
-  payload,
-}: {
-  active?: boolean;
-  payload?: Array<{ payload: ChartPoint }>;
-}) {
-  if (!active || !payload?.length) return null;
-  const p = payload[0].payload;
-  return (
-    <div className="rounded-lg border border-border bg-card px-3 py-2 shadow-lg text-xs">
-      <p className="font-medium text-foreground">
-        {formatFullDate(p.date)} · {p.name}
-      </p>
-      <p
-        className={`mt-1 font-mono font-semibold ${p.changePercent >= 0 ? "text-emerald-500" : "text-red-500"}`}
-      >
-        {p.changePercent > 0 ? "+" : ""}
-        {p.changePercent.toFixed(2)}%
-      </p>
-    </div>
-  );
-}
+const EVENTS_REFRESH_MS = 30_000;
 
 export default function MarketEventsPage() {
   const [events, setEvents] = useState<MarketEvent[]>([]);
+  const [ohlc, setOhlc] = useState<Record<string, OHLCPoint[]>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [filter, setFilter] = useState<Filter>("전체");
-  const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
+  const [activeTab, setActiveTab] = useState<SymbolTab>("^GSPC");
+  const [selectedEvent, setSelectedEvent] = useState<MarketEvent | null>(null);
 
-  const fetchData = useCallback(async () => {
+  // 초기 로드: OHLC + events 모두
+  const fetchAll = useCallback(async () => {
     try {
       const res = await fetch("/api/market-events");
       if (!res.ok) throw new Error("API 오류");
       const json = await res.json();
       setEvents(json.events || []);
+      setOhlc(json.ohlc || {});
       setError("");
     } catch (e) {
       setError(e instanceof Error ? e.message : "데이터 로드 실패");
@@ -91,31 +48,29 @@ export default function MarketEventsPage() {
     }
   }, []);
 
+  // events만 polling (ohlc는 1시간 캐시)
+  const fetchEvents = useCallback(async () => {
+    try {
+      const res = await fetch("/api/market-events");
+      if (!res.ok) return;
+      const json = await res.json();
+      setEvents(json.events || []);
+    } catch {
+      // 폴링 실패 시 기존 데이터 유지
+    }
+  }, []);
+
   useEffect(() => {
-    fetchData();
-    const id = setInterval(fetchData, REFRESH_MS);
+    fetchAll();
+  }, [fetchAll]);
+
+  useEffect(() => {
+    const id = setInterval(fetchEvents, EVENTS_REFRESH_MS);
     return () => clearInterval(id);
-  }, [fetchData]);
+  }, [fetchEvents]);
 
-  // 필터 적용
-  const filtered =
-    filter === "전체"
-      ? events
-      : events.filter((e) => e.symbol === FILTER_SYMBOL_MAP[filter]);
-
-  // 차트 데이터 (최근 60개)
-  const chartEvents = filtered.slice(0, 60).reverse();
-  const chartData: ChartPoint[] = chartEvents.map((e, i) => ({
-    index: i,
-    date: e.date,
-    name: e.name,
-    changePercent: e.changePercent,
-    symbol: e.symbol,
-    eventIdx: filtered.length - 1 - (chartEvents.length - 1 - i),
-  }));
-
-  // 카드 목록 (필터 적용된 전체)
-  const cardEvents = filtered;
+  const tabEvents = events.filter((e) => e.symbol === activeTab);
+  const tabOhlc = ohlc[activeTab] || [];
 
   return (
     <main className="max-w-5xl mx-auto px-4 py-12 sm:px-8 sm:py-20">
@@ -128,22 +83,19 @@ export default function MarketEventsPage() {
         </p>
       </header>
 
-      {/* 필터 탭 */}
-      <div className="flex flex-wrap gap-1.5 mb-8">
-        {FILTERS.map((f) => (
+      {/* 지수 탭 */}
+      <div className="flex flex-wrap gap-1.5 mb-6">
+        {TABS.map((tab) => (
           <button
-            key={f}
-            onClick={() => {
-              setFilter(f);
-              setSelectedIdx(null);
-            }}
-            className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-              filter === f
+            key={tab.symbol}
+            onClick={() => setActiveTab(tab.symbol)}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              activeTab === tab.symbol
                 ? "bg-foreground text-background"
                 : "bg-muted text-muted-foreground hover:bg-accent"
             }`}
           >
-            {f}
+            {tab.label}
           </button>
         ))}
       </div>
@@ -167,7 +119,7 @@ export default function MarketEventsPage() {
               d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
             />
           </svg>
-          데이터를 불러오는 중...
+          차트 데이터를 불러오는 중...
         </div>
       )}
 
@@ -178,136 +130,79 @@ export default function MarketEventsPage() {
         </div>
       )}
 
-      {/* 데이터 없음 */}
-      {!loading && !error && filtered.length === 0 && (
-        <div className="py-20 text-center text-muted-foreground">
-          아직 분석된 데이터가 없습니다. 매일 장 마감 후 자동으로
-          업데이트됩니다.
-        </div>
-      )}
-
-      {/* 차트 + 카드 */}
-      {!loading && !error && filtered.length > 0 && (
+      {/* 메인 콘텐츠 */}
+      {!loading && !error && (
         <>
-          {/* 차트 */}
+          {/* 캔들스틱 차트 */}
           <div className="rounded-lg border border-border bg-card p-4 mb-6">
-            <ResponsiveContainer width="100%" height={300}>
-              <ScatterChart margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke="hsl(var(--border))"
-                />
-                <XAxis
-                  dataKey="index"
-                  tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
-                  tickFormatter={(i: number) =>
-                    chartData[i] ? formatDate(chartData[i].date) : ""
-                  }
-                  interval="preserveStartEnd"
-                  minTickGap={40}
-                />
-                <YAxis
-                  tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
-                  tickFormatter={(v: number) => `${v > 0 ? "+" : ""}${v}%`}
-                  width={52}
-                />
-                <ReferenceLine y={0} stroke="hsl(var(--border))" />
-                <Tooltip content={<ChartTooltipContent />} />
-                <Scatter
-                  data={chartData}
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  onClick={(point: any) => {
-                    if (point?.eventIdx != null) setSelectedIdx(point.eventIdx);
-                  }}
-                  cursor="pointer"
-                >
-                  {chartData.map((entry, i) => (
-                    <Cell
-                      key={i}
-                      fill={
-                        entry.changePercent >= 0 ? "#10b981" : "#ef4444"
-                      }
-                      r={
-                        selectedIdx === entry.eventIdx ? 8 : 5
-                      }
-                      stroke={
-                        selectedIdx === entry.eventIdx
-                          ? "hsl(var(--foreground))"
-                          : "none"
-                      }
-                      strokeWidth={selectedIdx === entry.eventIdx ? 2 : 0}
-                    />
-                  ))}
-                </Scatter>
-              </ScatterChart>
-            </ResponsiveContainer>
+            {tabOhlc.length > 0 ? (
+              <CandlestickChart
+                key={activeTab}
+                symbol={activeTab}
+                ohlcData={tabOhlc}
+                events={events}
+                onMarkerClick={(e) => setSelectedEvent(e)}
+              />
+            ) : (
+              <div className="flex items-center justify-center py-16 text-muted-foreground text-sm">
+                차트 데이터가 없습니다.
+              </div>
+            )}
           </div>
 
-          {/* 선택된 이벤트 요약 (차트 바로 아래) */}
-          {selectedIdx !== null && filtered[selectedIdx] && (
-            <div className="rounded-lg border border-border bg-muted/30 p-4 mb-6">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium">
-                  {formatFullDate(filtered[selectedIdx].date)} ·{" "}
-                  {filtered[selectedIdx].name}
-                </span>
-                <span
-                  className={`font-mono text-sm font-semibold ${
-                    filtered[selectedIdx].changePercent >= 0
-                      ? "text-emerald-500"
-                      : "text-red-500"
-                  }`}
-                >
-                  {filtered[selectedIdx].changePercent > 0 ? "+" : ""}
-                  {filtered[selectedIdx].changePercent.toFixed(2)}%
-                </span>
-              </div>
-              <p className="text-sm text-muted-foreground whitespace-pre-line leading-relaxed">
-                {filtered[selectedIdx].summary}
-              </p>
+          {/* 이벤트 테이블 */}
+          {tabEvents.length > 0 ? (
+            <div className="overflow-x-auto rounded-lg border border-border">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border bg-muted/50">
+                    <th className="text-left px-4 py-3 font-medium">날짜</th>
+                    <th className="text-right px-4 py-3 font-medium">등락률</th>
+                    <th className="text-left px-4 py-3 font-medium">AI 분석 요약</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tabEvents.map((event) => (
+                    <tr
+                      key={`${event.date}-${event.symbol}`}
+                      onClick={() => setSelectedEvent(event)}
+                      className="border-b border-border/50 hover:bg-muted/30 transition-colors cursor-pointer"
+                    >
+                      <td className="px-4 py-3 tabular-nums whitespace-nowrap">
+                        {event.date}
+                      </td>
+                      <td
+                        className={`px-4 py-3 text-right tabular-nums font-mono font-semibold ${
+                          event.changePercent >= 0
+                            ? "text-emerald-500"
+                            : "text-red-500"
+                        }`}
+                      >
+                        {event.changePercent > 0 ? "+" : ""}
+                        {event.changePercent.toFixed(2)}%
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground truncate max-w-xs sm:max-w-md">
+                        {event.summary.split("\n")[0]}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="py-12 text-center text-muted-foreground text-sm">
+              아직 분석된 데이터가 없습니다. 매일 장 마감 후 자동으로
+              업데이트됩니다.
             </div>
           )}
-
-          {/* 카드 목록 */}
-          <div className="space-y-3">
-            {cardEvents.map((event, i) => (
-              <button
-                key={`${event.date}-${event.symbol}`}
-                onClick={() => setSelectedIdx(i)}
-                className={`w-full text-left rounded-lg border p-4 transition-colors ${
-                  selectedIdx === i
-                    ? "border-foreground/40 bg-muted/30"
-                    : "border-border hover:bg-muted/20"
-                }`}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">
-                      {formatFullDate(event.date)}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {event.name}
-                    </span>
-                  </div>
-                  <span
-                    className={`font-mono text-sm font-semibold tabular-nums ${
-                      event.changePercent >= 0
-                        ? "text-emerald-500"
-                        : "text-red-500"
-                    }`}
-                  >
-                    {event.changePercent > 0 ? "+" : ""}
-                    {event.changePercent.toFixed(2)}%
-                  </span>
-                </div>
-                <p className="text-sm text-muted-foreground whitespace-pre-line leading-relaxed">
-                  {event.summary}
-                </p>
-              </button>
-            ))}
-          </div>
         </>
       )}
+
+      {/* 이벤트 팝업 */}
+      <MarketEventModal
+        event={selectedEvent}
+        onClose={() => setSelectedEvent(null)}
+      />
     </main>
   );
 }

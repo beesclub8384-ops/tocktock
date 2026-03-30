@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   createChart,
   ColorType,
-  LineSeries,
   type IChartApi,
   type Time,
 } from "lightweight-charts";
@@ -499,7 +498,7 @@ export function CreditBalanceChart() {
     chartRef.current = chart;
 
     // KOSPI 융자 (왼쪽 Y축)
-    const kospiSeries = chart.addSeries(LineSeries, {
+    const kospiSeries = chart.addLineSeries({
       color: LINE_COLORS.kospi,
       lineWidth: 2,
       title: "",
@@ -515,7 +514,7 @@ export function CreditBalanceChart() {
 
     // KOSPI 지수 (오른쪽 Y축)
     if (indexData && indexData.length > 0) {
-      const indexSeries = chart.addSeries(LineSeries, {
+      const indexSeries = chart.addLineSeries({
         color: LINE_COLORS.kospiIndex,
         lineWidth: 1,
         title: "",

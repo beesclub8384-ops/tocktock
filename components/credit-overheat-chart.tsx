@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   createChart,
   ColorType,
-  LineSeries,
   type IChartApi,
   type Time,
 } from "lightweight-charts";
@@ -474,7 +473,7 @@ export function CreditOverheatChart() {
 
     chartRef.current = chart;
 
-    const series = chart.addSeries(LineSeries, {
+    const series = chart.addLineSeries({
       color: "#a855f7",
       lineWidth: 2,
       title: "",
