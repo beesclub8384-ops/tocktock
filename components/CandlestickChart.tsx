@@ -159,8 +159,12 @@ export function CandlestickChart({
 
     chart.timeScale().fitContent();
 
-    // 초기 마커 그리기
-    drawMarkers();
+    // 초기 마커 그리기 (fitContent 이후 레이아웃 완료를 기다림)
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        drawMarkers();
+      });
+    });
 
     // 스크롤/줌 시 마커 위치 재계산
     chart.timeScale().subscribeVisibleLogicalRangeChange(() => {
@@ -199,7 +203,7 @@ export function CandlestickChart({
       <div ref={chartContainerRef} className="w-full" />
       <div
         ref={overlayRef}
-        className="absolute top-0 left-0 w-full"
+        className="absolute top-0 left-0 w-full z-10"
         style={{ pointerEvents: "none" }}
       />
     </div>
