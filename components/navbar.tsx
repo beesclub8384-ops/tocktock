@@ -8,7 +8,6 @@ import { InvestmentQuoteBanner } from "@/components/investment-quote-banner";
 const navLinks = [
   { href: "/news", label: "뉴스" },
   { href: "/blog", label: "거시전망" },
-  { href: "/stock-analysis", label: "종목분석" },
   { href: "/indices", label: "지수" },
   { href: "/market-events", label: "급등락분석" },
   { href: "/fed-rate", label: "연준과 금리" },
