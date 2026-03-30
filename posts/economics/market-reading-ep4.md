@@ -5,6 +5,8 @@ category: "경제공부"
 series: "시장을 읽는 눈"
 episode: 4
 summary: "개별 종목 고르기가 어려운 이유, 그리고 '시장 전체를 사는 방법'인 지수 ETF를 쉽게 설명합니다."
+chapter: 1
+chapterTitle: "돈과 시장의 기초"
 ---
 
 # 시장을 읽는 눈 EP.4 — 다 사버리면 되지 않을까?

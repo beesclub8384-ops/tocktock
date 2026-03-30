@@ -1,39 +1,12 @@
-import Link from "next/link";
 import { getSortedPostsData } from "@/lib/posts";
+import EconomicsClient from "./economics-client";
 
 export const metadata = {
   title: "경제공부 - TockTock",
-  description: "TockTock 경제공부 - 경제 개념과 학습 자료",
+  description: "TockTock 경제공부 - 내가 이해한 방식으로 풀어쓴 투자 이야기",
 };
 
 export default function EconomicsPage() {
   const posts = getSortedPostsData("economics");
-
-  return (
-    <div className="max-w-3xl px-8 py-20">
-      <header className="mb-16">
-        <h1 className="text-4xl font-bold tracking-tight">경제공부</h1>
-      </header>
-
-      {posts.length === 0 ? (
-        <p className="text-muted-foreground">아직 작성된 글이 없습니다.</p>
-      ) : (
-        <div className="flex flex-col gap-10">
-          {posts.map((post) => (
-            <article key={post.slug}>
-              <Link href={`/economics/${post.slug}`} className="group block">
-                <time className="text-sm text-muted-foreground">
-                  {post.date}
-                </time>
-                <h2 className="mt-1 text-xl font-semibold group-hover:text-muted-foreground transition-colors">
-                  {post.title}
-                </h2>
-                <p className="mt-2 text-muted-foreground">{post.summary}</p>
-              </Link>
-            </article>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+  return <EconomicsClient posts={posts} />;
 }

@@ -27,6 +27,8 @@ export interface PostMeta {
   title: string;
   date: string;
   summary: string;
+  chapter?: number;
+  chapterTitle?: string;
 }
 
 export interface Post extends PostMeta {
@@ -50,6 +52,8 @@ export function getSortedPostsData(category: string): PostMeta[] {
         title: matterResult.data.title,
         date: matterResult.data.date,
         summary: matterResult.data.summary,
+        chapter: matterResult.data.chapter,
+        chapterTitle: matterResult.data.chapterTitle,
       };
     });
 
