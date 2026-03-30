@@ -113,7 +113,7 @@ export function CandlestickChart({
     const { createChart, CrosshairMode } = await import("lightweight-charts");
 
     const container = chartContainerRef.current;
-    const chartHeight = window.innerWidth < 640 ? 200 : 280;
+    const chartHeight = window.innerWidth < 640 ? 160 : 220;
 
     const chart = createChart(container, {
       width: container.clientWidth,
@@ -199,7 +199,7 @@ export function CandlestickChart({
   }, [initChart]);
 
   return (
-    <div ref={wrapperRef} className="relative w-full" style={{ minHeight: 200 }}>
+    <div ref={wrapperRef} className="relative w-full" style={{ minHeight: 160 }}>
       <div ref={chartContainerRef} className="w-full" />
       <div
         ref={overlayRef}

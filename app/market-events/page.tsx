@@ -134,7 +134,7 @@ export default function MarketEventsPage() {
       {!loading && !error && (
         <>
           {/* 캔들스틱 차트 */}
-          <div className="rounded-lg border border-border bg-card p-4 mb-6">
+          <div className="rounded-lg border border-border bg-card p-3 mb-6 max-w-2xl mx-auto">
             {tabOhlc.length > 0 ? (
               <CandlestickChart
                 key={activeTab}
