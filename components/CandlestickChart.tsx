@@ -84,16 +84,40 @@ export function CandlestickChart({
       .filter((e) => e.symbol === symbol)
       .sort((a, b) => a.date.localeCompare(b.date));
 
+    const eventDateSet = new Set<string>();
+
     if (symbolEvents.length > 0) {
       const ohlcSet = new Set(ohlcData.map((d) => d.time));
-      const markers = symbolEvents
-        .filter((e) => ohlcSet.has(e.date))
-        .map((e) => ({
+      const validEvents = symbolEvents.filter((e) => ohlcSet.has(e.date));
+
+      // circle(테두리) 먼저, arrow(화살표) 나중에 — 같은 날짜끼리 정렬
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const markers: any[] = [];
+
+      for (const e of validEvents) {
+        eventDateSet.add(e.date);
+        const pos =
+          e.changePercent > 0
+            ? ("aboveBar" as const)
+            : ("belowBar" as const);
+
+        // 원형 테두리 (먼저 렌더링)
+        markers.push({
           time: e.date,
-          position:
+          position: pos,
+          color:
             e.changePercent > 0
-              ? ("aboveBar" as const)
-              : ("belowBar" as const),
+              ? "rgba(16, 185, 129, 0.2)"
+              : "rgba(239, 68, 68, 0.2)",
+          shape: "circle" as const,
+          size: 2,
+          text: "",
+        });
+
+        // 화살표 마커 (나중에 렌더링)
+        markers.push({
+          time: e.date,
+          position: pos,
           color: e.changePercent > 0 ? "#10b981" : "#ef4444",
           shape:
             e.changePercent > 0
@@ -103,7 +127,11 @@ export function CandlestickChart({
             (e.changePercent > 0 ? "+" : "") +
             e.changePercent.toFixed(1) +
             "%",
-        }));
+        });
+      }
+
+      // lightweight-charts는 마커를 time 순으로 정렬 필요
+      markers.sort((a, b) => a.time.localeCompare(b.time));
 
       if (markers.length > 0) {
         candleSeries.setMarkers(markers);
@@ -111,6 +139,17 @@ export function CandlestickChart({
     }
 
     chart.timeScale().fitContent();
+
+    // 호버 시 마커 날짜 근처에서 커서 pointer 변경
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    chart.subscribeCrosshairMove((param: any) => {
+      if (!containerRef.current) return;
+      if (param.time && eventDateSet.has(String(param.time))) {
+        containerRef.current.style.cursor = "pointer";
+      } else {
+        containerRef.current.style.cursor = "default";
+      }
+    });
 
     // 클릭 이벤트
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
