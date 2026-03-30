@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
 import type { MarketEvent } from "@/lib/types/market-events";
 
 interface OHLCPoint {
@@ -25,6 +25,8 @@ export function CandlestickChart({
   events,
   onMarkerClick,
 }: CandlestickChartProps) {
+  type Period = "1M" | "3M" | "6M" | "1Y";
+  const [period, setPeriod] = useState<Period>("3M");
   const wrapperRef = useRef<HTMLDivElement>(null);
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -161,6 +163,7 @@ export function CandlestickChart({
     chart.priceScale("volume").applyOptions({
       scaleMargins: { top: 0.8, bottom: 0 },
     });
+    console.log("volume sample:", ohlcData.slice(0, 3));
     volumeSeries.setData(
       ohlcData.map((d) => ({
         time: d.time,
@@ -177,9 +180,19 @@ export function CandlestickChart({
       overlayRef.current.style.height = `${chartHeight}px`;
     }
 
-    chart.timeScale().fitContent();
+    // 기간에 따른 범위 설정
+    const PERIOD_DAYS: Record<string, number> = { "1M": 30, "3M": 90, "6M": 180, "1Y": 365 };
+    const days = PERIOD_DAYS[period] ?? 90;
+    const nowSec = Math.floor(Date.now() / 1000);
+    const fromSec = nowSec - days * 24 * 3600;
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      chart.timeScale().setVisibleRange({ from: fromSec as any, to: nowSec as any });
+    } catch {
+      chart.timeScale().fitContent();
+    }
 
-    // 초기 마커 그리기 (fitContent 이후 레이아웃 완료를 기다림)
+    // 초기 마커 그리기 (범위 설정 이후 레이아웃 완료를 기다림)
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         drawMarkers();
@@ -209,7 +222,7 @@ export function CandlestickChart({
       chartRef.current = null;
       candleSeriesRef.current = null;
     };
-  }, [ohlcData, symbol, drawMarkers]);
+  }, [ohlcData, symbol, period, drawMarkers]);
 
   useEffect(() => {
     const cleanup = initChart();
@@ -220,6 +233,21 @@ export function CandlestickChart({
 
   return (
     <div ref={wrapperRef} className="relative w-full" style={{ minHeight: 160 }}>
+      <div className="flex gap-1 mb-2">
+        {(["1M", "3M", "6M", "1Y"] as const).map((p) => (
+          <button
+            key={p}
+            onClick={() => setPeriod(p)}
+            className={`text-xs px-2 py-1 rounded ${
+              period === p
+                ? "bg-zinc-600 text-white"
+                : "text-zinc-400 hover:text-zinc-200"
+            }`}
+          >
+            {p}
+          </button>
+        ))}
+      </div>
       <div ref={chartContainerRef} className="w-full" />
       <div
         ref={overlayRef}

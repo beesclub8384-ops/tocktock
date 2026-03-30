@@ -66,7 +66,7 @@ export async function GET() {
     return NextResponse.json(
       { events, ohlc, lastUpdated: data?.lastUpdated ?? null },
       {
-        headers: { "Cache-Control": "public, max-age=3600" },
+        headers: { "Cache-Control": "max-age=0, no-cache" },
       }
     );
   } catch (error) {
