@@ -63,63 +63,63 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // 3. Anthropic API로 원인 요약 생성
+    // 3. Anthropic API로 원인 요약 생성 (동시 실행)
     const anthropic = new Anthropic({
       apiKey: process.env.ANTHROPIC_API_KEY!,
     });
 
-    const newEvents: MarketEvent[] = [];
+    const newEvents: MarketEvent[] = await Promise.all(
+      significant.map(async (item) => {
+        const direction = item.changePercent > 0 ? "상승" : "하락";
+        const pct = Math.abs(item.changePercent).toFixed(2);
 
-    for (const item of significant) {
-      const direction = item.changePercent > 0 ? "상승" : "하락";
-      const pct = Math.abs(item.changePercent).toFixed(2);
+        try {
+          const response = await anthropic.messages.create({
+            model: "claude-sonnet-4-20250514",
+            max_tokens: 1000,
+            tools: [{ type: "web_search_20250305", name: "web_search" }],
+            messages: [
+              {
+                role: "user",
+                content: `오늘(${kstDate}) ${item.name}이 ${pct}% ${direction}한 이유를 검색해서 한국어로 3줄 이내로 요약해줘. 핵심 원인만 간결하게. 불필요한 말 없이 팩트만.`,
+              },
+            ],
+          });
 
-      try {
-        const response = await anthropic.messages.create({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1000,
-          tools: [{ type: "web_search_20250305", name: "web_search" }],
-          messages: [
-            {
-              role: "user",
-              content: `오늘(${kstDate}) ${item.name}이 ${pct}% ${direction}한 이유를 검색해서 한국어로 3줄 이���로 요약해줘. 핵��� 원인만 간결하게. 불필요한 말 없이 팩트만.`,
-            },
-          ],
-        });
+          // content 블록에서 type:"text"인 것만 추출
+          const textBlocks = response.content.filter(
+            (block): block is Anthropic.TextBlock => block.type === "text"
+          );
+          const summary =
+            textBlocks.map((b) => b.text).join("\n") ||
+            "요약을 생성하지 못했습니다.";
 
-        // content 블록에서 type:"text"인 것만 추출
-        const textBlocks = response.content.filter(
-          (block): block is Anthropic.TextBlock => block.type === "text"
-        );
-        const summary =
-          textBlocks.map((b) => b.text).join("\n") ||
-          "요약을 생성하지 ���했습니다.";
-
-        newEvents.push({
-          date: kstDate,
-          symbol: item.symbol,
-          name: item.name,
-          changePercent: Number(item.changePercent.toFixed(2)),
-          direction,
-          summary,
-          searchedAt: new Date().toISOString(),
-        });
-      } catch (err) {
-        console.error(
-          `[market-events] Anthropic API error for ${item.name}:`,
-          err
-        );
-        newEvents.push({
-          date: kstDate,
-          symbol: item.symbol,
-          name: item.name,
-          changePercent: Number(item.changePercent.toFixed(2)),
-          direction,
-          summary: "AI 요약 생성 중 오류가 발생했습니다.",
-          searchedAt: new Date().toISOString(),
-        });
-      }
-    }
+          return {
+            date: kstDate,
+            symbol: item.symbol,
+            name: item.name,
+            changePercent: Number(item.changePercent.toFixed(2)),
+            direction,
+            summary,
+            searchedAt: new Date().toISOString(),
+          } as MarketEvent;
+        } catch (err) {
+          console.error(
+            `[market-events] Anthropic API error for ${item.name}:`,
+            err
+          );
+          return {
+            date: kstDate,
+            symbol: item.symbol,
+            name: item.name,
+            changePercent: Number(item.changePercent.toFixed(2)),
+            direction,
+            summary: "AI 요약 생성 중 오류가 발생했습니다.",
+            searchedAt: new Date().toISOString(),
+          } as MarketEvent;
+        }
+      })
+    );
 
     // 4. Redis에서 기존 데이터 읽기 + 새 이벤트 병합
     const existing =
