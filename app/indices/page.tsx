@@ -1,7 +1,4 @@
 import { MarketIndices } from "@/components/market-indices";
-import { CreditBalanceChart } from "@/components/credit-balance-chart";
-import { CreditOverheatChart } from "@/components/credit-overheat-chart";
-import { CreditVsIndexChart } from "@/components/credit-vs-index-chart";
 
 export const metadata = {
   title: "지수 - TockTock",
@@ -22,24 +19,6 @@ export default function IndicesPage() {
         <section>
           <h2 className="mb-4 text-lg font-semibold">주요 시장 지수</h2>
           <MarketIndices />
-        </section>
-        <section>
-          <h2 className="mb-4 text-lg font-semibold">
-            빚투 지표 (신용융자잔고)
-          </h2>
-          <CreditBalanceChart />
-        </section>
-        <section>
-          <h2 className="mb-4 text-lg font-semibold">
-            TockTock 빚투 과열지수
-          </h2>
-          <CreditOverheatChart />
-        </section>
-        <section>
-          <h2 className="mb-4 text-lg font-semibold">
-            신용융자잔고 vs 지수 비교
-          </h2>
-          <CreditVsIndexChart />
         </section>
       </div>
     </div>

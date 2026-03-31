@@ -9,6 +9,7 @@ const navLinks = [
   { href: "/news", label: "뉴스" },
   { href: "/blog", label: "거시전망" },
   { href: "/indices", label: "지수" },
+  { href: "/credit", label: "빚투" },
   { href: "/market-events", label: "급등락분석" },
   { href: "/fed-rate", label: "연준과 금리" },
   { href: "/economics", label: "경제공부" },
