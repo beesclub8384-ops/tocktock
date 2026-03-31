@@ -15,7 +15,6 @@ export function MarketEventModal({ event, onClose }: MarketEventModalProps) {
   // 등장 애니메이션
   useEffect(() => {
     if (event) {
-      // 다음 프레임에서 visible 설정 (transition 트리거)
       requestAnimationFrame(() => setVisible(true));
     } else {
       setVisible(false);
@@ -50,53 +49,60 @@ export function MarketEventModal({ event, onClose }: MarketEventModalProps) {
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm"
+      className="fixed inset-0 z-[100] flex items-end md:items-center justify-center bg-black/60 backdrop-blur-sm"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
+      {/* 모바일: 바텀시트 / PC: 중앙 모달 */}
       <div
-        className={`relative flex w-full max-w-md flex-col rounded-t-2xl sm:rounded-2xl border border-border bg-card shadow-2xl mx-0 sm:mx-4 max-h-[80vh] transition-all duration-200 ${
-          visible
-            ? "translate-y-0 opacity-100"
-            : "translate-y-4 opacity-0"
-        }`}
+        className={`
+          relative flex w-full flex-col border border-border bg-card shadow-2xl
+          max-h-[85vh] md:max-h-[80vh]
+          rounded-t-2xl md:rounded-2xl
+          mx-0 md:mx-4 md:max-w-md
+          transition-all duration-300 ease-out md:duration-200
+          ${
+            visible
+              ? "translate-y-0 opacity-100"
+              : "translate-y-full md:translate-y-4 opacity-0 md:opacity-0"
+          }
+        `}
       >
-        {/* 헤더 (sticky) */}
-        <div className="sticky top-0 z-10 flex items-start justify-between gap-3 rounded-t-2xl border-b border-border bg-card px-5 py-4">
-          <div className="flex-1 min-w-0">
-            <h3 className="text-lg font-bold text-foreground truncate">
-              {event.name}
-            </h3>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {event.date}
-            </p>
-          </div>
+        {/* 모바일 드래그 핸들 */}
+        <div className="md:hidden">
+          <div className="w-10 h-1 bg-zinc-500 rounded-full mx-auto mt-3 mb-4" />
+        </div>
 
-          <div className="flex items-center gap-3 shrink-0">
-            <div className="text-right">
-              <span
-                className={`font-mono text-2xl font-extrabold tabular-nums ${
-                  isUp ? "text-[#10b981]" : "text-[#ef4444]"
-                }`}
-              >
-                {isUp ? "+" : ""}
-                {event.changePercent.toFixed(2)}%
-              </span>
+        {/* 헤더 */}
+        <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-border bg-card px-5 py-3 md:py-4 md:rounded-t-2xl">
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            <div className="min-w-0">
+              <h3 className="text-base md:text-lg font-bold text-foreground truncate">
+                {event.name}
+              </h3>
+              <p className="text-xs text-muted-foreground">{event.date}</p>
             </div>
-
-            <button
-              onClick={onClose}
-              className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            <span
+              className={`font-mono text-xl md:text-2xl font-extrabold tabular-nums shrink-0 ${
+                isUp ? "text-[#10b981]" : "text-[#ef4444]"
+              }`}
             >
-              <X size={18} />
-            </button>
+              {isUp ? "+" : ""}
+              {event.changePercent.toFixed(2)}%
+            </span>
           </div>
+
+          <button
+            onClick={onClose}
+            className="shrink-0 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          >
+            <X size={18} />
+          </button>
         </div>
 
         {/* 바디 (스크롤 가능) */}
-        <div className="overflow-y-auto px-5 py-4 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
-          {/* AI 분석 라벨 */}
+        <div className="overflow-y-auto px-5 py-4 pb-8 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
           <span className="mb-3 inline-flex items-center rounded-full bg-foreground/10 px-2.5 py-0.5 text-[10px] font-medium text-foreground">
             AI 분석
           </span>
