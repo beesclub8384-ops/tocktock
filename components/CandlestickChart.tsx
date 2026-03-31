@@ -232,7 +232,7 @@ export function CandlestickChart({
   }, [initChart]);
 
   return (
-    <div ref={wrapperRef} className="relative w-full" style={{ minHeight: 160 }}>
+    <div ref={wrapperRef} className="relative w-full overflow-x-hidden" style={{ minHeight: 160 }}>
       <div className="flex gap-1 mb-2">
         {(["1M", "3M", "6M", "1Y"] as const).map((p) => (
           <button
@@ -248,10 +248,10 @@ export function CandlestickChart({
           </button>
         ))}
       </div>
-      <div ref={chartContainerRef} className="w-full" />
+      <div ref={chartContainerRef} className="w-full overflow-x-hidden" />
       <div
         ref={overlayRef}
-        className="absolute top-0 left-0 w-full z-10"
+        className="absolute top-0 left-0 w-full z-10 overflow-x-hidden"
         style={{ pointerEvents: "none" }}
       />
     </div>

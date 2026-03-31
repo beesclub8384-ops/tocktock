@@ -74,7 +74,7 @@ export default function MarketEventsPage() {
   const tabOhlc = ohlc[activeTab] || [];
 
   return (
-    <main className="max-w-5xl mx-auto px-4 py-12 sm:px-8 sm:py-20">
+    <main className="max-w-5xl mx-auto px-4 py-12 sm:px-8 sm:py-20 overflow-x-hidden">
       <header className="mb-10">
         <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">
           지수 급등락 원인 분석
