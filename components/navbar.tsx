@@ -38,9 +38,9 @@ export function Navbar() {
   }, [isOpen]);
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <header className="fixed top-0 left-0 right-0 z-50 border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <InvestmentQuoteBanner />
-      <div className="flex h-14 items-center px-6 gap-4">
+      <div className="flex items-center px-6 gap-4" style={{ height: 56 }}>
         <Link href="/" className="shrink-0">
           <img src="/logo.png" alt="TockTock" style={{ height: 40 }} />
         </Link>
@@ -54,19 +54,34 @@ export function Navbar() {
           ))}
         </nav>
 
-        {/* 모바일: 햄버거 버튼 */}
+        {/* 모바일: 햄버거 버튼 (고정 크기) */}
         <button
-          className="md:hidden ml-auto p-2 text-2xl"
+          className="md:hidden ml-auto flex-shrink-0 flex items-center justify-center"
+          style={{ width: 44, height: 44 }}
           onClick={() => setIsOpen(!isOpen)}
           aria-label={isOpen ? "메뉴 닫기" : "메뉴 열기"}
         >
-          {isOpen ? "\u2715" : "\u2630"}
+          {isOpen ? (
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <line x1="6" y1="6" x2="18" y2="18" />
+              <line x1="18" y1="6" x2="6" y2="18" />
+            </svg>
+          ) : (
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <line x1="4" y1="6" x2="20" y2="6" />
+              <line x1="4" y1="12" x2="20" y2="12" />
+              <line x1="4" y1="18" x2="20" y2="18" />
+            </svg>
+          )}
         </button>
       </div>
 
-      {/* 모바일: 펼쳐지는 메뉴 */}
+      {/* 모바일: 펼쳐지는 메뉴 (fixed) */}
       {isOpen && (
-        <nav className="md:hidden flex flex-col border-t border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <nav
+          className="md:hidden fixed left-0 right-0 z-40 flex flex-col border-t border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 max-h-[calc(100vh-56px)] overflow-y-auto"
+          style={{ top: 56 }}
+        >
           {navLinks.map(({ href, label }) => (
             <Link
               key={href}

@@ -42,7 +42,7 @@ export default function RootLayout({
       >
         <SplashScreen />
         <Navbar />
-        <div className="flex">
+        <div className="flex" style={{ paddingTop: 56 }}>
           <Sidebar />
           <main className="min-h-screen flex-1">{children}</main>
         </div>

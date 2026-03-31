@@ -56,7 +56,7 @@ export function Sidebar() {
       {/* 사이드바 */}
       <aside
         className={`
-          fixed top-16 left-0 z-50 h-[calc(100vh-4rem)] max-h-[calc(100vh-4rem)] w-[13rem] shrink-0 overflow-y-auto border-r border-border/40 bg-background p-1.5 transition-transform duration-200
+          fixed top-[56px] left-0 z-50 h-[calc(100vh-56px)] max-h-[calc(100vh-56px)] w-[13rem] shrink-0 overflow-y-auto border-r border-border/40 bg-background p-1.5 transition-transform duration-200
           ${open ? "translate-x-0" : "-translate-x-full"}
           lg:sticky lg:translate-x-0 lg:transition-none
         `}
