@@ -80,7 +80,7 @@ export function Navbar() {
       {isOpen && (
         <nav
           className="md:hidden fixed left-0 right-0 z-40 flex flex-col border-t border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 max-h-[calc(100vh-56px)] overflow-y-auto"
-          style={{ top: 56 }}
+          style={{ top: 88 }}
         >
           {navLinks.map(({ href, label }) => (
             <Link

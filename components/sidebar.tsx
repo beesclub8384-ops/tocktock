@@ -48,7 +48,7 @@ export function Sidebar() {
       {/* 모바일 오버레이 */}
       {open && (
         <div
-          className="fixed inset-0 z-50 bg-black/50 lg:hidden"
+          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
           onClick={() => setOpen(false)}
         />
       )}
@@ -56,7 +56,7 @@ export function Sidebar() {
       {/* 사이드바 */}
       <aside
         className={`
-          fixed top-[56px] left-0 z-50 h-[calc(100vh-56px)] max-h-[calc(100vh-56px)] w-[13rem] shrink-0 overflow-y-auto border-r border-border/40 bg-background p-1.5 transition-transform duration-200
+          fixed top-[88px] left-0 z-40 h-[calc(100vh-88px)] max-h-[calc(100vh-88px)] w-[13rem] shrink-0 overflow-y-auto border-r border-border/40 bg-background p-1.5 transition-transform duration-200
           ${open ? "translate-x-0" : "-translate-x-full"}
           lg:sticky lg:translate-x-0 lg:transition-none
         `}
