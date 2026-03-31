@@ -11,7 +11,6 @@ const navLinks = [
   { href: "/indices", label: "지수" },
   { href: "/credit", label: "빚투" },
   { href: "/market-events", label: "급등락분석" },
-  { href: "/fed-rate", label: "연준과 금리" },
   { href: "/economics", label: "경제공부" },
   { href: "/foreign-ownership", label: "외국인 지분율" },
   { href: "/global-indicators", label: "글로벌 지표" },

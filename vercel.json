@@ -21,10 +21,6 @@
       "schedule": "5 0 * * 1-5"
     },
     {
-      "path": "/api/cron/update-fomc-dot-plot",
-      "schedule": "0 1 15-21 3,6,9,12 *"
-    },
-    {
       "path": "/api/cron/market-events",
       "schedule": "30 7 * * 1-5"
     },
