@@ -8,6 +8,25 @@
 - **브랜치**: `master` (main 아님)
 - **배포 방법**: git push → Vercel 자동 배포. 안 될 경우 Deploy Hook 사용
 
+## 🔄 표준 작업 워크플로우
+
+모든 작업은 아래 순서를 따른다.
+
+1. `node scripts/plan-agent.mjs` — 계획서 작성 → CURRENT_TASK.md 생성
+2. 클로드 코드로 작업 수행 — CURRENT_TASK.md의 계획서 기준으로 구현
+3. `npx tsc --noEmit` — 타입 확인
+4. `npm run lint` — 린트 확인
+5. `npm run build` — 빌드 확인
+6. `node scripts/review-agent.mjs` — 코드 리뷰 → review-result.md 생성
+7. `node scripts/eval-agent.mjs` — 품질 평가 → eval-result.md 생성
+8. `node scripts/monitor-agent.mjs` — 누적 패턴 분석 → logs/work-log.jsonl 기록
+
+**새 대화 창에서 시작할 때:**
+- CURRENT_TASK.md가 있으면 반드시 먼저 읽고 현재 상태 파악
+- 어느 단계까지 완료됐는지 확인 후 이어서 진행
+
+---
+
 ## 사이트 슬로건
 - TockTock의 공식 슬로건: "내가 매매하는데 보려고 만든 사이트"
 - 소개 문구, 메타 설명, 푸터, 페이지 설명 등 사이트를 소개할 때
