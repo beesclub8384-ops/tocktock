@@ -24,11 +24,7 @@
 .DS_Store
 *.pem
 .claude/settings.local.json
-CURRENT_TASK.md
-review-result.md
-eval-result.md
 monitor-result.md
-logs/
 
 # debug
 npm-debug.log*
