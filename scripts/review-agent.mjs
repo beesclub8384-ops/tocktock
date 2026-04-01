@@ -13,10 +13,10 @@ import { fileURLToPath } from "url";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..");
 
-// .env.local에서 환경변수 로드
-function loadEnvLocal() {
+// .env 파일에서 환경변수 로드 (존재하는 파일만)
+function loadEnvFile(fileName) {
   try {
-    const envPath = resolve(ROOT, ".env.local");
+    const envPath = resolve(ROOT, fileName);
     const content = readFileSync(envPath, "utf-8");
     for (const line of content.split("\n")) {
       const trimmed = line.trim();
@@ -28,11 +28,12 @@ function loadEnvLocal() {
       if (!process.env[key]) process.env[key] = val;
     }
   } catch {
-    // .env.local 없으면 무시
+    // 파일 없으면 무시
   }
 }
 
-loadEnvLocal();
+loadEnvFile(".env.vercel.local");
+loadEnvFile(".env.local");
 
 const API_KEY = process.env.NEXT_PUBLIC_ANTHROPIC_API_KEY;
 if (!API_KEY) {
