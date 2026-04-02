@@ -29,31 +29,24 @@ interface FeedConfig {
 }
 
 const FEEDS: FeedConfig[] = [
-  {
-    name: "연합뉴스",
-    url: "https://www.yna.co.kr/rss/economy.xml",
-    lang: "ko",
-  },
-  {
-    name: "연합뉴스",
-    url: "https://www.yna.co.kr/rss/politics.xml",
-    lang: "ko",
-  },
-  {
-    name: "연합뉴스",
-    url: "https://www.yna.co.kr/rss/international.xml",
-    lang: "ko",
-  },
-  {
-    name: "AP News",
-    url: "https://news.google.com/rss/search?q=US+stock+market+economy&hl=en-US&gl=US&ceid=US:en",
-    lang: "en",
-  },
-  {
-    name: "AP News",
-    url: "https://news.google.com/rss/search?q=US+politics+congress+president&hl=en-US&gl=US&ceid=US:en",
-    lang: "en",
-  },
+  // 한국 피드
+  { name: "연합뉴스", url: "https://www.yna.co.kr/rss/economy.xml", lang: "ko" },
+  { name: "연합뉴스", url: "https://www.yna.co.kr/rss/politics.xml", lang: "ko" },
+  { name: "연합뉴스", url: "https://www.yna.co.kr/rss/international.xml", lang: "ko" },
+  // 기존 영문 피드
+  { name: "AP News", url: "https://news.google.com/rss/search?q=US+stock+market+economy&hl=en-US&gl=US&ceid=US:en", lang: "en" },
+  { name: "AP News", url: "https://news.google.com/rss/search?q=US+politics+congress+president&hl=en-US&gl=US&ceid=US:en", lang: "en" },
+  // 추가 영문 피드
+  { name: "BBC Business", url: "https://feeds.bbci.co.uk/news/business/rss.xml", lang: "en" },
+  { name: "BBC World", url: "https://feeds.bbci.co.uk/news/world/rss.xml", lang: "en" },
+  { name: "CNBC", url: "https://www.cnbc.com/id/100003114/device/rss/rss.html", lang: "en" },
+  { name: "CNBC Finance", url: "https://www.cnbc.com/id/10000664/device/rss/rss.html", lang: "en" },
+  { name: "MarketWatch", url: "https://feeds.marketwatch.com/marketwatch/topstories", lang: "en" },
+  { name: "Yahoo Finance", url: "https://finance.yahoo.com/rss/topfinstories", lang: "en" },
+  { name: "Reuters", url: "https://news.google.com/rss/search?q=when:24h+allinurl:reuters.com&ceid=US:en&hl=en-US&gl=US", lang: "en" },
+  { name: "Bloomberg", url: "https://news.google.com/rss/search?q=when:24h+allinurl:bloomberg.com&ceid=US:en&hl=en-US&gl=US", lang: "en" },
+  { name: "WSJ", url: "https://feeds.a.dj.com/rss/RSSMarketsMain.xml", lang: "en" },
+  { name: "Investing.com", url: "https://www.investing.com/rss/news_25.rss", lang: "en" },
 ];
 
 // ---------------------------------------------------------------------------
@@ -79,7 +72,6 @@ async function translateToKo(text: string): Promise<string> {
     const res = await fetch(url);
     if (!res.ok) return text;
     const data = await res.json();
-    // data[0] is array of [translatedSegment, originalSegment, ...]
     const translated = (data[0] as [string, string][])
       .map((seg) => seg[0])
       .join("");
@@ -123,7 +115,7 @@ async function fetchFeed(config: FeedConfig): Promise<NewsItem[]> {
 
       // Google News RSS에서 실제 출처 추출
       let source = config.name;
-      if (config.lang === "en" && entry.title) {
+      if (config.url.includes("news.google.com") && entry.title) {
         const sourceMatch = entry.title.match(/ - ([^-]+)$/);
         if (sourceMatch) {
           source = sourceMatch[1].trim();
@@ -149,8 +141,10 @@ async function fetchFeed(config: FeedConfig): Promise<NewsItem[]> {
 // 메인 함수
 // ---------------------------------------------------------------------------
 export async function getAllNews(): Promise<NewsItem[]> {
-  const results = await Promise.all(FEEDS.map(fetchFeed));
-  const allItems = results.flat();
+  const results = await Promise.allSettled(FEEDS.map(fetchFeed));
+  const allItems = results
+    .filter((r): r is PromiseFulfilledResult<NewsItem[]> => r.status === "fulfilled")
+    .flatMap((r) => r.value);
 
   // 중복 제거 (제목 기준)
   const seen = new Set<string>();
@@ -166,6 +160,6 @@ export async function getAllNews(): Promise<NewsItem[]> {
     (a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime()
   );
 
-  // 최대 30개
-  return unique.slice(0, 30);
+  // 최대 50개
+  return unique.slice(0, 50);
 }
