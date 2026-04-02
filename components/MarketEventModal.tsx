@@ -88,7 +88,7 @@ export function MarketEventModal({ event, onClose }: MarketEventModalProps) {
         {/* 바디 */}
         <div className="overflow-y-auto px-5 py-4 pb-6">
           <span className="mb-3 inline-flex items-center rounded-full bg-foreground/10 px-2.5 py-0.5 text-[10px] font-medium text-foreground">
-            AI 분석
+            원인 분석
           </span>
 
           <p className="mt-2 text-sm leading-relaxed text-muted-foreground whitespace-pre-line">

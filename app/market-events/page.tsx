@@ -159,7 +159,7 @@ export default function MarketEventsPage() {
                   <tr className="border-b border-border bg-muted/50">
                     <th className="text-left px-4 py-3 font-medium">날짜</th>
                     <th className="text-right px-4 py-3 font-medium">등락률</th>
-                    <th className="text-left px-4 py-3 font-medium">AI 분석 요약</th>
+                    <th className="text-left px-4 py-3 font-medium">원인 분석 요약</th>
                   </tr>
                 </thead>
                 <tbody>

@@ -152,7 +152,7 @@ function GuideModal({ onClose }: { onClose: () => void }) {
             <h3 className="mb-2 text-base font-semibold">이게 뭔가요?</h3>
             <p className="text-sm leading-relaxed text-muted-foreground">
               가상 자금 1,000만원으로 시작하는{" "}
-              <strong className="text-foreground">AI 기반 자동매매 시뮬레이터</strong>
+              <strong className="text-foreground">자동매매 시뮬레이터</strong>
               입니다. 실제 돈이 들어가지 않으며, 매일 장 마감 후 자동으로 종목을
               스캔하고, 조건에 맞으면 다음 날 시가에 자동 매수합니다.
               백테스트 분석 결과 최적화된 <strong className="text-foreground">+5% 목표가 / -3% 손절</strong> 전략을 사용합니다.
