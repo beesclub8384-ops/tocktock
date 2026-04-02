@@ -1,27 +1,11 @@
 import Link from "next/link";
 import { getSortedPostsData } from "@/lib/posts";
-import { getAllNews } from "@/lib/news-rss";
+import { NewsPageClient } from "@/components/news-page-client";
 
 export const revalidate = 3600;
 
-function timeAgo(dateStr: string): string {
-  const now = Date.now();
-  const then = new Date(dateStr).getTime();
-  const diff = now - then;
-
-  const minutes = Math.floor(diff / 60000);
-  if (minutes < 60) return `${minutes}분 전`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}시간 전`;
-  const days = Math.floor(hours / 24);
-  return `${days}일 전`;
-}
-
 export default async function Home() {
-  const [news, posts] = await Promise.all([
-    getAllNews(),
-    Promise.resolve(getSortedPostsData("macro")),
-  ]);
+  const posts = getSortedPostsData("macro");
 
   return (
     <div className="max-w-3xl px-8 py-20">
@@ -37,39 +21,13 @@ export default async function Home() {
           </Link>
         </div>
         <p className="mt-2 text-sm text-muted-foreground">
-          연합뉴스 · AP News | 1시간마다 자동 업데이트
+          글로벌 속보 · 연합뉴스
         </p>
       </header>
 
-      {news.length > 0 && (
-        <div className="flex flex-col gap-6 mb-20">
-          {news.slice(0, 10).map((item, i) => (
-            <article key={`${item.link}-${i}`}>
-              <h2 className="text-lg font-semibold leading-snug">
-                {item.title}
-              </h2>
-              {item.description && (
-                <p className="mt-1 text-sm text-muted-foreground line-clamp-2">
-                  {item.description}
-                </p>
-              )}
-              <div className="mt-1.5 flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">
-                  {item.source} · {item.pubDate ? timeAgo(item.pubDate) : ""}
-                </span>
-                <a
-                  href={item.link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  원문 보기 &rarr;
-                </a>
-              </div>
-            </article>
-          ))}
-        </div>
-      )}
+      <div className="mb-20">
+        <NewsPageClient limit={10} />
+      </div>
 
       {/* 거시전망 섹션 */}
       <header className="mb-16">

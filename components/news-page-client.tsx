@@ -37,7 +37,7 @@ function getBadge(source: string) {
   return { label: source, color: "bg-zinc-600", accent: "border-l-zinc-400" };
 }
 
-export function NewsPageClient() {
+export function NewsPageClient({ limit }: { limit?: number } = {}) {
   const [news, setNews] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -89,7 +89,7 @@ export function NewsPageClient() {
 
       {!loading && news.length > 0 && (
         <div className="flex flex-col gap-2.5">
-          {news.map((item, i) => {
+          {(limit ? news.slice(0, limit) : news).map((item, i) => {
             const badge = getBadge(item.source);
             return (
               <a
