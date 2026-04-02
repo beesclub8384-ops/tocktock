@@ -25,75 +25,99 @@ const navLinks = [
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
+  const [visible, setVisible] = useState(false);
 
+  // data-menu-open 속성 + body 스크롤 잠금
   useEffect(() => {
     if (isOpen) {
       document.documentElement.setAttribute("data-menu-open", "");
+      document.body.style.overflow = "hidden";
+      requestAnimationFrame(() => setVisible(true));
     } else {
       document.documentElement.removeAttribute("data-menu-open");
+      document.body.style.overflow = "";
+      setVisible(false);
     }
     return () => {
       document.documentElement.removeAttribute("data-menu-open");
+      document.body.style.overflow = "";
     };
   }, [isOpen]);
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <InvestmentQuoteBanner />
-      <div className="flex items-center px-6 gap-4" style={{ height: 56 }}>
-        <Link href="/" className="shrink-0">
-          <img src="/logo.png" alt="TockTock" style={{ height: 40 }} />
-        </Link>
+    <>
+      <header className="fixed top-0 left-0 right-0 z-50 border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <InvestmentQuoteBanner />
+        <div className="flex items-center px-6 gap-4" style={{ height: 56 }}>
+          <Link href="/" className="shrink-0">
+            <img src="/logo.png" alt="TockTock" style={{ height: 40 }} />
+          </Link>
 
-        {/* PC: 가로 메뉴 */}
-        <nav className="hidden md:flex items-center gap-1 flex-1 min-w-0">
-          {navLinks.map(({ href, label }) => (
-            <Button key={href} variant="ghost" size="sm" asChild>
-              <Link href={href}>{label}</Link>
-            </Button>
-          ))}
-        </nav>
+          {/* PC: 가로 메뉴 */}
+          <nav className="hidden md:flex items-center gap-1 flex-1 min-w-0">
+            {navLinks.map(({ href, label }) => (
+              <Button key={href} variant="ghost" size="sm" asChild>
+                <Link href={href}>{label}</Link>
+              </Button>
+            ))}
+          </nav>
 
-        {/* 모바일: 햄버거 버튼 (고정 크기) */}
-        <button
-          className="md:hidden ml-auto flex-shrink-0 flex items-center justify-center"
-          style={{ width: 44, height: 44 }}
-          onClick={() => setIsOpen(!isOpen)}
-          aria-label={isOpen ? "메뉴 닫기" : "메뉴 열기"}
-        >
-          {isOpen ? (
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <line x1="6" y1="6" x2="18" y2="18" />
-              <line x1="18" y1="6" x2="6" y2="18" />
-            </svg>
-          ) : (
+          {/* 모바일: 햄버거 버튼 */}
+          <button
+            className="md:hidden ml-auto flex-shrink-0 flex items-center justify-center"
+            style={{ width: 44, height: 44 }}
+            onClick={() => setIsOpen(!isOpen)}
+            aria-label={isOpen ? "메뉴 닫기" : "메뉴 열기"}
+          >
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <line x1="4" y1="6" x2="20" y2="6" />
               <line x1="4" y1="12" x2="20" y2="12" />
               <line x1="4" y1="18" x2="20" y2="18" />
             </svg>
-          )}
-        </button>
-      </div>
+          </button>
+        </div>
+      </header>
 
-      {/* 모바일: 전체 화면 메뉴 */}
+      {/* 모바일: 풀스크린 메뉴 */}
       {isOpen && (
-        <nav
-          className="md:hidden fixed left-0 right-0 bottom-0 z-[60] bg-white dark:bg-zinc-950 flex flex-col overflow-y-auto"
-          style={{ top: 88 }}
+        <div
+          className={`md:hidden fixed inset-0 z-[100] bg-white dark:bg-zinc-950 flex flex-col transition-opacity duration-200 ${
+            visible ? "opacity-100" : "opacity-0"
+          }`}
         >
-          {navLinks.map(({ href, label }) => (
-            <Link
-              key={href}
-              href={href}
-              className="px-6 py-4 text-sm border-b border-zinc-100 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors"
-              onClick={() => setIsOpen(false)}
-            >
-              {label}
+          {/* 상단: 로고 + X 버튼 */}
+          <div className="flex items-center justify-between px-6 shrink-0" style={{ height: 88 }}>
+            <Link href="/" className="shrink-0" onClick={() => setIsOpen(false)}>
+              <img src="/logo.png" alt="TockTock" style={{ height: 40 }} />
             </Link>
-          ))}
-        </nav>
+            <button
+              className="flex items-center justify-center"
+              style={{ width: 44, height: 44 }}
+              onClick={() => setIsOpen(false)}
+              aria-label="메뉴 닫기"
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <line x1="6" y1="6" x2="18" y2="18" />
+                <line x1="18" y1="6" x2="6" y2="18" />
+              </svg>
+            </button>
+          </div>
+
+          {/* 링크 목록 */}
+          <nav className="flex-1 overflow-y-auto">
+            {navLinks.map(({ href, label }) => (
+              <Link
+                key={href}
+                href={href}
+                className="block px-6 py-4 text-base font-medium border-b border-zinc-100 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900 active:text-blue-600 dark:active:text-blue-400 transition-colors"
+                onClick={() => setIsOpen(false)}
+              >
+                {label}
+              </Link>
+            ))}
+          </nav>
+        </div>
       )}
-    </header>
+    </>
   );
 }
