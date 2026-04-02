@@ -95,6 +95,88 @@ function btcColor(val: string) {
   return "";
 }
 
+// 수요 강도 판정 헬퍼
+function btcStrength(val: string) {
+  const n = Number(val);
+  if (isNaN(n) || !val) return { label: "-", color: "text-muted-foreground", dot: "bg-zinc-400" };
+  if (n >= 2.5) return { label: "강함", color: "text-emerald-500", dot: "bg-emerald-500" };
+  if (n >= 2.0) return { label: "보통", color: "text-yellow-500", dot: "bg-yellow-500" };
+  return { label: "약함", color: "text-red-500", dot: "bg-red-500" };
+}
+
+function foreignStrength(item: AuctionItem) {
+  const accepted = Number(item.totalAccepted);
+  const indirect = Number(item.indirectBidderAccepted);
+  if (!accepted || isNaN(indirect)) return { pct: "-", label: "-", color: "text-muted-foreground", dot: "bg-zinc-400" };
+  const pct = (indirect / accepted) * 100;
+  const pctStr = `${pct.toFixed(1)}%`;
+  if (pct >= 65) return { pct: pctStr, label: "높음", color: "text-emerald-500", dot: "bg-emerald-500" };
+  if (pct >= 55) return { pct: pctStr, label: "보통", color: "text-yellow-500", dot: "bg-yellow-500" };
+  return { pct: pctStr, label: "낮음", color: "text-red-500", dot: "bg-red-500" };
+}
+
+function findLatest(results: AuctionItem[], type: string, term: string) {
+  return results
+    .filter((r) => r.securityType === type && r.term.includes(term))
+    .sort((a, b) => new Date(b.auctionDate).getTime() - new Date(a.auctionDate).getTime());
+}
+
+function rateChange(items: AuctionItem[]) {
+  if (items.length < 2) return { diff: null, arrow: "—", color: "text-muted-foreground" };
+  const curr = Number(items[0].highYield || items[0].highDiscountRate || 0);
+  const prev = Number(items[1].highYield || items[1].highDiscountRate || 0);
+  const diff = curr - prev;
+  if (diff > 0) return { diff, arrow: "▲", color: "text-red-500" };
+  if (diff < 0) return { diff, arrow: "▼", color: "text-emerald-500" };
+  return { diff: 0, arrow: "—", color: "text-muted-foreground" };
+}
+
+// 요약 신호판 컴포넌트
+function SignalCard({ label, icon, items }: { label: string; icon: string; items: AuctionItem[] }) {
+  if (items.length === 0) return null;
+  const latest = items[0];
+  const rc = rateChange(items);
+  const btc = btcStrength(latest.bidToCoverRatio);
+  const foreign = foreignStrength(latest);
+
+  return (
+    <div className="rounded-lg border border-border bg-card p-4 flex-1 min-w-0">
+      <div className="flex items-center gap-1.5 mb-3">
+        <span>{icon}</span>
+        <span className="text-sm font-semibold truncate">{label}</span>
+      </div>
+      <div className="space-y-2 text-sm">
+        <div className="flex items-center justify-between">
+          <span className="text-muted-foreground">낙찰금리</span>
+          <span className="font-medium tabular-nums">
+            {formatRate(latest)}{" "}
+            <span className={`text-xs ${rc.color}`}>
+              {rc.arrow}{rc.diff !== null ? Math.abs(rc.diff).toFixed(2) : ""}
+            </span>
+          </span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-muted-foreground">응찰배율</span>
+          <span className="flex items-center gap-1.5 font-medium tabular-nums">
+            {formatBtc(latest.bidToCoverRatio)}
+            <span className={`inline-block w-2 h-2 rounded-full ${btc.dot}`} />
+            <span className={`text-xs ${btc.color}`}>{btc.label}</span>
+          </span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-muted-foreground">외국인비중</span>
+          <span className="flex items-center gap-1.5 font-medium tabular-nums">
+            {foreign.pct}
+            <span className={`inline-block w-2 h-2 rounded-full ${foreign.dot}`} />
+            <span className={`text-xs ${foreign.color}`}>{foreign.label}</span>
+          </span>
+        </div>
+      </div>
+      <p className="mt-2 text-xs text-muted-foreground tabular-nums">{formatDate(latest.auctionDate)}</p>
+    </div>
+  );
+}
+
 function formatKST(iso: string) {
   if (!iso) return "";
   const d = new Date(iso);
@@ -326,6 +408,35 @@ function AuctionHistoryChart() {
           </ResponsiveContainer>
         )}
       </div>
+
+      {/* 추세 해석 */}
+      {!loading && !error && chartData.length >= 3 && (() => {
+        const last3 = [...chartData].reverse().slice(0, 3);
+        const rates = last3.map((d) => d.rate).filter((r): r is number => r !== null);
+        const btcs = last3.map((d) => d.bidToCover).filter((b): b is number => b !== null);
+        const rateUp = rates.length >= 2 && rates.every((r, i) => i === 0 || r >= rates[i - 1]);
+        const rateDown = rates.length >= 2 && rates.every((r, i) => i === 0 || r <= rates[i - 1]);
+        const btcUp = btcs.length >= 2 && btcs.every((b, i) => i === 0 || b >= btcs[i - 1]);
+        const btcDown = btcs.length >= 2 && btcs.every((b, i) => i === 0 || b <= btcs[i - 1]);
+        return (
+          <div className="mt-3 border-t border-border pt-3 space-y-1 text-sm text-muted-foreground">
+            {rates.length >= 2 && (
+              <p>
+                {rateUp ? "📈 낙찰금리 최근 3회 상승세 — 금리 상승 압력 지속"
+                  : rateDown ? "📉 낙찰금리 최근 3회 하락세 — 금리 하락 흐름"
+                  : "↔️ 낙찰금리 최근 3회 혼조세"}
+              </p>
+            )}
+            {btcs.length >= 2 && (
+              <p>
+                {btcUp ? "🟢 응찰배율 최근 3회 상승 — 수요 개선 중"
+                  : btcDown ? "🔴 응찰배율 최근 3회 하락 — 수요 약화"
+                  : "🟡 응찰배율 최근 3회 혼조세"}
+              </p>
+            )}
+          </div>
+        );
+      })()}
 
       {/* 최근 5개 결과 테이블 */}
       {!loading && !error && recent5.length > 0 && (
@@ -656,6 +767,29 @@ export default function TreasuryAuctionPage() {
         </button>
       </header>
 
+      {/* 요약 신호판 */}
+      {!loading && data && data.results.length > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-10">
+          <SignalCard label="10-Year Note" icon="📘" items={findLatest(data.results, "Note", "10-Year")} />
+          <SignalCard label="52-Week Bill" icon="📄" items={findLatest(data.results, "Bill", "52-Week")} />
+          <SignalCard label="30-Year Bond" icon="📕" items={findLatest(data.results, "Bond", "30-Year")} />
+        </div>
+      )}
+      {loading && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-10">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="rounded-lg border border-border bg-card p-4 animate-pulse">
+              <div className="h-4 w-24 bg-muted rounded mb-3" />
+              <div className="space-y-2">
+                <div className="h-3 w-full bg-muted rounded" />
+                <div className="h-3 w-full bg-muted rounded" />
+                <div className="h-3 w-full bg-muted rounded" />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* 경매 낙찰금리 추이 차트 */}
       <AuctionHistoryChart />
 
@@ -738,10 +872,18 @@ export default function TreasuryAuctionPage() {
                     <td className="px-4 py-3 whitespace-nowrap">{termLabel(item)}</td>
                     <td className="px-4 py-3 text-right tabular-nums">{formatRate(item)}</td>
                     <td className={`px-4 py-3 text-right tabular-nums ${btcColor(item.bidToCoverRatio)}`}>
-                      {formatBtc(item.bidToCoverRatio)}
+                      <span className="inline-flex items-center gap-1">
+                        {formatBtc(item.bidToCoverRatio)}
+                        <span className={`inline-block w-1.5 h-1.5 rounded-full ${btcStrength(item.bidToCoverRatio).dot}`} />
+                      </span>
                     </td>
                     <td className="px-4 py-3 text-right tabular-nums">{formatBillions(item.offeringAmount)}</td>
-                    <td className="px-4 py-3 text-right tabular-nums">{formatForeignPct(item)}</td>
+                    <td className="px-4 py-3 text-right tabular-nums">
+                      <span className="inline-flex items-center gap-1">
+                        {formatForeignPct(item)}
+                        <span className={`inline-block w-1.5 h-1.5 rounded-full ${foreignStrength(item).dot}`} />
+                      </span>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -763,7 +905,10 @@ export default function TreasuryAuctionPage() {
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">응찰배율</p>
-                    <p className={`text-sm font-medium tabular-nums ${btcColor(item.bidToCoverRatio)}`}>{formatBtc(item.bidToCoverRatio)}</p>
+                    <p className={`text-sm font-medium tabular-nums flex items-center gap-1 ${btcColor(item.bidToCoverRatio)}`}>
+                      {formatBtc(item.bidToCoverRatio)}
+                      <span className={`inline-block w-1.5 h-1.5 rounded-full ${btcStrength(item.bidToCoverRatio).dot}`} />
+                    </p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">발행규모</p>
@@ -771,7 +916,10 @@ export default function TreasuryAuctionPage() {
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">외국인비중</p>
-                    <p className="text-sm font-medium tabular-nums">{formatForeignPct(item)}</p>
+                    <p className="text-sm font-medium tabular-nums flex items-center gap-1">
+                      {formatForeignPct(item)}
+                      <span className={`inline-block w-1.5 h-1.5 rounded-full ${foreignStrength(item).dot}`} />
+                    </p>
                   </div>
                 </div>
               </div>
