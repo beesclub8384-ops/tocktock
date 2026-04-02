@@ -24,17 +24,25 @@ function timeAgo(dateStr: string): string {
 }
 
 function getBadge(source: string) {
-  if (source === "연합뉴스") return { label: "연합뉴스", color: "bg-zinc-700 dark:bg-zinc-600", accent: "border-l-zinc-400" };
-  if (source.includes("Reuters")) return { label: "Reuters", color: "bg-blue-600", accent: "border-l-blue-500" };
-  if (source.includes("Bloomberg")) return { label: "Bloomberg", color: "bg-emerald-600", accent: "border-l-emerald-500" };
-  if (source.includes("BBC")) return { label: source, color: "bg-red-600", accent: "border-l-red-500" };
-  if (source.includes("CNBC")) return { label: source, color: "bg-orange-600", accent: "border-l-orange-500" };
-  if (source.includes("WSJ")) return { label: "WSJ", color: "bg-blue-500", accent: "border-l-blue-400" };
-  if (source.includes("MarketWatch")) return { label: "MarketWatch", color: "bg-yellow-600", accent: "border-l-yellow-500" };
-  if (source.includes("Yahoo")) return { label: "Yahoo Finance", color: "bg-purple-600", accent: "border-l-purple-500" };
-  if (source.includes("Investing")) return { label: "Investing.com", color: "bg-teal-600", accent: "border-l-teal-500" };
-  if (source.includes("AP")) return { label: "AP News", color: "bg-red-700", accent: "border-l-red-600" };
-  return { label: source, color: "bg-zinc-600", accent: "border-l-zinc-400" };
+  // 연합뉴스, CNBC → blue
+  if (source === "연합뉴스") return { label: "연합뉴스", bg: "bg-blue-600", border: "border-l-blue-500" };
+  if (source.includes("CNBC")) return { label: source, bg: "bg-blue-600", border: "border-l-blue-500" };
+  // Reuters, Investing.com → orange
+  if (source.includes("Reuters")) return { label: "Reuters", bg: "bg-orange-600", border: "border-l-orange-500" };
+  if (source.includes("Investing")) return { label: "Investing.com", bg: "bg-orange-600", border: "border-l-orange-500" };
+  // Bloomberg, Yahoo Finance → violet
+  if (source.includes("Bloomberg")) return { label: "Bloomberg", bg: "bg-violet-600", border: "border-l-violet-500" };
+  if (source.includes("Yahoo")) return { label: "Yahoo Finance", bg: "bg-violet-600", border: "border-l-violet-500" };
+  // BBC → red
+  if (source.includes("BBC")) return { label: source, bg: "bg-red-600", border: "border-l-red-500" };
+  // MarketWatch → green
+  if (source.includes("MarketWatch")) return { label: "MarketWatch", bg: "bg-green-600", border: "border-l-green-500" };
+  // WSJ → zinc
+  if (source.includes("WSJ")) return { label: "WSJ", bg: "bg-zinc-500", border: "border-l-zinc-400" };
+  // AP News → red
+  if (source.includes("AP")) return { label: "AP News", bg: "bg-red-700", border: "border-l-red-600" };
+  // 나머지 → gray
+  return { label: source, bg: "bg-gray-600", border: "border-l-gray-400" };
 }
 
 export function NewsPageClient({ limit }: { limit?: number } = {}) {
@@ -43,7 +51,7 @@ export function NewsPageClient({ limit }: { limit?: number } = {}) {
 
   const fetchNews = useCallback(async () => {
     try {
-      const res = await fetch("/api/news/all");
+      const res = await fetch("/api/news");
       if (!res.ok) return;
       const json = await res.json();
       setNews(json.news || []);
@@ -58,22 +66,24 @@ export function NewsPageClient({ limit }: { limit?: number } = {}) {
     fetchNews();
   }, [fetchNews]);
 
+  const skeletonCount = limit ?? 6;
+
   return (
     <>
       {/* 로딩 스켈레톤 */}
       {loading && (
-        <div className="flex flex-col gap-3">
-          {Array.from({ length: 6 }).map((_, i) => (
+        <div className="flex flex-col gap-2.5">
+          {Array.from({ length: skeletonCount }).map((_, i) => (
             <div
               key={i}
-              className="rounded-xl border border-border/50 bg-card p-4 animate-pulse"
+              className="rounded-xl border-l-4 border-l-gray-300 dark:border-l-gray-700 border border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-4 py-3 animate-pulse"
             >
-              <div className="flex items-center gap-2 mb-3">
-                <div className="h-4 w-16 rounded bg-muted" />
-                <div className="h-3 w-12 rounded bg-muted" />
+              <div className="flex items-center gap-2 mb-2.5">
+                <div className="h-4 w-14 rounded-full bg-zinc-200 dark:bg-zinc-700" />
+                <div className="h-3 w-10 rounded bg-zinc-200 dark:bg-zinc-700" />
               </div>
-              <div className="h-4 w-full rounded bg-muted mb-2" />
-              <div className="h-3 w-3/4 rounded bg-muted" />
+              <div className="h-4 w-full rounded bg-zinc-200 dark:bg-zinc-700 mb-1.5" />
+              <div className="h-3 w-2/3 rounded bg-zinc-200 dark:bg-zinc-700" />
             </div>
           ))}
         </div>
@@ -97,34 +107,34 @@ export function NewsPageClient({ limit }: { limit?: number } = {}) {
                 href={item.link}
                 target="_blank"
                 rel="noopener noreferrer"
-                className={`group block rounded-xl border border-border/50 border-l-[3px] ${badge.accent} bg-card p-4 transition-all duration-150 hover:bg-accent/40 hover:border-border hover:shadow-sm active:scale-[0.99]`}
+                className={`group block rounded-xl border-l-4 ${badge.border} border border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-4 py-3 transition-all duration-150 hover:shadow-md dark:hover:bg-zinc-800/80 hover:bg-zinc-50 active:scale-[0.99] sm:px-5 sm:py-4`}
               >
                 {/* 상단: 배지 + 시간 + 외부링크 */}
-                <div className="flex items-center justify-between mb-2.5">
+                <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <span
-                      className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-semibold tracking-wide text-white ${badge.color}`}
+                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold text-white ${badge.bg}`}
                     >
                       {badge.label}
                     </span>
-                    <span className="text-[11px] text-muted-foreground">
+                    <span className="text-xs text-muted-foreground">
                       {item.pubDate ? timeAgo(item.pubDate) : ""}
                     </span>
                   </div>
                   <ExternalLink
                     size={13}
-                    className="text-muted-foreground/40 group-hover:text-muted-foreground transition-colors shrink-0"
+                    className="text-muted-foreground/30 group-hover:text-muted-foreground/70 transition-colors shrink-0"
                   />
                 </div>
 
                 {/* 제목 */}
-                <h3 className="text-[15px] font-semibold leading-snug text-foreground group-hover:text-foreground/90 line-clamp-2">
+                <h3 className="text-sm font-semibold leading-snug text-foreground line-clamp-2 sm:text-[15px]">
                   {item.title}
                 </h3>
 
                 {/* 설명 */}
                 {item.description && (
-                  <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground/80 line-clamp-2">
+                  <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground/70 line-clamp-2 hidden sm:block">
                     {item.description}
                   </p>
                 )}

@@ -26,7 +26,7 @@ export default async function Home() {
       </header>
 
       <div className="mb-20">
-        <NewsPageClient limit={10} />
+        <NewsPageClient limit={5} />
       </div>
 
       {/* 거시전망 섹션 */}
