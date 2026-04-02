@@ -76,23 +76,32 @@ export function Navbar() {
         </button>
       </div>
 
-      {/* 모바일: 펼쳐지는 메뉴 (fixed) */}
+      {/* 모바일: 전체 화면 메뉴 */}
       {isOpen && (
-        <nav
-          className="md:hidden fixed left-0 right-0 z-40 flex flex-col border-t border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 max-h-[calc(100vh-56px)] overflow-y-auto"
-          style={{ top: 88 }}
-        >
-          {navLinks.map(({ href, label }) => (
-            <Link
-              key={href}
-              href={href}
-              className="px-6 py-3 text-sm hover:bg-accent transition-colors"
-              onClick={() => setIsOpen(false)}
-            >
-              {label}
-            </Link>
-          ))}
-        </nav>
+        <>
+          {/* 불투명 오버레이 — 콘텐츠 완전히 가림 */}
+          <div
+            className="md:hidden fixed inset-0 z-[60] bg-white dark:bg-zinc-950"
+            style={{ top: 88 }}
+            onClick={() => setIsOpen(false)}
+          />
+          {/* 메뉴 목록 */}
+          <nav
+            className="md:hidden fixed left-0 right-0 z-[70] flex flex-col max-h-[calc(100vh-88px)] overflow-y-auto"
+            style={{ top: 88 }}
+          >
+            {navLinks.map(({ href, label }) => (
+              <Link
+                key={href}
+                href={href}
+                className="px-6 py-3.5 text-sm border-b border-zinc-100 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors"
+                onClick={() => setIsOpen(false)}
+              >
+                {label}
+              </Link>
+            ))}
+          </nav>
+        </>
       )}
     </header>
   );
