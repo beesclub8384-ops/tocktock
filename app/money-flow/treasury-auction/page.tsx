@@ -716,60 +716,110 @@ export default function TreasuryAuctionPage() {
         </div>
       )}
 
-      {/* 결과 테이블 */}
+      {/* 결과: PC 테이블 */}
       {!loading && !error && filtered.length > 0 && tab === "results" && (
-        <div className="overflow-x-auto rounded-lg border border-border">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border bg-muted/50">
-                <th className="text-left px-4 py-3 font-medium">경매일</th>
-                <th className="text-left px-4 py-3 font-medium">종목</th>
-                <th className="text-right px-4 py-3 font-medium whitespace-nowrap">낙찰금리/할인율</th>
-                <th className="text-right px-4 py-3 font-medium">응찰배율</th>
-                <th className="text-right px-4 py-3 font-medium">발행규모</th>
-                <th className="text-right px-4 py-3 font-medium">외국인비중</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((item) => (
-                <tr key={item.cusip + item.auctionDate} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                  <td className="px-4 py-3 tabular-nums">{formatDate(item.auctionDate)}</td>
-                  <td className="px-4 py-3 whitespace-nowrap">{termLabel(item)}</td>
-                  <td className="px-4 py-3 text-right tabular-nums">{formatRate(item)}</td>
-                  <td className={`px-4 py-3 text-right tabular-nums ${btcColor(item.bidToCoverRatio)}`}>
-                    {formatBtc(item.bidToCoverRatio)}
-                  </td>
-                  <td className="px-4 py-3 text-right tabular-nums">{formatBillions(item.offeringAmount)}</td>
-                  <td className="px-4 py-3 text-right tabular-nums">{formatForeignPct(item)}</td>
+        <>
+          <div className="hidden sm:block overflow-x-auto rounded-lg border border-border">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border bg-muted/50">
+                  <th className="text-left px-4 py-3 font-medium">경매일</th>
+                  <th className="text-left px-4 py-3 font-medium">종목</th>
+                  <th className="text-right px-4 py-3 font-medium whitespace-nowrap">낙찰금리/할인율</th>
+                  <th className="text-right px-4 py-3 font-medium">응찰배율</th>
+                  <th className="text-right px-4 py-3 font-medium">발행규모</th>
+                  <th className="text-right px-4 py-3 font-medium">외국인비중</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {filtered.map((item) => (
+                  <tr key={item.cusip + item.auctionDate} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                    <td className="px-4 py-3 tabular-nums">{formatDate(item.auctionDate)}</td>
+                    <td className="px-4 py-3 whitespace-nowrap">{termLabel(item)}</td>
+                    <td className="px-4 py-3 text-right tabular-nums">{formatRate(item)}</td>
+                    <td className={`px-4 py-3 text-right tabular-nums ${btcColor(item.bidToCoverRatio)}`}>
+                      {formatBtc(item.bidToCoverRatio)}
+                    </td>
+                    <td className="px-4 py-3 text-right tabular-nums">{formatBillions(item.offeringAmount)}</td>
+                    <td className="px-4 py-3 text-right tabular-nums">{formatForeignPct(item)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* 결과: 모바일 카드 */}
+          <div className="sm:hidden flex flex-col gap-3">
+            {filtered.map((item) => (
+              <div key={item.cusip + item.auctionDate} className="rounded-lg border border-border bg-card p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm font-semibold">{termLabel(item)}</span>
+                  <span className="text-xs text-muted-foreground tabular-nums">{formatDate(item.auctionDate)}</span>
+                </div>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                  <div>
+                    <p className="text-xs text-muted-foreground">낙찰금리</p>
+                    <p className="text-sm font-medium tabular-nums">{formatRate(item)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">응찰배율</p>
+                    <p className={`text-sm font-medium tabular-nums ${btcColor(item.bidToCoverRatio)}`}>{formatBtc(item.bidToCoverRatio)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">발행규모</p>
+                    <p className="text-sm font-medium tabular-nums">{formatBillions(item.offeringAmount)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">외국인비중</p>
+                    <p className="text-sm font-medium tabular-nums">{formatForeignPct(item)}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
       )}
 
-      {/* 예정 테이블 */}
+      {/* 예정: PC 테이블 */}
       {!loading && !error && filtered.length > 0 && tab === "upcoming" && (
-        <div className="overflow-x-auto rounded-lg border border-border">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border bg-muted/50">
-                <th className="text-left px-4 py-3 font-medium">경매 예정일</th>
-                <th className="text-left px-4 py-3 font-medium">종목</th>
-                <th className="text-right px-4 py-3 font-medium">발행 예정 규모</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((item) => (
-                <tr key={item.cusip + item.auctionDate} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                  <td className="px-4 py-3 tabular-nums">{formatDate(item.auctionDate)}</td>
-                  <td className="px-4 py-3 whitespace-nowrap">{termLabel(item)}</td>
-                  <td className="px-4 py-3 text-right tabular-nums">{formatBillions(item.offeringAmount)}</td>
+        <>
+          <div className="hidden sm:block overflow-x-auto rounded-lg border border-border">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border bg-muted/50">
+                  <th className="text-left px-4 py-3 font-medium">경매 예정일</th>
+                  <th className="text-left px-4 py-3 font-medium">종목</th>
+                  <th className="text-right px-4 py-3 font-medium">발행 예정 규모</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {filtered.map((item) => (
+                  <tr key={item.cusip + item.auctionDate} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                    <td className="px-4 py-3 tabular-nums">{formatDate(item.auctionDate)}</td>
+                    <td className="px-4 py-3 whitespace-nowrap">{termLabel(item)}</td>
+                    <td className="px-4 py-3 text-right tabular-nums">{formatBillions(item.offeringAmount)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* 예정: 모바일 카드 */}
+          <div className="sm:hidden flex flex-col gap-3">
+            {filtered.map((item) => (
+              <div key={item.cusip + item.auctionDate} className="rounded-lg border border-border bg-card p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-semibold">{termLabel(item)}</span>
+                  <span className="text-xs text-muted-foreground tabular-nums">{formatDate(item.auctionDate)}</span>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">발행 예정 규모</p>
+                  <p className="text-sm font-medium tabular-nums">{formatBillions(item.offeringAmount)}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
       )}
 
       {/* 업데이트 시각 */}
