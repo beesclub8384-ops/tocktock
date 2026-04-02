@@ -8,11 +8,11 @@ interface NewsItem {
   link: string;
   pubDate: string;
   source: string;
-  feedUrl: string;
+  feedUrl?: string;
 }
 
-type Tab = "전체" | "한국";
-const TABS: Tab[] = ["전체", "한국"];
+type Tab = "전체" | "국내" | "국외";
+const TABS: Tab[] = ["전체", "국내", "국외"];
 
 function timeAgo(dateStr: string): string {
   const now = Date.now();
@@ -26,14 +26,31 @@ function timeAgo(dateStr: string): string {
   return `${days}일 전`;
 }
 
-function getCategoryBadge(feedUrl: string) {
-  if (feedUrl.includes("economy"))
-    return { label: "경제", color: "bg-blue-600" };
-  if (feedUrl.includes("politics"))
-    return { label: "정치", color: "bg-red-600" };
-  if (feedUrl.includes("international"))
-    return { label: "국제", color: "bg-emerald-600" };
-  return { label: "뉴스", color: "bg-zinc-600" };
+function getBadge(item: NewsItem) {
+  const src = item.source;
+  const feedUrl = item.feedUrl ?? "";
+
+  // 국내: 연합뉴스 카테고리 배지
+  if (src === "연합뉴스") {
+    if (feedUrl.includes("economy"))
+      return { label: "경제", color: "bg-blue-600" };
+    if (feedUrl.includes("politics"))
+      return { label: "정치", color: "bg-red-600" };
+    if (feedUrl.includes("international"))
+      return { label: "국제", color: "bg-emerald-600" };
+    return { label: "연합뉴스", color: "bg-zinc-600" };
+  }
+
+  // 국외: source명 배지
+  if (src.includes("Reuters")) return { label: "Reuters", color: "bg-blue-600" };
+  if (src.includes("Bloomberg")) return { label: "Bloomberg", color: "bg-emerald-600" };
+  if (src.includes("BBC")) return { label: src, color: "bg-red-600" };
+  if (src.includes("CNBC")) return { label: src, color: "bg-orange-600" };
+  if (src.includes("WSJ")) return { label: "WSJ", color: "bg-blue-500" };
+  if (src.includes("MarketWatch")) return { label: "MarketWatch", color: "bg-yellow-600" };
+  if (src.includes("Yahoo")) return { label: "Yahoo Finance", color: "bg-purple-600" };
+  if (src.includes("Investing")) return { label: "Investing.com", color: "bg-teal-600" };
+  return { label: src, color: "bg-zinc-600" };
 }
 
 function NewsCards({ news }: { news: NewsItem[] }) {
@@ -48,7 +65,7 @@ function NewsCards({ news }: { news: NewsItem[] }) {
   return (
     <div className="flex flex-col gap-3">
       {news.map((item, i) => {
-        const badge = getCategoryBadge(item.feedUrl);
+        const badge = getBadge(item);
         return (
           <a
             key={`${item.link}-${i}`}
@@ -62,9 +79,6 @@ function NewsCards({ news }: { news: NewsItem[] }) {
                 className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium text-white ${badge.color}`}
               >
                 {badge.label}
-              </span>
-              <span className="text-xs text-muted-foreground">
-                {item.source}
               </span>
               <span className="text-xs text-muted-foreground">
                 {item.pubDate ? timeAgo(item.pubDate) : ""}
@@ -87,15 +101,27 @@ function NewsCards({ news }: { news: NewsItem[] }) {
 
 export function NewsPageClient() {
   const [tab, setTab] = useState<Tab>("전체");
-  const [news, setNews] = useState<NewsItem[]>([]);
+  const [allNews, setAllNews] = useState<NewsItem[]>([]);
+  const [koreaNews, setKoreaNews] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchNews = useCallback(async () => {
     try {
-      const res = await fetch("/api/news");
-      if (!res.ok) return;
-      const json = await res.json();
-      setNews(json.news || []);
+      // 국내(연합뉴스 with feedUrl) + 전체(글로벌 포함) 동시 호출
+      const [koreaRes, allRes] = await Promise.allSettled([
+        fetch("/api/news"),
+        fetch("/api/news/all"),
+      ]);
+
+      if (koreaRes.status === "fulfilled" && koreaRes.value.ok) {
+        const json = await koreaRes.value.json();
+        setKoreaNews(json.news || []);
+      }
+
+      if (allRes.status === "fulfilled" && allRes.value.ok) {
+        const json = await allRes.value.json();
+        setAllNews(json.news || []);
+      }
     } catch {
       // 기존 데이터 유지
     } finally {
@@ -107,7 +133,14 @@ export function NewsPageClient() {
     fetchNews();
   }, [fetchNews]);
 
-  const koreaNews = news.filter((item) => item.source === "연합뉴스");
+  const globalNews = allNews.filter((item) => item.source !== "연합뉴스");
+
+  const displayNews =
+    tab === "국내"
+      ? koreaNews
+      : tab === "국외"
+        ? globalNews
+        : allNews;
 
   return (
     <>
@@ -139,11 +172,7 @@ export function NewsPageClient() {
         </div>
       )}
 
-      {/* 전체 탭 */}
-      {tab === "전체" && !loading && <NewsCards news={news} />}
-
-      {/* 한국 탭 */}
-      {tab === "한국" && !loading && <NewsCards news={koreaNews} />}
+      {!loading && <NewsCards news={displayNews} />}
     </>
   );
 }
