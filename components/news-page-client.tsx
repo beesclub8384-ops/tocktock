@@ -1,14 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
-
-declare global {
-  interface Window {
-    FJWidgets?: {
-      createWidget: (options: Record<string, string>) => void;
-    };
-  }
-}
+import { useEffect, useState, useCallback } from "react";
 
 interface NewsItem {
   title: string;
@@ -19,8 +11,8 @@ interface NewsItem {
   feedUrl: string;
 }
 
-type Tab = "전체" | "글로벌 속보" | "한국";
-const TABS: Tab[] = ["전체", "글로벌 속보", "한국"];
+type Tab = "전체" | "한국";
+const TABS: Tab[] = ["전체", "한국"];
 
 function timeAgo(dateStr: string): string {
   const now = Date.now();
@@ -44,52 +36,11 @@ function getCategoryBadge(feedUrl: string) {
   return { label: "뉴스", color: "bg-zinc-600" };
 }
 
-function FJWidget() {
-  const loadedRef = useRef(false);
-
-  useEffect(() => {
-    if (loadedRef.current) return;
-    loadedRef.current = true;
-
-    const jo = document.createElement("script");
-    jo.type = "text/javascript";
-    jo.id = "FJ-Widgets";
-    const r = Math.floor(Math.random() * 10000);
-    jo.src = "https://feed.financialjuice.com/widgets/widgets.js?r=" + r;
-    jo.onload = () => {
-      if (window.FJWidgets) {
-        window.FJWidgets.createWidget({
-          container: "financialjuice-news-widget-container",
-          mode: "Dark",
-          width: "100%",
-          height: "800px",
-          backColor: "1e222d",
-          fontColor: "b2b5be",
-          widgetType: "NEWS",
-        });
-      }
-    };
-    document.getElementsByTagName("head")[0].appendChild(jo);
-
-    return () => {
-      const existing = document.getElementById("FJ-Widgets");
-      if (existing) existing.remove();
-    };
-  }, []);
-
-  return (
-    <div
-      id="financialjuice-news-widget-container"
-      className="rounded-lg overflow-hidden"
-    />
-  );
-}
-
-function KoreaNewsCards({ news }: { news: NewsItem[] }) {
+function NewsCards({ news }: { news: NewsItem[] }) {
   if (news.length === 0) {
     return (
       <p className="py-12 text-center text-muted-foreground text-sm">
-        연합뉴스 기사가 없습니다.
+        뉴스 기사가 없습니다.
       </p>
     );
   }
@@ -111,6 +62,9 @@ function KoreaNewsCards({ news }: { news: NewsItem[] }) {
                 className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium text-white ${badge.color}`}
               >
                 {badge.label}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                {item.source}
               </span>
               <span className="text-xs text-muted-foreground">
                 {item.pubDate ? timeAgo(item.pubDate) : ""}
@@ -174,8 +128,8 @@ export function NewsPageClient() {
         ))}
       </div>
 
-      {/* 로딩 (한국 탭용) */}
-      {loading && tab !== "글로벌 속보" && (
+      {/* 로딩 */}
+      {loading && (
         <div className="flex items-center justify-center py-16 text-muted-foreground">
           <svg className="animate-spin h-5 w-5 mr-3" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
@@ -186,24 +140,10 @@ export function NewsPageClient() {
       )}
 
       {/* 전체 탭 */}
-      {tab === "전체" && !loading && (
-        <div className="space-y-8">
-          <section>
-            <h2 className="text-lg font-semibold mb-4">글로벌 속보</h2>
-            <FJWidget />
-          </section>
-          <section>
-            <h2 className="text-lg font-semibold mb-4">한국 뉴스</h2>
-            <KoreaNewsCards news={koreaNews} />
-          </section>
-        </div>
-      )}
-
-      {/* 글로벌 속보 탭 */}
-      {tab === "글로벌 속보" && <FJWidget />}
+      {tab === "전체" && !loading && <NewsCards news={news} />}
 
       {/* 한국 탭 */}
-      {tab === "한국" && !loading && <KoreaNewsCards news={koreaNews} />}
+      {tab === "한국" && !loading && <NewsCards news={koreaNews} />}
     </>
   );
 }
