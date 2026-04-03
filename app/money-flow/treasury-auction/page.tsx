@@ -103,8 +103,8 @@ interface Signal { emoji: string; text: string; type: "red" | "green"; }
 
 function buildSignals(results: AuctionItem[]): Signal[] {
   const signals: Signal[] = [];
-  const note10 = findByTermSorted(results, "Note", "10-Year");
-  const note2 = findByTermSorted(results, "Note", "2-Year");
+  const note10 = findByTermSorted(results, "Note", "10-Year").filter(r => r.tips !== "Yes");
+  const note2 = findByTermSorted(results, "Note", "2-Year").filter(r => r.tips !== "Yes");
   const bond30 = findByTermSorted(results, "Bond", "30-Year");
 
   if (note10.length > 0) {
