@@ -29,6 +29,11 @@ function buildFilter(
     parts.push("floating_rate:eq:Yes");
   } else {
     parts.push(`security_type:eq:${category}`);
+    // Note/Bond에서 TIPS, FRN 제외
+    if (category === "Note" || category === "Bond") {
+      parts.push("inflation_index_security:eq:No");
+      parts.push("floating_rate:eq:No");
+    }
   }
 
   parts.push(`security_term:eq:${term}`);
