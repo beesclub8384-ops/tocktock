@@ -1,1013 +1,557 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { HelpCircle, X } from "lucide-react";
-import { useDraggable } from "@/hooks/useDraggable";
-import { useResizable } from "@/hooks/useResizable";
+import { HelpCircle, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine,
 } from "recharts";
 
+// ─── 타입 ────────────────────────────────────────────────────────────────────
 interface AuctionItem {
-  cusip: string;
-  securityType: string;
-  term: string;
-  auctionDate: string;
-  maturityDate: string;
-  offeringAmount: string;
-  highYield: string;
-  highDiscountRate: string;
-  bidToCoverRatio: string;
-  totalTendered: string;
-  totalAccepted: string;
-  indirectBidderAccepted: string;
-  interestRate: string;
-  tips: string;
-  floatingRate: string;
+  cusip: string; securityType: string; term: string; auctionDate: string;
+  maturityDate: string; offeringAmount: string; highYield: string;
+  highDiscountRate: string; highInvestmentRate: string; bidToCoverRatio: string;
+  totalTendered: string; totalAccepted: string; indirectBidderAccepted: string;
+  interestRate: string; tips: string; floatingRate: string;
 }
-
-interface AuctionData {
-  upcoming: AuctionItem[];
-  results: AuctionItem[];
-  updatedAt: string;
+interface AuctionData { upcoming: AuctionItem[]; results: AuctionItem[]; updatedAt: string; }
+interface HistoryPoint { date: string; rate: number | null; bidToCover: number | null; }
+interface MarketReaction {
+  date: string;
+  indicators: Record<string, { name: string; d1: number | null; d3: number | null; d5: number | null }>;
 }
-
 type Tab = "results" | "upcoming";
 type Filter = "전체" | "Bill" | "Note" | "Bond";
-
-const FILTERS: Filter[] = ["전체", "Bill", "Note", "Bond"];
-
-function formatDate(iso: string) {
-  if (!iso) return "-";
-  const d = new Date(iso);
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${d.getFullYear()}-${m}-${day}`;
-}
-
-function formatBillions(val: string) {
-  if (!val) return "-";
-  const n = Number(val);
-  if (isNaN(n)) return "-";
-  return `$${Math.round(n / 100_000_000).toLocaleString()}억`;
-}
-
-function formatRate(item: AuctionItem) {
-  if (item.securityType === "Bill") {
-    return item.highDiscountRate ? `${Number(item.highDiscountRate).toFixed(3)}%` : "-";
-  }
-  return item.highYield ? `${Number(item.highYield).toFixed(3)}%` : "-";
-}
-
-function formatBtc(val: string) {
-  if (!val) return "-";
-  const n = Number(val);
-  if (isNaN(n)) return "-";
-  return n.toFixed(2);
-}
-
-function formatForeignPct(item: AuctionItem) {
-  const accepted = Number(item.totalAccepted);
-  const indirect = Number(item.indirectBidderAccepted);
-  if (!accepted || isNaN(indirect)) return "-";
-  return `${((indirect / accepted) * 100).toFixed(1)}%`;
-}
-
-function termLabel(item: AuctionItem) {
-  const prefix = item.securityType === "Bill" ? "📄" : item.securityType === "Bond" ? "📕" : "📘";
-  let suffix = "";
-  if (item.tips === "Yes") suffix = " (TIPS)";
-  else if (item.floatingRate === "Yes") suffix = " (FRN)";
-  return `${prefix} ${item.term}${suffix}`;
-}
-
-function btcColor(val: string) {
-  const n = Number(val);
-  if (isNaN(n) || !val) return "";
-  if (n >= 2.5) return "text-emerald-600 dark:text-emerald-400 font-semibold";
-  if (n < 2.0) return "text-red-500 dark:text-red-400 font-semibold";
-  return "";
-}
-
-// 수요 강도 판정 헬퍼
-function btcStrength(val: string) {
-  const n = Number(val);
-  if (isNaN(n) || !val) return { label: "-", color: "text-muted-foreground", dot: "bg-zinc-400" };
-  if (n >= 2.5) return { label: "강함", color: "text-emerald-500", dot: "bg-emerald-500" };
-  if (n >= 2.0) return { label: "보통", color: "text-yellow-500", dot: "bg-yellow-500" };
-  return { label: "약함", color: "text-red-500", dot: "bg-red-500" };
-}
-
-function foreignStrength(item: AuctionItem) {
-  const accepted = Number(item.totalAccepted);
-  const indirect = Number(item.indirectBidderAccepted);
-  if (!accepted || isNaN(indirect)) return { pct: "-", label: "-", color: "text-muted-foreground", dot: "bg-zinc-400" };
-  const pct = (indirect / accepted) * 100;
-  const pctStr = `${pct.toFixed(1)}%`;
-  if (pct >= 65) return { pct: pctStr, label: "높음", color: "text-emerald-500", dot: "bg-emerald-500" };
-  if (pct >= 55) return { pct: pctStr, label: "보통", color: "text-yellow-500", dot: "bg-yellow-500" };
-  return { pct: pctStr, label: "낮음", color: "text-red-500", dot: "bg-red-500" };
-}
-
-function findLatest(results: AuctionItem[], type: string, term: string) {
-  return results
-    .filter((r) => r.securityType === type && r.term.includes(term))
-    .sort((a, b) => new Date(b.auctionDate).getTime() - new Date(a.auctionDate).getTime());
-}
-
-function rateChange(items: AuctionItem[]) {
-  if (items.length < 2) return { diff: null, arrow: "—", color: "text-muted-foreground" };
-  const curr = Number(items[0].highYield || items[0].highDiscountRate || 0);
-  const prev = Number(items[1].highYield || items[1].highDiscountRate || 0);
-  const diff = curr - prev;
-  if (diff > 0) return { diff, arrow: "▲", color: "text-red-500" };
-  if (diff < 0) return { diff, arrow: "▼", color: "text-emerald-500" };
-  return { diff: 0, arrow: "—", color: "text-muted-foreground" };
-}
-
-// 요약 신호판 컴포넌트
-function SignalCard({ label, icon, items }: { label: string; icon: string; items: AuctionItem[] }) {
-  if (items.length === 0) return null;
-  const latest = items[0];
-  const rc = rateChange(items);
-  const btc = btcStrength(latest.bidToCoverRatio);
-  const foreign = foreignStrength(latest);
-
-  return (
-    <div className="rounded-lg border border-border bg-card p-4 flex-1 min-w-0">
-      <div className="flex items-center gap-1.5 mb-3">
-        <span>{icon}</span>
-        <span className="text-sm font-semibold truncate">{label}</span>
-      </div>
-      <div className="space-y-2 text-sm">
-        <div className="flex items-center justify-between">
-          <span className="text-muted-foreground">낙찰금리</span>
-          <span className="font-medium tabular-nums">
-            {formatRate(latest)}{" "}
-            <span className={`text-xs ${rc.color}`}>
-              {rc.arrow}{rc.diff !== null ? Math.abs(rc.diff).toFixed(2) : ""}
-            </span>
-          </span>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-muted-foreground">응찰배율</span>
-          <span className="flex items-center gap-1.5 font-medium tabular-nums">
-            {formatBtc(latest.bidToCoverRatio)}
-            <span className={`inline-block w-2 h-2 rounded-full ${btc.dot}`} />
-            <span className={`text-xs ${btc.color}`}>{btc.label}</span>
-          </span>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-muted-foreground">외국인비중</span>
-          <span className="flex items-center gap-1.5 font-medium tabular-nums">
-            {foreign.pct}
-            <span className={`inline-block w-2 h-2 rounded-full ${foreign.dot}`} />
-            <span className={`text-xs ${foreign.color}`}>{foreign.label}</span>
-          </span>
-        </div>
-      </div>
-      <p className="mt-2 text-xs text-muted-foreground tabular-nums">{formatDate(latest.auctionDate)}</p>
-    </div>
-  );
-}
-
-function formatKST(iso: string) {
-  if (!iso) return "";
-  const d = new Date(iso);
-  return d.toLocaleString("ko-KR", { timeZone: "Asia/Seoul" });
-}
-
-function GuideTable({ headers, rows }: { headers: string[]; rows: string[][] }) {
-  return (
-    <div className="overflow-x-auto rounded-lg border border-border">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-border bg-muted/50">
-            {headers.map((h) => (
-              <th key={h} className="text-left px-4 py-2.5 font-medium text-foreground">{h}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, i) => (
-            <tr key={i} className="border-b border-border/50">
-              {row.map((cell, j) => (
-                <td key={j} className="px-4 py-2.5 text-muted-foreground">{cell}</td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-/* ────────────────────────────────────────────
-   경매 낙찰금리 추이 차트
-   ──────────────────────────────────────────── */
-
 type SecurityCategory = "Bill" | "Note" | "Bond";
 type Period = "1y" | "3y" | "5y" | "all";
 
+// ─── 상수 ────────────────────────────────────────────────────────────────────
+const FILTERS: Filter[] = ["전체", "Bill", "Note", "Bond"];
 const TERM_MAP: Record<SecurityCategory, string[]> = {
   Bill: ["4-Week", "8-Week", "13-Week", "17-Week", "26-Week", "52-Week"],
   Note: ["2-Year", "3-Year", "5-Year", "7-Year", "10-Year"],
   Bond: ["20-Year", "30-Year"],
 };
-
 const PERIOD_LABELS: { key: Period; label: string }[] = [
-  { key: "1y", label: "1년" },
-  { key: "3y", label: "3년" },
-  { key: "5y", label: "5년" },
-  { key: "all", label: "전체" },
+  { key: "1y", label: "1년" }, { key: "3y", label: "3년" },
+  { key: "5y", label: "5년" }, { key: "all", label: "전체" },
 ];
 
-interface HistoryPoint {
-  date: string;
-  rate: number | null;
-  bidToCover: number | null;
+// ─── 유틸 함수 ───────────────────────────────────────────────────────────────
+function fmtDate(iso: string) {
+  if (!iso) return "-";
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+}
+function fmtBillions(val: string) {
+  if (!val) return "-";
+  const n = Number(val);
+  return isNaN(n) ? "-" : `$${Math.round(n/1e8).toLocaleString()}억`;
+}
+function fmtRate(item: AuctionItem) {
+  if (item.securityType === "Bill") return item.highDiscountRate ? `${Number(item.highDiscountRate).toFixed(3)}%` : "-";
+  return item.highYield ? `${Number(item.highYield).toFixed(3)}%` : "-";
+}
+function fmtBtc(val: string) { const n = Number(val); return (!val || isNaN(n)) ? "-" : n.toFixed(2); }
+function fmtForeignPct(item: AuctionItem) {
+  const a = Number(item.totalAccepted), i = Number(item.indirectBidderAccepted);
+  return (!a || isNaN(i)) ? "-" : `${((i/a)*100).toFixed(1)}%`;
+}
+function foreignPctNum(item: AuctionItem): number | null {
+  const a = Number(item.totalAccepted), i = Number(item.indirectBidderAccepted);
+  return (!a || isNaN(i)) ? null : (i/a)*100;
+}
+function termLabel(item: AuctionItem) {
+  const p = item.securityType === "Bill" ? "📄" : item.securityType === "Bond" ? "📕" : "📘";
+  let s = ""; if (item.tips === "Yes") s = " (TIPS)"; else if (item.floatingRate === "Yes") s = " (FRN)";
+  return `${p} ${item.term}${s}`;
+}
+function btcDot(val: string) {
+  const n = Number(val);
+  if (isNaN(n)||!val) return "bg-zinc-400";
+  if (n >= 2.5) return "bg-emerald-500";
+  if (n >= 2.0) return "bg-yellow-500";
+  return "bg-red-500";
+}
+function btcText(val: string) {
+  const n = Number(val);
+  if (isNaN(n)||!val) return { label: "-", cls: "text-muted-foreground" };
+  if (n >= 2.5) return { label: "강함", cls: "text-emerald-500" };
+  if (n >= 2.0) return { label: "보통", cls: "text-yellow-500" };
+  return { label: "약함", cls: "text-red-500" };
+}
+function foreignDot(item: AuctionItem) {
+  const p = foreignPctNum(item);
+  if (p === null) return "bg-zinc-400";
+  if (p >= 65) return "bg-emerald-500";
+  if (p >= 55) return "bg-yellow-500";
+  return "bg-red-500";
+}
+function findByTermSorted(results: AuctionItem[], type: string, termInc: string) {
+  return results.filter(r => r.securityType === type && r.term.includes(termInc))
+    .sort((a,b) => new Date(b.auctionDate).getTime() - new Date(a.auctionDate).getTime());
+}
+function rateNum(item: AuctionItem): number {
+  return Number(item.highYield || item.highDiscountRate || 0);
+}
+function fmtKST(iso: string) {
+  if (!iso) return ""; return new Date(iso).toLocaleString("ko-KR",{timeZone:"Asia/Seoul"});
 }
 
-function formatChartDate(dateStr: string) {
-  const d = new Date(dateStr);
-  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}`;
+// ─── 1섹션: 종합 신호판 ─────────────────────────────────────────────────────
+interface Signal { emoji: string; text: string; type: "red" | "green"; }
+
+function buildSignals(results: AuctionItem[]): Signal[] {
+  const signals: Signal[] = [];
+  const note10 = findByTermSorted(results, "Note", "10-Year");
+  const note2 = findByTermSorted(results, "Note", "2-Year");
+  const bond30 = findByTermSorted(results, "Bond", "30-Year");
+
+  if (note10.length > 0) {
+    const btc = Number(note10[0].bidToCoverRatio);
+    const fp = foreignPctNum(note10[0]);
+    if (!isNaN(btc) && btc < 2.0) signals.push({ emoji: "🔴", text: "10년물 수요 부진", type: "red" });
+    if (!isNaN(btc) && btc >= 2.5) signals.push({ emoji: "🟢", text: "10년물 수요 강함", type: "green" });
+    if (fp !== null && fp < 50) signals.push({ emoji: "🔴", text: "외국인 이탈", type: "red" });
+
+    // 3회 연속 추세
+    if (note10.length >= 3) {
+      const b3 = note10.slice(0,3).map(r => Number(r.bidToCoverRatio));
+      if (b3.every(v => !isNaN(v)) && b3[0] < b3[1] && b3[1] < b3[2])
+        signals.push({ emoji: "🔴", text: "수요 약화 추세 (응찰배율 3회 연속↓)", type: "red" });
+
+      const f3 = note10.slice(0,3).map(r => foreignPctNum(r));
+      if (f3.every(v => v !== null) && (f3[0]!) < (f3[1]!) && (f3[1]!) < (f3[2]!))
+        signals.push({ emoji: "🔴", text: "외국인 수요 약화 추세 (3회 연속↓)", type: "red" });
+    }
+
+    // 최악의 조합 / 강한 수요 확인
+    if (note10.length >= 2) {
+      const btcLow = !isNaN(btc) && btc < 2.0;
+      const rateUp = rateNum(note10[0]) > rateNum(note10[1]);
+      const btcHigh = !isNaN(btc) && btc >= 2.5;
+      const rateDown = rateNum(note10[0]) < rateNum(note10[1]);
+      if (btcLow && rateUp) signals.push({ emoji: "🔴", text: "최악의 조합: 수요↓ + 금리↑", type: "red" });
+      if (btcHigh && rateDown) signals.push({ emoji: "🟢", text: "강한 수요 확인: 수요↑ + 금리↓", type: "green" });
+    }
+  }
+
+  if (bond30.length > 0) {
+    const btc = Number(bond30[0].bidToCoverRatio);
+    if (!isNaN(btc) && btc < 2.0) signals.push({ emoji: "🔴", text: "30년물 수요 부진", type: "red" });
+  }
+
+  // 장단기 금리 역전
+  if (note2.length > 0 && note10.length > 0) {
+    if (rateNum(note2[0]) > rateNum(note10[0]))
+      signals.push({ emoji: "🔴", text: "장단기 금리 역전 (2Y > 10Y)", type: "red" });
+  }
+
+  return signals;
 }
 
-function formatTooltipDate(dateStr: string) {
-  const d = new Date(dateStr);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
+function SignalPanel({ results }: { results: AuctionItem[] }) {
+  const signals = buildSignals(results);
+  const hasRed = signals.some(s => s.type === "red");
+  const hasGreen = signals.some(s => s.type === "green");
+  const status = hasRed ? { label: "경계", bg: "bg-red-500/10 border-red-500/30", text: "text-red-500" }
+    : hasGreen ? { label: "양호", bg: "bg-emerald-500/10 border-emerald-500/30", text: "text-emerald-500" }
+    : { label: "중립", bg: "bg-yellow-500/10 border-yellow-500/30", text: "text-yellow-500" };
 
-function ChartTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: HistoryPoint }> }) {
-  if (!active || !payload?.length) return null;
-  const p = payload[0].payload;
   return (
-    <div className="rounded-lg border border-border bg-card px-3 py-2 shadow-lg text-xs">
-      <p className="font-medium text-foreground">{formatTooltipDate(p.date)}</p>
-      <p className="text-muted-foreground mt-1">
-        낙찰금리: <span className="text-foreground font-medium">{p.rate !== null ? `${p.rate.toFixed(3)}%` : "-"}</span>
-      </p>
-      <p className="text-muted-foreground">
-        Bid-to-Cover: <span className="text-foreground font-medium">{p.bidToCover !== null ? p.bidToCover.toFixed(2) : "-"}</span>
-      </p>
+    <div className={`rounded-lg border p-4 ${status.bg}`}>
+      <div className="flex items-center gap-2 mb-3">
+        <span className={`text-sm font-bold ${status.text}`}>종합: {status.label}</span>
+      </div>
+      {signals.length === 0 ? (
+        <p className="text-sm text-muted-foreground">🟡 현재 특이 신호 없음</p>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          {signals.map((s, i) => (
+            <span key={i} className="inline-flex items-center gap-1 rounded-full bg-card border border-border px-3 py-1 text-xs font-medium">
+              {s.emoji} {s.text}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
+// ─── 2섹션: 최근 경매 요약 카드 ─────────────────────────────────────────────
+function SummaryCard({ label, icon, items }: { label: string; icon: string; items: AuctionItem[] }) {
+  if (items.length === 0) return null;
+  const cur = items[0];
+  const prev = items.length >= 2 ? items[1] : null;
+  const rc = prev ? rateNum(cur) - rateNum(prev) : null;
+
+  return (
+    <div className="rounded-lg border border-border bg-card p-4 min-w-[200px] flex-1">
+      <div className="flex items-center gap-1.5 mb-3">
+        <span>{icon}</span><span className="text-sm font-semibold truncate">{label}</span>
+      </div>
+      <div className="space-y-1.5 text-sm">
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">낙찰금리</span>
+          <span className="font-medium tabular-nums">
+            {fmtRate(cur)}
+            {rc !== null && (
+              <span className={`text-xs ml-1 ${rc > 0 ? "text-red-500" : rc < 0 ? "text-emerald-500" : "text-muted-foreground"}`}>
+                {rc > 0 ? "▲" : rc < 0 ? "▼" : "—"}{Math.abs(rc).toFixed(2)}
+              </span>
+            )}
+          </span>
+        </div>
+        <div className="flex justify-between items-center">
+          <span className="text-muted-foreground">응찰배율</span>
+          <span className="flex items-center gap-1 font-medium tabular-nums">
+            {fmtBtc(cur.bidToCoverRatio)}
+            <span className={`w-1.5 h-1.5 rounded-full ${btcDot(cur.bidToCoverRatio)}`} />
+            <span className={`text-xs ${btcText(cur.bidToCoverRatio).cls}`}>{btcText(cur.bidToCoverRatio).label}</span>
+          </span>
+        </div>
+        <div className="flex justify-between items-center">
+          <span className="text-muted-foreground">외국인비중</span>
+          <span className="flex items-center gap-1 font-medium tabular-nums">
+            {fmtForeignPct(cur)}
+            <span className={`w-1.5 h-1.5 rounded-full ${foreignDot(cur)}`} />
+          </span>
+        </div>
+      </div>
+      <p className="mt-2 text-xs text-muted-foreground tabular-nums">{fmtDate(cur.auctionDate)}</p>
+    </div>
+  );
+}
+
+// ─── 3섹션: 시장 반응 패널 (행 펼침) ────────────────────────────────────────
+function MarketReactionPanel({ auctionDate }: { auctionDate: string }) {
+  const [data, setData] = useState<MarketReaction | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<"d1"|"d3"|"d5">("d1");
+
+  useEffect(() => {
+    fetch(`/api/treasury-market-reaction?date=${auctionDate}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => setData(d))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [auctionDate]);
+
+  if (loading) return <div className="flex items-center justify-center py-4"><Loader2 size={16} className="animate-spin mr-2" /><span className="text-xs text-muted-foreground">시장 반응 조회 중...</span></div>;
+  if (!data) return <p className="text-xs text-muted-foreground py-2">시장 반응 데이터를 불러오지 못했습니다.</p>;
+
+  const tabLabels = { d1: "1일 후", d3: "3일 후", d5: "1주일 후" } as const;
+
+  return (
+    <div className="bg-muted/30 rounded-lg p-3 mt-2">
+      <div className="flex gap-1 mb-3">
+        {(["d1","d3","d5"] as const).map(t => (
+          <button key={t} onClick={() => setTab(t)}
+            className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${tab === t ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
+          >{tabLabels[t]}</button>
+        ))}
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+        {Object.values(data.indicators).map(ind => {
+          const val = ind[tab];
+          return (
+            <div key={ind.name} className="text-xs">
+              <span className="text-muted-foreground">{ind.name}</span>
+              <span className={`ml-1.5 font-medium tabular-nums ${val === null ? "text-muted-foreground" : val > 0 ? "text-emerald-500" : val < 0 ? "text-red-500" : "text-muted-foreground"}`}>
+                {val === null ? "집계 중" : `${val > 0 ? "+" : ""}${val}%`}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── 4섹션: 시계열 차트 ─────────────────────────────────────────────────────
 function AuctionHistoryChart() {
   const [category, setCategory] = useState<SecurityCategory>("Note");
   const [term, setTerm] = useState("10-Year");
   const [period, setPeriod] = useState<Period>("1y");
   const [data, setData] = useState<HistoryPoint[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    setError("");
     try {
-      const params = new URLSearchParams({
-        security_type: category,
-        security_term: term,
-        period,
-      });
-      const res = await fetch(`/api/treasury-bill-history?${params}`);
-      if (!res.ok) throw new Error("API 오류");
-      const json = await res.json();
-      setData(json.data || []);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "데이터 로드 실패");
-    } finally {
-      setLoading(false);
-    }
+      const p = new URLSearchParams({ security_type: category, security_term: term, period });
+      const res = await fetch(`/api/treasury-bill-history?${p}`);
+      if (res.ok) { const j = await res.json(); setData(j.data || []); }
+    } catch {} finally { setLoading(false); }
   }, [category, term, period]);
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
-  // 종류 변경 시 첫 번째 만기로 초기화
-  const handleCategoryChange = (cat: SecurityCategory) => {
-    setCategory(cat);
-    setTerm(TERM_MAP[cat][0]);
-  };
+  const handleCat = (cat: SecurityCategory) => { setCategory(cat); setTerm(TERM_MAP[cat][0]); };
+  const chartData = data.filter(d => d.rate !== null);
 
-  const chartData = data.filter((d) => d.rate !== null);
-  const recent5 = [...chartData].reverse().slice(0, 5);
+  // 평균 계산
+  const avgRate = chartData.length > 0 ? chartData.reduce((s,d) => s + (d.rate ?? 0), 0) / chartData.length : null;
+  const btcData = chartData.filter(d => d.bidToCover !== null);
+  const avgBtc = btcData.length > 0 ? btcData.reduce((s,d) => s + (d.bidToCover ?? 0), 0) / btcData.length : null;
 
   return (
-    <section className="mt-12">
-      <h2 className="text-xl font-bold mb-6">경매 낙찰금리 추이</h2>
-
-      {/* 종류 탭 */}
-      <div className="flex flex-wrap gap-1.5 mb-3">
-        {(Object.keys(TERM_MAP) as SecurityCategory[]).map((cat) => (
-          <button
-            key={cat}
-            onClick={() => handleCategoryChange(cat)}
-            className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-              category === cat
-                ? "bg-foreground text-background"
-                : "bg-muted text-muted-foreground hover:bg-accent"
-            }`}
-          >
-            {cat}
-          </button>
+    <section className="mt-8">
+      <h2 className="text-lg font-bold mb-4">경매 낙찰금리 추이</h2>
+      <div className="flex flex-wrap gap-1.5 mb-2">
+        {(Object.keys(TERM_MAP) as SecurityCategory[]).map(cat => (
+          <button key={cat} onClick={() => handleCat(cat)}
+            className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${category === cat ? "bg-foreground text-background" : "bg-muted text-muted-foreground hover:bg-accent"}`}
+          >{cat}</button>
         ))}
       </div>
-
-      {/* 만기 탭 */}
-      <div className="flex flex-wrap gap-1.5 mb-3">
-        {TERM_MAP[category].map((t) => (
-          <button
-            key={t}
-            onClick={() => setTerm(t)}
-            className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
-              term === t
-                ? "bg-foreground/10 text-foreground border border-foreground/20"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {t}
-          </button>
+      <div className="flex flex-wrap gap-1.5 mb-2">
+        {TERM_MAP[category].map(t => (
+          <button key={t} onClick={() => setTerm(t)}
+            className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${term === t ? "bg-foreground/10 text-foreground border border-foreground/20" : "text-muted-foreground hover:text-foreground"}`}
+          >{t}</button>
         ))}
       </div>
-
-      {/* 기간 탭 */}
-      <div className="flex gap-1.5 mb-6">
-        {PERIOD_LABELS.map((p) => (
-          <button
-            key={p.key}
-            onClick={() => setPeriod(p.key)}
-            className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
-              period === p.key
-                ? "bg-foreground/10 text-foreground border border-foreground/20"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {p.label}
-          </button>
+      <div className="flex gap-1.5 mb-4">
+        {PERIOD_LABELS.map(p => (
+          <button key={p.key} onClick={() => setPeriod(p.key)}
+            className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${period === p.key ? "bg-foreground/10 text-foreground border border-foreground/20" : "text-muted-foreground hover:text-foreground"}`}
+          >{p.label}</button>
         ))}
       </div>
-
-      {/* 차트 영역 */}
       <div className="rounded-lg border border-border bg-card p-4">
-        {loading && (
-          <div className="flex items-center justify-center py-16 text-muted-foreground">
-            <svg className="animate-spin h-5 w-5 mr-3" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-            </svg>
-            데이터를 불러오는 중...
-          </div>
-        )}
-
-        {error && (
-          <div className="py-16 text-center text-red-500 text-sm">{error}</div>
-        )}
-
-        {!loading && !error && chartData.length === 0 && (
-          <div className="py-16 text-center text-muted-foreground text-sm">
-            해당 조건의 경매 데이터가 없습니다.
-          </div>
-        )}
-
-        {!loading && !error && chartData.length > 0 && (
-          <ResponsiveContainer width="100%" height={320}>
-            <LineChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+        {loading ? (
+          <div className="flex items-center justify-center py-16 text-muted-foreground"><Loader2 size={20} className="animate-spin mr-2" />데이터를 불러오는 중...</div>
+        ) : chartData.length === 0 ? (
+          <div className="py-16 text-center text-muted-foreground text-sm">해당 조건의 경매 데이터가 없습니다.</div>
+        ) : (
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={chartData} margin={{ top: 8, right: 48, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-              <XAxis
-                dataKey="date"
-                tickFormatter={formatChartDate}
-                tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
-                interval="preserveStartEnd"
-                minTickGap={60}
-              />
-              <YAxis
-                tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
-                tickFormatter={(v: number) => `${v.toFixed(1)}%`}
-                domain={["auto", "auto"]}
-                width={56}
-              />
-              <Tooltip content={<ChartTooltip />} />
-              <Line
-                type="monotone"
-                dataKey="rate"
-                stroke="#60a5fa"
-                strokeWidth={1.5}
-                dot={false}
-                activeDot={{ r: 4, fill: "#60a5fa" }}
-              />
+              <XAxis dataKey="date" tickFormatter={d => d.slice(0,7).replace("-",".")} tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} interval="preserveStartEnd" minTickGap={50} />
+              <YAxis yAxisId="rate" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} tickFormatter={(v: number) => `${v.toFixed(1)}%`} domain={["auto","auto"]} width={48} />
+              <YAxis yAxisId="btc" orientation="right" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} tickFormatter={(v: number) => v.toFixed(1)} domain={["auto","auto"]} width={40} />
+              <Tooltip content={({ active, payload }) => {
+                if (!active || !payload?.length) return null;
+                const p = payload[0].payload as HistoryPoint;
+                return (<div className="rounded-lg border border-border bg-card px-3 py-2 shadow-lg text-xs">
+                  <p className="font-medium">{p.date}</p>
+                  <p className="text-muted-foreground">금리: <span className="text-foreground font-medium">{p.rate?.toFixed(3)}%</span></p>
+                  <p className="text-muted-foreground">BtC: <span className="text-foreground font-medium">{p.bidToCover?.toFixed(2)}</span></p>
+                </div>);
+              }} />
+              {avgRate !== null && <ReferenceLine yAxisId="rate" y={avgRate} stroke="#60a5fa" strokeDasharray="4 4" strokeOpacity={0.5} />}
+              {avgBtc !== null && <ReferenceLine yAxisId="btc" y={avgBtc} stroke="#f59e0b" strokeDasharray="4 4" strokeOpacity={0.5} />}
+              <Line yAxisId="rate" type="monotone" dataKey="rate" stroke="#60a5fa" strokeWidth={1.5} dot={false} activeDot={{ r: 3 }} />
+              <Line yAxisId="btc" type="monotone" dataKey="bidToCover" stroke="#f59e0b" strokeWidth={1} dot={false} activeDot={{ r: 3 }} />
             </LineChart>
           </ResponsiveContainer>
         )}
-      </div>
-
-      {/* 추세 해석 */}
-      {!loading && !error && chartData.length >= 3 && (() => {
-        const last3 = [...chartData].reverse().slice(0, 3);
-        const rates = last3.map((d) => d.rate).filter((r): r is number => r !== null);
-        const btcs = last3.map((d) => d.bidToCover).filter((b): b is number => b !== null);
-        const rateUp = rates.length >= 2 && rates.every((r, i) => i === 0 || r >= rates[i - 1]);
-        const rateDown = rates.length >= 2 && rates.every((r, i) => i === 0 || r <= rates[i - 1]);
-        const btcUp = btcs.length >= 2 && btcs.every((b, i) => i === 0 || b >= btcs[i - 1]);
-        const btcDown = btcs.length >= 2 && btcs.every((b, i) => i === 0 || b <= btcs[i - 1]);
-        return (
-          <div className="mt-3 border-t border-border pt-3 space-y-1 text-sm text-muted-foreground">
-            {rates.length >= 2 && (
-              <p>
-                {rateUp ? "📈 낙찰금리 최근 3회 상승세 — 금리 상승 압력 지속"
-                  : rateDown ? "📉 낙찰금리 최근 3회 하락세 — 금리 하락 흐름"
-                  : "↔️ 낙찰금리 최근 3회 혼조세"}
-              </p>
-            )}
-            {btcs.length >= 2 && (
-              <p>
-                {btcUp ? "🟢 응찰배율 최근 3회 상승 — 수요 개선 중"
-                  : btcDown ? "🔴 응찰배율 최근 3회 하락 — 수요 약화"
-                  : "🟡 응찰배율 최근 3회 혼조세"}
-              </p>
-            )}
+        {chartData.length > 0 && (
+          <div className="mt-2 flex items-center gap-4 text-[10px] text-muted-foreground">
+            <span className="flex items-center gap-1"><span className="w-3 h-0.5 bg-blue-400 inline-block" /> 낙찰금리 {avgRate !== null && `(평균 ${avgRate.toFixed(2)}%)`}</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-0.5 bg-amber-500 inline-block" /> 응찰배율 {avgBtc !== null && `(평균 ${avgBtc.toFixed(2)})`}</span>
           </div>
-        );
-      })()}
-
-      {/* 최근 5개 결과 테이블 */}
-      {!loading && !error && recent5.length > 0 && (
-        <div className="mt-4 overflow-x-auto rounded-lg border border-border">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border bg-muted/50">
-                <th className="text-left px-4 py-2.5 font-medium">경매일</th>
-                <th className="text-right px-4 py-2.5 font-medium">낙찰금리 (%)</th>
-                <th className="text-right px-4 py-2.5 font-medium">입찰률 (Bid-to-Cover)</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recent5.map((item) => (
-                <tr key={item.date} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                  <td className="px-4 py-2.5 tabular-nums">{formatTooltipDate(item.date)}</td>
-                  <td className="px-4 py-2.5 text-right tabular-nums">
-                    {item.rate !== null ? item.rate.toFixed(3) : "-"}
-                  </td>
-                  <td className={`px-4 py-2.5 text-right tabular-nums ${
-                    item.bidToCover !== null
-                      ? item.bidToCover >= 2.5
-                        ? "text-emerald-600 dark:text-emerald-400 font-semibold"
-                        : item.bidToCover < 2.0
-                          ? "text-red-500 dark:text-red-400 font-semibold"
-                          : ""
-                      : ""
-                  }`}>
-                    {item.bidToCover !== null ? item.bidToCover.toFixed(2) : "-"}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+        )}
+      </div>
     </section>
   );
 }
 
-/* ────────────────────────────────────────────
-   가이드 모달
-   ──────────────────────────────────────────── */
-function AuctionGuideModal({ onClose }: { onClose: () => void }) {
-  const { position, handleMouseDown } = useDraggable();
-  const { size, handleResizeMouseDown } = useResizable();
-
-  // ESC 키로 닫기
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-  }, [onClose]);
-
-  // 모달 열릴 때 배경 스크롤 방지
-  useEffect(() => {
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, []);
-
-  return (
-    <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div data-draggable-modal className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-2xl" style={{ transform: `translate(${position.x}px, ${position.y}px)`, ...(size.width ? { width: size.width, height: size.height } : { width: "100%", maxWidth: "56rem" }) }}>
-      <div className="overflow-y-auto p-6 sm:p-8" style={{ maxHeight: size.height ? size.height - 2 : "85vh" }}>
-        {/* 닫기 버튼 */}
-        <button
-          onClick={onClose}
-          className="absolute right-4 top-4 z-10 rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-        >
-          <X size={20} />
-        </button>
-
-        <h2 className="mb-6 text-xl font-bold cursor-move select-none" onMouseDown={handleMouseDown}>미국채 경매 보는 법</h2>
-
-        <div className="space-y-10 text-sm leading-relaxed">
-          {/* 1부 */}
-          <section>
-            <h3 className="text-lg font-bold mb-4">1부. 미국채 경매란?</h3>
-
-            <div className="space-y-4">
-              <div>
-                <h4 className="font-semibold text-foreground mb-2">미국 정부가 돈을 빌리는 방식</h4>
-                <p className="text-muted-foreground">
-                  미국 정부는 지출이 세수보다 많을 때 부족한 돈을 채권을 발행해 빌립니다.
-                  채권의 금리는 미리 정해지는 게 아니라 <strong className="text-foreground">경매를 통해 결정</strong>됩니다.
-                  전 세계 투자자들이 &apos;나는 이 금리에 사겠다&apos;고 입찰하고, 가장 낮은 금리(= 가장 비싼 가격)에 낙찰됩니다.
-                </p>
-                <div className="mt-3 rounded-md border border-border bg-muted/40 px-4 py-3 text-muted-foreground">
-                  <strong className="text-foreground">핵심:</strong> 채권 금리가 낮다 = 투자자들이 비싸게 사겠다고 경쟁 = 미국 국채에 대한 수요가 높다는 뜻입니다.
-                </div>
-              </div>
-
-              <div>
-                <h4 className="font-semibold text-foreground mb-2">Bill / Note / Bond — 만기로 구분</h4>
-                <p className="text-muted-foreground mb-3">미국채는 만기 기간에 따라 세 종류로 나뉩니다.</p>
-                <GuideTable
-                  headers={["종류", "만기", "특징"]}
-                  rows={[
-                    ["📄 Bill (단기채)", "4주 ~ 52주", "이자 없이 할인된 가격에 발행. 만기에 액면가 수령"],
-                    ["📘 Note (중기채)", "2년 ~ 10년", "6개월마다 이자 지급. 가장 많이 거래되는 종류"],
-                    ["📕 Bond (장기채)", "20년 ~ 30년", "6개월마다 이자 지급. 장기 금리 방향을 가장 잘 반영"],
-                  ]}
-                />
-              </div>
-
-              <div>
-                <h4 className="font-semibold text-foreground mb-2">경매가 시장에 왜 중요한가?</h4>
-                <ul className="space-y-1.5 text-muted-foreground list-disc pl-5">
-                  <li><strong className="text-foreground">10년물 금리</strong>는 미국 주택담보대출 금리의 기준</li>
-                  <li><strong className="text-foreground">2년물 금리</strong>는 연준의 기준금리 기대치를 가장 직접적으로 반영</li>
-                  <li><strong className="text-foreground">30년물 금리</strong>는 장기 인플레이션 기대를 반영</li>
-                  <li>외국 중앙은행들이 대거 참여 → 달러 패권과 글로벌 자금 흐름의 바로미터</li>
-                </ul>
-                <div className="mt-3 rounded-md border border-border bg-muted/40 px-4 py-3 text-muted-foreground">
-                  <strong className="text-foreground">왜 봐야 하나?</strong> 경매에서 수요가 약하면(응찰배율 낮음) → 금리 상승 압력 → 주식 밸류에이션 하락 압력. 수요가 강하면 반대입니다. 경매 결과는 다음날 시장 방향에 영향을 줍니다.
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* 2부 */}
-          <section>
-            <h3 className="text-lg font-bold mb-4">2부. 각 지표 읽는 법</h3>
-
-            <div className="space-y-6">
-              <div>
-                <h4 className="font-semibold text-foreground mb-2">① 낙찰금리 / 할인율</h4>
-                <p className="text-muted-foreground mb-3">
-                  경매에서 최종 결정된 금리입니다. Bill은 &apos;할인율&apos;, Note/Bond는 &apos;수익률(Yield)&apos;로 표시됩니다.
-                </p>
-                <GuideTable
-                  headers={["상황", "의미", "시장 해석"]}
-                  rows={[
-                    ["금리 상승 (전월 대비)", "채권 가격 하락, 수요 약함", "투자자들이 더 높은 금리를 요구"],
-                    ["금리 하락 (전월 대비)", "채권 가격 상승, 수요 강함", "안전자산 선호 또는 경기 둔화 우려"],
-                    ["예상보다 높게 낙찰", "시장 예상을 뛰어넘는 금리", "수요 부진 신호"],
-                    ["예상보다 낮게 낙찰", "시장 예상보다 낮은 금리", "강한 수요, 안전자산 선호 강화"],
-                  ]}
-                />
-                <div className="mt-3 rounded-md border border-border bg-muted/40 px-4 py-3 text-muted-foreground">
-                  <strong className="text-foreground">Bill은 왜 할인율?</strong> Bill은 이자가 없습니다.
-                  대신 액면가(예: $100)보다 싸게(예: $96.3) 발행하고 만기에 $100을 줍니다.
-                  이 차이가 수익이고, 이걸 연율로 환산한 게 &apos;할인율&apos;입니다.
-                </div>
-              </div>
-
-              <div>
-                <h4 className="font-semibold text-foreground mb-2">② 응찰배율 (Bid-to-Cover Ratio)</h4>
-                <p className="text-muted-foreground mb-3">
-                  응찰배율 = 총 응찰 금액 / 발행 규모. 경매 수요의 강도를 가장 직접적으로 보여주는 지표입니다.
-                </p>
-                <GuideTable
-                  headers={["응찰배율", "신호", "TockTock 색상"]}
-                  rows={[
-                    ["2.5 이상", "양호 — 수요가 충분히 강함", "초록색"],
-                    ["2.0 ~ 2.5", "보통 — 특별한 이상 없음", "기본색"],
-                    ["2.0 미만", "주의 — 수요 부진, 시장 경계 필요", "빨간색"],
-                  ]}
-                />
-                <p className="mt-3 text-muted-foreground">
-                  예시: 발행 규모 $250억에 총 응찰 $665억 → 응찰배율 2.66 (양호)
-                </p>
-              </div>
-
-              <div>
-                <h4 className="font-semibold text-foreground mb-2">③ 발행 규모</h4>
-                <ul className="space-y-1.5 text-muted-foreground list-disc pl-5">
-                  <li>발행 규모가 클수록 시장이 소화해야 할 물량이 많습니다</li>
-                  <li>같은 응찰배율이라도 발행 규모가 크면 실제 수요가 더 많다는 뜻입니다</li>
-                  <li>재무부가 발행 규모를 늘리면 → 재정 적자 확대 신호로 해석하기도 합니다</li>
-                </ul>
-              </div>
-
-              <div>
-                <h4 className="font-semibold text-foreground mb-2">④ 외국인 비중</h4>
-                <p className="text-muted-foreground mb-3">
-                  간접입찰자(Indirect Bidder) 낙찰 비중입니다. 주로 외국 중앙은행, 국부펀드 등 해외 기관투자자입니다.
-                </p>
-                <GuideTable
-                  headers={["상황", "의미"]}
-                  rows={[
-                    ["60% 이상", "해외 중앙은행들이 달러 자산 보유 의지 강함. 달러 패권 유지"],
-                    ["비중 낮아지는 추세", "달러 의존도 낮추려는 움직임. 미국 국채 수요 기반 약화 신호"],
-                    ["급락 후 반등", "일시적 매도(외환위기, 환율 방어 등) 후 복귀"],
-                  ]}
-                />
-                <div className="mt-3 rounded-md border border-border bg-muted/40 px-4 py-3 text-muted-foreground">
-                  외국인비중이 지속적으로 낮아지면 미국이 자국 투자자에게만 의존해야 한다는 뜻입니다.
-                  금리 상승 압력이 커지고 달러 약세 요인이 됩니다.
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* 3부 */}
-          <section>
-            <h3 className="text-lg font-bold mb-4">3부. 실전 해석법</h3>
-
-            <div className="space-y-6">
-              <div>
-                <h4 className="font-semibold text-foreground mb-2">응찰배율 + 낙찰금리 조합 해석</h4>
-                <GuideTable
-                  headers={["응찰배율", "낙찰금리", "해석"]}
-                  rows={[
-                    ["높음 (2.5↑)", "낮음 (전월 대비)", "강한 수요 + 안전자산 선호. 주식 약세 환경일 가능성"],
-                    ["높음 (2.5↑)", "높음 (전월 대비)", "수요는 충분하지만 금리 상승 용인. 인플레 우려"],
-                    ["낮음 (2.0↓)", "낮음 (전월 대비)", "공급 과잉 + 기대금리 하락. 경기 침체 우려"],
-                    ["낮음 (2.0↓)", "높음 (전월 대비)", "최악의 조합. 수요 부족에 금리도 상승. 재정 우려"],
-                  ]}
-                />
-              </div>
-
-              <div>
-                <h4 className="font-semibold text-foreground mb-2">&apos;좋은 경매&apos; vs &apos;나쁜 경매&apos; 구분법</h4>
-                <GuideTable
-                  headers={["구분", "좋은 경매", "나쁜 경매"]}
-                  rows={[
-                    ["응찰배율", "2.5 이상", "2.0 미만"],
-                    ["낙찰금리", "예상보다 낮게 낙찰", "예상보다 높게 낙찰"],
-                    ["외국인비중", "50% 이상 유지", "30% 미만 또는 급락"],
-                    ["시장 반응", "채권 금리 하락, 주식 안정", "채권 금리 급등, 주식 하락"],
-                  ]}
-                />
-                <div className="mt-3 rounded-md border border-border bg-muted/40 px-4 py-3 text-muted-foreground">
-                  <strong className="text-foreground">실전 팁:</strong> 경매 직후 10년물 금리 움직임을 함께 확인하세요.
-                  좋은 경매였다면 금리가 내려가고, 나쁜 경매였다면 금리가 튑니다.
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* 4부 */}
-          <section>
-            <h3 className="text-lg font-bold mb-4">4부. 투자에 어떻게 활용하나</h3>
-
-            <div className="space-y-6">
-              <div>
-                <h4 className="font-semibold text-foreground mb-2">금리 방향성 판단</h4>
-                <ul className="space-y-1.5 text-muted-foreground list-disc pl-5">
-                  <li>연속 3회 이상 응찰배율 하락 → 금리 상승 압력 누적 → 성장주 밸류에이션 부담</li>
-                  <li>낙찰금리가 연준 기준금리에 근접 → 시장이 금리 인하 기대 반영 중</li>
-                  <li>2년물과 10년물 금리 차이(스프레드) 주목 → 역전 유지 시 경기 침체 경고</li>
-                </ul>
-              </div>
-
-              <div>
-                <h4 className="font-semibold text-foreground mb-2">주식시장과의 관계</h4>
-                <GuideTable
-                  headers={["미국채 경매 신호", "주식시장 영향"]}
-                  rows={[
-                    ["강한 수요 (응찰배율↑, 금리↓)", "안전자산 선호 → 성장주 단기 약세 가능"],
-                    ["약한 수요 (응찰배율↓, 금리↑)", "금리 부담 → 고밸류에이션 성장주 하락"],
-                    ["외국인비중 급락", "달러 약세 + 글로벌 불안 → 신흥국 영향"],
-                    ["30년물 수요 강함", "장기 인플레 우려 완화 → 리츠, 배당주 강세"],
-                  ]}
-                />
-              </div>
-
-              <div className="rounded-md border border-border bg-muted/40 px-4 py-3 text-muted-foreground">
-                <strong className="text-foreground">최종 정리:</strong> 미국채 경매는 &apos;글로벌 자금의 체온계&apos;입니다.
-                응찰배율로 수요를, 낙찰금리로 금리 방향을, 외국인비중으로 달러 패권을 읽습니다.
-                <strong className="text-foreground"> 세 지표가 모두 나쁜 신호를 보낼 때가 시장 경계가 필요한 순간</strong>입니다.
-              </div>
-            </div>
-          </section>
-        </div>
-      </div>
-      <div onMouseDown={handleResizeMouseDown} className="absolute bottom-0 right-0 cursor-se-resize px-2 py-1 text-xs text-gray-400 hover:text-gray-200 select-none">↔ 크기조절</div>
-      </div>
-    </div>
-  );
-}
-
+// ─── 메인 페이지 ─────────────────────────────────────────────────────────────
 export default function TreasuryAuctionPage() {
   const [data, setData] = useState<AuctionData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [tab, setTab] = useState<Tab>("results");
   const [filter, setFilter] = useState<Filter>("전체");
-  const [guideOpen, setGuideOpen] = useState(false);
+  const [expandedRow, setExpandedRow] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/treasury-auction")
-      .then((r) => {
-        if (!r.ok) throw new Error("API 오류");
-        return r.json();
-      })
-      .then((d) => setData(d))
-      .catch((e) => setError(e.message))
+      .then(r => { if (!r.ok) throw new Error("API 오류"); return r.json(); })
+      .then(d => setData(d))
+      .catch(e => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
 
-  const items = data
-    ? tab === "results"
-      ? [...data.results].sort(
-          (a, b) => new Date(b.auctionDate).getTime() - new Date(a.auctionDate).getTime(),
-        )
-      : [...data.upcoming].sort(
-          (a, b) => new Date(a.auctionDate).getTime() - new Date(b.auctionDate).getTime(),
-        )
-    : [];
+  const sorted = data ? (tab === "results"
+    ? [...data.results].sort((a,b) => new Date(b.auctionDate).getTime() - new Date(a.auctionDate).getTime())
+    : [...data.upcoming].sort((a,b) => new Date(a.auctionDate).getTime() - new Date(b.auctionDate).getTime())
+  ) : [];
+  const filtered = filter === "전체" ? sorted : sorted.filter(i => i.securityType === filter);
 
-  const filtered =
-    filter === "전체" ? items : items.filter((i) => i.securityType === filter);
+  const toggleRow = (key: string) => setExpandedRow(prev => prev === key ? null : key);
 
   return (
     <main className="max-w-5xl mx-auto px-4 py-12 sm:px-8 sm:py-20">
-      <header className="mb-10">
+      {/* 헤더 */}
+      <header className="mb-8">
         <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">미국채 경매</h1>
-        <p className="mt-2 text-muted-foreground">
-          미국 재무부 국채 경매 일정과 결과를 한눈에 확인합니다.
-        </p>
-        <button
-          onClick={() => setGuideOpen(true)}
-          className="guide-btn mt-3 inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs transition-all"
-        >
-          <HelpCircle size={13} />
-          미국채 경매 보는 법
-        </button>
+        <p className="mt-2 text-muted-foreground">미국 재무부 국채 경매 결과 및 시장 영향 분석</p>
+        {data?.updatedAt && <p className="mt-1 text-xs text-muted-foreground">업데이트: {fmtKST(data.updatedAt)}</p>}
       </header>
 
-      {/* 요약 신호판 */}
-      {!loading && data && data.results.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-10">
-          <SignalCard label="10-Year Note" icon="📘" items={findLatest(data.results, "Note", "10-Year")} />
-          <SignalCard label="52-Week Bill" icon="📄" items={findLatest(data.results, "Bill", "52-Week")} />
-          <SignalCard label="30-Year Bond" icon="📕" items={findLatest(data.results, "Bond", "30-Year")} />
+      {/* 로딩 */}
+      {loading && (
+        <div className="space-y-4">
+          <div className="rounded-lg border border-border p-4 animate-pulse"><div className="h-4 w-32 bg-muted rounded mb-2" /><div className="h-3 w-full bg-muted rounded" /></div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">{[0,1,2].map(i => <div key={i} className="rounded-lg border border-border p-4 animate-pulse"><div className="h-4 w-20 bg-muted rounded mb-3" /><div className="space-y-2"><div className="h-3 w-full bg-muted rounded" /><div className="h-3 w-full bg-muted rounded" /></div></div>)}</div>
         </div>
       )}
-      {loading && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-10">
-          {[0, 1, 2].map((i) => (
-            <div key={i} className="rounded-lg border border-border bg-card p-4 animate-pulse">
-              <div className="h-4 w-24 bg-muted rounded mb-3" />
-              <div className="space-y-2">
-                <div className="h-3 w-full bg-muted rounded" />
-                <div className="h-3 w-full bg-muted rounded" />
-                <div className="h-3 w-full bg-muted rounded" />
-              </div>
+
+      {error && <div className="py-20 text-center text-red-500">데이터를 불러오지 못했습니다: {error}</div>}
+
+      {!loading && !error && data && (
+        <>
+          {/* 1섹션: 종합 신호판 */}
+          <SignalPanel results={data.results} />
+
+          {/* 2섹션: 최근 경매 요약 */}
+          <div className="mt-6 flex gap-3 overflow-x-auto pb-2 sm:grid sm:grid-cols-3 sm:overflow-visible">
+            <SummaryCard label="10-Year Note" icon="📘" items={findByTermSorted(data.results, "Note", "10-Year")} />
+            <SummaryCard label="52-Week Bill" icon="📄" items={findByTermSorted(data.results, "Bill", "52-Week")} />
+            <SummaryCard label="30-Year Bond" icon="📕" items={findByTermSorted(data.results, "Bond", "30-Year")} />
+          </div>
+
+          {/* 4섹션: 시계열 차트 */}
+          <AuctionHistoryChart />
+
+          {/* 3섹션: 경매 결과/예정 테이블 */}
+          <section className="mt-8">
+            <div className="flex gap-2 mb-4">
+              {(["results","upcoming"] as Tab[]).map(t => (
+                <button key={t} onClick={() => { setTab(t); setExpandedRow(null); }}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${tab === t ? "bg-foreground text-background" : "bg-muted text-muted-foreground hover:bg-accent"}`}
+                >{t === "results" ? "경매 결과" : "예정 경매"}</button>
+              ))}
             </div>
-          ))}
-        </div>
-      )}
+            <div className="flex gap-1.5 mb-4">
+              {FILTERS.map(f => (
+                <button key={f} onClick={() => setFilter(f)}
+                  className={`px-3 py-1 rounded text-xs font-medium transition-colors ${filter === f ? "bg-foreground/10 text-foreground border border-foreground/20" : "text-muted-foreground hover:text-foreground"}`}
+                >{f}</button>
+              ))}
+            </div>
 
-      {/* 경매 낙찰금리 추이 차트 */}
-      <AuctionHistoryChart />
+            {filtered.length === 0 && <div className="py-16 text-center text-muted-foreground text-sm">해당 조건의 경매 데이터가 없습니다.</div>}
 
-      {/* 탭 */}
-      <div className="flex gap-2 mb-4">
-        {(["results", "upcoming"] as Tab[]).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              tab === t
-                ? "bg-foreground text-background"
-                : "bg-muted text-muted-foreground hover:bg-accent"
-            }`}
-          >
-            {t === "results" ? "경매 결과" : "예정 경매"}
-          </button>
-        ))}
-      </div>
-
-      {/* 필터 */}
-      <div className="flex gap-1.5 mb-6">
-        {FILTERS.map((f) => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
-              filter === f
-                ? "bg-foreground/10 text-foreground border border-foreground/20"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {f}
-          </button>
-        ))}
-      </div>
-
-      {/* 상태 */}
-      {loading && (
-        <div className="flex items-center justify-center py-20 text-muted-foreground">
-          <svg className="animate-spin h-5 w-5 mr-3" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-          </svg>
-          데이터를 불러오는 중...
-        </div>
-      )}
-
-      {error && (
-        <div className="py-20 text-center text-red-500">
-          데이터를 불러오지 못했습니다: {error}
-        </div>
-      )}
-
-      {!loading && !error && filtered.length === 0 && (
-        <div className="py-20 text-center text-muted-foreground">
-          해당 조건의 경매 데이터가 없습니다.
-        </div>
-      )}
-
-      {/* 결과: PC 테이블 */}
-      {!loading && !error && filtered.length > 0 && tab === "results" && (
-        <>
-          <div className="hidden sm:block overflow-x-auto rounded-lg border border-border">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border bg-muted/50">
-                  <th className="text-left px-4 py-3 font-medium">경매일</th>
-                  <th className="text-left px-4 py-3 font-medium">종목</th>
-                  <th className="text-right px-4 py-3 font-medium whitespace-nowrap">낙찰금리/할인율</th>
-                  <th className="text-right px-4 py-3 font-medium">응찰배율</th>
-                  <th className="text-right px-4 py-3 font-medium">발행규모</th>
-                  <th className="text-right px-4 py-3 font-medium">외국인비중</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((item) => (
-                  <tr key={item.cusip + item.auctionDate} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                    <td className="px-4 py-3 tabular-nums">{formatDate(item.auctionDate)}</td>
-                    <td className="px-4 py-3 whitespace-nowrap">{termLabel(item)}</td>
-                    <td className="px-4 py-3 text-right tabular-nums">{formatRate(item)}</td>
-                    <td className={`px-4 py-3 text-right tabular-nums ${btcColor(item.bidToCoverRatio)}`}>
-                      <span className="inline-flex items-center gap-1">
-                        {formatBtc(item.bidToCoverRatio)}
-                        <span className={`inline-block w-1.5 h-1.5 rounded-full ${btcStrength(item.bidToCoverRatio).dot}`} />
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right tabular-nums">{formatBillions(item.offeringAmount)}</td>
-                    <td className="px-4 py-3 text-right tabular-nums">
-                      <span className="inline-flex items-center gap-1">
-                        {formatForeignPct(item)}
-                        <span className={`inline-block w-1.5 h-1.5 rounded-full ${foreignStrength(item).dot}`} />
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* 결과: 모바일 카드 */}
-          <div className="sm:hidden flex flex-col gap-3">
-            {filtered.map((item) => (
-              <div key={item.cusip + item.auctionDate} className="rounded-lg border border-border bg-card p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-semibold">{termLabel(item)}</span>
-                  <span className="text-xs text-muted-foreground tabular-nums">{formatDate(item.auctionDate)}</span>
-                </div>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-                  <div>
-                    <p className="text-xs text-muted-foreground">낙찰금리</p>
-                    <p className="text-sm font-medium tabular-nums">{formatRate(item)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">응찰배율</p>
-                    <p className={`text-sm font-medium tabular-nums flex items-center gap-1 ${btcColor(item.bidToCoverRatio)}`}>
-                      {formatBtc(item.bidToCoverRatio)}
-                      <span className={`inline-block w-1.5 h-1.5 rounded-full ${btcStrength(item.bidToCoverRatio).dot}`} />
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">발행규모</p>
-                    <p className="text-sm font-medium tabular-nums">{formatBillions(item.offeringAmount)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">외국인비중</p>
-                    <p className="text-sm font-medium tabular-nums flex items-center gap-1">
-                      {formatForeignPct(item)}
-                      <span className={`inline-block w-1.5 h-1.5 rounded-full ${foreignStrength(item).dot}`} />
-                    </p>
-                  </div>
-                </div>
+            {/* PC 테이블 */}
+            {filtered.length > 0 && tab === "results" && (
+              <div className="hidden sm:block rounded-lg border border-border">
+                <table className="w-full text-sm">
+                  <thead><tr className="border-b border-border bg-muted/50">
+                    <th className="text-left px-4 py-3 font-medium w-8"></th>
+                    <th className="text-left px-4 py-3 font-medium">경매일</th>
+                    <th className="text-left px-4 py-3 font-medium">종목</th>
+                    <th className="text-right px-4 py-3 font-medium">낙찰금리</th>
+                    <th className="text-right px-4 py-3 font-medium">응찰배율</th>
+                    <th className="text-right px-4 py-3 font-medium">발행규모</th>
+                    <th className="text-right px-4 py-3 font-medium">외국인비중</th>
+                  </tr></thead>
+                  <tbody>
+                    {filtered.map(item => {
+                      const key = item.cusip + item.auctionDate;
+                      const isExpanded = expandedRow === key;
+                      return (
+                        <><tr key={key} onClick={() => toggleRow(key)} className="border-b border-border/50 hover:bg-muted/30 transition-colors cursor-pointer">
+                          <td className="px-4 py-3">{isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} className="text-muted-foreground" />}</td>
+                          <td className="px-4 py-3 tabular-nums">{fmtDate(item.auctionDate)}</td>
+                          <td className="px-4 py-3 whitespace-nowrap">{termLabel(item)}</td>
+                          <td className="px-4 py-3 text-right tabular-nums">{fmtRate(item)}</td>
+                          <td className="px-4 py-3 text-right tabular-nums"><span className="inline-flex items-center gap-1">{fmtBtc(item.bidToCoverRatio)}<span className={`w-1.5 h-1.5 rounded-full ${btcDot(item.bidToCoverRatio)}`} /></span></td>
+                          <td className="px-4 py-3 text-right tabular-nums">{fmtBillions(item.offeringAmount)}</td>
+                          <td className="px-4 py-3 text-right tabular-nums"><span className="inline-flex items-center gap-1">{fmtForeignPct(item)}<span className={`w-1.5 h-1.5 rounded-full ${foreignDot(item)}`} /></span></td>
+                        </tr>
+                        {isExpanded && <tr key={key+"-expand"}><td colSpan={7} className="px-4 py-2"><MarketReactionPanel auctionDate={item.auctionDate} /></td></tr>}
+                        </>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
-            ))}
-          </div>
+            )}
+
+            {/* 모바일 카드 */}
+            {filtered.length > 0 && tab === "results" && (
+              <div className="sm:hidden flex flex-col gap-3">
+                {filtered.map(item => {
+                  const key = item.cusip + item.auctionDate;
+                  const isExpanded = expandedRow === key;
+                  return (
+                    <div key={key} className="rounded-lg border border-border bg-card">
+                      <button onClick={() => toggleRow(key)} className="w-full text-left p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-semibold">{termLabel(item)}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground tabular-nums">{fmtDate(item.auctionDate)}</span>
+                            {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} className="text-muted-foreground" />}
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+                          <div><p className="text-xs text-muted-foreground">낙찰금리</p><p className="text-sm font-medium tabular-nums">{fmtRate(item)}</p></div>
+                          <div><p className="text-xs text-muted-foreground">응찰배율</p><p className="text-sm font-medium tabular-nums flex items-center gap-1">{fmtBtc(item.bidToCoverRatio)}<span className={`w-1.5 h-1.5 rounded-full ${btcDot(item.bidToCoverRatio)}`} /></p></div>
+                          <div><p className="text-xs text-muted-foreground">발행규모</p><p className="text-sm font-medium tabular-nums">{fmtBillions(item.offeringAmount)}</p></div>
+                          <div><p className="text-xs text-muted-foreground">외국인비중</p><p className="text-sm font-medium tabular-nums flex items-center gap-1">{fmtForeignPct(item)}<span className={`w-1.5 h-1.5 rounded-full ${foreignDot(item)}`} /></p></div>
+                        </div>
+                      </button>
+                      {isExpanded && <div className="px-4 pb-4"><MarketReactionPanel auctionDate={item.auctionDate} /></div>}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* 예정 PC */}
+            {filtered.length > 0 && tab === "upcoming" && (
+              <div className="hidden sm:block rounded-lg border border-border">
+                <table className="w-full text-sm">
+                  <thead><tr className="border-b border-border bg-muted/50">
+                    <th className="text-left px-4 py-3 font-medium">경매 예정일</th>
+                    <th className="text-left px-4 py-3 font-medium">종목</th>
+                    <th className="text-right px-4 py-3 font-medium">발행 예정 규모</th>
+                  </tr></thead>
+                  <tbody>
+                    {filtered.map(item => (
+                      <tr key={item.cusip+item.auctionDate} className="border-b border-border/50 hover:bg-muted/30">
+                        <td className="px-4 py-3 tabular-nums">{fmtDate(item.auctionDate)}</td>
+                        <td className="px-4 py-3 whitespace-nowrap">{termLabel(item)}</td>
+                        <td className="px-4 py-3 text-right tabular-nums">{fmtBillions(item.offeringAmount)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* 예정 모바일 */}
+            {filtered.length > 0 && tab === "upcoming" && (
+              <div className="sm:hidden flex flex-col gap-3">
+                {filtered.map(item => (
+                  <div key={item.cusip+item.auctionDate} className="rounded-lg border border-border bg-card p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-semibold">{termLabel(item)}</span>
+                      <span className="text-xs text-muted-foreground tabular-nums">{fmtDate(item.auctionDate)}</span>
+                    </div>
+                    <div><p className="text-xs text-muted-foreground">발행 예정 규모</p><p className="text-sm font-medium tabular-nums">{fmtBillions(item.offeringAmount)}</p></div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
+          {/* 하단: 용어 설명 */}
+          <section className="mt-12 rounded-lg border border-border bg-muted/30 p-6 space-y-4">
+            <h2 className="text-sm font-semibold mb-3">용어 설명</h2>
+            <dl className="space-y-3 text-sm text-muted-foreground">
+              <div><dt className="font-medium text-foreground">응찰배율 (Bid-to-Cover Ratio)</dt><dd className="mt-0.5">총 응찰액 ÷ 발행 규모. <span className="text-emerald-500 font-medium">2.5 이상 양호</span>, <span className="text-red-500 font-medium">2.0 미만 부진</span>.</dd></div>
+              <div><dt className="font-medium text-foreground">낙찰금리 (High Yield / Discount Rate)</dt><dd className="mt-0.5">경매에서 결정된 실제 금리. Note/Bond는 High Yield, Bill은 Discount Rate.</dd></div>
+              <div><dt className="font-medium text-foreground">외국인비중 (Indirect Bidders)</dt><dd className="mt-0.5">간접입찰자 낙찰 비중. 외국 중앙은행·국부펀드 등 해외 기관 수요 지표.</dd></div>
+              <div><dt className="font-medium text-foreground">장단기 금리 역전</dt><dd className="mt-0.5">2년물 금리가 10년물보다 높은 상태. 경기침체 선행 지표로 해석.</dd></div>
+            </dl>
+          </section>
         </>
       )}
-
-      {/* 예정: PC 테이블 */}
-      {!loading && !error && filtered.length > 0 && tab === "upcoming" && (
-        <>
-          <div className="hidden sm:block overflow-x-auto rounded-lg border border-border">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border bg-muted/50">
-                  <th className="text-left px-4 py-3 font-medium">경매 예정일</th>
-                  <th className="text-left px-4 py-3 font-medium">종목</th>
-                  <th className="text-right px-4 py-3 font-medium">발행 예정 규모</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((item) => (
-                  <tr key={item.cusip + item.auctionDate} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                    <td className="px-4 py-3 tabular-nums">{formatDate(item.auctionDate)}</td>
-                    <td className="px-4 py-3 whitespace-nowrap">{termLabel(item)}</td>
-                    <td className="px-4 py-3 text-right tabular-nums">{formatBillions(item.offeringAmount)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* 예정: 모바일 카드 */}
-          <div className="sm:hidden flex flex-col gap-3">
-            {filtered.map((item) => (
-              <div key={item.cusip + item.auctionDate} className="rounded-lg border border-border bg-card p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-semibold">{termLabel(item)}</span>
-                  <span className="text-xs text-muted-foreground tabular-nums">{formatDate(item.auctionDate)}</span>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">발행 예정 규모</p>
-                  <p className="text-sm font-medium tabular-nums">{formatBillions(item.offeringAmount)}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-
-      {/* 업데이트 시각 */}
-      {data?.updatedAt && (
-        <p className="mt-4 text-xs text-muted-foreground text-right">
-          마지막 업데이트: {formatKST(data.updatedAt)}
-        </p>
-      )}
-
-      {/* 용어 설명 */}
-      <section className="mt-12 rounded-lg border border-border bg-muted/30 p-6 space-y-4">
-        <h2 className="text-sm font-semibold mb-3">용어 설명</h2>
-        <dl className="space-y-3 text-sm text-muted-foreground">
-          <div>
-            <dt className="font-medium text-foreground">응찰배율 (Bid-to-Cover Ratio)</dt>
-            <dd className="mt-0.5">
-              총 응찰액 &divide; 발행 규모. 높을수록 수요가 강합니다.{" "}
-              <span className="text-emerald-600 dark:text-emerald-400 font-medium">2.5 이상이면 양호</span>,{" "}
-              <span className="text-red-500 dark:text-red-400 font-medium">2.0 미만이면 수요 부진</span>으로 봅니다.
-            </dd>
-          </div>
-          <div>
-            <dt className="font-medium text-foreground">낙찰금리 (High Yield / Discount Rate)</dt>
-            <dd className="mt-0.5">
-              경매에서 결정된 실제 금리입니다. 높을수록 채권 수요가 약하다는 뜻입니다.
-              Note/Bond는 High Yield, Bill은 High Discount Rate로 표시됩니다.
-            </dd>
-          </div>
-          <div>
-            <dt className="font-medium text-foreground">외국인비중 (Indirect Bidders)</dt>
-            <dd className="mt-0.5">
-              간접입찰자(외국 중앙은행 포함)의 낙찰 비중입니다.
-              외국인 수요가 높으면 달러 및 미국채 신뢰도가 견고하다는 신호입니다.
-            </dd>
-          </div>
-        </dl>
-      </section>
-
-      {/* 가이드 모달 */}
-      {guideOpen && <AuctionGuideModal onClose={() => setGuideOpen(false)} />}
     </main>
   );
 }

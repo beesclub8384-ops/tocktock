@@ -13,6 +13,7 @@ const PICK_FIELDS = [
   "offeringAmount",
   "highYield",
   "highDiscountRate",
+  "highInvestmentRate",
   "bidToCoverRatio",
   "totalTendered",
   "totalAccepted",
