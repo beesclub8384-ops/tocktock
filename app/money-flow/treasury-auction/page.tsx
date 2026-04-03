@@ -406,9 +406,9 @@ export default function TreasuryAuctionPage() {
 
           {/* 2섹션: 최근 경매 요약 */}
           <div className="mt-6 flex gap-6 overflow-x-auto pb-2 sm:grid sm:grid-cols-4 sm:overflow-visible">
+            <SummaryCard label="52주" accentColor="#10b981" items={findByTermSorted(data.results, "Bill", "52-Week")} />
             <SummaryCard label="2년" accentColor="#64748b" items={findByTermSorted(data.results, "Note", "2-Year").filter(r => r.tips !== "Yes")} />
             <SummaryCard label="10년" accentColor="#3b82f6" items={findByTermSorted(data.results, "Note", "10-Year").filter(r => r.tips !== "Yes")} />
-            <SummaryCard label="52주" accentColor="#10b981" items={findByTermSorted(data.results, "Bill", "52-Week")} />
             <SummaryCard label="30년" accentColor="#f43f5e" items={findByTermSorted(data.results, "Bond", "30-Year")} />
           </div>
 
