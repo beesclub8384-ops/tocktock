@@ -179,48 +179,43 @@ function SignalPanel({ results }: { results: AuctionItem[] }) {
 }
 
 // ─── 2섹션: 최근 경매 요약 카드 ─────────────────────────────────────────────
-function SummaryCard({ label, icon, items }: { label: string; icon: string; items: AuctionItem[] }) {
+function SummaryCard({ label, accentColor, items }: { label: string; accentColor: string; items: AuctionItem[] }) {
   if (items.length === 0) return null;
   const cur = items[0];
   const isTips = cur.tips === "Yes";
   const sameKind = items.filter(r => isTips ? r.tips === "Yes" : r.tips !== "Yes");
   const prev = sameKind.length >= 2 ? sameKind[1] : null;
   const rc = prev ? rateNum(cur) - rateNum(prev) : null;
+  const rateStr = fmtRate(cur);
+  const hasRate = rateStr !== "-";
 
   return (
-    <div className="rounded-lg border border-border bg-card p-4 min-w-[200px] flex-1">
-      <div className="flex items-center gap-1.5 mb-3">
-        <span>{icon}</span><span className="text-sm font-semibold truncate">{label}</span>
+    <div className="bg-white dark:bg-zinc-950 min-w-[160px] flex-1 pt-0">
+      <div className="h-0.5 rounded-full mb-4" style={{ backgroundColor: accentColor }} />
+      <p className="text-2xl font-bold tracking-tight mb-1">{label}</p>
+      <div className="flex items-baseline gap-1.5 mb-3">
+        <span className="text-3xl font-bold tabular-nums tracking-tight">
+          {hasRate ? rateStr : "집계 중"}
+        </span>
+        {hasRate && rc !== null && (
+          <span className={`text-sm font-medium tabular-nums ${rc > 0 ? "text-red-500" : rc < 0 ? "text-emerald-500" : "text-muted-foreground"}`}>
+            {rc > 0 ? "▲" : rc < 0 ? "▼" : "—"}{Math.abs(rc).toFixed(2)}
+          </span>
+        )}
       </div>
-      <div className="space-y-1.5 text-sm">
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">낙찰금리</span>
-          <span className="font-medium tabular-nums">
-            {fmtRate(cur)}
-            {rc !== null && (
-              <span className={`text-xs ml-1 ${rc > 0 ? "text-red-500" : rc < 0 ? "text-emerald-500" : "text-muted-foreground"}`}>
-                {rc > 0 ? "▲" : rc < 0 ? "▼" : "—"}{Math.abs(rc).toFixed(2)}
-              </span>
-            )}
-          </span>
+      <div className="space-y-1 text-xs text-muted-foreground">
+        <div className="flex items-center gap-1.5">
+          <span>응찰배율</span>
+          <span className="font-medium text-foreground tabular-nums">{fmtBtc(cur.bidToCoverRatio)}</span>
+          <span className={`w-1.5 h-1.5 rounded-full ${btcDot(cur.bidToCoverRatio)}`} />
         </div>
-        <div className="flex justify-between items-center">
-          <span className="text-muted-foreground">응찰배율</span>
-          <span className="flex items-center gap-1 font-medium tabular-nums">
-            {fmtBtc(cur.bidToCoverRatio)}
-            <span className={`w-1.5 h-1.5 rounded-full ${btcDot(cur.bidToCoverRatio)}`} />
-            <span className={`text-xs ${btcText(cur.bidToCoverRatio).cls}`}>{btcText(cur.bidToCoverRatio).label}</span>
-          </span>
-        </div>
-        <div className="flex justify-between items-center">
-          <span className="text-muted-foreground">외국인비중</span>
-          <span className="flex items-center gap-1 font-medium tabular-nums">
-            {fmtForeignPct(cur)}
-            <span className={`w-1.5 h-1.5 rounded-full ${foreignDot(cur)}`} />
-          </span>
+        <div className="flex items-center gap-1.5">
+          <span>외국인</span>
+          <span className="font-medium text-foreground tabular-nums">{fmtForeignPct(cur)}</span>
+          <span className={`w-1.5 h-1.5 rounded-full ${foreignDot(cur)}`} />
         </div>
       </div>
-      <p className="mt-2 text-xs text-muted-foreground tabular-nums">{fmtDate(cur.auctionDate)}</p>
+      <p className="mt-3 text-[10px] text-muted-foreground/60 tabular-nums">{fmtDate(cur.auctionDate)}</p>
     </div>
   );
 }
@@ -410,11 +405,11 @@ export default function TreasuryAuctionPage() {
           <SignalPanel results={data.results} />
 
           {/* 2섹션: 최근 경매 요약 */}
-          <div className="mt-6 flex gap-3 overflow-x-auto pb-2 sm:grid sm:grid-cols-4 sm:overflow-visible">
-            <SummaryCard label="2년물" icon="📗" items={findByTermSorted(data.results, "Note", "2-Year").filter(r => r.tips !== "Yes")} />
-            <SummaryCard label="10년물" icon="📘" items={findByTermSorted(data.results, "Note", "10-Year").filter(r => r.tips !== "Yes")} />
-            <SummaryCard label="52-Week Bill" icon="📄" items={findByTermSorted(data.results, "Bill", "52-Week")} />
-            <SummaryCard label="30-Year Bond" icon="📕" items={findByTermSorted(data.results, "Bond", "30-Year")} />
+          <div className="mt-6 flex gap-6 overflow-x-auto pb-2 sm:grid sm:grid-cols-4 sm:overflow-visible">
+            <SummaryCard label="2년" accentColor="#64748b" items={findByTermSorted(data.results, "Note", "2-Year").filter(r => r.tips !== "Yes")} />
+            <SummaryCard label="10년" accentColor="#3b82f6" items={findByTermSorted(data.results, "Note", "10-Year").filter(r => r.tips !== "Yes")} />
+            <SummaryCard label="52주" accentColor="#10b981" items={findByTermSorted(data.results, "Bill", "52-Week")} />
+            <SummaryCard label="30년" accentColor="#f43f5e" items={findByTermSorted(data.results, "Bond", "30-Year")} />
           </div>
 
           {/* 4섹션: 시계열 차트 */}
