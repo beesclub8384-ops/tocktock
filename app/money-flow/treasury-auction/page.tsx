@@ -88,7 +88,7 @@ function foreignDot(item: AuctionItem) {
   return "bg-red-500";
 }
 function findByTermSorted(results: AuctionItem[], type: string, termInc: string) {
-  return results.filter(r => r.securityType === type && r.term.includes(termInc))
+  return results.filter(r => r.securityType === type && r.term.includes(termInc) && (r.highYield !== "" || r.highDiscountRate !== ""))
     .sort((a,b) => new Date(b.auctionDate).getTime() - new Date(a.auctionDate).getTime());
 }
 function rateNum(item: AuctionItem): number {
