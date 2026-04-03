@@ -273,81 +273,42 @@ const CHART_ITEMS = [
   { key: "y30", label: "30년", type: "Bond", term: "30-Year", color: "#f43f5e" },
 ] as const;
 
-interface MergedRow { date: string; [k: string]: string | number | undefined; }
-
 function AuctionHistoryChart() {
+  const [selected, setSelected] = useState("y10");
   const [period, setPeriod] = useState<Period>("1y");
-  const [merged, setMerged] = useState<MergedRow[]>([]);
+  const [data, setData] = useState<HistoryPoint[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const fetchAll = useCallback(async () => {
+  const item = CHART_ITEMS.find(c => c.key === selected)!;
+
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const results = await Promise.allSettled(
-        CHART_ITEMS.map(async (s) => {
-          const q = new URLSearchParams({ security_type: s.type, security_term: s.term, period });
-          const res = await fetch(`/api/treasury-bill-history?${q}`);
-          if (!res.ok) return { key: s.key, data: [] as HistoryPoint[] };
-          const json = await res.json();
-          return { key: s.key, data: (json.data || []) as HistoryPoint[] };
-        })
-      );
-      const map = new Map<string, MergedRow>();
-      for (const r of results) {
-        if (r.status !== "fulfilled") continue;
-        for (const d of r.value.data) {
-          if (!map.has(d.date)) map.set(d.date, { date: d.date });
-          const row = map.get(d.date)!;
-          if (d.rate !== null) row[`${r.value.key}_rate`] = d.rate;
-          if (d.bidToCover !== null) row[`${r.value.key}_btc`] = d.bidToCover;
-        }
-      }
-      setMerged(Array.from(map.values()).sort((a, b) => (a.date as string).localeCompare(b.date as string)));
+      const q = new URLSearchParams({ security_type: item.type, security_term: item.term, period });
+      const res = await fetch(`/api/treasury-bill-history?${q}`);
+      if (res.ok) { const j = await res.json(); setData(j.data || []); }
     } catch {} finally { setLoading(false); }
-  }, [period]);
+  }, [item.type, item.term, period]);
 
-  useEffect(() => { fetchAll(); }, [fetchAll]);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
-  const hasData = merged.length > 0;
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const MergedTooltip = ({ active, payload }: { active?: boolean; payload?: any[] }) => {
-    if (!active || !payload?.length) return null;
-    const row = payload[0].payload as MergedRow;
-    return (
-      <div className="rounded-lg border border-border bg-card px-3 py-2 shadow-lg text-xs space-y-0.5">
-        <p className="font-medium mb-1">{row.date}</p>
-        {CHART_ITEMS.map(s => {
-          const rate = row[`${s.key}_rate`] as number | undefined;
-          const btc = row[`${s.key}_btc`] as number | undefined;
-          if (rate === undefined && btc === undefined) return null;
-          return (
-            <p key={s.key} className="text-muted-foreground">
-              <span style={{ color: s.color }}>{s.label}</span>{" "}
-              {rate !== undefined && <span className="text-foreground">{rate.toFixed(3)}%</span>}
-              {btc !== undefined && <span className="text-foreground ml-1.5">BtC {btc.toFixed(2)}</span>}
-            </p>
-          );
-        })}
-      </div>
-    );
-  };
-
-  const legend = (
-    <div className="flex flex-wrap items-center gap-3 text-[10px] text-muted-foreground">
-      {CHART_ITEMS.map(s => (
-        <span key={s.key} className="flex items-center gap-1">
-          <span className="w-3 h-0.5 inline-block rounded" style={{ backgroundColor: s.color }} />
-          {s.label}
-        </span>
-      ))}
-    </div>
-  );
+  const chartData = data.filter(d => d.rate !== null);
+  const hasData = chartData.length > 0;
 
   return (
     <section className="mt-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-bold">경매 추이</h2>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2">
+          <h2 className="text-lg font-bold">경매 추이</h2>
+          <div className="flex gap-1">
+            {CHART_ITEMS.map(c => (
+              <button key={c.key} onClick={() => setSelected(c.key)}
+                className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${selected === c.key ? "text-white" : "text-muted-foreground hover:text-foreground bg-muted"}`}
+                style={selected === c.key ? { backgroundColor: c.color } : undefined}
+              >{c.label}</button>
+            ))}
+          </div>
+        </div>
         <div className="flex gap-1.5">
           {PERIOD_LABELS.map(p => (
             <button key={p.key} onClick={() => setPeriod(p.key)}
@@ -370,38 +331,42 @@ function AuctionHistoryChart() {
         <>
           {/* 차트 1: 낙찰금리 */}
           <div className="rounded-lg border border-border bg-card p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold">낙찰금리 (%)</h3>
-              {legend}
-            </div>
+            <h3 className="text-sm font-semibold mb-3">낙찰금리 (%)</h3>
             <ResponsiveContainer width="100%" height={220}>
-              <LineChart data={merged} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+              <LineChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis dataKey="date" tickFormatter={(d: string) => d.slice(0,7).replace("-",".")} tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} interval="preserveStartEnd" minTickGap={50} />
                 <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} tickFormatter={(v: number) => `${v.toFixed(1)}%`} domain={["auto","auto"]} width={44} />
-                <Tooltip content={<MergedTooltip />} />
-                {CHART_ITEMS.map(s => (
-                  <Line key={s.key} type="monotone" dataKey={`${s.key}_rate`} stroke={s.color} strokeWidth={1.5} dot={false} activeDot={{ r: 3 }} connectNulls={false} />
-                ))}
+                <Tooltip content={({ active, payload }) => {
+                  if (!active || !payload?.length) return null;
+                  const p = payload[0].payload as HistoryPoint;
+                  return (<div className="rounded-lg border border-border bg-card px-3 py-2 shadow-lg text-xs">
+                    <p className="font-medium">{p.date}</p>
+                    <p className="text-muted-foreground">금리: <span className="text-foreground font-medium">{p.rate?.toFixed(3)}%</span></p>
+                  </div>);
+                }} />
+                <Line type="monotone" dataKey="rate" stroke={item.color} strokeWidth={1.5} dot={false} activeDot={{ r: 3 }} connectNulls />
               </LineChart>
             </ResponsiveContainer>
           </div>
 
           {/* 차트 2: 응찰배율 */}
           <div className="rounded-lg border border-border bg-card p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold">응찰배율 (Bid-to-Cover)</h3>
-              {legend}
-            </div>
+            <h3 className="text-sm font-semibold mb-3">응찰배율 (Bid-to-Cover)</h3>
             <ResponsiveContainer width="100%" height={220}>
-              <LineChart data={merged} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+              <LineChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis dataKey="date" tickFormatter={(d: string) => d.slice(0,7).replace("-",".")} tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} interval="preserveStartEnd" minTickGap={50} />
                 <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} tickFormatter={(v: number) => v.toFixed(1)} domain={["auto","auto"]} width={44} />
-                <Tooltip content={<MergedTooltip />} />
-                {CHART_ITEMS.map(s => (
-                  <Line key={s.key} type="monotone" dataKey={`${s.key}_btc`} stroke={s.color} strokeWidth={1.5} dot={false} activeDot={{ r: 3 }} connectNulls={false} />
-                ))}
+                <Tooltip content={({ active, payload }) => {
+                  if (!active || !payload?.length) return null;
+                  const p = payload[0].payload as HistoryPoint;
+                  return (<div className="rounded-lg border border-border bg-card px-3 py-2 shadow-lg text-xs">
+                    <p className="font-medium">{p.date}</p>
+                    <p className="text-muted-foreground">BtC: <span className="text-foreground font-medium">{p.bidToCover?.toFixed(2)}</span></p>
+                  </div>);
+                }} />
+                <Line type="monotone" dataKey="bidToCover" stroke={item.color} strokeWidth={1.5} dot={false} activeDot={{ r: 3 }} connectNulls />
               </LineChart>
             </ResponsiveContainer>
           </div>
