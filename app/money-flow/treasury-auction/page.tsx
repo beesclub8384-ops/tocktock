@@ -266,91 +266,147 @@ function MarketReactionPanel({ auctionDate }: { auctionDate: string }) {
 }
 
 // ─── 4섹션: 시계열 차트 ─────────────────────────────────────────────────────
+const CHART_ITEMS = [
+  { key: "w52", label: "52주", type: "Bill", term: "52-Week", color: "#10b981" },
+  { key: "y2", label: "2년", type: "Note", term: "2-Year", color: "#3b82f6" },
+  { key: "y10", label: "10년", type: "Note", term: "10-Year", color: "#f59e0b" },
+  { key: "y30", label: "30년", type: "Bond", term: "30-Year", color: "#f43f5e" },
+] as const;
+
+interface MergedRow { date: string; [k: string]: string | number | undefined; }
+
 function AuctionHistoryChart() {
-  const [category, setCategory] = useState<SecurityCategory>("Note");
-  const [term, setTerm] = useState("10-Year");
   const [period, setPeriod] = useState<Period>("1y");
-  const [data, setData] = useState<HistoryPoint[]>([]);
+  const [merged, setMerged] = useState<MergedRow[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const fetchData = useCallback(async () => {
+  const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const p = new URLSearchParams({ security_type: category, security_term: term, period });
-      const res = await fetch(`/api/treasury-bill-history?${p}`);
-      if (res.ok) { const j = await res.json(); setData(j.data || []); }
+      const results = await Promise.allSettled(
+        CHART_ITEMS.map(async (s) => {
+          const q = new URLSearchParams({ security_type: s.type, security_term: s.term, period });
+          const res = await fetch(`/api/treasury-bill-history?${q}`);
+          if (!res.ok) return { key: s.key, data: [] as HistoryPoint[] };
+          const json = await res.json();
+          return { key: s.key, data: (json.data || []) as HistoryPoint[] };
+        })
+      );
+      const map = new Map<string, MergedRow>();
+      for (const r of results) {
+        if (r.status !== "fulfilled") continue;
+        for (const d of r.value.data) {
+          if (!map.has(d.date)) map.set(d.date, { date: d.date });
+          const row = map.get(d.date)!;
+          if (d.rate !== null) row[`${r.value.key}_rate`] = d.rate;
+          if (d.bidToCover !== null) row[`${r.value.key}_btc`] = d.bidToCover;
+        }
+      }
+      setMerged(Array.from(map.values()).sort((a, b) => (a.date as string).localeCompare(b.date as string)));
     } catch {} finally { setLoading(false); }
-  }, [category, term, period]);
+  }, [period]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  const handleCat = (cat: SecurityCategory) => { setCategory(cat); setTerm(TERM_MAP[cat][0]); };
-  const chartData = data.filter(d => d.rate !== null);
+  const hasData = merged.length > 0;
 
-  // 평균 계산
-  const avgRate = chartData.length > 0 ? chartData.reduce((s,d) => s + (d.rate ?? 0), 0) / chartData.length : null;
-  const btcData = chartData.filter(d => d.bidToCover !== null);
-  const avgBtc = btcData.length > 0 ? btcData.reduce((s,d) => s + (d.bidToCover ?? 0), 0) / btcData.length : null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const MergedTooltip = ({ active, payload }: { active?: boolean; payload?: any[] }) => {
+    if (!active || !payload?.length) return null;
+    const row = payload[0].payload as MergedRow;
+    return (
+      <div className="rounded-lg border border-border bg-card px-3 py-2 shadow-lg text-xs space-y-0.5">
+        <p className="font-medium mb-1">{row.date}</p>
+        {CHART_ITEMS.map(s => {
+          const rate = row[`${s.key}_rate`] as number | undefined;
+          const btc = row[`${s.key}_btc`] as number | undefined;
+          if (rate === undefined && btc === undefined) return null;
+          return (
+            <p key={s.key} className="text-muted-foreground">
+              <span style={{ color: s.color }}>{s.label}</span>{" "}
+              {rate !== undefined && <span className="text-foreground">{rate.toFixed(3)}%</span>}
+              {btc !== undefined && <span className="text-foreground ml-1.5">BtC {btc.toFixed(2)}</span>}
+            </p>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const legend = (
+    <div className="flex flex-wrap items-center gap-3 text-[10px] text-muted-foreground">
+      {CHART_ITEMS.map(s => (
+        <span key={s.key} className="flex items-center gap-1">
+          <span className="w-3 h-0.5 inline-block rounded" style={{ backgroundColor: s.color }} />
+          {s.label}
+        </span>
+      ))}
+    </div>
+  );
 
   return (
-    <section className="mt-8">
-      <h2 className="text-lg font-bold mb-4">경매 낙찰금리 추이</h2>
-      <div className="flex flex-wrap gap-1.5 mb-2">
-        {(Object.keys(TERM_MAP) as SecurityCategory[]).map(cat => (
-          <button key={cat} onClick={() => handleCat(cat)}
-            className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${category === cat ? "bg-foreground text-background" : "bg-muted text-muted-foreground hover:bg-accent"}`}
-          >{cat}</button>
-        ))}
+    <section className="mt-8 space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-bold">경매 추이</h2>
+        <div className="flex gap-1.5">
+          {PERIOD_LABELS.map(p => (
+            <button key={p.key} onClick={() => setPeriod(p.key)}
+              className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${period === p.key ? "bg-foreground/10 text-foreground border border-foreground/20" : "text-muted-foreground hover:text-foreground"}`}
+            >{p.label}</button>
+          ))}
+        </div>
       </div>
-      <div className="flex flex-wrap gap-1.5 mb-2">
-        {TERM_MAP[category].map(t => (
-          <button key={t} onClick={() => setTerm(t)}
-            className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${term === t ? "bg-foreground/10 text-foreground border border-foreground/20" : "text-muted-foreground hover:text-foreground"}`}
-          >{t}</button>
-        ))}
-      </div>
-      <div className="flex gap-1.5 mb-4">
-        {PERIOD_LABELS.map(p => (
-          <button key={p.key} onClick={() => setPeriod(p.key)}
-            className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${period === p.key ? "bg-foreground/10 text-foreground border border-foreground/20" : "text-muted-foreground hover:text-foreground"}`}
-          >{p.label}</button>
-        ))}
-      </div>
-      <div className="rounded-lg border border-border bg-card p-4">
-        {loading ? (
-          <div className="flex items-center justify-center py-16 text-muted-foreground"><Loader2 size={20} className="animate-spin mr-2" />데이터를 불러오는 중...</div>
-        ) : chartData.length === 0 ? (
-          <div className="py-16 text-center text-muted-foreground text-sm">해당 조건의 경매 데이터가 없습니다.</div>
-        ) : (
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={chartData} margin={{ top: 8, right: 48, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-              <XAxis dataKey="date" tickFormatter={d => d.slice(0,7).replace("-",".")} tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} interval="preserveStartEnd" minTickGap={50} />
-              <YAxis yAxisId="rate" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} tickFormatter={(v: number) => `${v.toFixed(1)}%`} domain={["auto","auto"]} width={48} />
-              <YAxis yAxisId="btc" orientation="right" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} tickFormatter={(v: number) => v.toFixed(1)} domain={["auto","auto"]} width={40} />
-              <Tooltip content={({ active, payload }) => {
-                if (!active || !payload?.length) return null;
-                const p = payload[0].payload as HistoryPoint;
-                return (<div className="rounded-lg border border-border bg-card px-3 py-2 shadow-lg text-xs">
-                  <p className="font-medium">{p.date}</p>
-                  <p className="text-muted-foreground">금리: <span className="text-foreground font-medium">{p.rate?.toFixed(3)}%</span></p>
-                  <p className="text-muted-foreground">BtC: <span className="text-foreground font-medium">{p.bidToCover?.toFixed(2)}</span></p>
-                </div>);
-              }} />
-              {avgRate !== null && <ReferenceLine yAxisId="rate" y={avgRate} stroke="#60a5fa" strokeDasharray="4 4" strokeOpacity={0.5} />}
-              {avgBtc !== null && <ReferenceLine yAxisId="btc" y={avgBtc} stroke="#f59e0b" strokeDasharray="4 4" strokeOpacity={0.5} />}
-              <Line yAxisId="rate" type="monotone" dataKey="rate" stroke="#60a5fa" strokeWidth={1.5} dot={false} activeDot={{ r: 3 }} />
-              <Line yAxisId="btc" type="monotone" dataKey="bidToCover" stroke="#f59e0b" strokeWidth={1} dot={false} activeDot={{ r: 3 }} />
-            </LineChart>
-          </ResponsiveContainer>
-        )}
-        {chartData.length > 0 && (
-          <div className="mt-2 flex items-center gap-4 text-[10px] text-muted-foreground">
-            <span className="flex items-center gap-1"><span className="w-3 h-0.5 bg-blue-400 inline-block" /> 낙찰금리 {avgRate !== null && `(평균 ${avgRate.toFixed(2)}%)`}</span>
-            <span className="flex items-center gap-1"><span className="w-3 h-0.5 bg-amber-500 inline-block" /> 응찰배율 {avgBtc !== null && `(평균 ${avgBtc.toFixed(2)})`}</span>
+
+      {loading && (
+        <div className="space-y-4">
+          <div className="rounded-lg border border-border bg-card p-4 animate-pulse"><div className="h-[200px] bg-muted rounded" /></div>
+          <div className="rounded-lg border border-border bg-card p-4 animate-pulse"><div className="h-[200px] bg-muted rounded" /></div>
+        </div>
+      )}
+
+      {!loading && !hasData && <div className="py-16 text-center text-muted-foreground text-sm">경매 데이터가 없습니다.</div>}
+
+      {!loading && hasData && (
+        <>
+          {/* 차트 1: 낙찰금리 */}
+          <div className="rounded-lg border border-border bg-card p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold">낙찰금리 (%)</h3>
+              {legend}
+            </div>
+            <ResponsiveContainer width="100%" height={220}>
+              <LineChart data={merged} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="date" tickFormatter={(d: string) => d.slice(0,7).replace("-",".")} tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} interval="preserveStartEnd" minTickGap={50} />
+                <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} tickFormatter={(v: number) => `${v.toFixed(1)}%`} domain={["auto","auto"]} width={44} />
+                <Tooltip content={<MergedTooltip />} />
+                {CHART_ITEMS.map(s => (
+                  <Line key={s.key} type="monotone" dataKey={`${s.key}_rate`} stroke={s.color} strokeWidth={1.5} dot={false} activeDot={{ r: 3 }} connectNulls={false} />
+                ))}
+              </LineChart>
+            </ResponsiveContainer>
           </div>
-        )}
-      </div>
+
+          {/* 차트 2: 응찰배율 */}
+          <div className="rounded-lg border border-border bg-card p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold">응찰배율 (Bid-to-Cover)</h3>
+              {legend}
+            </div>
+            <ResponsiveContainer width="100%" height={220}>
+              <LineChart data={merged} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="date" tickFormatter={(d: string) => d.slice(0,7).replace("-",".")} tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} interval="preserveStartEnd" minTickGap={50} />
+                <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} tickFormatter={(v: number) => v.toFixed(1)} domain={["auto","auto"]} width={44} />
+                <Tooltip content={<MergedTooltip />} />
+                {CHART_ITEMS.map(s => (
+                  <Line key={s.key} type="monotone" dataKey={`${s.key}_btc`} stroke={s.color} strokeWidth={1.5} dot={false} activeDot={{ r: 3 }} connectNulls={false} />
+                ))}
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </>
+      )}
     </section>
   );
 }
