@@ -409,7 +409,11 @@ export default function TreasuryAuctionPage() {
 
           {/* 2섹션: 최근 경매 요약 */}
           <div className="mt-6 flex gap-3 overflow-x-auto pb-2 sm:grid sm:grid-cols-3 sm:overflow-visible">
-            <SummaryCard label="10년물" icon="📘" items={findByTermSorted(data.results, "Note", "10-Year")} />
+            {(() => {
+              const note10Items = findByTermSorted(data.results, "Note", "10-Year");
+              const note10Label = note10Items.length > 0 && note10Items[0].tips === "Yes" ? "10년물 TIPS" : "10년물";
+              return <SummaryCard label={note10Label} icon="📘" items={note10Items} />;
+            })()}
             <SummaryCard label="52-Week Bill" icon="📄" items={findByTermSorted(data.results, "Bill", "52-Week")} />
             <SummaryCard label="30-Year Bond" icon="📕" items={findByTermSorted(data.results, "Bond", "30-Year")} />
           </div>
