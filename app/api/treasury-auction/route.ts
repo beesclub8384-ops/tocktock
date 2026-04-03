@@ -45,7 +45,7 @@ export async function GET() {
 
     const now = new Date();
     const endDate = now.toISOString().slice(0, 10);
-    const past = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+    const past = new Date(now.getTime() - 150 * 24 * 60 * 60 * 1000);
     const startDate = past.toISOString().slice(0, 10);
 
     const [upcomingRes, resultsRes] = await Promise.allSettled([
