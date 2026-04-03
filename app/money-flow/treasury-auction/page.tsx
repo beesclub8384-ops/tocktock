@@ -182,7 +182,9 @@ function SignalPanel({ results }: { results: AuctionItem[] }) {
 function SummaryCard({ label, icon, items }: { label: string; icon: string; items: AuctionItem[] }) {
   if (items.length === 0) return null;
   const cur = items[0];
-  const prev = items.length >= 2 ? items[1] : null;
+  const isTips = cur.tips === "Yes";
+  const sameKind = items.filter(r => isTips ? r.tips === "Yes" : r.tips !== "Yes");
+  const prev = sameKind.length >= 2 ? sameKind[1] : null;
   const rc = prev ? rateNum(cur) - rateNum(prev) : null;
 
   return (
