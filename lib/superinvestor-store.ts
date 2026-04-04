@@ -130,11 +130,11 @@ export async function fetchStockDetail(
       const $row = $(row);
       if ($row.hasClass("buys")) {
         const cells = $row.find("td");
-        if (cells.length >= 2) {
+        if (cells.length >= 3) {
           insiderBuyCount =
-            parseInt($(cells[0]).text().trim().replace(/,/g, "")) || 0;
+            parseInt($(cells[1]).text().trim().replace(/,/g, "")) || 0;
           insiderBuyAmount =
-            parseFloat($(cells[1]).text().trim().replace(/[$,]/g, "")) || 0;
+            parseFloat($(cells[2]).text().trim().replace(/[$,]/g, "")) || 0;
         }
       }
     });
