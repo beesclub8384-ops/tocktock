@@ -8,7 +8,7 @@ export default async function Home() {
   const posts = getSortedPostsData("macro");
 
   return (
-    <div className="max-w-3xl px-8 py-20">
+    <div className="max-w-3xl px-4 sm:px-8 py-20">
       {/* 뉴스 섹션 */}
       <header className="mb-10">
         <div className="flex items-center justify-between">

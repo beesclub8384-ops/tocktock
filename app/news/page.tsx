@@ -7,7 +7,7 @@ export const metadata = {
 
 export default function NewsPage() {
   return (
-    <div className="max-w-3xl px-8 py-20">
+    <div className="max-w-3xl px-4 sm:px-8 py-20">
       <header className="mb-10">
         <h1 className="text-4xl font-bold tracking-tight">뉴스</h1>
         <p className="mt-2 text-sm text-muted-foreground">
