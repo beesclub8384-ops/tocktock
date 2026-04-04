@@ -10,7 +10,7 @@ const navLinks = [
   { href: "/blog", label: "거시전망" },
   { href: "/indices", label: "지수" },
   { href: "/credit", label: "빚투" },
-  { href: "/market-events", label: "급등락분석" },
+  { href: "/market-events", label: "지수 급등락 분석" },
   { href: "/economics", label: "경제공부" },
   { href: "/foreign-ownership", label: "외국인 지분율" },
   { href: "/global-indicators", label: "글로벌 지표" },
