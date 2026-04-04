@@ -151,29 +151,60 @@ export default function MarketEventsPage() {
             )}
           </div>
 
-          {/* 이벤트 테이블 */}
+          {/* 이벤트 목록 */}
           {tabEvents.length > 0 ? (
-            <div className="overflow-x-auto rounded-lg border border-border">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border bg-muted/50">
-                    <th className="text-left px-4 py-3 font-medium">날짜</th>
-                    <th className="text-right px-4 py-3 font-medium">등락률</th>
-                    <th className="text-left px-4 py-3 font-medium">원인 분석 요약</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {tabEvents.map((event) => (
-                    <tr
-                      key={`${event.date}-${event.symbol}`}
-                      onClick={() => setSelectedEvent(event)}
-                      className="border-b border-border/50 hover:bg-muted/30 transition-colors cursor-pointer"
-                    >
-                      <td className="px-4 py-3 tabular-nums whitespace-nowrap">
-                        {event.date}
-                      </td>
-                      <td
-                        className={`px-4 py-3 text-right tabular-nums font-mono font-semibold ${
+            <>
+              {/* PC: 테이블 */}
+              <div className="hidden sm:block overflow-x-auto rounded-lg border border-border">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border bg-muted/50">
+                      <th className="text-left px-4 py-3 font-medium">날짜</th>
+                      <th className="text-right px-4 py-3 font-medium">등락률</th>
+                      <th className="text-left px-4 py-3 font-medium">원인 분석 요약</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {tabEvents.map((event) => (
+                      <tr
+                        key={`${event.date}-${event.symbol}`}
+                        onClick={() => setSelectedEvent(event)}
+                        className="border-b border-border/50 hover:bg-muted/30 transition-colors cursor-pointer"
+                      >
+                        <td className="px-4 py-3 tabular-nums whitespace-nowrap">
+                          {event.date}
+                        </td>
+                        <td
+                          className={`px-4 py-3 text-right tabular-nums font-mono font-semibold ${
+                            event.changePercent >= 0
+                              ? "text-emerald-500"
+                              : "text-red-500"
+                          }`}
+                        >
+                          {event.changePercent > 0 ? "+" : ""}
+                          {event.changePercent.toFixed(2)}%
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground truncate max-w-md">
+                          {event.summary.split("\n")[0]}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* 모바일: 카드 */}
+              <div className="sm:hidden flex flex-col gap-3">
+                {tabEvents.map((event) => (
+                  <div
+                    key={`${event.date}-${event.symbol}-card`}
+                    onClick={() => setSelectedEvent(event)}
+                    className="rounded-lg border border-border bg-card p-4 active:bg-muted/30 transition-colors cursor-pointer"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm tabular-nums">{event.date}</span>
+                      <span
+                        className={`text-sm tabular-nums font-mono font-semibold ${
                           event.changePercent >= 0
                             ? "text-emerald-500"
                             : "text-red-500"
@@ -181,15 +212,15 @@ export default function MarketEventsPage() {
                       >
                         {event.changePercent > 0 ? "+" : ""}
                         {event.changePercent.toFixed(2)}%
-                      </td>
-                      <td className="px-4 py-3 text-muted-foreground truncate max-w-xs sm:max-w-md">
-                        {event.summary.split("\n")[0]}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                      </span>
+                    </div>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      {event.summary.split("\n")[0]}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </>
           ) : (
             <div className="py-12 text-center text-muted-foreground text-sm">
               아직 분석된 데이터가 없습니다. 매일 장 마감 후 자동으로
