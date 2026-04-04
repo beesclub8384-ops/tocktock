@@ -23,78 +23,83 @@ const FETCH_OPTS: RequestInit = {
 
 /**
  * 전체 슈퍼투자자 최근 매매 활동 파싱
- * URL: /m/m_activity.php?typ=a&o=pu&L=1
+ * URL: https://www.dataroma.com/m/allact.php?typ=a
+ *
+ * 실제 HTML 구조 (table#grid):
+ *   행 1개 = 투자자 1명
+ *   td[0] class="firm"   → 투자자명 (링크 텍스트)
+ *   td[1] class="period" → 분기 ("Q4 2025")
+ *   td[2~11] class="sym" → Top 10 종목 각각:
+ *     <a class="buy|sell" href="...">TICKER</a>
+ *     <div>Company Name<br>Buy|Add X%|Reduce -X%|Sell -X%<br>Change to portfolio: X%</div>
  */
 export async function fetchAllActivity(): Promise<ActivityRecord[]> {
-  const url = "https://www.dataroma.com/m/m_activity.php?typ=a&o=pu&L=1";
+  const url = "https://www.dataroma.com/m/allact.php?typ=a";
   const res = await fetch(url, FETCH_OPTS);
-  if (!res.ok) throw new Error(`Activity fetch failed: ${res.status}`);
+  if (!res.ok) throw new Error(`AllAct fetch failed: ${res.status}`);
 
   const html = await res.text();
   const $ = cheerio.load(html);
   const records: ActivityRecord[] = [];
 
-  // 투자자명은 페이지 상단 f_name에서 추출할 수 없음 (전체 활동 페이지)
-  // 대신 allact 페이지에서 추출하거나 managers와 조합
-  // 전체 활동 페이지는 투자자별로 섹션이 나뉨
-  // 실제로는 /m/allact.php?typ=a 사용이 더 적합
-
-  // allact 페이지로 전환
-  const allActUrl = "https://www.dataroma.com/m/allact.php?typ=a";
-  const allActRes = await fetch(allActUrl, FETCH_OPTS);
-  if (!allActRes.ok) throw new Error(`AllAct fetch failed: ${allActRes.status}`);
-
-  const allActHtml = await allActRes.text();
-  const $a = cheerio.load(allActHtml);
-
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  $a("table#grid tbody tr").each((_: any, row: any) => {
-    const cells = $a(row).find("td");
-    if (cells.length < 5) return;
+  $("table#grid tbody tr").each((_: any, row: any) => {
+    const cells = $(row).find("td");
+    if (cells.length < 3) return;
 
-    // 컬럼: Stock, Activity, Reported Price, Portfolio Manager, % of Portfolio
-    const stockCell = $a(cells[0]);
-    const stockLink = stockCell.find("a");
-    const stockText = stockLink.text().trim();
-    // "AAPL - Apple Inc." 형태
-    const tickerMatch = stockText.match(/^(\S+)\s*-\s*(.+)$/);
-    if (!tickerMatch) return;
+    // td[0] = 투자자명
+    const investor = $(cells[0]).find("a").text().trim();
+    if (!investor) return;
 
-    const ticker = tickerMatch[1];
-    const companyName = tickerMatch[2].trim();
+    // td[2~11] = 종목 셀들 (class="sym")
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    $(row).find("td.sym").each((_2: any, symCell: any) => {
+      const $cell = $(symCell);
+      const link = $cell.find("a").first();
+      const ticker = link.text().trim();
+      if (!ticker) return;
 
-    const activityText = $a(cells[1]).text().trim();
-    // "Buy", "Add 3.78%", "Reduce 4.32%", "Sell 100.00%"
-    let activityType: ActivityRecord["activityType"] = "Buy";
-    let changePercent = 0;
+      // <div> 안의 텍스트를 <br> 기준으로 분리
+      const divHtml = $cell.find("div").html() || "";
+      const lines = divHtml.split(/<br\s*\/?>/i).map((s: string) => s.replace(/<[^>]+>/g, "").trim());
+      // lines[0] = "Company Name"
+      // lines[1] = "Buy" | "Add 269.87%" | "Reduce -64.58%" | "Sell -100.00%"
+      // lines[2] = "Change to portfolio: 3.65%"
 
-    if (activityText.startsWith("Add")) {
-      activityType = "Add";
-      const m = activityText.match(/([\d.]+)%/);
-      if (m) changePercent = parseFloat(m[1]);
-    } else if (activityText.startsWith("Reduce")) {
-      activityType = "Reduce";
-      const m = activityText.match(/([\d.]+)%/);
-      if (m) changePercent = parseFloat(m[1]);
-    } else if (activityText.startsWith("Sell")) {
-      activityType = "Sell";
-      const m = activityText.match(/([\d.]+)%/);
-      if (m) changePercent = parseFloat(m[1]);
-    } else {
-      activityType = "Buy";
-    }
+      const companyName = lines[0] || ticker;
 
-    const investor = $a(cells[3]).text().trim();
-    const weightText = $a(cells[4]).text().trim();
-    const portfolioWeight = parseFloat(weightText) || 0;
+      const activityText = lines[1] || "";
+      let activityType: ActivityRecord["activityType"] = "Buy";
+      let changePercent = 0;
 
-    records.push({
-      ticker,
-      companyName,
-      investor,
-      activityType,
-      changePercent,
-      portfolioWeight,
+      if (activityText.startsWith("Add")) {
+        activityType = "Add";
+        const m = activityText.match(/([\d.]+)%/);
+        if (m) changePercent = parseFloat(m[1]);
+      } else if (activityText.startsWith("Reduce")) {
+        activityType = "Reduce";
+        const m = activityText.match(/([\d.]+)%/);
+        if (m) changePercent = parseFloat(m[1]);
+      } else if (activityText.startsWith("Sell")) {
+        activityType = "Sell";
+        const m = activityText.match(/([\d.]+)%/);
+        if (m) changePercent = parseFloat(m[1]);
+      }
+
+      // "Change to portfolio: 3.65%" → 3.65
+      let portfolioWeight = 0;
+      const weightLine = lines[2] || "";
+      const wm = weightLine.match(/([\d.]+)%/);
+      if (wm) portfolioWeight = parseFloat(wm[1]);
+
+      records.push({
+        ticker,
+        companyName,
+        investor,
+        activityType,
+        changePercent,
+        portfolioWeight,
+      });
     });
   });
 
