@@ -1,13 +1,18 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import {
   Users,
   TrendingDown,
   UserCheck,
   ChevronDown,
   ExternalLink,
+  HelpCircle,
+  X,
 } from "lucide-react";
+import { useDraggable } from "@/hooks/useDraggable";
+import { useResizable } from "@/hooks/useResizable";
 
 // ── 타입 (서버 타입과 동일) ���─
 
@@ -50,6 +55,248 @@ interface Holding {
   reportedPrice: number;
   currentPrice: number;
   changePct: number;
+}
+
+// ── 보는 법 모달 ──
+
+function SuperinvestorGuideModal({ onClose }: { onClose: () => void }) {
+  const { position, handleMouseDown } = useDraggable();
+  const { size, handleResizeMouseDown } = useResizable();
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, []);
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        data-draggable-modal
+        className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-2xl"
+        style={{
+          transform: `translate(${position.x}px, ${position.y}px)`,
+          ...(size.width
+            ? { width: size.width, height: size.height }
+            : { width: "100%", maxWidth: "56rem" }),
+        }}
+      >
+        <div
+          className="overflow-y-auto p-6 sm:p-8"
+          style={{ maxHeight: size.height ? size.height - 2 : "85vh" }}
+        >
+          <button
+            onClick={onClose}
+            className="absolute right-4 top-4 z-10 rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          >
+            <X size={20} />
+          </button>
+
+          <h2
+            className="mb-6 text-xl font-bold cursor-move select-none"
+            onMouseDown={handleMouseDown}
+          >
+            슈퍼투자자 보는 법
+          </h2>
+
+          {/* 1부 */}
+          <section className="mb-6">
+            <h3 className="mb-2 text-base font-semibold">
+              전설적 투자자들의 장바구니를 들여다봅니다
+            </h3>
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              워런 버핏, 빌 애크먼처럼 수십 년간 시장을 이긴 투자자 82명이
+              이번 분기에 무엇을 샀는지, 팔았는지, 더 담았는지를 보여줍니다.
+            </p>
+            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+              미국 법상 1억 달러 이상 굴리는 펀드는 분기마다
+              보유 종목을 정부(SEC)에 의무적으로 신고해야 합니다.
+              이걸 <strong className="text-foreground">13F 공시</strong>라고 해요.
+            </p>
+            <blockquote className="mt-3 border-l-2 border-border pl-4 text-sm italic text-muted-foreground">
+              &ldquo;세상에서 가장 요리를 잘하는 셰프 82명이 이번 달 장을 어디서 봤는지
+              영수증을 공개하는 거예요. 우리는 그 영수증을 모아서 보여주는 겁니다.&rdquo;
+            </blockquote>
+          </section>
+
+          <hr className="my-5 border-border" />
+
+          {/* 2부: 섹션 1 */}
+          <section className="mb-6">
+            <h3 className="mb-1 text-base font-semibold">
+              섹션 1 — 이번 분기 거물들의 선택
+            </h3>
+            <p className="mb-2 text-xs text-muted-foreground/70">
+              혼자 산 게 아니라, 여럿이 같은 종목을 샀다
+            </p>
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              이번 분기에 2명 이상의 슈퍼투자자가 서로 상의도 없이
+              같은 종목을 담은 경우만 보여줍니다.
+            </p>
+            <blockquote className="mt-2 border-l-2 border-border pl-4 text-sm italic text-muted-foreground">
+              &ldquo;버핏도 사고, 애크먼도 사고, 파브라이도 샀다면?
+              우연이라고 보기 어렵습니다.&rdquo;
+            </blockquote>
+            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+              숫자가 클수록 더 많은 거물이 주목한 종목이에요.
+            </p>
+            <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
+              <li>
+                <strong className="text-foreground">Buy</strong> = 이번 분기 처음 매수 (새로 관심 가짐)
+              </li>
+              <li>
+                <strong className="text-foreground">Add</strong> = 원래 갖고 있었는데 더 담음 (확신이 커짐)
+              </li>
+            </ul>
+          </section>
+
+          <hr className="my-5 border-border" />
+
+          {/* 2부: 섹션 2 */}
+          <section className="mb-6">
+            <h3 className="mb-1 text-base font-semibold">
+              섹션 2 — 지금 할인 중인 거물 종목
+            </h3>
+            <p className="mb-2 text-xs text-muted-foreground/70">
+              거물이 비싸게 샀는데, 지금은 더 싸다
+            </p>
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              슈퍼투자자가 포트폴리오의 3% 이상을 크게 베팅한 종목 중에서,
+              현재 주가가 그들이 샀을 때보다 낮은 종목만 추렸어요.
+            </p>
+            <blockquote className="mt-2 border-l-2 border-border pl-4 text-sm italic text-muted-foreground">
+              &ldquo;버핏이 150달러에 크게 샀는데 지금 주가가 120달러라면?
+              버핏보다 싸게 살 수 있는 상황입니다.&rdquo;
+            </blockquote>
+            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+              할인율 숫자가 클수록 더 많이 내려온 상태예요.
+            </p>
+            <p className="mt-2 text-xs text-amber-400/80">
+              Hold Price는 분기말 종가 기준이라 정확한 매수가가 아닐 수 있어요.
+              실제 매수는 그 분기 중 어느 날이든 일어날 수 있습니다.
+            </p>
+          </section>
+
+          <hr className="my-5 border-border" />
+
+          {/* 2부: 섹션 3 */}
+          <section className="mb-6">
+            <h3 className="mb-1 text-base font-semibold">
+              섹션 3 — 거물 + 내부자 동시 매수
+            </h3>
+            <p className="mb-2 text-xs text-muted-foreground/70">
+              밖에서도 사고, 안에서도 샀다
+            </p>
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              슈퍼투자자가 매수한 종목 중에서,
+              그 회사 임원(내부자)도 최근 6개월 안에 자기 돈으로 주식을 사들인 종목입니다.
+            </p>
+            <blockquote className="mt-2 border-l-2 border-border pl-4 text-sm italic text-muted-foreground">
+              외부의 전설적 투자자 &rarr; &ldquo;이 회사 좋아 보인다&rdquo;<br />
+              내부 임원 &rarr; &ldquo;우리 회사 잘 될 거 알아, 내 돈 넣는다&rdquo;<br />
+              둘이 같은 방향 &rarr; <strong className="text-foreground">가장 강한 매수 시그널</strong>
+            </blockquote>
+            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+              내부자 매수 건수가 많을수록 임원들의 확신이 강한 거예요.
+            </p>
+          </section>
+
+          <hr className="my-5 border-border" />
+
+          {/* 2부: 섹션 4 */}
+          <section className="mb-6">
+            <h3 className="mb-1 text-base font-semibold">
+              섹션 4 — 투자자별 포트폴리오
+            </h3>
+            <p className="mb-2 text-xs text-muted-foreground/70">
+              내가 존경하는 그 투자자, 지금 뭘 들고 있나
+            </p>
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              드롭다운에서 투자자를 선택하면
+              그 사람의 현재 포트폴리오 전체를 볼 수 있어요.
+            </p>
+            <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
+              <li>
+                <strong className="text-foreground">비중(%)</strong> = 전체 포트폴리오에서 이 종목에 얼마나 베팅했는지
+              </li>
+              <li>
+                <span className="text-emerald-400 font-medium">Add</span> = 이번 분기 더 담음
+              </li>
+              <li>
+                <span className="text-red-400 font-medium">Reduce</span> = 이번 분기 일부 팜
+              </li>
+              <li>
+                <span className="text-muted-foreground">Hold</span> = 변화 없음
+              </li>
+            </ul>
+          </section>
+
+          <hr className="my-5 border-border" />
+
+          {/* 3부 */}
+          <section className="mb-2">
+            <h3 className="mb-3 text-base font-semibold">
+              따라 사는 게 목적이 아닙니다
+            </h3>
+
+            <div className="space-y-4">
+              <div className="rounded-lg border border-border bg-muted/30 p-4">
+                <h4 className="mb-1.5 text-sm font-semibold">
+                  ① 데이터가 늦습니다
+                </h4>
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  13F는 분기가 끝나고 최대 45일 후에 공개돼요.
+                  지금 내가 보는 건 최대 4개월 전 데이터일 수 있어요.
+                  공시되는 시점엔 이미 주가가 많이 오른 경우도 많습니다.
+                </p>
+              </div>
+
+              <div className="rounded-lg border border-border bg-muted/30 p-4">
+                <h4 className="mb-1.5 text-sm font-semibold">
+                  ② 이들은 초장기 투자자입니다
+                </h4>
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  버핏은 &ldquo;영원히 보유&rdquo;를 목표로 삽니다.
+                  이 종목들을 사고 단기 하락에 패닉 셀하면 손실이 납니다.
+                </p>
+              </div>
+
+              <div className="rounded-lg border border-border bg-muted/30 p-4">
+                <h4 className="mb-1.5 text-sm font-semibold">
+                  ③ 종목 발굴의 출발점으로 쓰세요
+                </h4>
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  &ldquo;이 종목을 거물들이 주목하는구나, 내가 직접 공부해봐야겠다&rdquo;
+                  &mdash; 여기서부터 시작하는 게 올바른 활용법입니다.
+                </p>
+              </div>
+            </div>
+          </section>
+        </div>
+        <div
+          onMouseDown={handleResizeMouseDown}
+          className="absolute bottom-0 right-0 cursor-se-resize px-2 py-1 text-xs text-gray-400 hover:text-gray-200 select-none"
+        >
+          ↔ 크기조절
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
 }
 
 // ── 유틸 ──
@@ -380,6 +627,7 @@ export default function SuperinvestorPage() {
   const [lastUpdated, setLastUpdated] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [guideOpen, setGuideOpen] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -440,6 +688,13 @@ export default function SuperinvestorPage() {
               })}
             </p>
           )}
+          <button
+            onClick={() => setGuideOpen(true)}
+            className="guide-btn mt-3 inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs transition-all"
+          >
+            <HelpCircle size={13} />
+            슈퍼투자자 보는 법
+          </button>
         </header>
 
         {loading ? (
@@ -516,6 +771,10 @@ export default function SuperinvestorPage() {
           </p>
         </div>
       </div>
+
+      {guideOpen && (
+        <SuperinvestorGuideModal onClose={() => setGuideOpen(false)} />
+      )}
     </div>
   );
 }
