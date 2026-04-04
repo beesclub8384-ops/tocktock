@@ -24,13 +24,21 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const today = new Date()
-      .toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" })
-      .replace(/\. /g, "-")
-      .replace(/\./g, "");
-    // ISO 형식으로 변환: YYYY-MM-DD
-    const now = new Date();
-    const kstDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    // 시장별 현지 날짜 계산 (미국: America/New_York, 한국: Asia/Seoul)
+    function getLocalDate(market: string): string {
+      const tz = market === "US" ? "America/New_York" : "Asia/Seoul";
+      const now = new Date();
+      const parts = new Intl.DateTimeFormat("en-CA", {
+        timeZone: tz,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).formatToParts(now);
+      const y = parts.find((p) => p.type === "year")!.value;
+      const m = parts.find((p) => p.type === "month")!.value;
+      const d = parts.find((p) => p.type === "day")!.value;
+      return `${y}-${m}-${d}`;
+    }
 
     // 1. 각 지수의 당일 등락률 조회
     const quoteResults = await Promise.allSettled(
@@ -72,6 +80,8 @@ export async function GET(request: NextRequest) {
       significant.map(async (item) => {
         const direction = item.changePercent > 0 ? "상승" : "하락";
         const pct = Math.abs(item.changePercent).toFixed(2);
+        // 시장별 현지 날짜 사용 (미국 지수는 ET, 한국 지수는 KST)
+        const eventDate = getLocalDate(item.market);
 
         try {
           const response = await anthropic.messages.create({
@@ -81,7 +91,7 @@ export async function GET(request: NextRequest) {
             messages: [
               {
                 role: "user",
-                content: `오늘(${kstDate}) ${item.name}이 ${pct}% ${direction}한 이유를 검색해서 한국어로 3줄 이내로 요약해줘. 핵심 원인만 간결하게. 불필요한 말 없이 팩트만.`,
+                content: `오늘(${eventDate}) ${item.name}이 ${pct}% ${direction}한 이유를 검색해서 한국어로 3줄 이내로 요약해줘. 핵심 원인만 간결하게. 불필요한 말 없이 팩트만.`,
               },
             ],
           });
@@ -95,7 +105,7 @@ export async function GET(request: NextRequest) {
             "요약을 생성하지 못했습니다.";
 
           return {
-            date: kstDate,
+            date: eventDate,
             symbol: item.symbol,
             name: item.name,
             changePercent: Number(item.changePercent.toFixed(2)),
@@ -109,7 +119,7 @@ export async function GET(request: NextRequest) {
             err
           );
           return {
-            date: kstDate,
+            date: eventDate,
             symbol: item.symbol,
             name: item.name,
             changePercent: Number(item.changePercent.toFixed(2)),
