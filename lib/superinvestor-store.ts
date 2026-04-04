@@ -1,15 +1,20 @@
 import * as cheerio from "cheerio";
+import YahooFinance from "yahoo-finance2";
 import { redis } from "@/lib/redis";
 import {
   type ActivityRecord,
-  type InsiderData,
-  type SuperinvestorStock,
-  type SuperinvestorData,
-  SUPERINVESTOR_KEY,
+  type ConsensusStock,
+  type DiscountStock,
+  type InsiderStock,
+  type Manager,
+  type Holding,
+  type StockDetail,
+  type SuperinvestorStore,
+  REDIS_KEYS,
   SUPERINVESTOR_TTL,
-  MIN_DISPLAY_SCORE,
 } from "@/lib/types/superinvestor";
-import { aggregateActivities, calculateScores } from "@/lib/superinvestor-score";
+
+const yahooFinance = new YahooFinance();
 
 const DATAROMA_UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
@@ -19,20 +24,8 @@ const FETCH_OPTS: RequestInit = {
   signal: AbortSignal.timeout(15000),
 };
 
-// ─── Dataroma HTML 파싱 ───
+// ─── 1. allact.php 파싱: 전체 매매 활동 ───
 
-/**
- * 전체 슈퍼투자자 최근 매매 활동 파싱
- * URL: https://www.dataroma.com/m/allact.php?typ=a
- *
- * 실제 HTML 구조 (table#grid):
- *   행 1개 = 투자자 1명
- *   td[0] class="firm"   → 투자자명 (링크 텍스트)
- *   td[1] class="period" → 분기 ("Q4 2025")
- *   td[2~11] class="sym" → Top 10 종목 각각:
- *     <a class="buy|sell" href="...">TICKER</a>
- *     <div>Company Name<br>Buy|Add X%|Reduce -X%|Sell -X%<br>Change to portfolio: X%</div>
- */
 export async function fetchAllActivity(): Promise<ActivityRecord[]> {
   const url = "https://www.dataroma.com/m/allact.php?typ=a";
   const res = await fetch(url, FETCH_OPTS);
@@ -47,11 +40,9 @@ export async function fetchAllActivity(): Promise<ActivityRecord[]> {
     const cells = $(row).find("td");
     if (cells.length < 3) return;
 
-    // td[0] = 투자자명
     const investor = $(cells[0]).find("a").text().trim();
     if (!investor) return;
 
-    // td[2~11] = 종목 셀들 (class="sym")
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     $(row).find("td.sym").each((_2: any, symCell: any) => {
       const $cell = $(symCell);
@@ -59,15 +50,12 @@ export async function fetchAllActivity(): Promise<ActivityRecord[]> {
       const ticker = link.text().trim();
       if (!ticker) return;
 
-      // <div> 안의 텍스트를 <br> 기준으로 분리
       const divHtml = $cell.find("div").html() || "";
-      const lines = divHtml.split(/<br\s*\/?>/i).map((s: string) => s.replace(/<[^>]+>/g, "").trim());
-      // lines[0] = "Company Name"
-      // lines[1] = "Buy" | "Add 269.87%" | "Reduce -64.58%" | "Sell -100.00%"
-      // lines[2] = "Change to portfolio: 3.65%"
+      const lines = divHtml
+        .split(/<br\s*\/?>/i)
+        .map((s: string) => s.replace(/<[^>]+>/g, "").trim());
 
       const companyName = lines[0] || ticker;
-
       const activityText = lines[1] || "";
       let activityType: ActivityRecord["activityType"] = "Buy";
       let changePercent = 0;
@@ -86,10 +74,8 @@ export async function fetchAllActivity(): Promise<ActivityRecord[]> {
         if (m) changePercent = parseFloat(m[1]);
       }
 
-      // "Change to portfolio: 3.65%" → 3.65
       let portfolioWeight = 0;
-      const weightLine = lines[2] || "";
-      const wm = weightLine.match(/([\d.]+)%/);
+      const wm = (lines[2] || "").match(/([\d.]+)%/);
       if (wm) portfolioWeight = parseFloat(wm[1]);
 
       records.push({
@@ -106,20 +92,11 @@ export async function fetchAllActivity(): Promise<ActivityRecord[]> {
   return records;
 }
 
-/**
- * 전체 슈퍼투자자 보유종목에서 가격 데이터 추출
- * 각 투자자의 holdings 페이지에서 보고가/현재가 가져오기는 너무 많음
- * → 대신 stock.php에서 개별 종목 가격 데이터를 가져옴
- */
-export async function fetchStockPrice(
+// ─��─ 2. stock.php 파싱: 보유자 + 인사이더 + Hold Price ───
+
+export async function fetchStockDetail(
   ticker: string
-): Promise<{
-  reportedPrice: number;
-  currentPrice: number;
-  priceChangePercent: number;
-  insiderBuys: number;
-  insiderBuyTotal: number;
-} | null> {
+): Promise<StockDetail | null> {
   const url = `https://www.dataroma.com/m/stock.php?sym=${encodeURIComponent(ticker)}`;
   try {
     const res = await fetch(url, FETCH_OPTS);
@@ -128,152 +105,294 @@ export async function fetchStockPrice(
     const html = await res.text();
     const $ = cheerio.load(html);
 
-    // 보고가: td#price
+    // Hold Price: td#price
     const priceText = $("td#price").text().trim().replace(/[$,]/g, "");
-    const reportedPrice = parseFloat(priceText) || 0;
+    const holdPrice = parseFloat(priceText) || 0;
 
-    // 현재가 + 변동률: grid 테이블의 첫 행에서 추출
-    // 대안: 종목 기본 정보 테이블에서 추출
-    let currentPrice = reportedPrice;
-    let priceChangePercent = 0;
-
-    // grid 테이블에서 현재가/변동률 추출
-    const gridRows = $("table#grid tbody tr");
-    if (gridRows.length > 0) {
-      const firstRow = gridRows.first();
-      const quoteTd = firstRow.find("td.quote");
-      const quotePctTd = firstRow.find("td.quote_pct");
-
-      if (quoteTd.length) {
-        const cp = quoteTd.text().trim().replace(/[$,]/g, "");
-        const parsed = parseFloat(cp);
-        if (parsed > 0) currentPrice = parsed;
-      }
-      if (quotePctTd.length) {
-        const pct = quotePctTd.text().trim().replace(/%/g, "");
-        priceChangePercent = parseFloat(pct) || 0;
-      }
-    }
-
-    // 인사이더 매수/매도 데이터: table#ins_sum
-    let insiderBuys = 0;
-    let insiderBuyTotal = 0;
-
-    const insSumRows = $("table#ins_sum tr");
+    // 보유자 목록: table#grid
+    // th: History | Portfolio Manager | % of portfolio | Recent activity | Shares | Value
+    const holders: StockDetail["holders"] = [];
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    insSumRows.each((_: any, row: any) => {
+    $("table#grid tbody tr").each((_: any, row: any) => {
+      const cells = $(row).find("td");
+      if (cells.length < 4) return;
+      const name = $(cells[1]).text().trim();
+      const weight = parseFloat($(cells[2]).text().trim()) || 0;
+      const activity = $(cells[3]).text().trim();
+      if (name) holders.push({ name, weight, activity });
+    });
+
+    // 인사이더: table#ins_sum
+    let insiderBuyCount = 0;
+    let insiderBuyAmount = 0;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    $("table#ins_sum tr").each((_: any, row: any) => {
       const $row = $(row);
       if ($row.hasClass("buys")) {
         const cells = $row.find("td");
         if (cells.length >= 2) {
-          insiderBuys = parseInt($(cells[0]).text().trim().replace(/,/g, "")) || 0;
-          insiderBuyTotal =
-            parseFloat(
-              $(cells[1]).text().trim().replace(/[$,]/g, "")
-            ) || 0;
+          insiderBuyCount =
+            parseInt($(cells[0]).text().trim().replace(/,/g, "")) || 0;
+          insiderBuyAmount =
+            parseFloat($(cells[1]).text().trim().replace(/[$,]/g, "")) || 0;
         }
       }
     });
 
-    return { reportedPrice, currentPrice, priceChangePercent, insiderBuys, insiderBuyTotal };
+    return { ticker, holdPrice, holders, insiderBuyCount, insiderBuyAmount };
   } catch {
     return null;
   }
 }
 
-// ─── Redis 저장/조회 ───
+// ─── 3. managers.php 파싱: 투자자 목록 ───
 
-export async function loadStocks(): Promise<SuperinvestorData | null> {
+export async function fetchManagers(): Promise<Manager[]> {
+  const url = "https://www.dataroma.com/m/managers.php";
+  const res = await fetch(url, FETCH_OPTS);
+  if (!res.ok) throw new Error(`Managers fetch failed: ${res.status}`);
+
+  const html = await res.text();
+  const $ = cheerio.load(html);
+  const managers: Manager[] = [];
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  $('a[href*="holdings.php?m="]').each((_: any, el: any) => {
+    const href = $(el).attr("href") || "";
+    const codeMatch = href.match(/m=([^&]+)/);
+    if (!codeMatch) return;
+    const name = $(el).text().trim();
+    if (name) managers.push({ code: codeMatch[1], name });
+  });
+
+  return managers;
+}
+
+// ─── 4. holdings.php 파싱: 개별 투자자 포트폴리오 ───
+
+export async function fetchHoldings(managerCode: string): Promise<Holding[]> {
+  const url = `https://www.dataroma.com/m/holdings.php?m=${encodeURIComponent(managerCode)}`;
+  const res = await fetch(url, FETCH_OPTS);
+  if (!res.ok) throw new Error(`Holdings fetch failed: ${res.status}`);
+
+  const html = await res.text();
+  const $ = cheerio.load(html);
+  const holdings: Holding[] = [];
+
+  // th: History | Stock | % of Portfolio | Recent Activity | Shares | Reported Price | Value | gap | Current Price | +/- Reported | 52W Low | 52W High
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  $("table#grid tbody tr").each((_: any, row: any) => {
+    const cells = $(row).find("td");
+    if (cells.length < 10) return;
+
+    const stockText = $(cells[1]).text().trim();
+    // "AAPL - Apple Inc." or "BN - Brookfield Corp."
+    const match = stockText.match(/^(\S+)\s*-\s*(.+)$/);
+    if (!match) return;
+
+    const ticker = match[1];
+    const companyName = match[2].trim();
+    const weightPercent = parseFloat($(cells[2]).text().trim()) || 0;
+    const activity = $(cells[3]).text().trim();
+    const reportedPrice =
+      parseFloat($(cells[5]).text().trim().replace(/[$,]/g, "")) || 0;
+    const currentPrice =
+      parseFloat($(cells[8]).text().trim().replace(/[$,]/g, "")) || 0;
+    const changePctText = $(cells[9]).text().trim().replace(/%/g, "");
+    const changePct = parseFloat(changePctText) || 0;
+
+    holdings.push({
+      ticker,
+      companyName,
+      weightPercent,
+      activity,
+      reportedPrice,
+      currentPrice,
+      changePct,
+    });
+  });
+
+  return holdings;
+}
+
+// ─── Yahoo Finance 현재가 일괄 조회 ───
+
+async function fetchCurrentPrices(
+  tickers: string[]
+): Promise<Map<string, number>> {
+  const prices = new Map<string, number>();
+  for (let i = 0; i < tickers.length; i += 10) {
+    const batch = tickers.slice(i, i + 10);
+    const results = await Promise.allSettled(
+      batch.map(async (t) => {
+        const q = await yahooFinance.quote(t);
+        const quote = q as unknown as { regularMarketPrice?: number };
+        return { ticker: t, price: quote.regularMarketPrice ?? 0 };
+      })
+    );
+    for (const r of results) {
+      if (r.status === "fulfilled" && r.value.price > 0) {
+        prices.set(r.value.ticker, r.value.price);
+      }
+    }
+    if (i + 10 < tickers.length) {
+      await new Promise((r) => setTimeout(r, 500));
+    }
+  }
+  return prices;
+}
+
+// ─── Redis 저장/��회 ───
+
+export async function loadData(): Promise<SuperinvestorStore | null> {
   try {
-    const data = await redis.get<SuperinvestorData>(SUPERINVESTOR_KEY);
-    return data ?? null;
+    return (await redis.get<SuperinvestorStore>(REDIS_KEYS.DATA)) ?? null;
   } catch {
     return null;
   }
 }
 
-export async function saveStocks(stocks: SuperinvestorStock[]): Promise<void> {
-  const data: SuperinvestorData = {
-    stocks,
-    lastUpdated: new Date().toISOString(),
-  };
-  await redis.set(SUPERINVESTOR_KEY, data, { ex: SUPERINVESTOR_TTL });
+async function saveData(data: SuperinvestorStore): Promise<void> {
+  await redis.set(REDIS_KEYS.DATA, data, { ex: SUPERINVESTOR_TTL });
 }
 
 // ─── 전체 수집 파이프라인 ───
 
-export async function collectAndScore(): Promise<SuperinvestorStock[]> {
-  console.log("[superinvestor] 데이터 수집 시작");
+export async function collectAll(): Promise<SuperinvestorStore> {
+  console.log("[superinvestor] 수집 시작");
 
-  // 1. 전체 매매 활동 수집
-  const activities = await fetchAllActivity();
-  console.log(`[superinvestor] 매매 활동 ${activities.length}건 파싱 완료`);
+  // 1. 매매 활동 + 투자자 목록 동시 수집
+  const [activities, managers] = await Promise.all([
+    fetchAllActivity(),
+    fetchManagers(),
+  ]);
+  console.log(
+    `[superinvestor] 활동 ${activities.length}건, 투자자 ${managers.length}명`
+  );
 
-  // Buy/Add만 필터
+  // 2. Buy/Add만 필터 → 동시 매수 2명↑ 종목 추출
   const buyActivities = activities.filter(
     (a) => a.activityType === "Buy" || a.activityType === "Add"
   );
-  console.log(`[superinvestor] Buy/Add 활동 ${buyActivities.length}건`);
 
-  // 2. 고유 티커 목록 추출
-  const tickers = [...new Set(buyActivities.map((a) => a.ticker))];
-  console.log(`[superinvestor] 고유 종목 ${tickers.length}개`);
-
-  // 3. 종목별 가격/인사이더 데이터 수집 (5개씩 배치)
-  const priceData = new Map<
+  const tickerMap = new Map<
     string,
-    { reportedPrice: number; currentPrice: number; priceChangePercent: number }
-  >();
-  const insiderMap = new Map<string, InsiderData>();
-
-  for (let i = 0; i < tickers.length; i += 5) {
-    const batch = tickers.slice(i, i + 5);
-    const results = await Promise.all(batch.map((t) => fetchStockPrice(t)));
-
-    for (let j = 0; j < batch.length; j++) {
-      const ticker = batch[j];
-      const result = results[j];
-      if (!result) continue;
-
-      priceData.set(ticker, {
-        reportedPrice: result.reportedPrice,
-        currentPrice: result.currentPrice,
-        priceChangePercent: result.priceChangePercent,
-      });
-
-      if (result.insiderBuys > 0) {
-        insiderMap.set(ticker, {
-          ticker,
-          buyCount: result.insiderBuys,
-          buyTotal: result.insiderBuyTotal,
-          sellCount: 0,
-          sellTotal: 0,
-        });
-      }
+    {
+      companyName: string;
+      buyers: Map<string, "Buy" | "Add">;
     }
+  >();
 
-    // Rate limit 방지: 배치 간 1초 대기
-    if (i + 5 < tickers.length) {
-      await new Promise((r) => setTimeout(r, 1000));
+  for (const act of buyActivities) {
+    let entry = tickerMap.get(act.ticker);
+    if (!entry) {
+      entry = { companyName: act.companyName, buyers: new Map() };
+      tickerMap.set(act.ticker, entry);
+    }
+    if (!entry.buyers.has(act.investor)) {
+      entry.buyers.set(act.investor, act.activityType as "Buy" | "Add");
     }
   }
 
-  console.log(
-    `[superinvestor] 가격 데이터 ${priceData.size}개, 인사이더 ${insiderMap.size}개 수집 완료`
-  );
+  // 섹션 1: 동시 매수 종목 (2명↑)
+  const consensus: ConsensusStock[] = [];
+  const consensusTickers: string[] = [];
 
-  // 4. 집계 + 점수 계산
-  const aggregated = aggregateActivities(activities, priceData);
-  const scored = calculateScores(aggregated, insiderMap);
+  for (const [ticker, entry] of tickerMap) {
+    if (entry.buyers.size >= 2) {
+      consensus.push({
+        ticker,
+        companyName: entry.companyName,
+        buyerCount: entry.buyers.size,
+        buyers: Array.from(entry.buyers.entries()).map(([name, type]) => ({
+          name,
+          activityType: type,
+        })),
+      });
+      consensusTickers.push(ticker);
+    }
+  }
+  consensus.sort((a, b) => b.buyerCount - a.buyerCount);
+  console.log(`[superinvestor] 동시 매수 2명↑: ${consensus.length}개`);
 
-  // 5. 40점 이상만 필터 + 점수 내림차순
-  const filtered = scored
-    .filter((s) => s.score >= MIN_DISPLAY_SCORE)
-    .sort((a, b) => b.score - a.score);
+  // 3. 동시 매수 종목들만 stock.php 호출 (배치 5개, 1초 대기)
+  const stockDetails = new Map<string, StockDetail>();
+  for (let i = 0; i < consensusTickers.length; i += 5) {
+    const batch = consensusTickers.slice(i, i + 5);
+    const results = await Promise.all(batch.map((t) => fetchStockDetail(t)));
+    for (let j = 0; j < batch.length; j++) {
+      if (results[j]) stockDetails.set(batch[j], results[j]!);
+    }
+    if (i + 5 < consensusTickers.length) {
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+  }
+  console.log(`[superinvestor] stock.php: ${stockDetails.size}개 수집`);
 
-  console.log(
-    `[superinvestor] ${MIN_DISPLAY_SCORE}점 이상 종목 ${filtered.length}개`
-  );
+  // 4. Yahoo Finance 현재가 조회
+  const currentPrices = await fetchCurrentPrices(consensusTickers);
+  console.log(`[superinvestor] 현재가: ${currentPrices.size}개 조회`);
 
-  return filtered;
+  // 섹션 2: 할인 중인 종목
+  const discount: DiscountStock[] = [];
+  for (const [ticker, detail] of stockDetails) {
+    const currentPrice = currentPrices.get(ticker);
+    if (!currentPrice || detail.holdPrice <= 0) continue;
+
+    // 비중 3%↑ 보유자 있는지 확인
+    const highWeightHolders = detail.holders.filter((h) => h.weight >= 3);
+    if (highWeightHolders.length === 0) continue;
+
+    // 현재가 < Hold Price (할인 ��)
+    if (currentPrice >= detail.holdPrice) continue;
+
+    const discountPct =
+      ((currentPrice - detail.holdPrice) / detail.holdPrice) * 100;
+    const topHolder = highWeightHolders.sort(
+      (a, b) => b.weight - a.weight
+    )[0];
+    const cEntry = consensus.find((c) => c.ticker === ticker);
+
+    discount.push({
+      ticker,
+      companyName: cEntry?.companyName ?? ticker,
+      topHolder: topHolder.name,
+      topHolderWeight: topHolder.weight,
+      holdPrice: detail.holdPrice,
+      currentPrice,
+      discountPercent: Math.round(discountPct * 100) / 100,
+      holderCount: detail.holders.length,
+    });
+  }
+  discount.sort((a, b) => a.discountPercent - b.discountPercent);
+  console.log(`[superinvestor] 할인 종목: ${discount.length}개`);
+
+  // 섹션 3: 거물 + 내부자 동시 매수
+  const insider: InsiderStock[] = [];
+  for (const [ticker, detail] of stockDetails) {
+    if (detail.insiderBuyCount <= 0) continue;
+    const cEntry = consensus.find((c) => c.ticker === ticker);
+    insider.push({
+      ticker,
+      companyName: cEntry?.companyName ?? ticker,
+      superinvestorCount: detail.holders.length,
+      insiderBuyCount: detail.insiderBuyCount,
+      insiderBuyAmount: detail.insiderBuyAmount,
+    });
+  }
+  insider.sort((a, b) => b.insiderBuyCount - a.insiderBuyCount);
+  console.log(`[superinvestor] 내부자 동반 매수: ${insider.length}개`);
+
+  const store: SuperinvestorStore = {
+    consensus,
+    discount,
+    insider,
+    managers,
+    lastUpdated: new Date().toISOString(),
+  };
+
+  await saveData(store);
+  console.log("[superinvestor] 저장 완료");
+
+  return store;
 }

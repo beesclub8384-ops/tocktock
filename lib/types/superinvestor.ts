@@ -1,53 +1,82 @@
-// 슈퍼투자자 종목 선정 관련 타입 및 상수
+// 슈퍼투자자 페이지 타입 정의
 
-export interface SuperinvestorStock {
+// ── 섹션 1: 동시 매수 종목 ──
+export interface ConsensusStock {
   ticker: string;
   companyName: string;
-  score: number;
-  grade: string; // '강력추천' | '주목' | '관심'
-  signal1: { buyerCount: number; buyers: string[]; points: number };
-  signal2: { maxWeight: number; priceChange: number; points: number };
-  signal3: { insiderBuys: number; points: number };
+  buyerCount: number;
+  buyers: { name: string; activityType: "Buy" | "Add" }[];
+}
+
+// ── 섹션 2: 할인 중인 거물 종목 ──
+export interface DiscountStock {
+  ticker: string;
+  companyName: string;
+  topHolder: string;
+  topHolderWeight: number;
+  holdPrice: number;
   currentPrice: number;
+  discountPercent: number;
+  holderCount: number;
+}
+
+// ── 섹션 3: 거물 + 내부자 동시 매수 ──
+export interface InsiderStock {
+  ticker: string;
+  companyName: string;
+  superinvestorCount: number;
+  insiderBuyCount: number;
+  insiderBuyAmount: number;
+}
+
+// ── 섹션 4: 투자자 목록 / 보유 종목 ──
+export interface Manager {
+  code: string;
+  name: string;
+}
+
+export interface Holding {
+  ticker: string;
+  companyName: string;
+  weightPercent: number;
+  activity: string;
   reportedPrice: number;
-  priceChangePercent: number;
-  lastUpdated: string; // ISO 날짜
+  currentPrice: number;
+  changePct: number;
 }
 
-export interface SuperinvestorData {
-  stocks: SuperinvestorStock[];
-  lastUpdated: string;
-}
-
-/** 슈퍼투자자 매매 활동 (파싱 중간 데이터) */
+// ── 매매 활동 파싱 중간 데이터 ──
 export interface ActivityRecord {
   ticker: string;
   companyName: string;
   investor: string;
   activityType: "Buy" | "Add" | "Reduce" | "Sell";
-  changePercent: number; // Add 3.78% → 3.78
-  portfolioWeight: number; // % change to portfolio
+  changePercent: number;
+  portfolioWeight: number;
 }
 
-/** 개별 종목 인사이더 데이터 */
-export interface InsiderData {
+// ── stock.php 파싱 결과 ──
+export interface StockDetail {
   ticker: string;
-  buyCount: number;
-  buyTotal: number; // 달러
-  sellCount: number;
-  sellTotal: number;
+  holdPrice: number;
+  holders: { name: string; weight: number; activity: string }[];
+  insiderBuyCount: number;
+  insiderBuyAmount: number;
+}
+
+// ── Redis 저장 구조 ──
+export interface SuperinvestorStore {
+  consensus: ConsensusStock[];
+  discount: DiscountStock[];
+  insider: InsiderStock[];
+  managers: Manager[];
+  lastUpdated: string;
 }
 
 // Redis 키
-export const SUPERINVESTOR_KEY = "superinvestor:stocks";
-export const SUPERINVESTOR_TTL = 86400; // 24시간
-
-// 점수 등급 기준
-export const GRADE_THRESHOLDS = {
-  STRONG: { min: 80, label: "강력추천" },
-  WATCH: { min: 60, label: "주목" },
-  INTEREST: { min: 40, label: "관심" },
+export const REDIS_KEYS = {
+  DATA: "superinvestor:v2",
+  LOCK: "lock:cron:superinvestor-scan",
 } as const;
 
-// 최소 표시 점수
-export const MIN_DISPLAY_SCORE = 40;
+export const SUPERINVESTOR_TTL = 604800; // 7일
