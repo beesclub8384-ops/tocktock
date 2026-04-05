@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { InvestmentQuoteBanner } from "@/components/investment-quote-banner";
@@ -23,9 +23,108 @@ const navLinks = [
   { href: "/ai-trading", label: "AI 자동매매" },
 ];
 
+// PC 가로 메뉴 순서 (드롭다운 그룹 포함)
+type NavItem =
+  | { type: "link"; href: string; label: string }
+  | { type: "dropdown"; label: string; id: string; items: { href: string; label: string }[] };
+
+const pcNavItems: NavItem[] = [
+  { type: "link", href: "/news", label: "뉴스" },
+  { type: "link", href: "/blog", label: "거시전망" },
+  { type: "link", href: "/indices", label: "지수" },
+  { type: "link", href: "/credit", label: "빚투" },
+  { type: "link", href: "/market-events", label: "지수 급등락 분석" },
+  { type: "link", href: "/economics", label: "경제공부" },
+  { type: "link", href: "/foreign-ownership", label: "외국인 지분율" },
+  { type: "link", href: "/global-indicators", label: "글로벌 지표" },
+  { type: "link", href: "/money-flow", label: "돈의 흐름" },
+  { type: "link", href: "/money-flow/treasury-auction", label: "미국채 경매" },
+  {
+    type: "dropdown",
+    label: "유동성",
+    id: "liquidity",
+    items: [
+      { href: "/liquidity/us", label: "미국 유동성" },
+      { href: "/liquidity/global", label: "글로벌 유동성" },
+    ],
+  },
+  { type: "link", href: "/superinvestor", label: "슈퍼투자자" },
+  {
+    type: "dropdown",
+    label: "자동매매",
+    id: "trading",
+    items: [
+      { href: "/virtual-trading", label: "자동매매" },
+      { href: "/ai-trading", label: "AI 자동매매" },
+    ],
+  },
+];
+
+function NavDropdown({
+  label,
+  items,
+  openId,
+  id,
+  onToggle,
+}: {
+  label: string;
+  items: { href: string; label: string }[];
+  openId: string | null;
+  id: string;
+  onToggle: (id: string) => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const isOpen = openId === id;
+
+  return (
+    <div ref={ref} className="relative">
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => onToggle(id)}
+        className="whitespace-nowrap"
+      >
+        {label} ▾
+      </Button>
+      {isOpen && (
+        <div className="absolute left-0 top-full mt-1 min-w-max rounded-md border border-border bg-background shadow-lg z-50">
+          {items.map(({ href, label: itemLabel }) => (
+            <Link
+              key={href}
+              href={href}
+              className="block px-4 py-2 text-sm transition-colors hover:bg-accent whitespace-nowrap"
+              onClick={() => onToggle("")}
+            >
+              {itemLabel}
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [visible, setVisible] = useState(false);
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const pcNavRef = useRef<HTMLElement>(null);
+
+  const toggleDropdown = useCallback((id: string) => {
+    setOpenDropdown((prev) => (prev === id ? null : id));
+  }, []);
+
+  // 드롭다운 바깥 클릭 시 닫기
+  useEffect(() => {
+    if (!openDropdown) return;
+    const handler = (e: MouseEvent) => {
+      if (pcNavRef.current && !pcNavRef.current.contains(e.target as Node)) {
+        setOpenDropdown(null);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [openDropdown]);
 
   // data-menu-open 속성 + body 스크롤 잠금
   useEffect(() => {
@@ -54,12 +153,23 @@ export function Navbar() {
           </Link>
 
           {/* PC: 가로 메뉴 */}
-          <nav className="hidden md:flex items-center gap-1 flex-1 min-w-0">
-            {navLinks.map(({ href, label }) => (
-              <Button key={href} variant="ghost" size="sm" asChild>
-                <Link href={href}>{label}</Link>
-              </Button>
-            ))}
+          <nav ref={pcNavRef} className="hidden md:flex items-center gap-1 flex-1 min-w-0">
+            {pcNavItems.map((item) =>
+              item.type === "link" ? (
+                <Button key={item.href} variant="ghost" size="sm" asChild>
+                  <Link href={item.href}>{item.label}</Link>
+                </Button>
+              ) : (
+                <NavDropdown
+                  key={item.id}
+                  id={item.id}
+                  label={item.label}
+                  items={item.items}
+                  openId={openDropdown}
+                  onToggle={toggleDropdown}
+                />
+              )
+            )}
           </nav>
 
           {/* 모바일: 햄버거 버튼 */}
