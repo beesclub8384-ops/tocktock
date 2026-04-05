@@ -21,6 +21,7 @@ const navLinks = [
   { href: "/superinvestor", label: "슈퍼투자자" },
   { href: "/virtual-trading", label: "자동매매" },
   { href: "/ai-trading", label: "AI 자동매매" },
+  { href: "/futures-trading", label: "선물매매 검증" },
 ];
 
 // PC 가로 메뉴 순서 (드롭다운 그룹 포함)
@@ -56,6 +57,7 @@ const pcNavItems: NavItem[] = [
     items: [
       { href: "/virtual-trading", label: "자동매매" },
       { href: "/ai-trading", label: "AI 자동매매" },
+      { href: "/futures-trading", label: "선물매매 검증" },
     ],
   },
 ];
