@@ -53,35 +53,136 @@ function PasswordGate({ onAuth }: { onAuth: (pw: string) => void }) {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <form onSubmit={handleSubmit} className="w-full max-w-xs space-y-4">
-        <h1 className="text-xl font-bold text-center">선물매매 검증</h1>
-        <p className="text-sm text-center text-muted-foreground">
-          비밀번호를 입력하세요
-        </p>
-        <input
-          type="password"
-          value={pw}
-          onChange={(e) => {
-            setPw(e.target.value);
-            setError(false);
-          }}
-          className="w-full rounded-lg border border-border bg-card px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-foreground/20"
-          placeholder="비밀번호"
-          autoFocus
-        />
-        {error && (
-          <p className="text-sm text-red-400 text-center">
-            비밀번호가 틀렸습니다
+    <div className="min-h-screen bg-background">
+      <div className="mx-auto max-w-3xl px-4 py-12 sm:px-8">
+        {/* ── 영웅들의 선물 소개 ── */}
+        <section className="mb-12">
+          <h1 className="text-3xl font-bold tracking-tight mb-2">
+            영웅들의 선물
+          </h1>
+          <p className="text-sm text-muted-foreground mb-6">
+            코스피200 선물 실시간 모니터링 &amp; 매매 검증 시스템
           </p>
-        )}
-        <button
-          type="submit"
-          className="w-full rounded-lg bg-foreground px-4 py-2.5 text-sm font-medium text-background transition-colors hover:bg-foreground/90"
-        >
-          확인
-        </button>
-      </form>
+
+          <div className="rounded-xl border border-border bg-card p-6 space-y-6">
+            {/* 개요 */}
+            <div>
+              <p className="text-sm leading-relaxed text-foreground/80">
+                <strong>영웅들의 선물</strong>은 코스피200 선물 시장의 실시간 가격과
+                투자자별 수급 데이터를 모니터링하는 프로그램입니다.
+                키움증권 Open API+를 기반으로 작동하며, 매매 기록을 남기고 패턴을 분석할 수 있습니다.
+              </p>
+            </div>
+
+            {/* 주간/야간 시간표 */}
+            <div>
+              <h3 className="text-sm font-semibold mb-2">거래 시간대</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border text-left">
+                      <th className="pb-2 pr-4 font-medium text-muted-foreground">시간</th>
+                      <th className="pb-2 pr-4 font-medium text-muted-foreground">세션</th>
+                      <th className="pb-2 font-medium text-muted-foreground">실시간 타입</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-foreground/80">
+                    <tr className="border-b border-border/50">
+                      <td className="py-2 pr-4 tabular-nums">09:00 ~ 15:30</td>
+                      <td className="py-2 pr-4">
+                        <span className="rounded-full bg-green-500/10 px-2 py-0.5 text-xs font-medium text-green-500">주간장</span>
+                      </td>
+                      <td className="py-2 text-xs text-muted-foreground">0K(시세) / 0z(투자자)</td>
+                    </tr>
+                    <tr className="border-b border-border/50">
+                      <td className="py-2 pr-4 tabular-nums">18:00 ~ 익일 06:00</td>
+                      <td className="py-2 pr-4">
+                        <span className="rounded-full bg-orange-500/10 px-2 py-0.5 text-xs font-medium text-orange-500">야간장</span>
+                      </td>
+                      <td className="py-2 text-xs text-muted-foreground">NK(시세) / Nz(투자자)</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* 화면 구성 */}
+            <div>
+              <h3 className="text-sm font-semibold mb-2">모니터링 화면</h3>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="rounded-lg bg-muted/50 p-3">
+                  <p className="text-xs font-medium text-muted-foreground mb-1">선물 시세 (좌측)</p>
+                  <p className="text-sm text-foreground/80">
+                    현재가, 전일대비, 등락율, 거래량, 매도/매수호가를 실시간으로 표시합니다.
+                    상승은 빨간색, 하락은 파란색입니다.
+                  </p>
+                </div>
+                <div className="rounded-lg bg-muted/50 p-3">
+                  <p className="text-xs font-medium text-muted-foreground mb-1">투자자별 수급 (우측)</p>
+                  <p className="text-sm text-foreground/80">
+                    개인, 외국인, 기관계의 매도/매수/순매수를 표시합니다.
+                    순매수 양수는 빨간색, 음수는 파란색입니다.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* 현재 상태 */}
+            <div>
+              <h3 className="text-sm font-semibold mb-2">현재 진행 상태</h3>
+              <div className="flex flex-wrap gap-2">
+                <span className="inline-flex items-center gap-1 rounded-full border border-green-500/30 bg-green-500/10 px-2.5 py-1 text-xs text-green-500">
+                  <span className="h-1.5 w-1.5 rounded-full bg-green-500" />실서버 로그인
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-full border border-green-500/30 bg-green-500/10 px-2.5 py-1 text-xs text-green-500">
+                  <span className="h-1.5 w-1.5 rounded-full bg-green-500" />종목코드 자동인식
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-full border border-green-500/30 bg-green-500/10 px-2.5 py-1 text-xs text-green-500">
+                  <span className="h-1.5 w-1.5 rounded-full bg-green-500" />주간/야간 자동전환
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-full border border-yellow-500/30 bg-yellow-500/10 px-2.5 py-1 text-xs text-yellow-500">
+                  <span className="h-1.5 w-1.5 rounded-full bg-yellow-500" />실시간 시세 확인중
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-muted-foreground">
+                  <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40" />매매 로직 준비중
+                </span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ── 비밀번호 입력 (매매 기록 접근) ── */}
+        <section className="flex justify-center">
+          <form onSubmit={handleSubmit} className="w-full max-w-xs space-y-4">
+            <h2 className="text-lg font-bold text-center">매매 기록 열기</h2>
+            <p className="text-sm text-center text-muted-foreground">
+              비밀번호를 입력하면 매매 기록 페이지로 이동합니다
+            </p>
+            <input
+              type="password"
+              value={pw}
+              onChange={(e) => {
+                setPw(e.target.value);
+                setError(false);
+              }}
+              className="w-full rounded-lg border border-border bg-card px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-foreground/20"
+              placeholder="비밀번호"
+              autoFocus
+            />
+            {error && (
+              <p className="text-sm text-red-400 text-center">
+                비밀번호가 틀렸습니다
+              </p>
+            )}
+            <button
+              type="submit"
+              className="w-full rounded-lg bg-foreground px-4 py-2.5 text-sm font-medium text-background transition-colors hover:bg-foreground/90"
+            >
+              확인
+            </button>
+          </form>
+        </section>
+      </div>
     </div>
   );
 }
