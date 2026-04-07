@@ -20,6 +20,17 @@ export interface QAItem {
   answeredAt: string;    // 답변 등록 시각 (ISO, 빈 문자열이면 미답변)
 }
 
+export interface MessageItem {
+  id: string;
+  author: "태양" | "용태";
+  content: string;
+  createdAt: string; // ISO timestamp
+}
+
+export interface MessageStore {
+  messages: MessageItem[];
+}
+
 export interface FuturesStore {
   records: FuturesRecord[];
 }
@@ -30,3 +41,4 @@ export interface QAStore {
 
 export const FUTURES_REDIS_KEY = "futures-trading:records";
 export const QA_REDIS_KEY = "futures-trading:qa";
+export const MSG_REDIS_KEY = "futures-trading:messages";

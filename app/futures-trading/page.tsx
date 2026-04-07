@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback, Fragment } from "react";
-import { Trash2, ChevronDown, ChevronUp, MessageCircle, Send } from "lucide-react";
+import { Trash2, ChevronDown, ChevronUp, MessageCircle, Send, Megaphone } from "lucide-react";
+import { useRef } from "react";
 
 interface FuturesRecord {
   id: string;
@@ -23,6 +24,13 @@ interface QAItem {
   answer: string;
   createdAt: string;
   answeredAt: string;
+}
+
+interface MessageItem {
+  id: string;
+  author: "태양" | "용태";
+  content: string;
+  createdAt: string;
 }
 
 const MULTIPLIER = 250000;
@@ -1001,13 +1009,165 @@ function QASection({ password }: { password: string }) {
   );
 }
 
+// ── 자유전달판 ──
+
+function MessageBoard({ password }: { password: string }) {
+  const [msgs, setMsgs] = useState<MessageItem[]>([]);
+  const [author, setAuthor] = useState<"태양" | "용태">("태양");
+  const [text, setText] = useState("");
+  const [posting, setPosting] = useState(false);
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  const fetchMsgs = useCallback(async () => {
+    try {
+      const res = await fetch("/api/futures-trading/messages", {
+        headers: { "x-password": password },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setMsgs(data.messages ?? []);
+      }
+    } catch {}
+  }, [password]);
+
+  useEffect(() => { fetchMsgs(); }, [fetchMsgs]);
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs]);
+
+  const send = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!text.trim()) return;
+    setPosting(true);
+    try {
+      const res = await fetch("/api/futures-trading/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-password": password },
+        body: JSON.stringify({ author, content: text }),
+      });
+      if (res.ok) { setText(""); fetchMsgs(); }
+    } finally { setPosting(false); }
+  };
+
+  const del = async (id: string) => {
+    if (!confirm("이 메시지를 삭제하시겠습니까?")) return;
+    await fetch("/api/futures-trading/messages", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json", "x-password": password },
+      body: JSON.stringify({ id }),
+    });
+    fetchMsgs();
+  };
+
+  const fmtTime = (iso: string) => {
+    const d = new Date(iso);
+    return `${String(d.getMonth()+1).padStart(2,"0")}/${String(d.getDate()).padStart(2,"0")} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* 채팅 영역 */}
+      <div className="rounded-xl border border-border bg-card overflow-hidden">
+        <div className="h-[480px] overflow-y-auto p-4 space-y-3">
+          {msgs.length === 0 && (
+            <div className="flex h-full items-center justify-center">
+              <p className="text-sm text-muted-foreground">아직 메시지가 없습니다.</p>
+            </div>
+          )}
+          {msgs.map((m) => {
+            const isSun = m.author === "태양";
+            return (
+              <div
+                key={m.id}
+                className={`flex ${isSun ? "justify-end" : "justify-start"}`}
+              >
+                <div className={`group max-w-[75%] ${isSun ? "items-end" : "items-start"}`}>
+                  {/* 작성자 이름 */}
+                  <p className={`text-xs font-medium mb-0.5 ${isSun ? "text-right text-blue-400" : "text-left text-foreground/60"}`}>
+                    {m.author}
+                  </p>
+                  {/* 말풍선 */}
+                  <div
+                    className={`relative rounded-2xl px-3.5 py-2.5 text-sm whitespace-pre-wrap ${
+                      isSun
+                        ? "bg-blue-600 text-white rounded-tr-sm"
+                        : "bg-muted text-foreground rounded-tl-sm"
+                    }`}
+                  >
+                    {m.content}
+                    {/* 삭제 버튼 — hover 시 표시 */}
+                    <button
+                      onClick={() => del(m.id)}
+                      className={`absolute top-1 opacity-0 group-hover:opacity-100 transition-opacity ${
+                        isSun ? "-left-6" : "-right-6"
+                      } text-muted-foreground hover:text-red-400`}
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                  {/* 시간 */}
+                  <p className={`text-[10px] text-muted-foreground mt-0.5 ${isSun ? "text-right" : "text-left"}`}>
+                    {fmtTime(m.createdAt)}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+          <div ref={bottomRef} />
+        </div>
+      </div>
+
+      {/* 입력 영역 */}
+      <form onSubmit={send} className="rounded-xl border border-border bg-card p-4 space-y-3">
+        {/* 작성자 선택 */}
+        <div className="flex gap-2">
+          {(["태양", "용태"] as const).map((name) => (
+            <button
+              key={name}
+              type="button"
+              onClick={() => setAuthor(name)}
+              className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+                author === name
+                  ? name === "태양"
+                    ? "bg-blue-600 text-white"
+                    : "bg-foreground/80 text-background"
+                  : "bg-muted text-muted-foreground"
+              }`}
+            >
+              {name}
+            </button>
+          ))}
+        </div>
+        {/* 메시지 입력 */}
+        <div className="flex gap-2">
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            rows={2}
+            placeholder="메시지를 입력하세요"
+            className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-foreground/20 resize-none"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(e); }
+            }}
+          />
+          <button
+            type="submit"
+            disabled={posting || !text.trim()}
+            className="self-end rounded-lg bg-blue-600 px-4 py-2.5 text-white transition-colors hover:bg-blue-700 disabled:opacity-40"
+          >
+            <Send size={16} />
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
 // ── 메인 페이지 ──
 
 export default function FuturesTradingPage() {
   const [password, setPassword] = useState<string | null>(null);
   const [records, setRecords] = useState<FuturesRecord[]>([]);
   const [loading, setLoading] = useState(false);
-  const [tab, setTab] = useState<"records" | "qa">("records");
+  const [tab, setTab] = useState<"records" | "qa" | "board">("records");
 
   const fetchRecords = useCallback(async () => {
     if (!password) return;
@@ -1068,6 +1228,17 @@ export default function FuturesTradingPage() {
             <MessageCircle size={14} />
             질문/답변
           </button>
+          <button
+            onClick={() => setTab("board")}
+            className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px flex items-center gap-1.5 ${
+              tab === "board"
+                ? "border-foreground text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Megaphone size={14} />
+            자유전달판
+          </button>
         </div>
 
         {/* 탭 내용 */}
@@ -1091,8 +1262,10 @@ export default function FuturesTradingPage() {
               </>
             )}
           </div>
-        ) : (
+        ) : tab === "qa" ? (
           <QASection password={password} />
+        ) : (
+          <MessageBoard password={password} />
         )}
       </div>
     </div>

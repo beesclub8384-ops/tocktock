@@ -4,8 +4,11 @@ import {
   type FuturesStore,
   type QAItem,
   type QAStore,
+  type MessageItem,
+  type MessageStore,
   FUTURES_REDIS_KEY,
   QA_REDIS_KEY,
+  MSG_REDIS_KEY,
 } from "@/lib/types/futures-trading";
 
 export async function loadRecords(): Promise<FuturesRecord[]> {
@@ -86,5 +89,37 @@ export async function deleteQuestion(id: string): Promise<boolean> {
   const filtered = qa.filter((q) => q.id !== id);
   if (filtered.length === qa.length) return false;
   await saveQA(filtered);
+  return true;
+}
+
+// ── Messages ──
+
+export async function loadMessages(): Promise<MessageItem[]> {
+  const data = await redis.get<MessageStore>(MSG_REDIS_KEY);
+  return data?.messages ?? [];
+}
+
+async function saveMessages(messages: MessageItem[]): Promise<void> {
+  await redis.set(MSG_REDIS_KEY, { messages } as MessageStore);
+}
+
+export async function addMessage(author: "태양" | "용태", content: string): Promise<MessageItem> {
+  const messages = await loadMessages();
+  const item: MessageItem = {
+    id: crypto.randomUUID(),
+    author,
+    content,
+    createdAt: new Date().toISOString(),
+  };
+  messages.push(item);
+  await saveMessages(messages);
+  return item;
+}
+
+export async function deleteMessage(id: string): Promise<boolean> {
+  const messages = await loadMessages();
+  const filtered = messages.filter((m) => m.id !== id);
+  if (filtered.length === messages.length) return false;
+  await saveMessages(filtered);
   return true;
 }
