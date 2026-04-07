@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { Trash2 } from "lucide-react";
+import { useState, useEffect, useCallback, Fragment } from "react";
+import { Trash2, ChevronDown, ChevronUp } from "lucide-react";
 
 interface FuturesRecord {
   id: string;
@@ -805,6 +805,7 @@ function RecordTable({
   onDeleted: () => void;
 }) {
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const handleDelete = async (id: string) => {
     if (!confirm("이 기록을 삭제하시겠습니까?")) return;
@@ -824,6 +825,18 @@ function RecordTable({
     }
   };
 
+  // 날짜+진입시간 오름차순 정렬 → 고유번호 부여
+  const sorted = [...records].sort((a, b) => {
+    const ka = `${a.date} ${a.entryTime}`;
+    const kb = `${b.date} ${b.entryTime}`;
+    return ka.localeCompare(kb);
+  });
+  const numberMap = new Map<string, number>();
+  sorted.forEach((r, i) => numberMap.set(r.id, i + 1));
+
+  const toggle = (id: string) =>
+    setExpandedId((prev) => (prev === id ? null : id));
+
   if (records.length === 0) {
     return (
       <div className="flex h-32 items-center justify-center rounded-xl border border-border bg-card">
@@ -834,6 +847,70 @@ function RecordTable({
     );
   }
 
+  // 상세 펼침 영역
+  const DetailRow = ({ r, colSpan }: { r: FuturesRecord; colSpan: number }) => (
+    <tr>
+      <td colSpan={colSpan} className="px-0 py-0">
+        <div className="bg-muted/40 px-5 py-4 border-b border-border/50">
+          <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm sm:grid-cols-4">
+            <div>
+              <span className="text-xs text-muted-foreground">번호</span>
+              <p className="font-medium">#{numberMap.get(r.id)}</p>
+            </div>
+            <div>
+              <span className="text-xs text-muted-foreground">날짜</span>
+              <p className="font-medium tabular-nums">{r.date}</p>
+            </div>
+            <div>
+              <span className="text-xs text-muted-foreground">방향</span>
+              <p className={`font-medium ${r.direction === "long" ? "text-red-400" : "text-blue-400"}`}>
+                {r.direction === "long" ? "롱 (매수)" : "숏 (매도)"}
+              </p>
+            </div>
+            <div>
+              <span className="text-xs text-muted-foreground">계약수</span>
+              <p className="font-medium tabular-nums">{r.contracts}계약</p>
+            </div>
+            <div>
+              <span className="text-xs text-muted-foreground">진입</span>
+              <p className="font-medium tabular-nums">{r.entryTime} / {r.entryPoint}p</p>
+            </div>
+            <div>
+              <span className="text-xs text-muted-foreground">청산</span>
+              <p className="font-medium tabular-nums">{r.exitTime} / {r.exitPoint}p</p>
+            </div>
+            <div>
+              <span className="text-xs text-muted-foreground">포인트 차이</span>
+              <p className="font-medium tabular-nums">
+                {r.direction === "long"
+                  ? (r.exitPoint - r.entryPoint).toFixed(2)
+                  : (r.entryPoint - r.exitPoint).toFixed(2)}
+                p
+              </p>
+            </div>
+            <div>
+              <span className="text-xs text-muted-foreground">손익</span>
+              <p
+                className={`font-bold tabular-nums ${
+                  r.pnl > 0 ? "text-red-400" : r.pnl < 0 ? "text-blue-400" : ""
+                }`}
+                style={{ fontFamily: "'DM Mono', monospace" }}
+              >
+                {formatKRW(r.pnl)}
+              </p>
+            </div>
+          </div>
+          {r.memo && (
+            <div className="mt-3 pt-3 border-t border-border/50">
+              <span className="text-xs text-muted-foreground">메모</span>
+              <p className="mt-0.5 text-sm whitespace-pre-wrap">{r.memo}</p>
+            </div>
+          )}
+        </div>
+      </td>
+    </tr>
+  );
+
   return (
     <>
       {/* PC 테이블 */}
@@ -841,6 +918,7 @@ function RecordTable({
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border bg-muted/50">
+              <th className="text-center px-2 py-2.5 font-medium w-10">#</th>
               <th className="text-left px-3 py-2.5 font-medium">날짜</th>
               <th className="text-center px-3 py-2.5 font-medium">방향</th>
               <th className="text-left px-3 py-2.5 font-medium">진입</th>
@@ -852,46 +930,106 @@ function RecordTable({
             </tr>
           </thead>
           <tbody>
-            {records.map((r) => (
-              <tr
-                key={r.id}
-                className="border-b border-border/50 hover:bg-muted/30 transition-colors"
-              >
-                <td className="px-3 py-2.5 tabular-nums whitespace-nowrap">
-                  {r.date}
-                </td>
-                <td className="px-3 py-2.5 text-center">
-                  <span
-                    className={`rounded px-1.5 py-0.5 text-xs font-medium ${
-                      r.direction === "long"
-                        ? "bg-red-500/15 text-red-400"
-                        : "bg-blue-500/15 text-blue-400"
-                    }`}
+            {records.map((r) => {
+              const isOpen = expandedId === r.id;
+              return (
+                <Fragment key={r.id}>
+                  <tr className={`border-b border-border/50 transition-colors ${isOpen ? "bg-muted/40" : "hover:bg-muted/30"}`}>
+                    <td className="px-2 py-2.5 text-center text-xs text-muted-foreground tabular-nums">
+                      {numberMap.get(r.id)}
+                    </td>
+                    <td
+                      className="px-3 py-2.5 tabular-nums whitespace-nowrap cursor-pointer select-none"
+                      onClick={() => toggle(r.id)}
+                    >
+                      <span className="inline-flex items-center gap-1">
+                        {r.date}
+                        {isOpen
+                          ? <ChevronUp size={12} className="text-muted-foreground" />
+                          : <ChevronDown size={12} className="text-muted-foreground" />}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2.5 text-center">
+                      <span
+                        className={`rounded px-1.5 py-0.5 text-xs font-medium ${
+                          r.direction === "long"
+                            ? "bg-red-500/15 text-red-400"
+                            : "bg-blue-500/15 text-blue-400"
+                        }`}
+                      >
+                        {r.direction === "long" ? "롱" : "숏"}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2.5 tabular-nums whitespace-nowrap">
+                      {r.entryTime} / {r.entryPoint}
+                    </td>
+                    <td className="px-3 py-2.5 tabular-nums whitespace-nowrap">
+                      {r.exitTime} / {r.exitPoint}
+                    </td>
+                    <td className="px-3 py-2.5 text-right tabular-nums">
+                      {r.contracts}
+                    </td>
+                    <td
+                      className={`px-3 py-2.5 text-right tabular-nums font-semibold ${
+                        r.pnl > 0 ? "text-red-400" : r.pnl < 0 ? "text-blue-400" : ""
+                      }`}
+                      style={{ fontFamily: "'DM Mono', monospace" }}
+                    >
+                      {formatKRW(r.pnl)}
+                    </td>
+                    <td className="px-3 py-2.5 text-muted-foreground max-w-[200px] truncate">
+                      {r.memo}
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <button
+                        onClick={() => handleDelete(r.id)}
+                        disabled={deleting === r.id}
+                        className="text-muted-foreground hover:text-red-400 transition-colors disabled:opacity-40"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </td>
+                  </tr>
+                  {isOpen && <DetailRow r={r} colSpan={9} />}
+                </Fragment>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* 모바일 카드 */}
+      <div className="sm:hidden flex flex-col gap-3">
+        {records.map((r) => {
+          const isOpen = expandedId === r.id;
+          return (
+            <div
+              key={r.id}
+              className="rounded-lg border border-border bg-card overflow-hidden"
+            >
+              <div className="p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div
+                    className="flex items-center gap-2 cursor-pointer select-none"
+                    onClick={() => toggle(r.id)}
                   >
-                    {r.direction === "long" ? "롱" : "숏"}
-                  </span>
-                </td>
-                <td className="px-3 py-2.5 tabular-nums whitespace-nowrap">
-                  {r.entryTime} / {r.entryPoint}
-                </td>
-                <td className="px-3 py-2.5 tabular-nums whitespace-nowrap">
-                  {r.exitTime} / {r.exitPoint}
-                </td>
-                <td className="px-3 py-2.5 text-right tabular-nums">
-                  {r.contracts}
-                </td>
-                <td
-                  className={`px-3 py-2.5 text-right tabular-nums font-semibold ${
-                    r.pnl > 0 ? "text-red-400" : r.pnl < 0 ? "text-blue-400" : ""
-                  }`}
-                  style={{ fontFamily: "'DM Mono', monospace" }}
-                >
-                  {formatKRW(r.pnl)}
-                </td>
-                <td className="px-3 py-2.5 text-muted-foreground max-w-[200px] truncate">
-                  {r.memo}
-                </td>
-                <td className="px-3 py-2.5">
+                    <span className="text-xs text-muted-foreground tabular-nums">
+                      #{numberMap.get(r.id)}
+                    </span>
+                    <span className="text-sm tabular-nums">{r.date}</span>
+                    <span
+                      className={`rounded px-1.5 py-0.5 text-xs font-medium ${
+                        r.direction === "long"
+                          ? "bg-red-500/15 text-red-400"
+                          : "bg-blue-500/15 text-blue-400"
+                      }`}
+                    >
+                      {r.direction === "long" ? "롱" : "숏"}
+                    </span>
+                    {isOpen
+                      ? <ChevronUp size={12} className="text-muted-foreground" />
+                      : <ChevronDown size={12} className="text-muted-foreground" />}
+                  </div>
                   <button
                     onClick={() => handleDelete(r.id)}
                     disabled={deleting === r.id}
@@ -899,68 +1037,60 @@ function RecordTable({
                   >
                     <Trash2 size={14} />
                   </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* 모바일 카드 */}
-      <div className="sm:hidden flex flex-col gap-3">
-        {records.map((r) => (
-          <div
-            key={r.id}
-            className="rounded-lg border border-border bg-card p-4"
-          >
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <span className="text-sm tabular-nums">{r.date}</span>
-                <span
-                  className={`rounded px-1.5 py-0.5 text-xs font-medium ${
-                    r.direction === "long"
-                      ? "bg-red-500/15 text-red-400"
-                      : "bg-blue-500/15 text-blue-400"
-                  }`}
-                >
-                  {r.direction === "long" ? "롱" : "숏"}
-                </span>
+                </div>
+                <div className="flex items-center gap-4 text-sm text-muted-foreground mb-1">
+                  <span>진입 {r.entryTime} / {r.entryPoint}</span>
+                  <span>→</span>
+                  <span>청산 {r.exitTime} / {r.exitPoint}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">
+                    {r.contracts}계약
+                  </span>
+                  <span
+                    className={`text-sm font-bold tabular-nums ${
+                      r.pnl > 0 ? "text-red-400" : r.pnl < 0 ? "text-blue-400" : ""
+                    }`}
+                    style={{ fontFamily: "'DM Mono', monospace" }}
+                  >
+                    {formatKRW(r.pnl)}
+                  </span>
+                </div>
               </div>
-              <button
-                onClick={() => handleDelete(r.id)}
-                disabled={deleting === r.id}
-                className="text-muted-foreground hover:text-red-400 transition-colors disabled:opacity-40"
-              >
-                <Trash2 size={14} />
-              </button>
+              {isOpen && (
+                <div className="bg-muted/40 px-4 py-3 border-t border-border/50">
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                    <div>
+                      <span className="text-xs text-muted-foreground">포인트 차이</span>
+                      <p className="font-medium tabular-nums">
+                        {r.direction === "long"
+                          ? (r.exitPoint - r.entryPoint).toFixed(2)
+                          : (r.entryPoint - r.exitPoint).toFixed(2)}p
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground">손익</span>
+                      <p
+                        className={`font-bold tabular-nums ${
+                          r.pnl > 0 ? "text-red-400" : r.pnl < 0 ? "text-blue-400" : ""
+                        }`}
+                        style={{ fontFamily: "'DM Mono', monospace" }}
+                      >
+                        {formatKRW(r.pnl)}
+                      </p>
+                    </div>
+                  </div>
+                  {r.memo && (
+                    <div className="mt-2 pt-2 border-t border-border/50">
+                      <span className="text-xs text-muted-foreground">메모</span>
+                      <p className="mt-0.5 text-sm whitespace-pre-wrap">{r.memo}</p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
-            <div className="flex items-center gap-4 text-sm text-muted-foreground mb-1">
-              <span>
-                진입 {r.entryTime} / {r.entryPoint}
-              </span>
-              <span>→</span>
-              <span>
-                청산 {r.exitTime} / {r.exitPoint}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground">
-                {r.contracts}계약
-              </span>
-              <span
-                className={`text-sm font-bold tabular-nums ${
-                  r.pnl > 0 ? "text-red-400" : r.pnl < 0 ? "text-blue-400" : ""
-                }`}
-                style={{ fontFamily: "'DM Mono', monospace" }}
-              >
-                {formatKRW(r.pnl)}
-              </span>
-            </div>
-            {r.memo && (
-              <p className="mt-2 text-xs text-muted-foreground">{r.memo}</p>
-            )}
-          </div>
-        ))}
+          );
+        })}
       </div>
     </>
   );
