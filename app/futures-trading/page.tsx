@@ -62,17 +62,25 @@ function PasswordGate({ onAuth }: { onAuth: (pw: string) => void }) {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="mx-auto max-w-4xl px-4 py-12 sm:px-8 space-y-10">
-
-        {/* ════════════════════════════════════════════════
-            1. 타이틀
-        ════════════════════════════════════════════════ */}
-        <header>
-          <h1 className="text-3xl font-bold tracking-tight mb-1">영웅들의 선물</h1>
-          <p className="text-sm text-muted-foreground">
+      {/* ── 히어로 이미지 ── */}
+      <div className="relative h-[400px] w-full overflow-hidden">
+        <img
+          src="/images/futures-hero.jpg"
+          alt="영웅들의 선물"
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />
+        <div className="absolute inset-0 flex flex-col items-center justify-end pb-12">
+          <h1 className="text-4xl font-bold tracking-tight text-white drop-shadow-lg sm:text-5xl">
+            영웅들의 선물
+          </h1>
+          <p className="mt-2 text-sm text-white/80 drop-shadow-md sm:text-base">
             코스피200 선물 실시간 모니터링 &amp; 매매 검증 시스템
           </p>
-        </header>
+        </div>
+      </div>
+
+      <div className="mx-auto max-w-4xl px-4 py-10 sm:px-8 space-y-10">
 
         {/* ── 비밀번호 입력 (매매 기록 접근) ── */}
         <section className="flex justify-center pt-4">
