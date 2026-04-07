@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, Fragment } from "react";
-import { Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import { Trash2, ChevronDown, ChevronUp, MessageCircle, Send } from "lucide-react";
 
 interface FuturesRecord {
   id: string;
@@ -15,6 +15,14 @@ interface FuturesRecord {
   pnl: number;
   memo: string;
   createdAt: string;
+}
+
+interface QAItem {
+  id: string;
+  question: string;
+  answer: string;
+  createdAt: string;
+  answeredAt: string;
 }
 
 const MULTIPLIER = 250000;
@@ -801,12 +809,197 @@ function RecordTable({
   );
 }
 
+// ── 질문/답변 ──
+
+function QASection({ password }: { password: string }) {
+  const [qa, setQA] = useState<QAItem[]>([]);
+  const [newQ, setNewQ] = useState("");
+  const [posting, setPosting] = useState(false);
+  const [answeringId, setAnsweringId] = useState<string | null>(null);
+  const [answerText, setAnswerText] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const fetchQA = useCallback(async () => {
+    try {
+      const res = await fetch("/api/futures-trading/qa", {
+        headers: { "x-password": password },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setQA(data.qa ?? []);
+      }
+    } catch {}
+  }, [password]);
+
+  useEffect(() => { fetchQA(); }, [fetchQA]);
+
+  const submitQuestion = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newQ.trim()) return;
+    setPosting(true);
+    try {
+      const res = await fetch("/api/futures-trading/qa", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-password": password },
+        body: JSON.stringify({ question: newQ }),
+      });
+      if (res.ok) { setNewQ(""); fetchQA(); }
+    } finally { setPosting(false); }
+  };
+
+  const submitAnswer = async (id: string) => {
+    if (!answerText.trim()) return;
+    setSaving(true);
+    try {
+      const res = await fetch("/api/futures-trading/qa", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "x-password": password },
+        body: JSON.stringify({ id, answer: answerText }),
+      });
+      if (res.ok) { setAnsweringId(null); setAnswerText(""); fetchQA(); }
+    } finally { setSaving(false); }
+  };
+
+  const deleteQ = async (id: string) => {
+    if (!confirm("이 질문을 삭제하시겠습니까?")) return;
+    await fetch("/api/futures-trading/qa", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json", "x-password": password },
+      body: JSON.stringify({ id }),
+    });
+    fetchQA();
+  };
+
+  const fmtTime = (iso: string) => {
+    if (!iso) return "";
+    const d = new Date(iso);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* 질문 입력 폼 */}
+      <form
+        onSubmit={submitQuestion}
+        className="rounded-xl border border-border bg-card p-5 space-y-3"
+      >
+        <h2 className="text-lg font-bold flex items-center gap-2">
+          <MessageCircle size={18} />
+          질문 등록
+        </h2>
+        <div className="flex gap-2">
+          <textarea
+            value={newQ}
+            onChange={(e) => setNewQ(e.target.value)}
+            rows={2}
+            placeholder="매매 관련 질문을 남겨주세요"
+            className="flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-foreground/20 resize-y"
+          />
+          <button
+            type="submit"
+            disabled={posting || !newQ.trim()}
+            className="self-end rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-40"
+          >
+            <Send size={14} />
+          </button>
+        </div>
+      </form>
+
+      {/* 질문/답변 목록 */}
+      {qa.length === 0 ? (
+        <div className="flex h-32 items-center justify-center rounded-xl border border-border bg-card">
+          <p className="text-sm text-muted-foreground">
+            아직 질문이 없습니다.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {qa.map((item) => (
+            <div
+              key={item.id}
+              className="rounded-xl border border-border bg-card overflow-hidden"
+            >
+              {/* 질문 */}
+              <div className="p-4 border-l-4 border-l-blue-500 bg-blue-500/5">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1">
+                    <p className="text-sm whitespace-pre-wrap">{item.question}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {fmtTime(item.createdAt)}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => deleteQ(item.id)}
+                    className="text-muted-foreground hover:text-red-400 transition-colors shrink-0"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              </div>
+
+              {/* 답변 */}
+              {item.answer ? (
+                <div className="p-4 border-l-4 border-l-green-500 bg-green-500/5">
+                  <p className="text-sm whitespace-pre-wrap">{item.answer}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {fmtTime(item.answeredAt)}
+                  </p>
+                </div>
+              ) : answeringId === item.id ? (
+                <div className="p-4 space-y-2">
+                  <textarea
+                    value={answerText}
+                    onChange={(e) => setAnswerText(e.target.value)}
+                    rows={3}
+                    placeholder="답변을 작성하세요"
+                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-foreground/20 resize-y"
+                    autoFocus
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => submitAnswer(item.id)}
+                      disabled={saving || !answerText.trim()}
+                      className="rounded-md bg-green-600 px-3 py-1 text-xs font-medium text-white transition-colors hover:bg-green-700 disabled:opacity-40"
+                    >
+                      {saving ? "저장중..." : "답변 저장"}
+                    </button>
+                    <button
+                      onClick={() => { setAnsweringId(null); setAnswerText(""); }}
+                      className="rounded-md bg-muted px-3 py-1 text-xs font-medium text-muted-foreground hover:bg-muted/80"
+                    >
+                      취소
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="px-4 py-3 flex items-center justify-between">
+                  <span className="inline-flex items-center gap-1 rounded-full border border-yellow-500/30 bg-yellow-500/10 px-2.5 py-1 text-xs text-yellow-600">
+                    <span className="h-1.5 w-1.5 rounded-full bg-yellow-500" />
+                    답변 대기중
+                  </span>
+                  <button
+                    onClick={() => { setAnsweringId(item.id); setAnswerText(""); }}
+                    className="text-xs font-medium text-green-600 hover:text-green-700 transition-colors"
+                  >
+                    답변 작성
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── 메인 페이지 ──
 
 export default function FuturesTradingPage() {
   const [password, setPassword] = useState<string | null>(null);
   const [records, setRecords] = useState<FuturesRecord[]>([]);
   const [loading, setLoading] = useState(false);
+  const [tab, setTab] = useState<"records" | "qa">("records");
 
   const fetchRecords = useCallback(async () => {
     if (!password) return;
@@ -835,7 +1028,7 @@ export default function FuturesTradingPage() {
   return (
     <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-5xl px-4 py-12 sm:px-8">
-        <header className="mb-8">
+        <header className="mb-6">
           <h1 className="mb-2 text-3xl font-bold tracking-tight">
             선물매매 검증
           </h1>
@@ -844,25 +1037,55 @@ export default function FuturesTradingPage() {
           </p>
         </header>
 
-        <div className="space-y-6">
-          <RecordForm password={password} onAdded={fetchRecords} />
-
-          {loading ? (
-            <div className="flex h-32 items-center justify-center">
-              <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground" />
-            </div>
-          ) : (
-            <>
-              <Stats records={records} />
-              <RecordTable
-                records={records}
-                password={password}
-                onDeleted={fetchRecords}
-                onUpdated={fetchRecords}
-              />
-            </>
-          )}
+        {/* 탭 */}
+        <div className="flex gap-1 mb-6 border-b border-border">
+          <button
+            onClick={() => setTab("records")}
+            className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
+              tab === "records"
+                ? "border-foreground text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            매매 기록
+          </button>
+          <button
+            onClick={() => setTab("qa")}
+            className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px flex items-center gap-1.5 ${
+              tab === "qa"
+                ? "border-foreground text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <MessageCircle size={14} />
+            질문/답변
+          </button>
         </div>
+
+        {/* 탭 내용 */}
+        {tab === "records" ? (
+          <div className="space-y-6">
+            <RecordForm password={password} onAdded={fetchRecords} />
+
+            {loading ? (
+              <div className="flex h-32 items-center justify-center">
+                <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground" />
+              </div>
+            ) : (
+              <>
+                <Stats records={records} />
+                <RecordTable
+                  records={records}
+                  password={password}
+                  onDeleted={fetchRecords}
+                  onUpdated={fetchRecords}
+                />
+              </>
+            )}
+          </div>
+        ) : (
+          <QASection password={password} />
+        )}
       </div>
     </div>
   );

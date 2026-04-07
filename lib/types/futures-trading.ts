@@ -12,8 +12,21 @@ export interface FuturesRecord {
   createdAt: string; // ISO timestamp
 }
 
+export interface QAItem {
+  id: string;
+  question: string;
+  answer: string;        // 빈 문자열이면 미답변
+  createdAt: string;     // 질문 등록 시각 (ISO)
+  answeredAt: string;    // 답변 등록 시각 (ISO, 빈 문자열이면 미답변)
+}
+
 export interface FuturesStore {
   records: FuturesRecord[];
 }
 
+export interface QAStore {
+  qa: QAItem[];
+}
+
 export const FUTURES_REDIS_KEY = "futures-trading:records";
+export const QA_REDIS_KEY = "futures-trading:qa";

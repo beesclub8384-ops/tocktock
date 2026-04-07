@@ -2,7 +2,10 @@ import { redis } from "@/lib/redis";
 import {
   type FuturesRecord,
   type FuturesStore,
+  type QAItem,
+  type QAStore,
   FUTURES_REDIS_KEY,
+  QA_REDIS_KEY,
 } from "@/lib/types/futures-trading";
 
 export async function loadRecords(): Promise<FuturesRecord[]> {
@@ -40,5 +43,48 @@ export async function updateMemo(id: string, memo: string): Promise<boolean> {
   if (!record) return false;
   record.memo = memo;
   await saveRecords(records);
+  return true;
+}
+
+// ── QA ──
+
+export async function loadQA(): Promise<QAItem[]> {
+  const data = await redis.get<QAStore>(QA_REDIS_KEY);
+  return data?.qa ?? [];
+}
+
+async function saveQA(qa: QAItem[]): Promise<void> {
+  await redis.set(QA_REDIS_KEY, { qa } as QAStore);
+}
+
+export async function addQuestion(question: string): Promise<QAItem> {
+  const qa = await loadQA();
+  const item: QAItem = {
+    id: crypto.randomUUID(),
+    question,
+    answer: "",
+    createdAt: new Date().toISOString(),
+    answeredAt: "",
+  };
+  qa.unshift(item);
+  await saveQA(qa);
+  return item;
+}
+
+export async function answerQuestion(id: string, answer: string): Promise<boolean> {
+  const qa = await loadQA();
+  const item = qa.find((q) => q.id === id);
+  if (!item) return false;
+  item.answer = answer;
+  item.answeredAt = new Date().toISOString();
+  await saveQA(qa);
+  return true;
+}
+
+export async function deleteQuestion(id: string): Promise<boolean> {
+  const qa = await loadQA();
+  const filtered = qa.filter((q) => q.id !== id);
+  if (filtered.length === qa.length) return false;
+  await saveQA(filtered);
   return true;
 }
