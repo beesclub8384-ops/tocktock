@@ -942,7 +942,7 @@ function RecordTable({
               {editingMemoId !== r.id && (
                 <button
                   onClick={() => startEditMemo(r)}
-                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  className="text-xs font-medium text-blue-500 hover:text-blue-600 transition-colors"
                 >
                   수정
                 </button>
