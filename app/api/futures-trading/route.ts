@@ -3,6 +3,7 @@ import {
   loadRecords,
   addRecord,
   deleteRecord,
+  updateMemo,
 } from "@/lib/futures-trading-store";
 import type { FuturesRecord } from "@/lib/types/futures-trading";
 
@@ -57,6 +58,36 @@ export async function POST(request: NextRequest) {
     console.error("[futures-trading] POST error:", error);
     return NextResponse.json(
       { error: "기록 추가에 실패했습니다." },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PATCH(request: NextRequest) {
+  if (!checkAuth(request)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    const { id, memo } = await request.json();
+    if (!id || typeof memo !== "string") {
+      return NextResponse.json(
+        { error: "id와 memo가 필요합니다." },
+        { status: 400 }
+      );
+    }
+    const updated = await updateMemo(id, memo);
+    if (!updated) {
+      return NextResponse.json(
+        { error: "해당 기록을 찾을 수 없습니다." },
+        { status: 404 }
+      );
+    }
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("[futures-trading] PATCH error:", error);
+    return NextResponse.json(
+      { error: "메모 수정에 실패했습니다." },
       { status: 500 }
     );
   }

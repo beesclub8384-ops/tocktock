@@ -799,13 +799,18 @@ function RecordTable({
   records,
   password,
   onDeleted,
+  onUpdated,
 }: {
   records: FuturesRecord[];
   password: string;
   onDeleted: () => void;
+  onUpdated: () => void;
 }) {
   const [deleting, setDeleting] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [editingMemoId, setEditingMemoId] = useState<string | null>(null);
+  const [editingMemoText, setEditingMemoText] = useState("");
+  const [savingMemo, setSavingMemo] = useState(false);
 
   const handleDelete = async (id: string) => {
     if (!confirm("이 기록을 삭제하시겠습니까?")) return;
@@ -822,6 +827,37 @@ function RecordTable({
       onDeleted();
     } finally {
       setDeleting(null);
+    }
+  };
+
+  const startEditMemo = (r: FuturesRecord) => {
+    setEditingMemoId(r.id);
+    setEditingMemoText(r.memo);
+  };
+
+  const cancelEditMemo = () => {
+    setEditingMemoId(null);
+    setEditingMemoText("");
+  };
+
+  const saveMemo = async (id: string) => {
+    setSavingMemo(true);
+    try {
+      const res = await fetch("/api/futures-trading", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "x-password": password,
+        },
+        body: JSON.stringify({ id, memo: editingMemoText }),
+      });
+      if (res.ok) {
+        setEditingMemoId(null);
+        setEditingMemoText("");
+        onUpdated();
+      }
+    } finally {
+      setSavingMemo(false);
     }
   };
 
@@ -900,12 +936,51 @@ function RecordTable({
               </p>
             </div>
           </div>
-          {r.memo && (
-            <div className="mt-3 pt-3 border-t border-border/50">
+          <div className="mt-3 pt-3 border-t border-border/50">
+            <div className="flex items-center gap-2 mb-1">
               <span className="text-xs text-muted-foreground">메모</span>
-              <p className="mt-0.5 text-sm whitespace-pre-wrap">{r.memo}</p>
+              {editingMemoId !== r.id && (
+                <button
+                  onClick={() => startEditMemo(r)}
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  수정
+                </button>
+              )}
             </div>
-          )}
+            {editingMemoId === r.id ? (
+              <div className="space-y-2">
+                <textarea
+                  value={editingMemoText}
+                  onChange={(e) => setEditingMemoText(e.target.value)}
+                  rows={3}
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-foreground/20 resize-y"
+                  placeholder="메모를 입력하세요"
+                  autoFocus
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => saveMemo(r.id)}
+                    disabled={savingMemo}
+                    className="rounded-md bg-foreground px-3 py-1 text-xs font-medium text-background transition-colors hover:bg-foreground/90 disabled:opacity-40"
+                  >
+                    {savingMemo ? "저장중..." : "저장"}
+                  </button>
+                  <button
+                    onClick={cancelEditMemo}
+                    disabled={savingMemo}
+                    className="rounded-md bg-muted px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/80 disabled:opacity-40"
+                  >
+                    취소
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm whitespace-pre-wrap">
+                {r.memo || <span className="text-muted-foreground">(메모 없음)</span>}
+              </p>
+            )}
+          </div>
         </div>
       </td>
     </tr>
@@ -1080,12 +1155,51 @@ function RecordTable({
                       </p>
                     </div>
                   </div>
-                  {r.memo && (
-                    <div className="mt-2 pt-2 border-t border-border/50">
+                  <div className="mt-2 pt-2 border-t border-border/50">
+                    <div className="flex items-center gap-2 mb-1">
                       <span className="text-xs text-muted-foreground">메모</span>
-                      <p className="mt-0.5 text-sm whitespace-pre-wrap">{r.memo}</p>
+                      {editingMemoId !== r.id && (
+                        <button
+                          onClick={() => startEditMemo(r)}
+                          className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          수정
+                        </button>
+                      )}
                     </div>
-                  )}
+                    {editingMemoId === r.id ? (
+                      <div className="space-y-2">
+                        <textarea
+                          value={editingMemoText}
+                          onChange={(e) => setEditingMemoText(e.target.value)}
+                          rows={3}
+                          className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-foreground/20 resize-y"
+                          placeholder="메모를 입력하세요"
+                          autoFocus
+                        />
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => saveMemo(r.id)}
+                            disabled={savingMemo}
+                            className="rounded-md bg-foreground px-3 py-1 text-xs font-medium text-background transition-colors hover:bg-foreground/90 disabled:opacity-40"
+                          >
+                            {savingMemo ? "저장중..." : "저장"}
+                          </button>
+                          <button
+                            onClick={cancelEditMemo}
+                            disabled={savingMemo}
+                            className="rounded-md bg-muted px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/80 disabled:opacity-40"
+                          >
+                            취소
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-sm whitespace-pre-wrap">
+                        {r.memo || <span className="text-muted-foreground">(메모 없음)</span>}
+                      </p>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
@@ -1153,6 +1267,7 @@ export default function FuturesTradingPage() {
                 records={records}
                 password={password}
                 onDeleted={fetchRecords}
+                onUpdated={fetchRecords}
               />
             </>
           )}

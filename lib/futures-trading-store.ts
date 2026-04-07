@@ -33,3 +33,12 @@ export async function deleteRecord(id: string): Promise<boolean> {
   await saveRecords(filtered);
   return true;
 }
+
+export async function updateMemo(id: string, memo: string): Promise<boolean> {
+  const records = await loadRecords();
+  const record = records.find((r) => r.id === id);
+  if (!record) return false;
+  record.memo = memo;
+  await saveRecords(records);
+  return true;
+}
