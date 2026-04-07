@@ -63,13 +63,13 @@ function PasswordGate({ onAuth }: { onAuth: (pw: string) => void }) {
   return (
     <div className="min-h-screen bg-background">
       {/* ── 히어로 이미지 ── */}
-      <div className="relative h-[400px] w-full overflow-hidden">
+      <div className="relative h-[500px] w-full overflow-hidden bg-black">
         <img
           src="/images/futures-hero.png"
           alt="영웅들의 선물"
-          className="absolute inset-0 h-full w-full object-cover"
+          className="absolute inset-0 h-full w-full object-contain object-center"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />
+        <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-background via-background/50 to-transparent" />
         <div className="absolute inset-0 flex flex-col items-center justify-end pb-12">
           <h1 className="text-4xl font-bold tracking-tight text-white drop-shadow-lg sm:text-5xl">
             영웅들의 선물
