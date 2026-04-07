@@ -65,7 +65,7 @@ function PasswordGate({ onAuth }: { onAuth: (pw: string) => void }) {
       {/* ── 히어로 이미지 ── */}
       <div className="relative h-[400px] w-full overflow-hidden">
         <img
-          src="/images/futures-hero.jpg"
+          src="/images/futures-hero.png"
           alt="영웅들의 선물"
           className="absolute inset-0 h-full w-full object-cover"
         />
