@@ -19,14 +19,13 @@ export async function POST(
   try {
     const { id } = await params;
     const body = (await request.json()) as {
-      title?: string;
       content?: string;
       author?: QAAuthor;
     };
 
-    if (!body.title || !body.content || !body.author) {
+    if (!body.content || !body.content.trim() || !body.author) {
       return NextResponse.json(
-        { error: "title, content, author가 필요합니다." },
+        { error: "content, author가 필요합니다." },
         { status: 400 }
       );
     }
@@ -43,7 +42,7 @@ export async function POST(
     const now = new Date().toISOString();
     const thread: QAThread = {
       id: crypto.randomUUID(),
-      title: body.title.trim(),
+      title: "",
       replies: [
         {
           id: crypto.randomUUID(),

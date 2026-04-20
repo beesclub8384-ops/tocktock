@@ -895,10 +895,12 @@ function RecordQAThread({
     <div className="rounded-lg border border-border bg-background overflow-hidden">
       <div className="flex items-start justify-between gap-3 border-b border-border/60 px-4 py-3">
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium leading-snug whitespace-pre-wrap break-words">
-            {thread.title}
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">
+          {thread.title && (
+            <p className="text-sm font-medium leading-snug whitespace-pre-wrap break-words">
+              {thread.title}
+            </p>
+          )}
+          <p className={`${thread.title ? "mt-1 " : ""}text-xs text-muted-foreground`}>
             {fmtTime(thread.createdAt)} · 댓글 {thread.replies.length}
           </p>
         </div>
@@ -999,23 +1001,21 @@ function RecordQASection({
   onChanged: () => void;
 }) {
   const [showForm, setShowForm] = useState(false);
-  const [title, setTitle] = useState("");
   const [author, setAuthor] = useState<"태양" | "용태">("태양");
   const [content, setContent] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const createThread = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !content.trim()) return;
+    if (!content.trim()) return;
     setSubmitting(true);
     try {
       const res = await fetch(`/api/futures-trading/records/${record.id}/qa`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-password": password },
-        body: JSON.stringify({ title, author, content }),
+        body: JSON.stringify({ author, content }),
       });
       if (res.ok) {
-        setTitle("");
         setContent("");
         setShowForm(false);
         onChanged();
@@ -1066,14 +1066,6 @@ function RecordQASection({
           onSubmit={createThread}
           className="mt-3 rounded-lg border border-border bg-background p-3 space-y-2"
         >
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="질문 제목"
-            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-foreground/20"
-            autoFocus
-          />
           <div className="flex gap-2">
             {(["태양", "용태"] as const).map((name) => (
               <button
@@ -1098,18 +1090,19 @@ function RecordQASection({
             rows={3}
             placeholder="질문 내용"
             className="w-full resize-none rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-foreground/20"
+            autoFocus
           />
           <div className="flex gap-2">
             <button
               type="submit"
-              disabled={submitting || !title.trim() || !content.trim()}
+              disabled={submitting || !content.trim()}
               className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-40"
             >
               {submitting ? "등록중..." : "등록"}
             </button>
             <button
               type="button"
-              onClick={() => { setShowForm(false); setTitle(""); setContent(""); }}
+              onClick={() => { setShowForm(false); setContent(""); }}
               className="rounded-md bg-muted px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted/80"
             >
               취소
