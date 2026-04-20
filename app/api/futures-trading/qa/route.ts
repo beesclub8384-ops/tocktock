@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   loadQA,
   addQuestion,
-  answerQuestion,
+  addReply,
+  deleteReply,
   deleteQuestion,
 } from "@/lib/futures-trading-store";
+import type { QAAuthor } from "@/lib/types/futures-trading";
 
 const PASSWORD = "8384";
 
@@ -17,8 +19,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   try {
-    const qa = await loadQA();
-    return NextResponse.json({ qa });
+    const threads = await loadQA();
+    return NextResponse.json({ threads });
   } catch (error) {
     console.error("[futures-qa] GET error:", error);
     return NextResponse.json({ error: "불러오기 실패" }, { status: 500 });
@@ -30,15 +32,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   try {
-    const { question } = await request.json();
-    if (!question || typeof question !== "string") {
-      return NextResponse.json({ error: "질문 내용이 필요합니다." }, { status: 400 });
+    const { title } = (await request.json()) as { title?: string };
+    if (!title || typeof title !== "string") {
+      return NextResponse.json({ error: "title이 필요합니다." }, { status: 400 });
     }
-    const item = await addQuestion(question.trim());
-    return NextResponse.json({ success: true, item });
+    const thread = await addQuestion(title);
+    return NextResponse.json({ success: true, thread });
   } catch (error) {
     console.error("[futures-qa] POST error:", error);
-    return NextResponse.json({ error: "질문 등록 실패" }, { status: 500 });
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "등록 실패" },
+      { status: 500 }
+    );
   }
 }
 
@@ -47,18 +52,31 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   try {
-    const { id, answer } = await request.json();
-    if (!id || typeof answer !== "string") {
-      return NextResponse.json({ error: "id와 answer가 필요합니다." }, { status: 400 });
+    const body = (await request.json()) as {
+      qaId?: string;
+      author?: QAAuthor;
+      content?: string;
+    };
+    if (!body.qaId || !body.author || !body.content) {
+      return NextResponse.json(
+        { error: "qaId, author, content가 필요합니다." },
+        { status: 400 }
+      );
     }
-    const ok = await answerQuestion(id, answer.trim());
-    if (!ok) {
-      return NextResponse.json({ error: "해당 질문을 찾을 수 없습니다." }, { status: 404 });
+    const reply = await addReply(body.qaId, body.author, body.content);
+    if (!reply) {
+      return NextResponse.json(
+        { error: "해당 스레드를 찾을 수 없습니다." },
+        { status: 404 }
+      );
     }
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, reply });
   } catch (error) {
     console.error("[futures-qa] PATCH error:", error);
-    return NextResponse.json({ error: "답변 등록 실패" }, { status: 500 });
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "댓글 등록 실패" },
+      { status: 500 }
+    );
   }
 }
 
@@ -67,14 +85,53 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   try {
-    const { id } = await request.json();
-    const ok = await deleteQuestion(id);
-    if (!ok) {
-      return NextResponse.json({ error: "해당 질문을 찾을 수 없습니다." }, { status: 404 });
+    const body = (await request.json()) as {
+      type?: "thread" | "reply";
+      qaId?: string;
+      replyId?: string;
+    };
+
+    if (!body.type || !body.qaId) {
+      return NextResponse.json(
+        { error: "type, qaId가 필요합니다." },
+        { status: 400 }
+      );
     }
-    return NextResponse.json({ success: true });
+
+    if (body.type === "thread") {
+      const ok = await deleteQuestion(body.qaId);
+      if (!ok) {
+        return NextResponse.json(
+          { error: "스레드를 찾을 수 없습니다." },
+          { status: 404 }
+        );
+      }
+      return NextResponse.json({ success: true });
+    }
+
+    if (body.type === "reply") {
+      if (!body.replyId) {
+        return NextResponse.json(
+          { error: "replyId가 필요합니다." },
+          { status: 400 }
+        );
+      }
+      const ok = await deleteReply(body.qaId, body.replyId);
+      if (!ok) {
+        return NextResponse.json(
+          { error: "댓글을 찾을 수 없습니다." },
+          { status: 404 }
+        );
+      }
+      return NextResponse.json({ success: true });
+    }
+
+    return NextResponse.json({ error: "type이 올바르지 않습니다." }, { status: 400 });
   } catch (error) {
     console.error("[futures-qa] DELETE error:", error);
-    return NextResponse.json({ error: "삭제 실패" }, { status: 500 });
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "삭제 실패" },
+      { status: 500 }
+    );
   }
 }

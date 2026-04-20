@@ -18,12 +18,18 @@ interface FuturesRecord {
   createdAt: string;
 }
 
+interface QAReply {
+  id: string;
+  author: "태양" | "용태";
+  content: string;
+  createdAt: string;
+}
+
 interface QAItem {
   id: string;
-  question: string;
-  answer: string;
+  title: string;
+  replies: QAReply[];
   createdAt: string;
-  answeredAt: string;
 }
 
 interface MessageItem {
@@ -827,181 +833,262 @@ function RecordTable({
 
 // ── 질문/답변 ──
 
-function QASection({ password }: { password: string }) {
-  const [qa, setQA] = useState<QAItem[]>([]);
-  const [newQ, setNewQ] = useState("");
-  const [posting, setPosting] = useState(false);
-  const [answeringId, setAnsweringId] = useState<string | null>(null);
-  const [answerText, setAnswerText] = useState("");
-  const [saving, setSaving] = useState(false);
+function QAThreadCard({
+  thread,
+  password,
+  onChanged,
+}: {
+  thread: QAItem;
+  password: string;
+  onChanged: () => void;
+}) {
+  const [author, setAuthor] = useState<"태양" | "용태">("태양");
+  const [content, setContent] = useState("");
+  const [sending, setSending] = useState(false);
 
-  const fetchQA = useCallback(async () => {
+  const fmtTime = (iso: string) => {
+    if (!iso) return "";
+    const d = new Date(iso);
+    return `${String(d.getMonth()+1).padStart(2,"0")}/${String(d.getDate()).padStart(2,"0")} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+  };
+
+  const sendReply = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!content.trim()) return;
+    setSending(true);
+    try {
+      const res = await fetch("/api/futures-trading/qa", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "x-password": password },
+        body: JSON.stringify({ qaId: thread.id, author, content }),
+      });
+      if (res.ok) {
+        setContent("");
+        onChanged();
+      }
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const removeReply = async (replyId: string) => {
+    if (!confirm("댓글을 삭제하시겠습니까?")) return;
+    const res = await fetch("/api/futures-trading/qa", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json", "x-password": password },
+      body: JSON.stringify({ type: "reply", qaId: thread.id, replyId }),
+    });
+    if (res.ok) onChanged();
+  };
+
+  const removeThread = async () => {
+    if (!confirm("스레드 전체를 삭제하시겠습니까?")) return;
+    const res = await fetch("/api/futures-trading/qa", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json", "x-password": password },
+      body: JSON.stringify({ type: "thread", qaId: thread.id }),
+    });
+    if (res.ok) onChanged();
+  };
+
+  return (
+    <div className="rounded-xl border border-border bg-card overflow-hidden">
+      {/* 스레드 헤더 (최초 질문) */}
+      <div className="flex items-start justify-between gap-3 border-b border-border/60 p-4">
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium leading-snug whitespace-pre-wrap break-words">
+            {thread.title}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {fmtTime(thread.createdAt)} · 댓글 {thread.replies.length}
+          </p>
+        </div>
+        <button
+          onClick={removeThread}
+          className="shrink-0 rounded-md border border-border px-2 py-1 text-xs text-muted-foreground transition-colors hover:border-red-400/50 hover:text-red-400"
+          aria-label="스레드 삭제"
+        >
+          삭제
+        </button>
+      </div>
+
+      {/* 댓글 목록 (채팅 스타일) */}
+      <div className="space-y-3 px-4 py-4">
+        {thread.replies.length === 0 ? (
+          <p className="py-4 text-center text-xs text-muted-foreground">
+            아직 댓글이 없습니다.
+          </p>
+        ) : (
+          thread.replies.map((reply) => {
+            const isSun = reply.author === "태양";
+            return (
+              <div
+                key={reply.id}
+                className={`flex ${isSun ? "justify-end" : "justify-start"}`}
+              >
+                <div className={`group max-w-[75%] ${isSun ? "items-end" : "items-start"}`}>
+                  <p className={`text-xs font-medium mb-0.5 ${isSun ? "text-right text-blue-400" : "text-left text-foreground/60"}`}>
+                    {reply.author}
+                  </p>
+                  <div
+                    className={`relative rounded-2xl px-3.5 py-2.5 text-sm whitespace-pre-wrap ${
+                      isSun
+                        ? "bg-blue-600 text-white rounded-tr-sm"
+                        : "bg-muted text-foreground rounded-tl-sm"
+                    }`}
+                  >
+                    {reply.content}
+                    <button
+                      onClick={() => removeReply(reply.id)}
+                      className={`absolute top-1 opacity-0 group-hover:opacity-100 transition-opacity ${
+                        isSun ? "-left-6" : "-right-6"
+                      } text-muted-foreground hover:text-red-400`}
+                      aria-label="댓글 삭제"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                  <p className={`text-[10px] text-muted-foreground mt-0.5 ${isSun ? "text-right" : "text-left"}`}>
+                    {fmtTime(reply.createdAt)}
+                  </p>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* 댓글 입력 폼 */}
+      <form onSubmit={sendReply} className="border-t border-border/60 bg-muted/20 px-4 py-3 space-y-2">
+        <div className="flex gap-2">
+          {(["태양", "용태"] as const).map((name) => (
+            <button
+              key={name}
+              type="button"
+              onClick={() => setAuthor(name)}
+              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                author === name
+                  ? name === "태양"
+                    ? "bg-blue-600 text-white"
+                    : "bg-foreground/80 text-background"
+                  : "bg-muted text-muted-foreground"
+              }`}
+            >
+              {name}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <textarea
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            rows={2}
+            placeholder={`${author}으로 댓글을 남겨주세요`}
+            className="flex-1 resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-foreground/20"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                sendReply(e);
+              }
+            }}
+          />
+          <button
+            type="submit"
+            disabled={sending || !content.trim()}
+            className="self-end rounded-lg bg-blue-600 px-3 py-2.5 text-white transition-colors hover:bg-blue-700 disabled:opacity-40"
+            aria-label="댓글 전송"
+          >
+            <Send size={16} />
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function QASection({ password }: { password: string }) {
+  const [threads, setThreads] = useState<QAItem[]>([]);
+  const [newTitle, setNewTitle] = useState("");
+  const [posting, setPosting] = useState(false);
+
+  const fetchThreads = useCallback(async () => {
     try {
       const res = await fetch("/api/futures-trading/qa", {
         headers: { "x-password": password },
       });
       if (res.ok) {
         const data = await res.json();
-        setQA(data.qa ?? []);
+        setThreads(data.threads ?? []);
       }
     } catch {}
   }, [password]);
 
-  useEffect(() => { fetchQA(); }, [fetchQA]);
+  useEffect(() => { fetchThreads(); }, [fetchThreads]);
 
-  const submitQuestion = async (e: React.FormEvent) => {
+  const submitThread = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newQ.trim()) return;
+    if (!newTitle.trim()) return;
     setPosting(true);
     try {
       const res = await fetch("/api/futures-trading/qa", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-password": password },
-        body: JSON.stringify({ question: newQ }),
+        body: JSON.stringify({ title: newTitle }),
       });
-      if (res.ok) { setNewQ(""); fetchQA(); }
-    } finally { setPosting(false); }
-  };
-
-  const submitAnswer = async (id: string) => {
-    if (!answerText.trim()) return;
-    setSaving(true);
-    try {
-      const res = await fetch("/api/futures-trading/qa", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json", "x-password": password },
-        body: JSON.stringify({ id, answer: answerText }),
-      });
-      if (res.ok) { setAnsweringId(null); setAnswerText(""); fetchQA(); }
-    } finally { setSaving(false); }
-  };
-
-  const deleteQ = async (id: string) => {
-    if (!confirm("이 질문을 삭제하시겠습니까?")) return;
-    await fetch("/api/futures-trading/qa", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json", "x-password": password },
-      body: JSON.stringify({ id }),
-    });
-    fetchQA();
-  };
-
-  const fmtTime = (iso: string) => {
-    if (!iso) return "";
-    const d = new Date(iso);
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+      if (res.ok) {
+        setNewTitle("");
+        fetchThreads();
+      }
+    } finally {
+      setPosting(false);
+    }
   };
 
   return (
     <div className="space-y-6">
-      {/* 질문 입력 폼 */}
+      {/* 새 질문 등록 */}
       <form
-        onSubmit={submitQuestion}
+        onSubmit={submitThread}
         className="rounded-xl border border-border bg-card p-5 space-y-3"
       >
         <h2 className="text-lg font-bold flex items-center gap-2">
           <MessageCircle size={18} />
-          질문 등록
+          새 질문 등록
         </h2>
         <div className="flex gap-2">
-          <textarea
-            value={newQ}
-            onChange={(e) => setNewQ(e.target.value)}
-            rows={2}
-            placeholder="매매 관련 질문을 남겨주세요"
-            className="flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-foreground/20 resize-y"
+          <input
+            type="text"
+            value={newTitle}
+            onChange={(e) => setNewTitle(e.target.value)}
+            placeholder="궁금한 내용을 한 줄로 적어주세요"
+            className="flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-foreground/20"
           />
           <button
             type="submit"
-            disabled={posting || !newQ.trim()}
-            className="self-end rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-40"
+            disabled={posting || !newTitle.trim()}
+            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-40"
           >
-            <Send size={14} />
+            등록
           </button>
         </div>
       </form>
 
-      {/* 질문/답변 목록 */}
-      {qa.length === 0 ? (
+      {/* 스레드 목록 */}
+      {threads.length === 0 ? (
         <div className="flex h-32 items-center justify-center rounded-xl border border-border bg-card">
           <p className="text-sm text-muted-foreground">
-            아직 질문이 없습니다.
+            아직 등록된 질문이 없습니다.
           </p>
         </div>
       ) : (
         <div className="space-y-4">
-          {qa.map((item) => (
-            <div
-              key={item.id}
-              className="rounded-xl border border-border bg-card overflow-hidden"
-            >
-              {/* 질문 */}
-              <div className="p-4 border-l-4 border-l-blue-500 bg-blue-500/5">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1">
-                    <p className="text-sm whitespace-pre-wrap">{item.question}</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {fmtTime(item.createdAt)}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => deleteQ(item.id)}
-                    className="text-muted-foreground hover:text-red-400 transition-colors shrink-0"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              </div>
-
-              {/* 답변 */}
-              {item.answer ? (
-                <div className="p-4 border-l-4 border-l-green-500 bg-green-500/5">
-                  <p className="text-sm whitespace-pre-wrap">{item.answer}</p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {fmtTime(item.answeredAt)}
-                  </p>
-                </div>
-              ) : answeringId === item.id ? (
-                <div className="p-4 space-y-2">
-                  <textarea
-                    value={answerText}
-                    onChange={(e) => setAnswerText(e.target.value)}
-                    rows={3}
-                    placeholder="답변을 작성하세요"
-                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-foreground/20 resize-y"
-                    autoFocus
-                  />
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => submitAnswer(item.id)}
-                      disabled={saving || !answerText.trim()}
-                      className="rounded-md bg-green-600 px-3 py-1 text-xs font-medium text-white transition-colors hover:bg-green-700 disabled:opacity-40"
-                    >
-                      {saving ? "저장중..." : "답변 저장"}
-                    </button>
-                    <button
-                      onClick={() => { setAnsweringId(null); setAnswerText(""); }}
-                      className="rounded-md bg-muted px-3 py-1 text-xs font-medium text-muted-foreground hover:bg-muted/80"
-                    >
-                      취소
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="px-4 py-3 flex items-center justify-between">
-                  <span className="inline-flex items-center gap-1 rounded-full border border-yellow-500/30 bg-yellow-500/10 px-2.5 py-1 text-xs text-yellow-600">
-                    <span className="h-1.5 w-1.5 rounded-full bg-yellow-500" />
-                    답변 대기중
-                  </span>
-                  <button
-                    onClick={() => { setAnsweringId(item.id); setAnswerText(""); }}
-                    className="text-xs font-medium text-green-600 hover:text-green-700 transition-colors"
-                  >
-                    답변 작성
-                  </button>
-                </div>
-              )}
-            </div>
+          {threads.map((thread) => (
+            <QAThreadCard
+              key={thread.id}
+              thread={thread}
+              password={password}
+              onChanged={fetchThreads}
+            />
           ))}
         </div>
       )}

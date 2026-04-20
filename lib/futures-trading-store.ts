@@ -2,7 +2,10 @@ import { redis } from "@/lib/redis";
 import {
   type FuturesRecord,
   type FuturesStore,
+  type LegacyQAItem,
+  type QAAuthor,
   type QAItem,
+  type QAReply,
   type QAStore,
   type MessageItem,
   type MessageStore,
@@ -49,37 +52,102 @@ export async function updateMemo(id: string, memo: string): Promise<boolean> {
   return true;
 }
 
-// ── QA ──
+// ── QA (스레드 + 댓글) ──
+
+type StoredQA = Partial<QAItem> & Partial<LegacyQAItem>;
+
+function migrateQA(raw: StoredQA): QAItem {
+  // 이미 새 구조
+  if (Array.isArray(raw.replies) && typeof raw.title === "string") {
+    return {
+      id: raw.id ?? crypto.randomUUID(),
+      title: raw.title,
+      replies: raw.replies,
+      createdAt: raw.createdAt ?? new Date().toISOString(),
+    };
+  }
+
+  // 옛 구조 → 새 구조
+  const replies: QAReply[] = [];
+  if (raw.answer && raw.answer.trim()) {
+    replies.push({
+      id: crypto.randomUUID(),
+      author: "용태",
+      content: raw.answer,
+      createdAt: raw.answeredAt || raw.createdAt || new Date().toISOString(),
+    });
+  }
+
+  return {
+    id: raw.id ?? crypto.randomUUID(),
+    title: raw.question ?? raw.title ?? "",
+    replies,
+    createdAt: raw.createdAt ?? new Date().toISOString(),
+  };
+}
 
 export async function loadQA(): Promise<QAItem[]> {
-  const data = await redis.get<QAStore>(QA_REDIS_KEY);
-  return data?.qa ?? [];
+  const data = await redis.get<QAStore | { qa?: StoredQA[] }>(QA_REDIS_KEY);
+  const raw = data?.qa ?? [];
+  return raw.map((item) => migrateQA(item as StoredQA));
 }
 
 async function saveQA(qa: QAItem[]): Promise<void> {
-  await redis.set(QA_REDIS_KEY, { qa } as QAStore);
+  const store: QAStore = { qa };
+  await redis.set(QA_REDIS_KEY, store);
 }
 
-export async function addQuestion(question: string): Promise<QAItem> {
+export async function addQuestion(title: string): Promise<QAItem> {
+  const trimmed = title.trim();
+  if (!trimmed) throw new Error("제목을 입력해주세요.");
+
   const qa = await loadQA();
   const item: QAItem = {
     id: crypto.randomUUID(),
-    question,
-    answer: "",
+    title: trimmed,
+    replies: [],
     createdAt: new Date().toISOString(),
-    answeredAt: "",
   };
   qa.unshift(item);
   await saveQA(qa);
   return item;
 }
 
-export async function answerQuestion(id: string, answer: string): Promise<boolean> {
+export async function addReply(
+  qaId: string,
+  author: QAAuthor,
+  content: string
+): Promise<QAReply | null> {
+  const trimmed = content.trim();
+  if (!trimmed) throw new Error("내용을 입력해주세요.");
+  if (author !== "태양" && author !== "용태") {
+    throw new Error("작성자가 올바르지 않습니다.");
+  }
+
   const qa = await loadQA();
-  const item = qa.find((q) => q.id === id);
-  if (!item) return false;
-  item.answer = answer;
-  item.answeredAt = new Date().toISOString();
+  const thread = qa.find((t) => t.id === qaId);
+  if (!thread) return null;
+
+  const reply: QAReply = {
+    id: crypto.randomUUID(),
+    author,
+    content: trimmed,
+    createdAt: new Date().toISOString(),
+  };
+  thread.replies.push(reply);
+  await saveQA(qa);
+  return reply;
+}
+
+export async function deleteReply(qaId: string, replyId: string): Promise<boolean> {
+  const qa = await loadQA();
+  const thread = qa.find((t) => t.id === qaId);
+  if (!thread) return false;
+
+  const before = thread.replies.length;
+  thread.replies = thread.replies.filter((r) => r.id !== replyId);
+  if (thread.replies.length === before) return false;
+
   await saveQA(qa);
   return true;
 }
@@ -103,7 +171,7 @@ async function saveMessages(messages: MessageItem[]): Promise<void> {
   await redis.set(MSG_REDIS_KEY, { messages } as MessageStore);
 }
 
-export async function addMessage(author: "태양" | "용태", content: string): Promise<MessageItem> {
+export async function addMessage(author: QAAuthor, content: string): Promise<MessageItem> {
   const messages = await loadMessages();
   const item: MessageItem = {
     id: crypto.randomUUID(),

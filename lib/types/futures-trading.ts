@@ -12,17 +12,34 @@ export interface FuturesRecord {
   createdAt: string; // ISO timestamp
 }
 
+export type QAAuthor = "태양" | "용태";
+
+export interface QAReply {
+  id: string;
+  author: QAAuthor;
+  content: string;
+  createdAt: string; // ISO timestamp
+}
+
 export interface QAItem {
   id: string;
-  question: string;
-  answer: string;        // 빈 문자열이면 미답변
-  createdAt: string;     // 질문 등록 시각 (ISO)
-  answeredAt: string;    // 답변 등록 시각 (ISO, 빈 문자열이면 미답변)
+  title: string;        // 최초 질문(스레드 제목)
+  replies: QAReply[];   // 스레드 댓글 목록
+  createdAt: string;    // 스레드 생성 시각 (ISO)
+}
+
+/** 마이그레이션 전 옛 구조 (Redis에 남아있을 수 있음) */
+export interface LegacyQAItem {
+  id: string;
+  question?: string;
+  answer?: string;
+  createdAt: string;
+  answeredAt?: string;
 }
 
 export interface MessageItem {
   id: string;
-  author: "태양" | "용태";
+  author: QAAuthor;
   content: string;
   createdAt: string; // ISO timestamp
 }
