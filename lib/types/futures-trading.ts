@@ -10,7 +10,11 @@ export interface FuturesRecord {
   pnl: number; // 원 단위
   memo: string;
   createdAt: string; // ISO timestamp
+  qaThreads?: QAThread[]; // 이 매매에 연결된 Q&A 스레드 목록 (옵셔널)
 }
+
+/** 매매 기록 내부의 Q&A 스레드 (QAItem과 동일 구조, 의미적 별칭) */
+export type QAThread = QAItem;
 
 export type QAAuthor = "태양" | "용태";
 
