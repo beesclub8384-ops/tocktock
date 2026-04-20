@@ -8,6 +8,12 @@
 - **브랜치**: `master` (main 아님)
 - **배포 방법**: git push → Vercel 자동 배포. 안 될 경우 Deploy Hook 사용
 
+## 🚀 Claude Code 실행 방법
+항상 아래 명령으로 실행할 것:
+claude --dangerously-skip-permissions
+
+일반 claude 명령으로 실행하면 매번 확인 창이 떠서 작업 효율이 크게 떨어진다.
+
 ## 🔄 표준 작업 워크플로우
 
 모든 작업은 아래 순서를 따른다.
