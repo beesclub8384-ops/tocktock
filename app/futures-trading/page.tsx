@@ -979,23 +979,16 @@ function RecordQAThread({
               </p>
             ) : (
               thread.replies.map((reply) => {
-                // 용태 = 오른쪽 (답변하는 사람), system/태양 = 왼쪽
+                // 용태 = 오른쪽 (답변), 그 외(태양/system) = 클로드 = 왼쪽 (질문)
                 const isYongtae = reply.author === "용태";
-                const isTaeyang = reply.author === "태양";
-                const labelText = isYongtae
-                  ? "용태"
-                  : isTaeyang
-                    ? "태양"
-                    : "자동 질문";
+                const labelText = isYongtae ? "용태" : "클로드";
                 return (
                   <div key={reply.id} className={`flex ${isYongtae ? "justify-end" : "justify-start"}`}>
                     <div className={`max-w-[80%] ${isYongtae ? "items-end" : "items-start"}`}>
                       <p className={`text-xs font-medium mb-0.5 ${
                         isYongtae
                           ? "text-right text-foreground/60"
-                          : isTaeyang
-                            ? "text-left text-blue-400"
-                            : "text-left text-amber-600 dark:text-amber-400"
+                          : "text-left text-amber-600 dark:text-amber-400"
                       }`}>
                         {labelText}
                       </p>
@@ -1003,9 +996,7 @@ function RecordQAThread({
                         className={`rounded-2xl px-3.5 py-2.5 text-sm whitespace-pre-wrap ${
                           isYongtae
                             ? "bg-muted text-foreground rounded-tr-sm"
-                            : isTaeyang
-                              ? "bg-blue-600 text-white rounded-tl-sm"
-                              : "bg-amber-500/10 text-amber-900 dark:text-amber-100 border border-amber-500/30 rounded-tl-sm"
+                            : "bg-amber-500/10 text-amber-900 dark:text-amber-100 border border-amber-500/30 rounded-tl-sm"
                         }`}
                       >
                         {reply.content}
