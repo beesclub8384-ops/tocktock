@@ -4,6 +4,8 @@ import {
   loadQuantified,
   addReplyToThread,
   updateThreadStatus,
+  updateReplyContent,
+  updateThreadTitle,
   addQuantifiedCondition,
 } from "@/lib/futures-trading-store";
 import type { QAReply, QuantifiedCondition } from "@/lib/types/futures-trading";
@@ -155,6 +157,76 @@ export async function POST(request: NextRequest) {
     console.error(`${LOG_TAG} POST error:`, error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "답변 처리 실패" },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * qaThread 내의 reply content 수정 또는 thread title 수정
+ * - { recordId, threadId, replyId, content } : 해당 reply의 content 수정
+ * - { recordId, threadId, title } : 해당 thread의 title 수정
+ */
+export async function PATCH(request: NextRequest) {
+  if (!checkAuth(request)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    const body = (await request.json()) as {
+      recordId?: string;
+      threadId?: string;
+      replyId?: string;
+      content?: string;
+      title?: string;
+    };
+    const { recordId, threadId, replyId, content, title } = body;
+
+    if (!recordId || !threadId) {
+      return NextResponse.json(
+        { error: "recordId, threadId가 필요합니다." },
+        { status: 400 }
+      );
+    }
+
+    // reply content 수정
+    if (replyId) {
+      if (typeof content !== "string" || !content.trim()) {
+        return NextResponse.json(
+          { error: "content가 필요합니다." },
+          { status: 400 }
+        );
+      }
+      const ok = await updateReplyContent(recordId, threadId, replyId, content.trim());
+      if (!ok) {
+        return NextResponse.json(
+          { error: "reply를 찾을 수 없습니다." },
+          { status: 404 }
+        );
+      }
+      return NextResponse.json({ success: true });
+    }
+
+    // thread title 수정
+    if (typeof title === "string") {
+      const ok = await updateThreadTitle(recordId, threadId, title.trim());
+      if (!ok) {
+        return NextResponse.json(
+          { error: "스레드를 찾을 수 없습니다." },
+          { status: 404 }
+        );
+      }
+      return NextResponse.json({ success: true });
+    }
+
+    return NextResponse.json(
+      { error: "replyId+content 또는 title 중 하나가 필요합니다." },
+      { status: 400 }
+    );
+  } catch (error) {
+    console.error(`${LOG_TAG} PATCH error:`, error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "수정 실패" },
       { status: 500 }
     );
   }

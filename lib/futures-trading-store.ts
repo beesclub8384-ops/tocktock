@@ -129,6 +129,41 @@ export async function addReplyToThread(
   return true;
 }
 
+/** 특정 답글의 content 수정 */
+export async function updateReplyContent(
+  recordId: string,
+  threadId: string,
+  replyId: string,
+  content: string
+): Promise<boolean> {
+  const records = await loadRecords();
+  const record = records.find((r) => r.id === recordId);
+  if (!record || !Array.isArray(record.qaThreads)) return false;
+  const thread = record.qaThreads.find((t) => t.id === threadId);
+  if (!thread) return false;
+  const reply = thread.replies.find((r) => r.id === replyId);
+  if (!reply) return false;
+  reply.content = content;
+  await saveRecords(records);
+  return true;
+}
+
+/** 스레드 제목 수정 */
+export async function updateThreadTitle(
+  recordId: string,
+  threadId: string,
+  title: string
+): Promise<boolean> {
+  const records = await loadRecords();
+  const record = records.find((r) => r.id === recordId);
+  if (!record || !Array.isArray(record.qaThreads)) return false;
+  const thread = record.qaThreads.find((t) => t.id === threadId);
+  if (!thread) return false;
+  thread.title = title;
+  await saveRecords(records);
+  return true;
+}
+
 // ── Quantified ──
 
 export async function loadQuantified(): Promise<QuantifiedCondition[]> {

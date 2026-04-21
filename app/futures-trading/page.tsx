@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, Fragment } from "react";
-import { Trash2, ChevronDown, ChevronUp, Send, Megaphone, BarChart3 } from "lucide-react";
+import { Trash2, ChevronDown, ChevronUp, Send, Megaphone, BarChart3, Pencil } from "lucide-react";
 import { useRef } from "react";
 
 type ThreadStatus = "open" | "completed" | "impossible";
@@ -894,6 +894,14 @@ function RecordQAThread({
   const [sending, setSending] = useState(false);
   const [expanded, setExpanded] = useState(status === "open");
 
+  // 인라인 편집 상태
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleText, setTitleText] = useState(thread.title);
+  const [savingTitle, setSavingTitle] = useState(false);
+  const [editingReplyId, setEditingReplyId] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState("");
+  const [savingReply, setSavingReply] = useState(false);
+
   const fmtTime = (iso: string) => {
     if (!iso) return "";
     const d = new Date(iso);
@@ -934,13 +942,77 @@ function RecordQAThread({
     if (res.ok) onChanged();
   };
 
+  const startEditTitle = () => {
+    setTitleText(thread.title);
+    setEditingTitle(true);
+    if (!expanded) setExpanded(true);
+  };
+  const cancelEditTitle = () => {
+    setEditingTitle(false);
+    setTitleText(thread.title);
+  };
+  const saveTitle = async () => {
+    setSavingTitle(true);
+    try {
+      const res = await fetch("/api/futures-trading/reply", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "x-password": password },
+        body: JSON.stringify({ recordId, threadId: thread.id, title: titleText }),
+      });
+      if (res.ok) {
+        setEditingTitle(false);
+        await onChanged();
+      }
+    } finally {
+      setSavingTitle(false);
+    }
+  };
+
+  const startEditReply = (replyId: string, current: string) => {
+    setEditingReplyId(replyId);
+    setReplyText(current);
+  };
+  const cancelEditReply = () => {
+    setEditingReplyId(null);
+    setReplyText("");
+  };
+  const saveReply = async (replyId: string) => {
+    if (!replyText.trim()) return;
+    setSavingReply(true);
+    try {
+      const res = await fetch("/api/futures-trading/reply", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "x-password": password },
+        body: JSON.stringify({ recordId, threadId: thread.id, replyId, content: replyText }),
+      });
+      if (res.ok) {
+        setEditingReplyId(null);
+        setReplyText("");
+        await onChanged();
+      }
+    } finally {
+      setSavingReply(false);
+    }
+  };
+
   return (
     <div className="rounded-lg border border-border bg-background overflow-hidden">
       <div className="flex items-start justify-between gap-3 border-b border-border/60 px-4 py-3">
-        <button
-          type="button"
-          onClick={() => setExpanded((v) => !v)}
-          className="min-w-0 flex-1 text-left"
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => {
+            if (editingTitle) return;
+            setExpanded((v) => !v);
+          }}
+          onKeyDown={(e) => {
+            if (editingTitle) return;
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              setExpanded((v) => !v);
+            }
+          }}
+          className="min-w-0 flex-1 text-left cursor-pointer"
         >
           <div className="flex items-center gap-2 flex-wrap">
             <StatusBadge status={status} />
@@ -948,12 +1020,73 @@ function RecordQAThread({
               ? <ChevronUp size={12} className="text-muted-foreground" />
               : <ChevronDown size={12} className="text-muted-foreground" />}
           </div>
-          {thread.title && (
-            <p className="mt-2 text-sm font-medium leading-snug whitespace-pre-wrap break-words">
-              {thread.title}
-            </p>
+          {editingTitle ? (
+            <div
+              className="mt-2 space-y-2"
+              onClick={(e) => e.stopPropagation()}
+              onKeyDown={(e) => e.stopPropagation()}
+            >
+              <textarea
+                value={titleText}
+                onChange={(e) => setTitleText(e.target.value)}
+                rows={2}
+                disabled={savingTitle}
+                className="w-full resize-y rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-foreground/20 disabled:opacity-60"
+                placeholder="질문 제목"
+                autoFocus
+              />
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={saveTitle}
+                  disabled={savingTitle}
+                  className="rounded-md bg-foreground px-3 py-1 text-xs font-medium text-background transition-colors hover:bg-foreground/90 disabled:opacity-40"
+                >
+                  {savingTitle ? "저장 중..." : "저장"}
+                </button>
+                <button
+                  type="button"
+                  onClick={cancelEditTitle}
+                  disabled={savingTitle}
+                  className="rounded-md bg-muted px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/80 disabled:opacity-40"
+                >
+                  취소
+                </button>
+              </div>
+            </div>
+          ) : (
+            thread.title ? (
+              <div className="mt-2 flex items-start gap-2">
+                <p className="flex-1 text-sm font-medium leading-snug whitespace-pre-wrap break-words">
+                  {thread.title}
+                </p>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    startEditTitle();
+                  }}
+                  className="shrink-0 rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  title="제목 수정"
+                >
+                  <Pencil size={12} />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  startEditTitle();
+                }}
+                className="mt-2 inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <Pencil size={11} />
+                제목 추가
+              </button>
+            )
           )}
-          <p className={`${thread.title ? "mt-1 " : "mt-2 "}text-xs text-muted-foreground`}>
+          <p className={`${thread.title || editingTitle ? "mt-1 " : "mt-2 "}text-xs text-muted-foreground`}>
             {fmtTime(thread.createdAt)} · 댓글 {thread.replies.length}
           </p>
           {status !== "open" && thread.statusReason && (
@@ -961,7 +1094,7 @@ function RecordQAThread({
               사유: {thread.statusReason}
             </p>
           )}
-        </button>
+        </div>
         <button
           onClick={deleteThread}
           className="shrink-0 rounded-md border border-border px-2 py-1 text-xs text-muted-foreground transition-colors hover:border-red-400/50 hover:text-red-400"
@@ -982,6 +1115,7 @@ function RecordQAThread({
                 // 용태 = 오른쪽 (답변), 그 외(태양/system) = 클로드 = 왼쪽 (질문)
                 const isYongtae = reply.author === "용태";
                 const labelText = isYongtae ? "용태" : "클로드";
+                const isEditing = editingReplyId === reply.id;
                 return (
                   <div key={reply.id} className={`flex ${isYongtae ? "justify-end" : "justify-start"}`}>
                     <div className={`max-w-[80%] ${isYongtae ? "items-end" : "items-start"}`}>
@@ -992,15 +1126,58 @@ function RecordQAThread({
                       }`}>
                         {labelText}
                       </p>
-                      <div
-                        className={`rounded-2xl px-3.5 py-2.5 text-sm whitespace-pre-wrap ${
+                      {isEditing ? (
+                        <div className={`rounded-2xl border p-2 space-y-2 ${
                           isYongtae
-                            ? "bg-muted text-foreground rounded-tr-sm"
-                            : "bg-amber-500/10 text-amber-900 dark:text-amber-100 border border-amber-500/30 rounded-tl-sm"
-                        }`}
-                      >
-                        {reply.content}
-                      </div>
+                            ? "border-border bg-background"
+                            : "border-amber-500/30 bg-amber-500/5"
+                        }`}>
+                          <textarea
+                            value={replyText}
+                            onChange={(e) => setReplyText(e.target.value)}
+                            rows={3}
+                            disabled={savingReply}
+                            autoFocus
+                            className="w-full resize-y rounded-md border border-border bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-foreground/20 disabled:opacity-60"
+                          />
+                          <div className={`flex gap-2 ${isYongtae ? "justify-end" : "justify-start"}`}>
+                            <button
+                              type="button"
+                              onClick={() => saveReply(reply.id)}
+                              disabled={savingReply || !replyText.trim()}
+                              className="rounded-md bg-foreground px-3 py-1 text-xs font-medium text-background transition-colors hover:bg-foreground/90 disabled:opacity-40"
+                            >
+                              {savingReply ? "저장 중..." : "저장"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={cancelEditReply}
+                              disabled={savingReply}
+                              className="rounded-md bg-muted px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/80 disabled:opacity-40"
+                            >
+                              취소
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div
+                          className={`group relative rounded-2xl px-3.5 py-2.5 text-sm whitespace-pre-wrap ${
+                            isYongtae
+                              ? "bg-muted text-foreground rounded-tr-sm"
+                              : "bg-amber-500/10 text-amber-900 dark:text-amber-100 border border-amber-500/30 rounded-tl-sm"
+                          }`}
+                        >
+                          {reply.content}
+                          <button
+                            type="button"
+                            onClick={() => startEditReply(reply.id, reply.content)}
+                            title="수정"
+                            className={`absolute top-1 ${isYongtae ? "-left-7" : "-right-7"} rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover:opacity-100`}
+                          >
+                            <Pencil size={12} />
+                          </button>
+                        </div>
+                      )}
                       <p className={`text-[10px] text-muted-foreground mt-0.5 ${isYongtae ? "text-right" : "text-left"}`}>
                         {fmtTime(reply.createdAt)}
                       </p>
