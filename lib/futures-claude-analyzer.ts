@@ -1,5 +1,11 @@
 import Anthropic from "@anthropic-ai/sdk";
-import type { QAThread, QuantifiedCondition } from "@/lib/types/futures-trading";
+import type { FuturesRecord, QAThread, QuantifiedCondition } from "@/lib/types/futures-trading";
+import {
+  MARKET_SYMBOLS,
+  sliceAroundEntry,
+  type MarketDataForDay,
+  type MinuteCandle,
+} from "@/lib/futures-market-data";
 
 const MODEL = "claude-sonnet-4-5-20250929";
 const LOG_TAG = "[futures-claude-analyzer]";
@@ -209,5 +215,147 @@ ${formatQuantifiedList(quantifiedList)}
   } catch (err) {
     console.error(`${LOG_TAG} analyzeReply parse error:`, err, "raw:", text);
     return fallbackFollowUp("응답 파싱에 실패했습니다.");
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// 4-3. 시장 데이터 + 메모를 함께 분석 → 패턴 추출
+// ─────────────────────────────────────────────────────────────
+
+export interface ConfirmedCondition {
+  condition: string;
+  value: string;
+  dataEvidence: string;
+}
+
+export interface MarketDataQuestion {
+  title: string;
+}
+
+export interface AnalyzeWithMarketDataResult {
+  patternFound: string;
+  confirmedConditions: ConfirmedCondition[];
+  questions: MarketDataQuestion[];
+}
+
+const MARKET_ANALYZE_SYSTEM_PROMPT = `당신은 선물 트레이더의 매매 패턴을 학습하는 분석가입니다.
+트레이더의 매매 메모(자연어)와 해당 시점의 실제 시장 데이터를 함께 분석해서
+트레이더가 어떤 조건에서 매매했는지 스스로 파악합니다.
+데이터로 확인 가능한 것은 직접 수치화하고,
+데이터만으로 판단 불가능한 것만 질문으로 남깁니다.
+AI, 인공지능 관련 문구는 절대 사용하지 않습니다.
+반드시 JSON만 반환합니다.`;
+
+function formatCandlesCompact(cs: MinuteCandle[]): string {
+  if (!cs.length) return "(없음)";
+  // 토큰 절약: KST 시각 + OHLCV 한 줄
+  return cs
+    .map((c) => {
+      const d = new Date(c.time);
+      const kst = new Date(d.getTime() + 9 * 3600 * 1000);
+      const hh = String(kst.getUTCHours()).padStart(2, "0");
+      const mm = String(kst.getUTCMinutes()).padStart(2, "0");
+      return `${hh}:${mm} O=${c.open} H=${c.high} L=${c.low} C=${c.close} V=${c.volume}`;
+    })
+    .join("\n");
+}
+
+export async function analyzeWithMarketData(
+  record: FuturesRecord,
+  marketData: MarketDataForDay | null,
+  quantifiedList: QuantifiedCondition[]
+): Promise<AnalyzeWithMarketDataResult> {
+  // 각 심볼 3분봉을 진입 시각 전후 30분으로 슬라이스 + 포맷
+  const marketSections: string[] = [];
+  for (const symbol of MARKET_SYMBOLS) {
+    const bars3m = marketData?.symbols?.[symbol]?.candles3m ?? [];
+    const sliced = sliceAroundEntry(bars3m, record.date, record.entryTime, 30);
+    marketSections.push(`- ${symbol}:\n${formatCandlesCompact(sliced)}`);
+  }
+
+  const userPrompt = `매매 기록:
+- 날짜: ${record.date}
+- 방향: ${record.direction === "long" ? "롱(매수)" : "숏(매도)"}
+- 진입 시각(KST): ${record.entryTime} / 진입가: ${record.entryPoint}
+- 청산 시각(KST): ${record.exitTime} / 청산가: ${record.exitPoint}
+- 계약수: ${record.contracts}
+- 손익: ${record.pnl}원
+- 메모: ${record.memo || "(메모 없음)"}
+
+해당일 시장 데이터 (3분봉, 진입 시각 전후 30분, KST 표기):
+${marketSections.join("\n\n")}
+
+이미 수치화된 조건:
+${formatQuantifiedList(quantifiedList)}
+
+위 자료를 토대로 분석 결과를 JSON으로 반환하세요.
+형식: {
+  "patternFound": "발견된 매매 패턴을 한 문단으로 설명",
+  "confirmedConditions": [
+    { "condition": "조건명", "value": "수치화된 값", "dataEvidence": "근거 데이터" }
+  ],
+  "questions": [
+    { "title": "데이터로 확인 불가한 질문" }
+  ]
+}
+
+규칙:
+- 이미 수치화된 조건과 동일한 조건은 confirmedConditions에 포함하지 마세요
+- 데이터로 확인 가능한 조건은 반드시 근거 수치(예: "삼성전자 10:23 KST 가격 192,800, 3분봉 20이평 192,500 → 괴리 0.16%")를 제시하세요
+- 메모가 비어 있으면 questions는 빈 배열로 두고 데이터만으로 관찰 가능한 패턴을 patternFound에 적으세요
+- questions는 반드시 하나의 주제만 다루는 독립적인 질문으로 작성하세요`;
+
+  const fallback: AnalyzeWithMarketDataResult = {
+    patternFound: "",
+    confirmedConditions: [],
+    questions: [],
+  };
+
+  let text: string | null = null;
+  try {
+    text = await callWithRetry(
+      {
+        model: MODEL,
+        max_tokens: 4096,
+        system: MARKET_ANALYZE_SYSTEM_PROMPT,
+        messages: [{ role: "user", content: userPrompt }],
+      },
+      "analyzeWithMarketData"
+    );
+  } catch (err) {
+    console.error(`${LOG_TAG} analyzeWithMarketData failed:`, err);
+    return fallback;
+  }
+
+  if (!text) return fallback;
+
+  try {
+    const parsed = JSON.parse(stripCodeFence(text));
+    const patternFound = typeof parsed?.patternFound === "string" ? parsed.patternFound : "";
+    const confirmedRaw = Array.isArray(parsed?.confirmedConditions) ? parsed.confirmedConditions : [];
+    const questionsRaw = Array.isArray(parsed?.questions) ? parsed.questions : [];
+
+    const confirmedConditions: ConfirmedCondition[] = confirmedRaw
+      .map((c: unknown) => {
+        const o = c as Record<string, unknown>;
+        const condition = typeof o?.condition === "string" ? o.condition.trim() : "";
+        const value = typeof o?.value === "string" ? o.value.trim() : "";
+        const dataEvidence = typeof o?.dataEvidence === "string" ? o.dataEvidence.trim() : "";
+        return condition && value ? { condition, value, dataEvidence } : null;
+      })
+      .filter((x: ConfirmedCondition | null): x is ConfirmedCondition => x !== null);
+
+    const questions: MarketDataQuestion[] = questionsRaw
+      .map((q: unknown) => {
+        const o = q as Record<string, unknown>;
+        const title = typeof o?.title === "string" ? o.title.trim() : "";
+        return title ? { title } : null;
+      })
+      .filter((x: MarketDataQuestion | null): x is MarketDataQuestion => x !== null);
+
+    return { patternFound, confirmedConditions, questions };
+  } catch (err) {
+    console.error(`${LOG_TAG} analyzeWithMarketData parse error:`, err, "raw:", text);
+    return fallback;
   }
 }

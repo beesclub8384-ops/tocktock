@@ -87,3 +87,5 @@ export const FUTURES_REDIS_KEY = "futures-trading:records";
 export const QA_REDIS_KEY = "futures-trading:qa";
 export const MSG_REDIS_KEY = "futures-trading:messages";
 export const QUANTIFIED_REDIS_KEY = "futures-trading:quantified";
+export const MARKET_DATA_REDIS_KEY_PREFIX = "futures-trading:market-data:";
+export const MARKET_DATA_INDEX_KEY = "futures-trading:market-data-index"; // 날짜 목록

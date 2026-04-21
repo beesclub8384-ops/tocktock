@@ -16,7 +16,10 @@ import {
   QA_REDIS_KEY,
   MSG_REDIS_KEY,
   QUANTIFIED_REDIS_KEY,
+  MARKET_DATA_REDIS_KEY_PREFIX,
+  MARKET_DATA_INDEX_KEY,
 } from "@/lib/types/futures-trading";
+import type { MarketDataForDay } from "@/lib/futures-market-data";
 
 /** 저장된 스레드가 status 없는 구버전이면 'open' 채움 */
 function normalizeThread(raw: Partial<QAThread> & { id?: string }): QAThread {
@@ -162,6 +165,37 @@ export async function updateThreadTitle(
   thread.title = title;
   await saveRecords(records);
   return true;
+}
+
+// ── Market Data ──
+
+function marketDataKey(date: string): string {
+  return `${MARKET_DATA_REDIS_KEY_PREFIX}${date}`;
+}
+
+export async function saveMarketData(date: string, data: MarketDataForDay): Promise<void> {
+  await redis.set(marketDataKey(date), data);
+  // 인덱스(날짜 목록)에도 추가
+  try {
+    const index = (await redis.get<string[]>(MARKET_DATA_INDEX_KEY)) ?? [];
+    if (!index.includes(date)) {
+      index.push(date);
+      await redis.set(MARKET_DATA_INDEX_KEY, index);
+    }
+  } catch (err) {
+    console.error("[futures-trading-store] saveMarketData index update failed:", err);
+  }
+}
+
+export async function loadMarketData(date: string): Promise<MarketDataForDay | null> {
+  const data = await redis.get<MarketDataForDay>(marketDataKey(date));
+  return data ?? null;
+}
+
+/** 데이터가 저장된 날짜 목록을 반환 (UI 뱃지용) */
+export async function listMarketDataDates(): Promise<string[]> {
+  const index = (await redis.get<string[]>(MARKET_DATA_INDEX_KEY)) ?? [];
+  return Array.isArray(index) ? index : [];
 }
 
 // ── Quantified ──

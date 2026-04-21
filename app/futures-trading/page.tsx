@@ -435,13 +435,35 @@ function Stats({ records }: { records: FuturesRecord[] }) {
 
 // ── 매매 내역 테이블 ──
 
+function MarketDataBadge({ hasData }: { hasData: boolean }) {
+  return (
+    <span
+      title={hasData ? "시장 데이터 확보됨" : "시장 데이터 없음"}
+      className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+        hasData
+          ? "bg-green-500/15 text-green-600 dark:text-green-400"
+          : "bg-muted text-muted-foreground"
+      }`}
+    >
+      <span
+        className={`inline-block h-1.5 w-1.5 rounded-full ${
+          hasData ? "bg-green-500" : "bg-muted-foreground/60"
+        }`}
+      />
+      {hasData ? "데이터 확보" : "데이터 없음"}
+    </span>
+  );
+}
+
 function RecordTable({
   records,
+  marketDataDates,
   password,
   onDeleted,
   onUpdated,
 }: {
   records: FuturesRecord[];
+  marketDataDates: Set<string>;
   password: string;
   onDeleted: () => void;
   onUpdated: () => void;
@@ -658,11 +680,14 @@ function RecordTable({
                       className="px-3 py-2.5 tabular-nums whitespace-nowrap cursor-pointer select-none"
                       onClick={() => toggle(r.id)}
                     >
-                      <span className="inline-flex items-center gap-1">
-                        {r.date}
-                        {isOpen
-                          ? <ChevronUp size={12} className="text-muted-foreground" />
-                          : <ChevronDown size={12} className="text-muted-foreground" />}
+                      <span className="inline-flex items-center gap-2">
+                        <span className="inline-flex items-center gap-1">
+                          {r.date}
+                          {isOpen
+                            ? <ChevronUp size={12} className="text-muted-foreground" />
+                            : <ChevronDown size={12} className="text-muted-foreground" />}
+                        </span>
+                        <MarketDataBadge hasData={marketDataDates.has(r.date)} />
                       </span>
                     </td>
                     <td className="px-3 py-2.5 text-center">
@@ -726,7 +751,7 @@ function RecordTable({
               <div className="p-4">
                 <div className="flex items-center justify-between mb-2">
                   <div
-                    className="flex items-center gap-2 cursor-pointer select-none"
+                    className="flex items-center gap-2 cursor-pointer select-none flex-wrap"
                     onClick={() => toggle(r.id)}
                   >
                     <span className="text-xs text-muted-foreground tabular-nums">
@@ -742,6 +767,7 @@ function RecordTable({
                     >
                       {r.direction === "long" ? "롱" : "숏"}
                     </span>
+                    <MarketDataBadge hasData={marketDataDates.has(r.date)} />
                     {isOpen
                       ? <ChevronUp size={12} className="text-muted-foreground" />
                       : <ChevronDown size={12} className="text-muted-foreground" />}
@@ -1543,6 +1569,7 @@ function QuantifiedSection({ password }: { password: string }) {
 export default function FuturesTradingPage() {
   const [password, setPassword] = useState<string | null>(null);
   const [records, setRecords] = useState<FuturesRecord[]>([]);
+  const [marketDataDates, setMarketDataDates] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [tab, setTab] = useState<"records" | "board" | "quantified">("records");
 
@@ -1556,6 +1583,7 @@ export default function FuturesTradingPage() {
       if (res.ok) {
         const data = await res.json();
         setRecords(data.records ?? []);
+        setMarketDataDates(new Set(data.marketDataDates ?? []));
       }
     } finally {
       setLoading(false);
@@ -1632,6 +1660,7 @@ export default function FuturesTradingPage() {
                 <Stats records={records} />
                 <RecordTable
                   records={records}
+                  marketDataDates={marketDataDates}
                   password={password}
                   onDeleted={fetchRecords}
                   onUpdated={fetchRecords}

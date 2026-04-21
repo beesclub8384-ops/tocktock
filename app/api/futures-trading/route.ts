@@ -6,11 +6,19 @@ import {
   updateMemo,
   loadQuantified,
   appendThreadsToRecord,
+  saveMarketData,
+  loadMarketData,
+  listMarketDataDates,
+  addQuantifiedCondition,
 } from "@/lib/futures-trading-store";
-import type { FuturesRecord, QAThread } from "@/lib/types/futures-trading";
-import { generateQAThreads } from "@/lib/futures-claude-analyzer";
+import type { FuturesRecord, QAThread, QuantifiedCondition } from "@/lib/types/futures-trading";
+import { analyzeWithMarketData } from "@/lib/futures-claude-analyzer";
+import { fetchMarketDataForDate, hasAnyData } from "@/lib/futures-market-data";
 
 const PASSWORD = "8384";
+
+// Vercel Hobby: 최대 300초. Yahoo fetch + Claude 분석이 넉넉히 들어갈 60초로 설정
+export const maxDuration = 120;
 
 function checkAuth(request: NextRequest): boolean {
   const pw = request.headers.get("x-password");
@@ -23,8 +31,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const records = await loadRecords();
-    return NextResponse.json({ records });
+    const [records, marketDataDates] = await Promise.all([loadRecords(), listMarketDataDates()]);
+    return NextResponse.json({ records, marketDataDates });
   } catch (error) {
     console.error("[futures-trading] GET error:", error);
     return NextResponse.json(
@@ -56,31 +64,77 @@ export async function POST(request: NextRequest) {
     };
 
     await addRecord(record);
+    console.log("[futures-trading] record saved", { id: record.id, date: record.date });
 
-    // 메모가 있으면 자동으로 qaThread 생성
-    let generatedCount = 0;
-    if (record.memo.trim()) {
-      try {
-        const quantifiedList = await loadQuantified();
-        const generated = await generateQAThreads(record.memo, quantifiedList);
-        if (generated.length) {
-          const now = new Date().toISOString();
-          const threads: QAThread[] = generated.map((g) => ({
-            id: crypto.randomUUID(),
-            title: g.title,
-            status: "open",
-            createdAt: now,
-            replies: [],
-          }));
-          await appendThreadsToRecord(record.id, threads);
-          generatedCount = threads.length;
-        }
-      } catch (err) {
-        console.error("[futures-trading] generateQAThreads failed:", err);
+    // 시장 데이터 수집 (실패해도 record 저장은 유지)
+    let marketDataOk = false;
+    try {
+      // 기존 데이터가 있으면 재사용, 없으면 Yahoo에서 수집
+      let marketData = await loadMarketData(record.date);
+      if (!marketData || !hasAnyData(marketData)) {
+        marketData = await fetchMarketDataForDate(record.date);
+        await saveMarketData(record.date, marketData);
       }
-    }
+      marketDataOk = hasAnyData(marketData);
+      console.log("[futures-trading] market data", {
+        date: record.date,
+        hasData: marketDataOk,
+      });
 
-    return NextResponse.json({ success: true, record, generatedThreads: generatedCount });
+      // analyzeWithMarketData로 패턴 추출
+      const quantifiedList = await loadQuantified();
+      const analysis = await analyzeWithMarketData(record, marketData, quantifiedList);
+      console.log("[futures-trading] analysis done", {
+        confirmed: analysis.confirmedConditions.length,
+        questions: analysis.questions.length,
+      });
+
+      // confirmedConditions → quantified에 추가
+      const now = new Date().toISOString();
+      for (const c of analysis.confirmedConditions) {
+        const q: QuantifiedCondition = {
+          id: crypto.randomUUID(),
+          condition: c.condition,
+          value: c.value,
+          status: "completed",
+          reason: c.dataEvidence,
+          sourceRecordId: record.id,
+          sourceThreadId: "",
+          createdAt: now,
+        };
+        await addQuantifiedCondition(q);
+      }
+
+      // questions → qaThreads (status: open)
+      if (analysis.questions.length) {
+        const threads: QAThread[] = analysis.questions.map((q) => ({
+          id: crypto.randomUUID(),
+          title: q.title,
+          status: "open",
+          createdAt: now,
+          replies: [],
+        }));
+        await appendThreadsToRecord(record.id, threads);
+      }
+
+      return NextResponse.json({
+        success: true,
+        record,
+        marketDataAvailable: marketDataOk,
+        patternFound: analysis.patternFound,
+        confirmedCount: analysis.confirmedConditions.length,
+        questionCount: analysis.questions.length,
+      });
+    } catch (err) {
+      console.error("[futures-trading] market-data analysis failed:", err);
+      // 분석 실패해도 record는 이미 저장됨
+      return NextResponse.json({
+        success: true,
+        record,
+        marketDataAvailable: marketDataOk,
+        analysisError: err instanceof Error ? err.message : String(err),
+      });
+    }
   } catch (error) {
     console.error("[futures-trading] POST error:", error);
     return NextResponse.json(
