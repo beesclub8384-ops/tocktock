@@ -4,8 +4,11 @@ import {
   addRecord,
   deleteRecord,
   updateMemo,
+  loadQuantified,
+  appendThreadsToRecord,
 } from "@/lib/futures-trading-store";
-import type { FuturesRecord } from "@/lib/types/futures-trading";
+import type { FuturesRecord, QAThread } from "@/lib/types/futures-trading";
+import { generateQAThreads } from "@/lib/futures-claude-analyzer";
 
 const PASSWORD = "8384";
 
@@ -53,7 +56,31 @@ export async function POST(request: NextRequest) {
     };
 
     await addRecord(record);
-    return NextResponse.json({ success: true, record });
+
+    // 메모가 있으면 자동으로 qaThread 생성
+    let generatedCount = 0;
+    if (record.memo.trim()) {
+      try {
+        const quantifiedList = await loadQuantified();
+        const generated = await generateQAThreads(record.memo, quantifiedList);
+        if (generated.length) {
+          const now = new Date().toISOString();
+          const threads: QAThread[] = generated.map((g) => ({
+            id: crypto.randomUUID(),
+            title: g.title,
+            status: "open",
+            createdAt: now,
+            replies: [],
+          }));
+          await appendThreadsToRecord(record.id, threads);
+          generatedCount = threads.length;
+        }
+      } catch (err) {
+        console.error("[futures-trading] generateQAThreads failed:", err);
+      }
+    }
+
+    return NextResponse.json({ success: true, record, generatedThreads: generatedCount });
   } catch (error) {
     console.error("[futures-trading] POST error:", error);
     return NextResponse.json(

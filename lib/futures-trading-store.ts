@@ -7,16 +7,44 @@ import {
   type QAItem,
   type QAReply,
   type QAStore,
+  type QAThread,
+  type QAThreadStatus,
+  type QuantifiedCondition,
   type MessageItem,
   type MessageStore,
   FUTURES_REDIS_KEY,
   QA_REDIS_KEY,
   MSG_REDIS_KEY,
+  QUANTIFIED_REDIS_KEY,
 } from "@/lib/types/futures-trading";
+
+/** 저장된 스레드가 status 없는 구버전이면 'open' 채움 */
+function normalizeThread(raw: Partial<QAThread> & { id?: string }): QAThread {
+  const status: QAThreadStatus =
+    raw.status === "completed" || raw.status === "impossible" ? raw.status : "open";
+  return {
+    id: raw.id ?? crypto.randomUUID(),
+    title: raw.title ?? "",
+    status,
+    statusReason: raw.statusReason,
+    createdAt: raw.createdAt ?? new Date().toISOString(),
+    replies: Array.isArray(raw.replies) ? raw.replies : [],
+  };
+}
+
+function normalizeRecord(record: FuturesRecord): FuturesRecord {
+  if (Array.isArray(record.qaThreads)) {
+    record.qaThreads = record.qaThreads.map((t) =>
+      normalizeThread(t as Partial<QAThread>)
+    );
+  }
+  return record;
+}
 
 export async function loadRecords(): Promise<FuturesRecord[]> {
   const data = await redis.get<FuturesStore>(FUTURES_REDIS_KEY);
-  return data?.records ?? [];
+  const records = data?.records ?? [];
+  return records.map(normalizeRecord);
 }
 
 export async function saveRecords(records: FuturesRecord[]): Promise<void> {
@@ -52,7 +80,75 @@ export async function updateMemo(id: string, memo: string): Promise<boolean> {
   return true;
 }
 
-// ── QA (스레드 + 댓글) ──
+/** 특정 record의 qaThreads에 새 스레드 여러개 추가 */
+export async function appendThreadsToRecord(
+  recordId: string,
+  threads: QAThread[]
+): Promise<boolean> {
+  if (!threads.length) return true;
+  const records = await loadRecords();
+  const record = records.find((r) => r.id === recordId);
+  if (!record) return false;
+  if (!Array.isArray(record.qaThreads)) record.qaThreads = [];
+  record.qaThreads.push(...threads);
+  await saveRecords(records);
+  return true;
+}
+
+/** 특정 스레드 상태 업데이트 */
+export async function updateThreadStatus(
+  recordId: string,
+  threadId: string,
+  status: QAThreadStatus,
+  reason?: string
+): Promise<boolean> {
+  const records = await loadRecords();
+  const record = records.find((r) => r.id === recordId);
+  if (!record || !Array.isArray(record.qaThreads)) return false;
+  const thread = record.qaThreads.find((t) => t.id === threadId);
+  if (!thread) return false;
+  thread.status = status;
+  if (reason !== undefined) thread.statusReason = reason;
+  await saveRecords(records);
+  return true;
+}
+
+/** 특정 스레드에 답글 추가 */
+export async function addReplyToThread(
+  recordId: string,
+  threadId: string,
+  reply: QAReply
+): Promise<boolean> {
+  const records = await loadRecords();
+  const record = records.find((r) => r.id === recordId);
+  if (!record || !Array.isArray(record.qaThreads)) return false;
+  const thread = record.qaThreads.find((t) => t.id === threadId);
+  if (!thread) return false;
+  thread.replies.push(reply);
+  await saveRecords(records);
+  return true;
+}
+
+// ── Quantified ──
+
+export async function loadQuantified(): Promise<QuantifiedCondition[]> {
+  const data = await redis.get<QuantifiedCondition[]>(QUANTIFIED_REDIS_KEY);
+  return Array.isArray(data) ? data : [];
+}
+
+export async function saveQuantified(list: QuantifiedCondition[]): Promise<void> {
+  await redis.set(QUANTIFIED_REDIS_KEY, list);
+}
+
+export async function addQuantifiedCondition(
+  item: QuantifiedCondition
+): Promise<void> {
+  const list = await loadQuantified();
+  list.unshift(item);
+  await saveQuantified(list);
+}
+
+// ── QA (아카이브 전용, 읽기 로직만 유지) ──
 
 type StoredQA = Partial<QAItem> & Partial<LegacyQAItem>;
 

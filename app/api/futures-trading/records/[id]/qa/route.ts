@@ -43,6 +43,7 @@ export async function POST(
     const thread: QAThread = {
       id: crypto.randomUUID(),
       title: "",
+      status: "open",
       replies: [
         {
           id: crypto.randomUUID(),

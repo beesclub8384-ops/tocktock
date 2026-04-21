@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useEffect, useCallback, Fragment } from "react";
-import { Trash2, ChevronDown, ChevronUp, MessageCircle, Send, Megaphone } from "lucide-react";
+import { Trash2, ChevronDown, ChevronUp, Send, Megaphone, BarChart3 } from "lucide-react";
 import { useRef } from "react";
+
+type ThreadStatus = "open" | "completed" | "impossible";
 
 interface FuturesRecord {
   id: string;
@@ -21,7 +23,7 @@ interface FuturesRecord {
 
 interface QAReply {
   id: string;
-  author: "태양" | "용태";
+  author: "태양" | "용태" | "system";
   content: string;
   createdAt: string;
 }
@@ -29,6 +31,8 @@ interface QAReply {
 interface QAItem {
   id: string;
   title: string;
+  status?: ThreadStatus;
+  statusReason?: string;
   replies: QAReply[];
   createdAt: string;
 }
@@ -37,6 +41,17 @@ interface MessageItem {
   id: string;
   author: "태양" | "용태";
   content: string;
+  createdAt: string;
+}
+
+interface QuantifiedItem {
+  id: string;
+  condition: string;
+  value: string | null;
+  status: "completed" | "impossible" | "pending";
+  reason: string;
+  sourceRecordId: string;
+  sourceThreadId: string;
   createdAt: string;
 }
 
@@ -349,13 +364,16 @@ function RecordForm({
         <label className="block text-xs text-muted-foreground mb-1">
           메모
         </label>
-        <input
-          type="text"
+        <textarea
+          rows={3}
           placeholder="진입 근거, 느낀 점 등"
           value={memo}
           onChange={(e) => setMemo(e.target.value)}
-          className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-foreground/20"
+          className="w-full resize-y rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-foreground/20"
         />
+        <p className="mt-1 text-xs text-muted-foreground">
+          메모를 입력하면 자동으로 수치화 질문이 생성됩니다.
+        </p>
       </div>
 
       <button
@@ -834,6 +852,30 @@ function RecordTable({
   );
 }
 
+// ── 스레드 상태 배지 ──
+
+function StatusBadge({ status }: { status: ThreadStatus }) {
+  if (status === "completed") {
+    return (
+      <span className="inline-flex items-center rounded-full bg-green-500/15 px-2 py-0.5 text-[11px] font-medium text-green-500">
+        수치화 완료
+      </span>
+    );
+  }
+  if (status === "impossible") {
+    return (
+      <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+        자동화 불가
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-medium text-amber-600 dark:text-amber-400">
+      답변 대기
+    </span>
+  );
+}
+
 // ── 매매 기록 단위 Q&A 스레드 ──
 
 function RecordQAThread({
@@ -847,9 +889,10 @@ function RecordQAThread({
   password: string;
   onChanged: () => void;
 }) {
-  const [author, setAuthor] = useState<"태양" | "용태">("태양");
+  const status: ThreadStatus = thread.status ?? "open";
   const [content, setContent] = useState("");
   const [sending, setSending] = useState(false);
+  const [expanded, setExpanded] = useState(status === "open");
 
   const fmtTime = (iso: string) => {
     if (!iso) return "";
@@ -862,14 +905,12 @@ function RecordQAThread({
     if (!content.trim()) return;
     setSending(true);
     try {
-      const res = await fetch(
-        `/api/futures-trading/records/${recordId}/qa/${thread.id}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "x-password": password },
-          body: JSON.stringify({ author, content }),
-        }
-      );
+      // 용태 답변 → /api/futures-trading/reply (분석 파이프라인)
+      const res = await fetch("/api/futures-trading/reply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-password": password },
+        body: JSON.stringify({ recordId, threadId: thread.id, content }),
+      });
       if (res.ok) {
         setContent("");
         onChanged();
@@ -894,16 +935,31 @@ function RecordQAThread({
   return (
     <div className="rounded-lg border border-border bg-background overflow-hidden">
       <div className="flex items-start justify-between gap-3 border-b border-border/60 px-4 py-3">
-        <div className="min-w-0 flex-1">
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="min-w-0 flex-1 text-left"
+        >
+          <div className="flex items-center gap-2 flex-wrap">
+            <StatusBadge status={status} />
+            {expanded
+              ? <ChevronUp size={12} className="text-muted-foreground" />
+              : <ChevronDown size={12} className="text-muted-foreground" />}
+          </div>
           {thread.title && (
-            <p className="text-sm font-medium leading-snug whitespace-pre-wrap break-words">
+            <p className="mt-2 text-sm font-medium leading-snug whitespace-pre-wrap break-words">
               {thread.title}
             </p>
           )}
-          <p className={`${thread.title ? "mt-1 " : ""}text-xs text-muted-foreground`}>
+          <p className={`${thread.title ? "mt-1 " : "mt-2 "}text-xs text-muted-foreground`}>
             {fmtTime(thread.createdAt)} · 댓글 {thread.replies.length}
           </p>
-        </div>
+          {status !== "open" && thread.statusReason && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              사유: {thread.statusReason}
+            </p>
+          )}
+        </button>
         <button
           onClick={deleteThread}
           className="shrink-0 rounded-md border border-border px-2 py-1 text-xs text-muted-foreground transition-colors hover:border-red-400/50 hover:text-red-400"
@@ -912,81 +968,75 @@ function RecordQAThread({
         </button>
       </div>
 
-      <div className="space-y-3 px-4 py-3">
-        {thread.replies.length === 0 ? (
-          <p className="py-2 text-center text-xs text-muted-foreground">
-            아직 댓글이 없습니다.
-          </p>
-        ) : (
-          thread.replies.map((reply) => {
-            const isSun = reply.author === "태양";
-            return (
-              <div key={reply.id} className={`flex ${isSun ? "justify-end" : "justify-start"}`}>
-                <div className={`max-w-[75%] ${isSun ? "items-end" : "items-start"}`}>
-                  <p className={`text-xs font-medium mb-0.5 ${isSun ? "text-right text-blue-400" : "text-left text-foreground/60"}`}>
-                    {reply.author}
-                  </p>
-                  <div
-                    className={`rounded-2xl px-3.5 py-2.5 text-sm whitespace-pre-wrap ${
-                      isSun
-                        ? "bg-blue-600 text-white rounded-tr-sm"
-                        : "bg-muted text-foreground rounded-tl-sm"
-                    }`}
-                  >
-                    {reply.content}
+      {expanded && (
+        <>
+          <div className="space-y-3 px-4 py-3">
+            {thread.replies.length === 0 ? (
+              <p className="py-2 text-center text-xs text-muted-foreground">
+                아직 댓글이 없습니다.
+              </p>
+            ) : (
+              thread.replies.map((reply) => {
+                const isUser = reply.author === "태양" || reply.author === "용태";
+                const isSun = reply.author === "태양";
+                return (
+                  <div key={reply.id} className={`flex ${isSun ? "justify-end" : "justify-start"}`}>
+                    <div className={`max-w-[80%] ${isSun ? "items-end" : "items-start"}`}>
+                      <p className={`text-xs font-medium mb-0.5 ${isSun ? "text-right text-blue-400" : "text-left text-foreground/60"}`}>
+                        {isUser ? reply.author : "자동 질문"}
+                      </p>
+                      <div
+                        className={`rounded-2xl px-3.5 py-2.5 text-sm whitespace-pre-wrap ${
+                          isSun
+                            ? "bg-blue-600 text-white rounded-tr-sm"
+                            : reply.author === "system"
+                              ? "bg-amber-500/10 text-amber-900 dark:text-amber-100 border border-amber-500/30 rounded-tl-sm"
+                              : "bg-muted text-foreground rounded-tl-sm"
+                        }`}
+                      >
+                        {reply.content}
+                      </div>
+                      <p className={`text-[10px] text-muted-foreground mt-0.5 ${isSun ? "text-right" : "text-left"}`}>
+                        {fmtTime(reply.createdAt)}
+                      </p>
+                    </div>
                   </div>
-                  <p className={`text-[10px] text-muted-foreground mt-0.5 ${isSun ? "text-right" : "text-left"}`}>
-                    {fmtTime(reply.createdAt)}
-                  </p>
-                </div>
-              </div>
-            );
-          })
-        )}
-      </div>
+                );
+              })
+            )}
+          </div>
 
-      <form onSubmit={sendReply} className="border-t border-border/60 bg-muted/20 px-4 py-3 space-y-2">
-        <div className="flex gap-2">
-          {(["태양", "용태"] as const).map((name) => (
-            <button
-              key={name}
-              type="button"
-              onClick={() => setAuthor(name)}
-              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                author === name
-                  ? name === "태양"
-                    ? "bg-blue-600 text-white"
-                    : "bg-foreground/80 text-background"
-                  : "bg-muted text-muted-foreground"
-              }`}
-            >
-              {name}
-            </button>
-          ))}
-        </div>
-        <div className="flex gap-2">
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            rows={2}
-            placeholder={`${author}으로 답변 추가`}
-            className="flex-1 resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-foreground/20"
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                sendReply(e);
-              }
-            }}
-          />
-          <button
-            type="submit"
-            disabled={sending || !content.trim()}
-            className="self-end rounded-lg bg-blue-600 px-3 py-2.5 text-white transition-colors hover:bg-blue-700 disabled:opacity-40"
-          >
-            <Send size={14} />
-          </button>
-        </div>
-      </form>
+          {status === "open" && (
+            <form onSubmit={sendReply} className="border-t border-border/60 bg-muted/20 px-4 py-3 space-y-2">
+              <div className="text-[11px] text-muted-foreground">
+                용태형 답변
+              </div>
+              <div className="flex gap-2">
+                <textarea
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                  rows={2}
+                  placeholder="용태형 답변을 적으면 자동 분석됩니다"
+                  className="flex-1 resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-foreground/20"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      sendReply(e);
+                    }
+                  }}
+                />
+                <button
+                  type="submit"
+                  disabled={sending || !content.trim()}
+                  className="self-end rounded-lg bg-blue-600 px-3 py-2.5 text-white transition-colors hover:bg-blue-700 disabled:opacity-40"
+                >
+                  <Send size={14} />
+                </button>
+              </div>
+            </form>
+          )}
+        </>
+      )}
     </div>
   );
 }
@@ -1000,52 +1050,19 @@ function RecordQASection({
   password: string;
   onChanged: () => void;
 }) {
-  const [showForm, setShowForm] = useState(false);
-  const [author, setAuthor] = useState<"태양" | "용태">("태양");
-  const [content, setContent] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-
-  const createThread = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!content.trim()) return;
-    setSubmitting(true);
-    try {
-      const res = await fetch(`/api/futures-trading/records/${record.id}/qa`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-password": password },
-        body: JSON.stringify({ author, content }),
-      });
-      if (res.ok) {
-        setContent("");
-        setShowForm(false);
-        onChanged();
-      }
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
   const threads = record.qaThreads ?? [];
 
   return (
     <div className="mt-4 pt-4 border-t border-border/50">
       <div className="flex items-center justify-between mb-3">
         <span className="text-xs text-muted-foreground">
-          질의응답 {threads.length > 0 && `(${threads.length})`}
+          자동 질문 {threads.length > 0 && `(${threads.length})`}
         </span>
-        {!showForm && (
-          <button
-            onClick={() => setShowForm(true)}
-            className="text-xs font-medium text-blue-500 hover:text-blue-600 transition-colors"
-          >
-            + 새 질문 추가
-          </button>
-        )}
       </div>
 
-      {threads.length === 0 && !showForm ? (
+      {threads.length === 0 ? (
         <p className="py-3 text-center text-xs text-muted-foreground">
-          아직 등록된 질문이 없습니다.
+          등록된 질문이 없습니다.
         </p>
       ) : (
         <div className="space-y-3">
@@ -1057,149 +1074,6 @@ function RecordQASection({
               password={password}
               onChanged={onChanged}
             />
-          ))}
-        </div>
-      )}
-
-      {showForm && (
-        <form
-          onSubmit={createThread}
-          className="mt-3 rounded-lg border border-border bg-background p-3 space-y-2"
-        >
-          <div className="flex gap-2">
-            {(["태양", "용태"] as const).map((name) => (
-              <button
-                key={name}
-                type="button"
-                onClick={() => setAuthor(name)}
-                className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                  author === name
-                    ? name === "태양"
-                      ? "bg-blue-600 text-white"
-                      : "bg-foreground/80 text-background"
-                    : "bg-muted text-muted-foreground"
-                }`}
-              >
-                {name}
-              </button>
-            ))}
-          </div>
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            rows={3}
-            placeholder="질문 내용"
-            className="w-full resize-none rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-foreground/20"
-            autoFocus
-          />
-          <div className="flex gap-2">
-            <button
-              type="submit"
-              disabled={submitting || !content.trim()}
-              className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-40"
-            >
-              {submitting ? "등록중..." : "등록"}
-            </button>
-            <button
-              type="button"
-              onClick={() => { setShowForm(false); setContent(""); }}
-              className="rounded-md bg-muted px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted/80"
-            >
-              취소
-            </button>
-          </div>
-        </form>
-      )}
-    </div>
-  );
-}
-
-// ── 지난 질문/답변 (아카이브, 읽기 전용) ──
-
-function ArchiveThreadCard({ thread }: { thread: QAItem }) {
-  const fmtTime = (iso: string) => {
-    if (!iso) return "";
-    const d = new Date(iso);
-    return `${String(d.getMonth()+1).padStart(2,"0")}/${String(d.getDate()).padStart(2,"0")} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
-  };
-
-  return (
-    <div className="rounded-xl border border-border bg-card overflow-hidden">
-      <div className="border-b border-border/60 p-4">
-        <p className="text-sm font-medium leading-snug whitespace-pre-wrap break-words">
-          {thread.title}
-        </p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          {fmtTime(thread.createdAt)} · 댓글 {thread.replies.length}
-        </p>
-      </div>
-      <div className="space-y-3 px-4 py-4">
-        {thread.replies.length === 0 ? (
-          <p className="py-4 text-center text-xs text-muted-foreground">댓글이 없습니다.</p>
-        ) : (
-          thread.replies.map((reply) => {
-            const isSun = reply.author === "태양";
-            return (
-              <div key={reply.id} className={`flex ${isSun ? "justify-end" : "justify-start"}`}>
-                <div className={`max-w-[75%] ${isSun ? "items-end" : "items-start"}`}>
-                  <p className={`text-xs font-medium mb-0.5 ${isSun ? "text-right text-blue-400" : "text-left text-foreground/60"}`}>
-                    {reply.author}
-                  </p>
-                  <div
-                    className={`rounded-2xl px-3.5 py-2.5 text-sm whitespace-pre-wrap ${
-                      isSun
-                        ? "bg-blue-600 text-white rounded-tr-sm"
-                        : "bg-muted text-foreground rounded-tl-sm"
-                    }`}
-                  >
-                    {reply.content}
-                  </div>
-                  <p className={`text-[10px] text-muted-foreground mt-0.5 ${isSun ? "text-right" : "text-left"}`}>
-                    {fmtTime(reply.createdAt)}
-                  </p>
-                </div>
-              </div>
-            );
-          })
-        )}
-      </div>
-    </div>
-  );
-}
-
-function QASection({ password }: { password: string }) {
-  const [threads, setThreads] = useState<QAItem[]>([]);
-
-  const fetchThreads = useCallback(async () => {
-    try {
-      const res = await fetch("/api/futures-trading/qa", {
-        headers: { "x-password": password },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setThreads(data.threads ?? []);
-      }
-    } catch {}
-  }, [password]);
-
-  useEffect(() => { fetchThreads(); }, [fetchThreads]);
-
-  return (
-    <div className="space-y-4">
-      <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-600 dark:text-amber-400">
-        과거 기록입니다. 새 질문은 각 매매 기록을 펼쳐서 작성해주세요.
-      </div>
-
-      {threads.length === 0 ? (
-        <div className="flex h-32 items-center justify-center rounded-xl border border-border bg-card">
-          <p className="text-sm text-muted-foreground">
-            아카이브된 질문이 없습니다.
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {threads.map((thread) => (
-            <ArchiveThreadCard key={thread.id} thread={thread} />
           ))}
         </div>
       )}
@@ -1359,13 +1233,135 @@ function MessageBoard({ password }: { password: string }) {
   );
 }
 
+// ── 수치화 현황 탭 ──
+
+function QuantifiedSection({ password }: { password: string }) {
+  const [items, setItems] = useState<QuantifiedItem[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const fetchItems = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/futures-trading/quantified", {
+        headers: { "x-password": password },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setItems(data.items ?? []);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setLoading(false);
+    }
+  }, [password]);
+
+  useEffect(() => {
+    fetchItems();
+  }, [fetchItems]);
+
+  const completed = items.filter((i) => i.status === "completed");
+  const impossible = items.filter((i) => i.status === "impossible");
+  const pending = items.filter((i) => i.status === "pending");
+
+  const fmtTime = (iso: string) => {
+    if (!iso) return "";
+    const d = new Date(iso);
+    return `${String(d.getMonth()+1).padStart(2,"0")}/${String(d.getDate()).padStart(2,"0")} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+  };
+
+  const Section = ({
+    title,
+    color,
+    list,
+    empty,
+  }: {
+    title: string;
+    color: string;
+    list: QuantifiedItem[];
+    empty: string;
+  }) => (
+    <div>
+      <h3 className="mb-2 text-sm font-semibold">
+        <span className={color}>{title}</span>
+        <span className="ml-1 text-xs text-muted-foreground">({list.length})</span>
+      </h3>
+      {list.length === 0 ? (
+        <p className="rounded-xl border border-border bg-card px-4 py-6 text-center text-xs text-muted-foreground">
+          {empty}
+        </p>
+      ) : (
+        <div className="space-y-2">
+          {list.map((q) => (
+            <div
+              key={q.id}
+              className="rounded-xl border border-border bg-card p-4 space-y-1"
+            >
+              <p className="text-sm font-medium whitespace-pre-wrap break-words">
+                {q.condition}
+              </p>
+              {q.value && (
+                <p className="text-sm text-foreground/80">
+                  <span className="text-xs text-muted-foreground mr-1">→</span>
+                  {q.value}
+                </p>
+              )}
+              {q.reason && (
+                <p className="text-xs text-muted-foreground whitespace-pre-wrap break-words">
+                  {q.reason}
+                </p>
+              )}
+              <p className="text-[10px] text-muted-foreground">{fmtTime(q.createdAt)}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="space-y-6">
+      <div className="rounded-lg border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
+        매매 메모에서 추출된 조건의 수치화 현황입니다.
+      </div>
+
+      {loading ? (
+        <div className="flex h-32 items-center justify-center">
+          <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground" />
+        </div>
+      ) : (
+        <>
+          <Section
+            title="수치화 완료"
+            color="text-green-500"
+            list={completed}
+            empty="아직 완료된 조건이 없습니다."
+          />
+          <Section
+            title="자동화 불가"
+            color="text-muted-foreground"
+            list={impossible}
+            empty="자동화 불가 판정을 받은 조건이 없습니다."
+          />
+          <Section
+            title="진행 중"
+            color="text-amber-500"
+            list={pending}
+            empty="진행 중인 조건이 없습니다."
+          />
+        </>
+      )}
+    </div>
+  );
+}
+
 // ── 메인 페이지 ──
 
 export default function FuturesTradingPage() {
   const [password, setPassword] = useState<string | null>(null);
   const [records, setRecords] = useState<FuturesRecord[]>([]);
   const [loading, setLoading] = useState(false);
-  const [tab, setTab] = useState<"records" | "qa" | "board">("records");
+  const [tab, setTab] = useState<"records" | "board" | "quantified">("records");
 
   const fetchRecords = useCallback(async () => {
     if (!password) return;
@@ -1416,17 +1412,6 @@ export default function FuturesTradingPage() {
             매매 기록
           </button>
           <button
-            onClick={() => setTab("qa")}
-            className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px flex items-center gap-1.5 ${
-              tab === "qa"
-                ? "border-foreground text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <MessageCircle size={14} />
-            지난 질문/답변 (아카이브)
-          </button>
-          <button
             onClick={() => setTab("board")}
             className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px flex items-center gap-1.5 ${
               tab === "board"
@@ -1436,6 +1421,17 @@ export default function FuturesTradingPage() {
           >
             <Megaphone size={14} />
             자유전달판
+          </button>
+          <button
+            onClick={() => setTab("quantified")}
+            className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px flex items-center gap-1.5 ${
+              tab === "quantified"
+                ? "border-foreground text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <BarChart3 size={14} />
+            수치화 현황
           </button>
         </div>
 
@@ -1460,10 +1456,10 @@ export default function FuturesTradingPage() {
               </>
             )}
           </div>
-        ) : tab === "qa" ? (
-          <QASection password={password} />
-        ) : (
+        ) : tab === "board" ? (
           <MessageBoard password={password} />
+        ) : (
+          <QuantifiedSection password={password} />
         )}
       </div>
     </div>
