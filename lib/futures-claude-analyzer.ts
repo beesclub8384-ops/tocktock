@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import type { QAThread, QuantifiedCondition } from "@/lib/types/futures-trading";
 
 const MODEL = "claude-sonnet-4-5-20250929";
+const LOG_TAG = "[futures-claude-analyzer]";
 
 function getClient(): Anthropic {
   const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -28,6 +29,31 @@ function formatQuantifiedList(list: QuantifiedCondition[]): string {
     .join("\n");
 }
 
+/** Anthropic messages.create 호출 (1회 재시도). 실패 시 마지막 에러 throw */
+async function callWithRetry(
+  params: Anthropic.Messages.MessageCreateParamsNonStreaming,
+  label: string
+): Promise<string | null> {
+  const client = getClient();
+  let lastErr: unknown;
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const message = await client.messages.create(params);
+      const block = message.content[0];
+      if (!block || block.type !== "text") {
+        console.error(`${LOG_TAG} ${label} empty/non-text block, attempt=${attempt}`);
+        lastErr = new Error("empty or non-text response");
+        continue;
+      }
+      return block.text;
+    } catch (err) {
+      lastErr = err;
+      console.error(`${LOG_TAG} ${label} attempt=${attempt} failed:`, err);
+    }
+  }
+  throw lastErr ?? new Error("unknown analyzer failure");
+}
+
 // ─────────────────────────────────────────────────────────────
 // 4-1. 매매 메모에서 수치화 필요 조건 찾아 질문 목록 생성
 // ─────────────────────────────────────────────────────────────
@@ -49,25 +75,32 @@ export async function generateQAThreads(
   const trimmed = (memo || "").trim();
   if (!trimmed) return [];
 
-  const client = getClient();
   const userPrompt = `매매 메모: ${trimmed}
 이미 수치화된 조건: ${formatQuantifiedList(quantifiedList)}
 위 메모에서 자동화를 위해 수치화가 필요한 주관적 조건을 찾아 독립적인 질문 목록을 JSON으로 반환하세요.
 형식: [{ "title": "질문 내용" }, ...]
 질문이 없으면 빈 배열 []을 반환하세요.`;
 
-  const message = await client.messages.create({
-    model: MODEL,
-    max_tokens: 2048,
-    system: GENERATE_SYSTEM_PROMPT,
-    messages: [{ role: "user", content: userPrompt }],
-  });
+  let text: string | null = null;
+  try {
+    text = await callWithRetry(
+      {
+        model: MODEL,
+        max_tokens: 2048,
+        system: GENERATE_SYSTEM_PROMPT,
+        messages: [{ role: "user", content: userPrompt }],
+      },
+      "generateQAThreads"
+    );
+  } catch (err) {
+    console.error(`${LOG_TAG} generateQAThreads all attempts failed:`, err);
+    return [];
+  }
 
-  const block = message.content[0];
-  if (!block || block.type !== "text") return [];
+  if (!text) return [];
 
   try {
-    const parsed = JSON.parse(stripCodeFence(block.text));
+    const parsed = JSON.parse(stripCodeFence(text));
     if (!Array.isArray(parsed)) return [];
     return parsed
       .map((item) => {
@@ -76,7 +109,7 @@ export async function generateQAThreads(
       })
       .filter((x): x is GeneratedThread => x !== null);
   } catch (err) {
-    console.error("[futures-claude-analyzer] generateQAThreads parse error:", err);
+    console.error(`${LOG_TAG} generateQAThreads parse error:`, err, "raw:", text);
     return [];
   }
 }
@@ -109,11 +142,19 @@ function formatReplies(thread: QAThread): string {
     .join("\n");
 }
 
+/** 기본 follow_up 결과 (API 실패 등 비상 시) */
+function fallbackFollowUp(reason: string): AnalyzeReplyResult {
+  return {
+    action: "follow_up",
+    reason,
+    followUpQuestion: "조금 더 자세히 설명해 주실 수 있나요?",
+  };
+}
+
 export async function analyzeReply(
   thread: QAThread,
   quantifiedList: QuantifiedCondition[]
 ): Promise<AnalyzeReplyResult> {
-  const client = getClient();
   const userPrompt = `질문 제목: ${thread.title}
 대화 내용:
 ${formatReplies(thread)}
@@ -129,23 +170,32 @@ ${formatQuantifiedList(quantifiedList)}
   "reason": "판단 이유"
 }`;
 
-  const message = await client.messages.create({
-    model: MODEL,
-    max_tokens: 1024,
-    system: ANALYZE_SYSTEM_PROMPT,
-    messages: [{ role: "user", content: userPrompt }],
-  });
+  let text: string | null = null;
+  try {
+    text = await callWithRetry(
+      {
+        model: MODEL,
+        max_tokens: 1024,
+        system: ANALYZE_SYSTEM_PROMPT,
+        messages: [{ role: "user", content: userPrompt }],
+      },
+      "analyzeReply"
+    );
+  } catch (err) {
+    console.error(`${LOG_TAG} analyzeReply all attempts failed:`, err);
+    return fallbackFollowUp("분석 요청이 실패했습니다. 다시 답변해 주시면 재시도합니다.");
+  }
 
-  const block = message.content[0];
-  if (!block || block.type !== "text") {
-    return { action: "follow_up", reason: "응답을 해석할 수 없습니다.", followUpQuestion: "조금 더 자세히 설명해 주실 수 있나요?" };
+  if (!text) {
+    return fallbackFollowUp("응답을 해석할 수 없습니다.");
   }
 
   try {
-    const parsed = JSON.parse(stripCodeFence(block.text));
+    const parsed = JSON.parse(stripCodeFence(text));
     const action = parsed?.action;
     if (action !== "completed" && action !== "follow_up" && action !== "impossible") {
-      return { action: "follow_up", reason: "판단 결과가 올바르지 않습니다.", followUpQuestion: "조금 더 자세히 설명해 주실 수 있나요?" };
+      console.error(`${LOG_TAG} analyzeReply invalid action:`, action, "raw:", text);
+      return fallbackFollowUp("판단 결과가 올바르지 않습니다.");
     }
     const reason = typeof parsed?.reason === "string" ? parsed.reason : "";
     const rawFollowUp = typeof parsed?.followUpQuestion === "string" ? parsed.followUpQuestion.trim() : "";
@@ -157,7 +207,7 @@ ${formatQuantifiedList(quantifiedList)}
         : rawFollowUp || undefined;
     return { action, reason, followUpQuestion, value };
   } catch (err) {
-    console.error("[futures-claude-analyzer] analyzeReply parse error:", err);
-    return { action: "follow_up", reason: "응답 파싱 실패", followUpQuestion: "조금 더 자세히 설명해 주실 수 있나요?" };
+    console.error(`${LOG_TAG} analyzeReply parse error:`, err, "raw:", text);
+    return fallbackFollowUp("응답 파싱에 실패했습니다.");
   }
 }

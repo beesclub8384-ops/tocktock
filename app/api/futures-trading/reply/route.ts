@@ -7,9 +7,10 @@ import {
   addQuantifiedCondition,
 } from "@/lib/futures-trading-store";
 import type { QAReply, QuantifiedCondition } from "@/lib/types/futures-trading";
-import { analyzeReply } from "@/lib/futures-claude-analyzer";
+import { analyzeReply, type AnalyzeReplyResult } from "@/lib/futures-claude-analyzer";
 
 const PASSWORD = "8384";
+const LOG_TAG = "[futures-trading/reply]";
 
 function checkAuth(request: NextRequest): boolean {
   return request.headers.get("x-password") === PASSWORD;
@@ -35,7 +36,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 1. 용태 답글 추가
+    // 1. 용태 답글 추가 (Redis 저장 성공 확인)
     const now = new Date().toISOString();
     const reply: QAReply = {
       id: crypto.randomUUID(),
@@ -45,40 +46,55 @@ export async function POST(request: NextRequest) {
     };
     const added = await addReplyToThread(recordId, threadId, reply);
     if (!added) {
+      console.error(`${LOG_TAG} addReplyToThread returned false`, { recordId, threadId });
       return NextResponse.json(
         { error: "스레드 또는 매매 기록을 찾을 수 없습니다." },
         { status: 404 }
       );
     }
+    console.log(`${LOG_TAG} reply saved`, { recordId, threadId, replyId: reply.id });
 
-    // 2. 최신 스레드 재조회 (replies 반영된 상태)
+    // 2. 최신 스레드 재조회 (용태 답변 포함된 replies 보장)
     const records = await loadRecords();
     const record = records.find((r) => r.id === recordId);
     const thread = record?.qaThreads?.find((t) => t.id === threadId);
     if (!thread) {
+      console.error(`${LOG_TAG} thread reload failed`, { recordId, threadId });
       return NextResponse.json(
         { error: "스레드 조회 실패" },
         { status: 500 }
       );
     }
+    console.log(`${LOG_TAG} thread reloaded; replies=${thread.replies.length}`);
 
-    // 3. Claude 분석
+    // 3. Claude 분석 — 내부에서 재시도 + 실패 시 fallbackFollowUp 반환
     const quantifiedList = await loadQuantified();
-    let analysis;
+    let analysis: AnalyzeReplyResult;
     try {
       analysis = await analyzeReply(thread, quantifiedList);
     } catch (err) {
-      console.error("[futures-trading/reply] analyzeReply failed:", err);
-      return NextResponse.json({
-        success: true,
-        reply,
-        analysisError: err instanceof Error ? err.message : String(err),
-      });
+      // analyzer는 내부 fallback을 가지므로 throw는 이론상 거의 없음.
+      // 혹시라도 throw되면 UI를 멈추지 않도록 기본 follow_up으로 복구.
+      console.error(`${LOG_TAG} analyzeReply threw unexpectedly:`, err);
+      analysis = {
+        action: "follow_up",
+        reason: "분석 요청이 실패했습니다. 다시 답변해 주시면 재시도합니다.",
+        followUpQuestion: "조금 더 자세히 설명해 주실 수 있나요?",
+      };
     }
+    console.log(`${LOG_TAG} analysis done; action=${analysis.action}`);
 
-    // 4. action에 따른 후속 처리
+    // 4. action에 따른 후속 처리 (각 단계 저장 결과 검증 + 로깅)
     if (analysis.action === "completed") {
-      await updateThreadStatus(recordId, threadId, "completed", analysis.reason);
+      const statusOk = await updateThreadStatus(
+        recordId,
+        threadId,
+        "completed",
+        analysis.reason
+      );
+      if (!statusOk) {
+        console.error(`${LOG_TAG} updateThreadStatus(completed) failed`, { recordId, threadId });
+      }
       const quantified: QuantifiedCondition = {
         id: crypto.randomUUID(),
         condition: thread.title,
@@ -90,8 +106,17 @@ export async function POST(request: NextRequest) {
         createdAt: new Date().toISOString(),
       };
       await addQuantifiedCondition(quantified);
+      console.log(`${LOG_TAG} completed: quantified saved`, { quantifiedId: quantified.id });
     } else if (analysis.action === "impossible") {
-      await updateThreadStatus(recordId, threadId, "impossible", analysis.reason);
+      const statusOk = await updateThreadStatus(
+        recordId,
+        threadId,
+        "impossible",
+        analysis.reason
+      );
+      if (!statusOk) {
+        console.error(`${LOG_TAG} updateThreadStatus(impossible) failed`, { recordId, threadId });
+      }
       const quantified: QuantifiedCondition = {
         id: crypto.randomUUID(),
         condition: thread.title,
@@ -103,14 +128,22 @@ export async function POST(request: NextRequest) {
         createdAt: new Date().toISOString(),
       };
       await addQuantifiedCondition(quantified);
-    } else if (analysis.action === "follow_up" && analysis.followUpQuestion) {
+      console.log(`${LOG_TAG} impossible: quantified saved`, { quantifiedId: quantified.id });
+    } else {
+      // follow_up (analyzer가 followUpQuestion 기본값을 보장하지만 한번 더 방어)
+      const followUp = analysis.followUpQuestion?.trim() || "조금 더 자세히 설명해 주실 수 있나요?";
       const systemReply: QAReply = {
         id: crypto.randomUUID(),
         author: "system",
-        content: analysis.followUpQuestion,
+        content: followUp,
         createdAt: new Date().toISOString(),
       };
-      await addReplyToThread(recordId, threadId, systemReply);
+      const sysOk = await addReplyToThread(recordId, threadId, systemReply);
+      if (!sysOk) {
+        console.error(`${LOG_TAG} addReplyToThread(system) failed`, { recordId, threadId });
+      } else {
+        console.log(`${LOG_TAG} follow_up: system reply added`, { systemReplyId: systemReply.id });
+      }
     }
 
     return NextResponse.json({
@@ -119,7 +152,7 @@ export async function POST(request: NextRequest) {
       analysis,
     });
   } catch (error) {
-    console.error("[futures-trading/reply] POST error:", error);
+    console.error(`${LOG_TAG} POST error:`, error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "답변 처리 실패" },
       { status: 500 }
