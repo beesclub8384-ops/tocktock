@@ -1444,6 +1444,138 @@ function MessageBoard({ password }: { password: string }) {
 
 // ── 수치화 현황 탭 ──
 
+interface TradingPattern {
+  updatedAt: string;
+  basedOnRecords: number;
+  longConditions: string[];
+  shortConditions: string[];
+  exitConditions: string[];
+  avoidConditions: string[];
+  summary: string;
+  confidence: "low" | "medium" | "high";
+}
+
+function ConfidenceBadge({ confidence }: { confidence: TradingPattern["confidence"] }) {
+  const map = {
+    low: { label: "신뢰도 낮음", cls: "bg-muted text-muted-foreground" },
+    medium: { label: "신뢰도 보통", cls: "bg-amber-500/15 text-amber-600 dark:text-amber-400" },
+    high: { label: "신뢰도 높음", cls: "bg-green-500/15 text-green-600 dark:text-green-400" },
+  };
+  const { label, cls } = map[confidence];
+  return (
+    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${cls}`}>
+      {label}
+    </span>
+  );
+}
+
+function TradingPatternSection({ password }: { password: string }) {
+  const [pattern, setPattern] = useState<TradingPattern | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      try {
+        const res = await fetch("/api/futures-trading/pattern", {
+          headers: { "x-password": password },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setPattern(data.pattern ?? null);
+        }
+      } catch {
+        // ignore
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [password]);
+
+  const fmtTime = (iso: string) => {
+    if (!iso) return "";
+    const d = new Date(iso);
+    return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  };
+
+  const ConditionList = ({
+    title,
+    color,
+    list,
+    emoji,
+  }: {
+    title: string;
+    color: string;
+    list: string[];
+    emoji: string;
+  }) => (
+    <div className="rounded-xl border border-border bg-card p-4">
+      <h4 className={`mb-2 text-sm font-semibold ${color}`}>
+        {emoji} {title}
+        <span className="ml-1 text-xs text-muted-foreground">({list.length})</span>
+      </h4>
+      {list.length === 0 ? (
+        <p className="text-xs text-muted-foreground">아직 파악된 조건이 없습니다.</p>
+      ) : (
+        <ul className="space-y-1.5">
+          {list.map((c, i) => (
+            <li key={i} className="flex gap-2 text-sm">
+              <span className="shrink-0 text-muted-foreground">{i + 1}.</span>
+              <span className="whitespace-pre-wrap break-words">{c}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="rounded-2xl border border-border bg-gradient-to-br from-card to-muted/30 p-5 space-y-4">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h3 className="text-base font-bold">현재 파악된 매매 패턴</h3>
+          <p className="mt-1 text-xs text-muted-foreground">
+            새 매매가 추가될 때마다 클로드가 전체 기록을 다시 분석해서 자동 업데이트합니다.
+          </p>
+        </div>
+        {pattern && (
+          <div className="flex items-center gap-2">
+            <ConfidenceBadge confidence={pattern.confidence} />
+            <span className="text-xs text-muted-foreground">{pattern.basedOnRecords}건 기반</span>
+          </div>
+        )}
+      </div>
+
+      {loading ? (
+        <div className="flex h-24 items-center justify-center">
+          <div className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground" />
+        </div>
+      ) : !pattern ? (
+        <p className="rounded-lg border border-dashed border-border bg-background/50 px-4 py-6 text-center text-sm text-muted-foreground">
+          아직 파악된 패턴이 없습니다. 매매 기록을 추가하면 자동으로 생성됩니다.
+        </p>
+      ) : (
+        <>
+          {pattern.summary && (
+            <p className="rounded-lg bg-background/60 px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap break-words">
+              {pattern.summary}
+            </p>
+          )}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <ConditionList title="롱 진입 조건" color="text-red-400" list={pattern.longConditions} emoji="📈" />
+            <ConditionList title="숏 진입 조건" color="text-blue-400" list={pattern.shortConditions} emoji="📉" />
+            <ConditionList title="청산 조건" color="text-foreground" list={pattern.exitConditions} emoji="🎯" />
+            <ConditionList title="진입 금지 조건" color="text-muted-foreground" list={pattern.avoidConditions} emoji="🚫" />
+          </div>
+          <p className="text-[11px] text-muted-foreground text-right">
+            마지막 업데이트: {fmtTime(pattern.updatedAt)}
+          </p>
+        </>
+      )}
+    </div>
+  );
+}
+
 function QuantifiedSection({ password }: { password: string }) {
   const [items, setItems] = useState<QuantifiedItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -1530,6 +1662,8 @@ function QuantifiedSection({ password }: { password: string }) {
 
   return (
     <div className="space-y-6">
+      <TradingPatternSection password={password} />
+
       <div className="rounded-lg border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
         매매 메모에서 추출된 조건의 수치화 현황입니다.
       </div>

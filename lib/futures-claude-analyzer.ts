@@ -1,5 +1,10 @@
 import Anthropic from "@anthropic-ai/sdk";
-import type { FuturesRecord, QAThread, QuantifiedCondition } from "@/lib/types/futures-trading";
+import type {
+  FuturesRecord,
+  QAThread,
+  QuantifiedCondition,
+  TradingPattern,
+} from "@/lib/types/futures-trading";
 import {
   MARKET_SYMBOLS,
   sliceAroundEntry,
@@ -357,5 +362,142 @@ ${formatQuantifiedList(quantifiedList)}
   } catch (err) {
     console.error(`${LOG_TAG} analyzeWithMarketData parse error:`, err, "raw:", text);
     return fallback;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// 4-4. 전체 기록/수치화로부터 용태형 매매 패턴 요약 갱신
+// ─────────────────────────────────────────────────────────────
+
+const PATTERN_SYSTEM_PROMPT = `당신은 선물 트레이더의 매매 패턴을 분석하고 학습하는 시스템입니다.
+트레이더의 매매 기록, 수치화된 조건들을 종합해서
+현재까지 파악된 매매 알고리즘을 정리합니다.
+데이터가 적으면 신중하게, 많을수록 더 확신있게 정리합니다.
+AI, 인공지능 관련 문구는 절대 사용하지 않습니다.
+반드시 JSON만 반환합니다.`;
+
+function summarizeRecord(r: FuturesRecord): string {
+  const dir = r.direction === "long" ? "롱" : "숏";
+  const pnlTag = r.pnl > 0 ? "수익" : r.pnl < 0 ? "손실" : "본전";
+  const memoPreview = (r.memo || "").replace(/\s+/g, " ").trim().slice(0, 160);
+  return `- ${r.date} ${r.entryTime}→${r.exitTime} ${dir} @${r.entryPoint}→${r.exitPoint} (${r.contracts}계약, ${r.pnl}원, ${pnlTag})${memoPreview ? `\n  메모: ${memoPreview}` : ""}`;
+}
+
+function summarizeQuantified(q: QuantifiedCondition): string {
+  const st = q.status === "completed" ? "완료" : q.status === "impossible" ? "불가" : "진행중";
+  const v = q.value ? ` = ${q.value}` : "";
+  const why = q.reason ? ` [근거: ${q.reason.slice(0, 120)}]` : "";
+  return `- [${st}] ${q.condition}${v}${why}`;
+}
+
+function confidenceFromCount(n: number): "low" | "medium" | "high" {
+  if (n >= 30) return "high";
+  if (n >= 10) return "medium";
+  return "low";
+}
+
+function emptyPattern(recordCount: number): TradingPattern {
+  return {
+    updatedAt: new Date().toISOString(),
+    basedOnRecords: recordCount,
+    longConditions: [],
+    shortConditions: [],
+    exitConditions: [],
+    avoidConditions: [],
+    summary: "",
+    confidence: confidenceFromCount(recordCount),
+  };
+}
+
+export async function updateTradingPattern(
+  records: FuturesRecord[],
+  quantifiedList: QuantifiedCondition[]
+): Promise<TradingPattern> {
+  const basedOnRecords = records.length;
+  if (basedOnRecords === 0) {
+    return emptyPattern(0);
+  }
+
+  // 최신(날짜/시간 기준) 먼저 정렬해서 프롬프트 상단에 최신 기록 배치
+  const sortedRecords = [...records].sort((a, b) => {
+    const d = b.date.localeCompare(a.date);
+    if (d !== 0) return d;
+    return b.entryTime.localeCompare(a.entryTime);
+  });
+
+  const recordSummary = sortedRecords.map(summarizeRecord).join("\n");
+  const quantifiedSummary = quantifiedList.length
+    ? quantifiedList.map(summarizeQuantified).join("\n")
+    : "(없음)";
+
+  const confidenceHint = confidenceFromCount(basedOnRecords);
+
+  const userPrompt = `지금까지의 매매 기록 ${basedOnRecords}건:
+${recordSummary}
+
+수치화된 조건 ${quantifiedList.length}건:
+${quantifiedSummary}
+
+위 데이터를 바탕으로 현재까지 파악된 매매 패턴을 JSON으로 반환하세요.
+형식: {
+  "longConditions": ["조건1", "조건2", ...],
+  "shortConditions": ["조건1", "조건2", ...],
+  "exitConditions": ["조건1", "조건2", ...],
+  "avoidConditions": ["조건1", "조건2", ...],
+  "summary": "전체 패턴 한 문단 요약",
+  "confidence": "low" | "medium" | "high"
+}
+
+규칙:
+- 기록이 10건 미만이면 confidence: low (현재 기록 수: ${basedOnRecords}건 → 추천 confidence: ${confidenceHint})
+- 기록이 10~29건이면 confidence: medium
+- 기록이 30건 이상이면 confidence: high
+- 확실하지 않은 조건은 포함하지 말 것
+- 각 조건은 구체적인 수치 포함 (예: "삼성전자 3분봉 20이평 지지 확인")
+- 승률이 낮은 패턴은 명시적으로 avoidConditions에 포함
+- 조건 텍스트는 한 줄 짧게, 주관적 표현 대신 수치/시간을 사용할 것`;
+
+  let text: string | null = null;
+  try {
+    text = await callWithRetry(
+      {
+        model: MODEL,
+        max_tokens: 4096,
+        system: PATTERN_SYSTEM_PROMPT,
+        messages: [{ role: "user", content: userPrompt }],
+      },
+      "updateTradingPattern"
+    );
+  } catch (err) {
+    console.error(`${LOG_TAG} updateTradingPattern failed:`, err);
+    return emptyPattern(basedOnRecords);
+  }
+
+  if (!text) return emptyPattern(basedOnRecords);
+
+  try {
+    const parsed = JSON.parse(stripCodeFence(text));
+    const toStringArr = (v: unknown): string[] =>
+      Array.isArray(v)
+        ? v.map((x) => (typeof x === "string" ? x.trim() : "")).filter((s) => s.length > 0)
+        : [];
+
+    const rawConf = parsed?.confidence;
+    const confidence: "low" | "medium" | "high" =
+      rawConf === "high" || rawConf === "medium" || rawConf === "low" ? rawConf : confidenceHint;
+
+    return {
+      updatedAt: new Date().toISOString(),
+      basedOnRecords,
+      longConditions: toStringArr(parsed?.longConditions),
+      shortConditions: toStringArr(parsed?.shortConditions),
+      exitConditions: toStringArr(parsed?.exitConditions),
+      avoidConditions: toStringArr(parsed?.avoidConditions),
+      summary: typeof parsed?.summary === "string" ? parsed.summary.trim() : "",
+      confidence,
+    };
+  } catch (err) {
+    console.error(`${LOG_TAG} updateTradingPattern parse error:`, err, "raw:", text);
+    return emptyPattern(basedOnRecords);
   }
 }

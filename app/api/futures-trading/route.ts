@@ -10,9 +10,10 @@ import {
   loadMarketData,
   listMarketDataDates,
   addQuantifiedCondition,
+  saveTradingPattern,
 } from "@/lib/futures-trading-store";
 import type { FuturesRecord, QAThread, QuantifiedCondition } from "@/lib/types/futures-trading";
-import { analyzeWithMarketData } from "@/lib/futures-claude-analyzer";
+import { analyzeWithMarketData, updateTradingPattern } from "@/lib/futures-claude-analyzer";
 import { fetchMarketDataForDate, hasAnyData } from "@/lib/futures-market-data";
 
 const PASSWORD = "8384";
@@ -117,6 +118,21 @@ export async function POST(request: NextRequest) {
         await appendThreadsToRecord(record.id, threads);
       }
 
+      // 전체 records + quantified로 패턴 요약 갱신 (실패해도 응답엔 영향 X)
+      let patternUpdated = false;
+      try {
+        const [allRecords, allQuantified] = await Promise.all([loadRecords(), loadQuantified()]);
+        const pattern = await updateTradingPattern(allRecords, allQuantified);
+        await saveTradingPattern(pattern);
+        patternUpdated = true;
+        console.log("[futures-trading] pattern updated", {
+          basedOnRecords: pattern.basedOnRecords,
+          confidence: pattern.confidence,
+        });
+      } catch (err) {
+        console.error("[futures-trading] pattern update failed:", err);
+      }
+
       return NextResponse.json({
         success: true,
         record,
@@ -124,6 +140,7 @@ export async function POST(request: NextRequest) {
         patternFound: analysis.patternFound,
         confirmedCount: analysis.confirmedConditions.length,
         questionCount: analysis.questions.length,
+        patternUpdated,
       });
     } catch (err) {
       console.error("[futures-trading] market-data analysis failed:", err);

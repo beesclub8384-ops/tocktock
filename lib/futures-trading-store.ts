@@ -10,6 +10,7 @@ import {
   type QAThread,
   type QAThreadStatus,
   type QuantifiedCondition,
+  type TradingPattern,
   type MessageItem,
   type MessageStore,
   FUTURES_REDIS_KEY,
@@ -18,6 +19,7 @@ import {
   QUANTIFIED_REDIS_KEY,
   MARKET_DATA_REDIS_KEY_PREFIX,
   MARKET_DATA_INDEX_KEY,
+  TRADING_PATTERN_KEY,
 } from "@/lib/types/futures-trading";
 import type { MarketDataForDay } from "@/lib/futures-market-data";
 
@@ -196,6 +198,17 @@ export async function loadMarketData(date: string): Promise<MarketDataForDay | n
 export async function listMarketDataDates(): Promise<string[]> {
   const index = (await redis.get<string[]>(MARKET_DATA_INDEX_KEY)) ?? [];
   return Array.isArray(index) ? index : [];
+}
+
+// ── Trading Pattern ──
+
+export async function loadTradingPattern(): Promise<TradingPattern | null> {
+  const data = await redis.get<TradingPattern>(TRADING_PATTERN_KEY);
+  return data ?? null;
+}
+
+export async function saveTradingPattern(pattern: TradingPattern): Promise<void> {
+  await redis.set(TRADING_PATTERN_KEY, pattern);
 }
 
 // ── Quantified ──

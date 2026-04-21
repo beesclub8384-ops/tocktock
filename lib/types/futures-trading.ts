@@ -83,9 +83,22 @@ export interface QuantifiedCondition {
   createdAt: string;
 }
 
+/** 클로드가 자동 업데이트하는 용태형 매매 패턴 요약 */
+export interface TradingPattern {
+  updatedAt: string;
+  basedOnRecords: number;
+  longConditions: string[];
+  shortConditions: string[];
+  exitConditions: string[];
+  avoidConditions: string[];
+  summary: string;
+  confidence: "low" | "medium" | "high";
+}
+
 export const FUTURES_REDIS_KEY = "futures-trading:records";
 export const QA_REDIS_KEY = "futures-trading:qa";
 export const MSG_REDIS_KEY = "futures-trading:messages";
 export const QUANTIFIED_REDIS_KEY = "futures-trading:quantified";
 export const MARKET_DATA_REDIS_KEY_PREFIX = "futures-trading:market-data:";
 export const MARKET_DATA_INDEX_KEY = "futures-trading:market-data-index"; // 날짜 목록
+export const TRADING_PATTERN_KEY = "futures-trading:pattern";
