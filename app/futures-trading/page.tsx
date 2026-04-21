@@ -913,7 +913,9 @@ function RecordQAThread({
       });
       if (res.ok) {
         setContent("");
-        onChanged();
+        // 갱신 완료까지 기다려야 "분석 중..." 버튼이 유지되면서
+        // 스레드 상태/새 시스템 질문이 즉시 반영된 UI가 보인다.
+        await onChanged();
       }
     } finally {
       setSending(false);
@@ -977,26 +979,38 @@ function RecordQAThread({
               </p>
             ) : (
               thread.replies.map((reply) => {
-                const isUser = reply.author === "태양" || reply.author === "용태";
-                const isSun = reply.author === "태양";
+                // 용태 = 오른쪽 (답변하는 사람), system/태양 = 왼쪽
+                const isYongtae = reply.author === "용태";
+                const isTaeyang = reply.author === "태양";
+                const labelText = isYongtae
+                  ? "용태"
+                  : isTaeyang
+                    ? "태양"
+                    : "자동 질문";
                 return (
-                  <div key={reply.id} className={`flex ${isSun ? "justify-end" : "justify-start"}`}>
-                    <div className={`max-w-[80%] ${isSun ? "items-end" : "items-start"}`}>
-                      <p className={`text-xs font-medium mb-0.5 ${isSun ? "text-right text-blue-400" : "text-left text-foreground/60"}`}>
-                        {isUser ? reply.author : "자동 질문"}
+                  <div key={reply.id} className={`flex ${isYongtae ? "justify-end" : "justify-start"}`}>
+                    <div className={`max-w-[80%] ${isYongtae ? "items-end" : "items-start"}`}>
+                      <p className={`text-xs font-medium mb-0.5 ${
+                        isYongtae
+                          ? "text-right text-foreground/60"
+                          : isTaeyang
+                            ? "text-left text-blue-400"
+                            : "text-left text-amber-600 dark:text-amber-400"
+                      }`}>
+                        {labelText}
                       </p>
                       <div
                         className={`rounded-2xl px-3.5 py-2.5 text-sm whitespace-pre-wrap ${
-                          isSun
-                            ? "bg-blue-600 text-white rounded-tr-sm"
-                            : reply.author === "system"
-                              ? "bg-amber-500/10 text-amber-900 dark:text-amber-100 border border-amber-500/30 rounded-tl-sm"
-                              : "bg-muted text-foreground rounded-tl-sm"
+                          isYongtae
+                            ? "bg-muted text-foreground rounded-tr-sm"
+                            : isTaeyang
+                              ? "bg-blue-600 text-white rounded-tl-sm"
+                              : "bg-amber-500/10 text-amber-900 dark:text-amber-100 border border-amber-500/30 rounded-tl-sm"
                         }`}
                       >
                         {reply.content}
                       </div>
-                      <p className={`text-[10px] text-muted-foreground mt-0.5 ${isSun ? "text-right" : "text-left"}`}>
+                      <p className={`text-[10px] text-muted-foreground mt-0.5 ${isYongtae ? "text-right" : "text-left"}`}>
                         {fmtTime(reply.createdAt)}
                       </p>
                     </div>
@@ -1016,8 +1030,9 @@ function RecordQAThread({
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
                   rows={2}
-                  placeholder="용태형 답변을 적으면 자동 분석됩니다"
-                  className="flex-1 resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-foreground/20"
+                  disabled={sending}
+                  placeholder="답변을 입력하면 자동으로 다음 질문이 생성되거나 완료 처리됩니다"
+                  className="flex-1 resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-foreground/20 disabled:opacity-60"
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) {
                       e.preventDefault();
@@ -1028,9 +1043,9 @@ function RecordQAThread({
                 <button
                   type="submit"
                   disabled={sending || !content.trim()}
-                  className="self-end rounded-lg bg-blue-600 px-3 py-2.5 text-white transition-colors hover:bg-blue-700 disabled:opacity-40"
+                  className="self-end rounded-lg bg-foreground px-3 py-2.5 text-sm font-medium text-background transition-colors hover:bg-foreground/90 disabled:opacity-40 min-w-[72px]"
                 >
-                  <Send size={14} />
+                  {sending ? "분석 중..." : <Send size={14} className="mx-auto" />}
                 </button>
               </div>
             </form>

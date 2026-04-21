@@ -148,8 +148,13 @@ ${formatQuantifiedList(quantifiedList)}
       return { action: "follow_up", reason: "판단 결과가 올바르지 않습니다.", followUpQuestion: "조금 더 자세히 설명해 주실 수 있나요?" };
     }
     const reason = typeof parsed?.reason === "string" ? parsed.reason : "";
-    const followUpQuestion = typeof parsed?.followUpQuestion === "string" ? parsed.followUpQuestion : undefined;
+    const rawFollowUp = typeof parsed?.followUpQuestion === "string" ? parsed.followUpQuestion.trim() : "";
     const value = typeof parsed?.value === "string" ? parsed.value : undefined;
+    // follow_up인데 질문이 비어 있으면 기본 질문으로 대체 → UI 멈춤 방지
+    const followUpQuestion =
+      action === "follow_up"
+        ? rawFollowUp || "조금 더 자세히 설명해 주실 수 있나요?"
+        : rawFollowUp || undefined;
     return { action, reason, followUpQuestion, value };
   } catch (err) {
     console.error("[futures-claude-analyzer] analyzeReply parse error:", err);
