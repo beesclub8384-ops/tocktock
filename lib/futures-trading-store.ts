@@ -87,6 +87,20 @@ export async function updateMemo(id: string, memo: string): Promise<boolean> {
   return true;
 }
 
+/** pendingAnalysis 플래그 업데이트 (Cron이 질문 생성 후 false로 초기화) */
+export async function updateRecordPendingAnalysis(
+  id: string,
+  pending: boolean
+): Promise<boolean> {
+  const records = await loadRecords();
+  const record = records.find((r) => r.id === id);
+  if (!record) return false;
+  if (pending) record.pendingAnalysis = true;
+  else delete record.pendingAnalysis;
+  await saveRecords(records);
+  return true;
+}
+
 /** 특정 record의 qaThreads에 새 스레드 여러개 추가 */
 export async function appendThreadsToRecord(
   recordId: string,

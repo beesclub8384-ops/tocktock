@@ -11,6 +11,7 @@ export interface FuturesRecord {
   memo: string;
   createdAt: string; // ISO timestamp
   qaThreads?: QAThread[]; // 이 매매에 연결된 Q&A 스레드 목록 (옵셔널)
+  pendingAnalysis?: boolean; // 시장 데이터 대기 중 (첫 질문 생성 보류)
 }
 
 /** 매매 기록 내부 Q&A 스레드 상태 */

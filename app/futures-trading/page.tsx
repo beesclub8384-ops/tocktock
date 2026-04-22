@@ -19,6 +19,7 @@ interface FuturesRecord {
   memo: string;
   createdAt: string;
   qaThreads?: QAItem[];
+  pendingAnalysis?: boolean;
 }
 
 interface QAReply {
@@ -1276,6 +1277,7 @@ function RecordQASection({
   onChanged: () => void;
 }) {
   const threads = record.qaThreads ?? [];
+  const isPending = record.pendingAnalysis === true;
 
   return (
     <div className="mt-4 pt-4 border-t border-border/50">
@@ -1285,11 +1287,17 @@ function RecordQASection({
         </span>
       </div>
 
-      {threads.length === 0 ? (
+      {isPending && (
+        <div className="mb-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
+          오늘 장 마감 후 (16:30) 시장 데이터 수집이 완료되면 자동으로 질문이 생성됩니다.
+        </div>
+      )}
+
+      {threads.length === 0 && !isPending ? (
         <p className="py-3 text-center text-xs text-muted-foreground">
           등록된 질문이 없습니다.
         </p>
-      ) : (
+      ) : threads.length > 0 ? (
         <div className="space-y-3">
           {threads.map((t) => (
             <RecordQAThread
@@ -1301,7 +1309,7 @@ function RecordQASection({
             />
           ))}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

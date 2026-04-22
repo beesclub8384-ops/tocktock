@@ -13,6 +13,7 @@ import {
   saveTradingPattern,
   loadDynamicSymbols,
   addDynamicSymbol,
+  updateRecordPendingAnalysis,
 } from "@/lib/futures-trading-store";
 import type {
   DynamicSymbol,
@@ -112,7 +113,7 @@ export async function POST(request: NextRequest) {
     // 시장 데이터 수집 (실패해도 record 저장은 유지)
     let marketDataOk = false;
     try {
-      // 기존 데이터가 있으면 재사용, 없으면 Yahoo에서 수집
+      // 기존 데이터가 있으면 재사용, 없으면 Yahoo+KIS에서 수집
       let marketData = await loadMarketData(record.date);
       if (!marketData || !hasAnyData(marketData)) {
         marketData = await fetchMarketDataForDate(record.date);
@@ -123,6 +124,23 @@ export async function POST(request: NextRequest) {
         date: record.date,
         hasData: marketDataOk,
       });
+
+      // 시장 데이터 없으면 분석 보류 — Cron(KST 16:30)이 데이터 수집 후 자동 처리
+      if (!marketDataOk) {
+        await updateRecordPendingAnalysis(record.id, true);
+        console.log("[futures-trading] analysis deferred (pending market data)", {
+          recordId: record.id,
+          date: record.date,
+        });
+        return NextResponse.json({
+          success: true,
+          record: { ...record, pendingAnalysis: true },
+          marketDataAvailable: false,
+          pendingAnalysis: true,
+          notice: "시장 데이터 수집 후 자동으로 질문이 생성됩니다 (KST 16:30 Cron).",
+          detectedSymbols,
+        });
+      }
 
       // analyzeWithMarketData로 패턴 추출
       const quantifiedList = await loadQuantified();
@@ -187,11 +205,17 @@ export async function POST(request: NextRequest) {
       });
     } catch (err) {
       console.error("[futures-trading] market-data analysis failed:", err);
-      // 분석 실패해도 record는 이미 저장됨
+      // 분석 실패해도 record는 이미 저장됨 — 추후 Cron이 처리할 수 있게 pending으로 표시
+      try {
+        await updateRecordPendingAnalysis(record.id, true);
+      } catch (e) {
+        console.error("[futures-trading] updateRecordPendingAnalysis failed:", e);
+      }
       return NextResponse.json({
         success: true,
-        record,
+        record: { ...record, pendingAnalysis: true },
         marketDataAvailable: marketDataOk,
+        pendingAnalysis: true,
         analysisError: err instanceof Error ? err.message : String(err),
         detectedSymbols,
       });
