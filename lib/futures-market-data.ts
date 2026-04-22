@@ -1,11 +1,14 @@
 import YahooFinance from "yahoo-finance2";
+import { fetchKosp200FuturesMinutes } from "./kis-client";
 
 const yahooFinance = new YahooFinance();
+
+export const KOSP200F_SYMBOL = "KOSP200F";
 
 export const MARKET_SYMBOLS = [
   "005930.KS", // 삼성전자
   "000660.KS", // SK하이닉스
-  "^KS200", // 코스피200 지수
+  KOSP200F_SYMBOL, // 코스피200 선물 근월물 (KIS)
   "ES=F", // S&P500 선물
   "DX-Y.NYB", // ICE 달러 인덱스
 ] as const;
@@ -86,10 +89,19 @@ export async function fetchMarketDataForDate(date: string): Promise<MarketDataFo
 
   const symbols: Record<string, SymbolBars> = {};
 
-  // Yahoo는 1분봉을 최근 ~29일까지만 보관 → 실패 심볼은 빈 배열로 처리
+  // Yahoo는 1분봉을 최근 ~29일까지만 보관 → 실패 심볼은 빈 배열로 처리.
+  // KOSP200F는 Yahoo 대신 KIS API로 수집.
   await Promise.all(
     MARKET_SYMBOLS.map(async (symbol) => {
       try {
+        if (symbol === KOSP200F_SYMBOL) {
+          const candles1m = await fetchKosp200FuturesMinutes(date);
+          symbols[symbol] = {
+            candles1m,
+            candles3m: aggregate3m(candles1m),
+          };
+          return;
+        }
         const res = await yahooFinance.chart(symbol, {
           period1: start,
           period2: end,

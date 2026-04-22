@@ -25,6 +25,11 @@
 *.pem
 .claude/settings.local.json
 monitor-result.md
+CURRENT_TASK.md
+
+# local KIS cache / temp
+.kis-token-cache.json
+temp-master/
 
 # debug
 npm-debug.log*
