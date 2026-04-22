@@ -11,6 +11,7 @@ import {
   type QAThread,
   type QAThreadStatus,
   type QuantifiedCondition,
+  type RedisUsageLog,
   type TradingPattern,
   type MessageItem,
   type MessageStore,
@@ -22,6 +23,7 @@ import {
   MARKET_DATA_INDEX_KEY,
   TRADING_PATTERN_KEY,
   DYNAMIC_SYMBOLS_KEY,
+  SYSTEM_REDIS_USAGE_KEY,
 } from "./types/futures-trading.ts";
 import type { MarketDataForDay } from "./futures-market-data.ts";
 
@@ -225,6 +227,17 @@ export async function loadTradingPattern(): Promise<TradingPattern | null> {
 
 export async function saveTradingPattern(pattern: TradingPattern): Promise<void> {
   await redis.set(TRADING_PATTERN_KEY, pattern);
+}
+
+// ── System: Redis Usage Log ──
+
+export async function loadRedisUsageLog(): Promise<RedisUsageLog | null> {
+  const data = await redis.get<RedisUsageLog>(SYSTEM_REDIS_USAGE_KEY);
+  return data ?? null;
+}
+
+export async function saveRedisUsageLog(log: RedisUsageLog): Promise<void> {
+  await redis.set(SYSTEM_REDIS_USAGE_KEY, log);
 }
 
 // ── Dynamic Symbols ──

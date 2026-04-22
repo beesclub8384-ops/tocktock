@@ -14,6 +14,7 @@ import {
   loadDynamicSymbols,
   addDynamicSymbol,
   updateRecordPendingAnalysis,
+  loadRedisUsageLog,
 } from "@/lib/futures-trading-store";
 import type {
   DynamicSymbol,
@@ -45,8 +46,12 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const [records, marketDataDates] = await Promise.all([loadRecords(), listMarketDataDates()]);
-    return NextResponse.json({ records, marketDataDates });
+    const [records, marketDataDates, redisUsage] = await Promise.all([
+      loadRecords(),
+      listMarketDataDates(),
+      loadRedisUsageLog(),
+    ]);
+    return NextResponse.json({ records, marketDataDates, redisUsage });
   } catch (error) {
     console.error("[futures-trading] GET error:", error);
     return NextResponse.json(

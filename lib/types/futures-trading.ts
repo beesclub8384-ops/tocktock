@@ -96,6 +96,16 @@ export interface TradingPattern {
   confidence: "low" | "medium" | "high";
 }
 
+/** 주기적 Redis 사용량 점검 결과 (무료 256MB 한도 경보용) */
+export interface RedisUsageLog {
+  checkedAt: string; // ISO timestamp
+  totalBytes: number;
+  totalMB: number;
+  usagePercent: number; // 0~100, 256MB 대비
+  keyCount: number;
+  warning: boolean; // 80% 이상이면 true
+}
+
 /** 동적으로 추가된 수집 대상 심볼 (메모/댓글 자동 감지) */
 export interface DynamicSymbol {
   id: string;
@@ -115,3 +125,4 @@ export const MARKET_DATA_REDIS_KEY_PREFIX = "futures-trading:market-data:";
 export const MARKET_DATA_INDEX_KEY = "futures-trading:market-data-index"; // 날짜 목록
 export const TRADING_PATTERN_KEY = "futures-trading:pattern";
 export const DYNAMIC_SYMBOLS_KEY = "futures-trading:dynamic-symbols";
+export const SYSTEM_REDIS_USAGE_KEY = "system:redis-usage-log";

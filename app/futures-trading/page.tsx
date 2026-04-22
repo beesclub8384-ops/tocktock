@@ -72,6 +72,15 @@ interface DynamicSymbolItem {
   mentionedText: string;
 }
 
+interface RedisUsage {
+  checkedAt: string;
+  totalBytes: number;
+  totalMB: number;
+  usagePercent: number;
+  keyCount: number;
+  warning: boolean;
+}
+
 const MULTIPLIER = 250000;
 
 function calcPnl(
@@ -1698,6 +1707,89 @@ function CollectingDataSection({ password }: { password: string }) {
   );
 }
 
+function SystemStatusSection({ password }: { password: string }) {
+  const [usage, setUsage] = useState<RedisUsage | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const fetchUsage = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/futures-trading", {
+        headers: { "x-password": password },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setUsage(data.redisUsage ?? null);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setLoading(false);
+    }
+  }, [password]);
+
+  useEffect(() => {
+    fetchUsage();
+  }, [fetchUsage]);
+
+  const fmtTime = (iso: string) => {
+    if (!iso) return "";
+    const d = new Date(iso);
+    return `${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  };
+
+  const pct = usage?.usagePercent ?? 0;
+  const level = pct >= 80 ? "danger" : pct >= 50 ? "warn" : "ok";
+  const barColor =
+    level === "danger" ? "bg-red-500" : level === "warn" ? "bg-amber-500" : "bg-green-500";
+  const textColor =
+    level === "danger" ? "text-red-500" : level === "warn" ? "text-amber-500" : "text-green-500";
+  const label =
+    level === "danger" ? "경고 — 한도 초과 임박" : level === "warn" ? "주의" : "정상";
+  const widthPct = Math.min(100, Math.max(0, pct));
+
+  return (
+    <div>
+      <h3 className="mb-2 text-sm font-semibold">
+        <span className="text-foreground">시스템 상태</span>
+      </h3>
+      <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+        <div className="flex items-baseline justify-between">
+          <p className="text-xs font-semibold text-muted-foreground">Redis 사용량</p>
+          <p className={`text-xs font-semibold ${textColor}`}>{label}</p>
+        </div>
+
+        {loading && !usage ? (
+          <p className="text-xs text-muted-foreground">불러오는 중...</p>
+        ) : !usage ? (
+          <p className="text-xs text-muted-foreground">
+            아직 집계된 사용량 데이터가 없습니다. (매주 월요일 KST 10:00 자동 수집)
+          </p>
+        ) : (
+          <>
+            <div className="flex items-baseline justify-between text-sm">
+              <span className="font-medium">
+                {usage.totalMB.toFixed(2)} MB <span className="text-muted-foreground">/ 256 MB</span>
+              </span>
+              <span className={`font-semibold ${textColor}`}>{usage.usagePercent.toFixed(1)}%</span>
+            </div>
+            <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+              <div
+                className={`h-full rounded-full transition-all ${barColor}`}
+                style={{ width: `${widthPct}%` }}
+              />
+            </div>
+            <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+              <span>키 {usage.keyCount}개</span>
+              <span>마지막 체크: {fmtTime(usage.checkedAt)}</span>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function QuantifiedSection({ password }: { password: string }) {
   const [items, setItems] = useState<QuantifiedItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -1818,6 +1910,8 @@ function QuantifiedSection({ password }: { password: string }) {
           />
         </>
       )}
+
+      <SystemStatusSection password={password} />
     </div>
   );
 }
