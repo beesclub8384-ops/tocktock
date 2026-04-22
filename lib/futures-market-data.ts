@@ -1,5 +1,6 @@
 import YahooFinance from "yahoo-finance2";
-import { fetchKosp200FuturesMinutes } from "./kis-client";
+import { fetchKosp200FuturesMinutes } from "./kis-client.ts";
+import { loadDynamicSymbols } from "./futures-trading-store.ts";
 
 const yahooFinance = new YahooFinance();
 
@@ -82,40 +83,58 @@ function normalize(quotes: RawQuote[]): MinuteCandle[] {
   return out;
 }
 
-/** 특정 날짜(YYYY-MM-DD)의 모든 심볼 1분봉 + 3분봉 수집 */
-export async function fetchMarketDataForDate(date: string): Promise<MarketDataForDay> {
+async function fetchYahooMinutes(symbol: string, date: string): Promise<MinuteCandle[]> {
   const start = new Date(`${date}T00:00:00Z`);
   const end = new Date(`${date}T23:59:59Z`);
+  const res = await yahooFinance.chart(symbol, { period1: start, period2: end, interval: "1m" });
+  const quotes = (res.quotes ?? []) as RawQuote[];
+  return normalize(quotes);
+}
 
+/** 특정 날짜(YYYY-MM-DD)의 모든 심볼 1분봉 + 3분봉 수집 (정적 + 동적) */
+export async function fetchMarketDataForDate(date: string): Promise<MarketDataForDay> {
   const symbols: Record<string, SymbolBars> = {};
 
-  // Yahoo는 1분봉을 최근 ~29일까지만 보관 → 실패 심볼은 빈 배열로 처리.
-  // KOSP200F는 Yahoo 대신 KIS API로 수집.
+  // 정적 심볼 (Yahoo + KOSP200F) — 항상 수집
   await Promise.all(
     MARKET_SYMBOLS.map(async (symbol) => {
       try {
         if (symbol === KOSP200F_SYMBOL) {
           const candles1m = await fetchKosp200FuturesMinutes(date);
-          symbols[symbol] = {
-            candles1m,
-            candles3m: aggregate3m(candles1m),
-          };
+          symbols[symbol] = { candles1m, candles3m: aggregate3m(candles1m) };
           return;
         }
-        const res = await yahooFinance.chart(symbol, {
-          period1: start,
-          period2: end,
-          interval: "1m",
-        });
-        const quotes = (res.quotes ?? []) as RawQuote[];
-        const candles1m = normalize(quotes);
-        symbols[symbol] = {
-          candles1m,
-          candles3m: aggregate3m(candles1m),
-        };
+        const candles1m = await fetchYahooMinutes(symbol, date);
+        symbols[symbol] = { candles1m, candles3m: aggregate3m(candles1m) };
       } catch (err) {
         console.error(`[futures-market-data] ${symbol} fetch failed:`, err instanceof Error ? err.message : err);
         symbols[symbol] = { candles1m: [], candles3m: [] };
+      }
+    })
+  );
+
+  // 동적 심볼 (메모/댓글에서 자동 감지된 추가 수집 대상)
+  let dynamic: Awaited<ReturnType<typeof loadDynamicSymbols>> = [];
+  try {
+    dynamic = await loadDynamicSymbols();
+  } catch (err) {
+    console.error("[futures-market-data] loadDynamicSymbols failed:", err instanceof Error ? err.message : err);
+  }
+  await Promise.all(
+    dynamic.map(async (dyn) => {
+      // 정적 심볼과 충돌하면 스킵 (정적 우선)
+      if (symbols[dyn.symbol]) return;
+      try {
+        if (dyn.source === "kis" || dyn.symbol.startsWith("KIS:")) {
+          // 임의 KIS 종목코드는 아직 지원하지 않음 — 빈 배열로 자리만 마련
+          symbols[dyn.symbol] = { candles1m: [], candles3m: [] };
+          return;
+        }
+        const candles1m = await fetchYahooMinutes(dyn.symbol, date);
+        symbols[dyn.symbol] = { candles1m, candles3m: aggregate3m(candles1m) };
+      } catch (err) {
+        console.error(`[futures-market-data] dynamic ${dyn.symbol} fetch failed:`, err instanceof Error ? err.message : err);
+        symbols[dyn.symbol] = { candles1m: [], candles3m: [] };
       }
     })
   );

@@ -1,5 +1,6 @@
-import { redis } from "@/lib/redis";
+import { redis } from "./redis.ts";
 import {
+  type DynamicSymbol,
   type FuturesRecord,
   type FuturesStore,
   type LegacyQAItem,
@@ -20,8 +21,9 @@ import {
   MARKET_DATA_REDIS_KEY_PREFIX,
   MARKET_DATA_INDEX_KEY,
   TRADING_PATTERN_KEY,
-} from "@/lib/types/futures-trading";
-import type { MarketDataForDay } from "@/lib/futures-market-data";
+  DYNAMIC_SYMBOLS_KEY,
+} from "./types/futures-trading.ts";
+import type { MarketDataForDay } from "./futures-market-data.ts";
 
 /** 저장된 스레드가 status 없는 구버전이면 'open' 채움 */
 function normalizeThread(raw: Partial<QAThread> & { id?: string }): QAThread {
@@ -209,6 +211,26 @@ export async function loadTradingPattern(): Promise<TradingPattern | null> {
 
 export async function saveTradingPattern(pattern: TradingPattern): Promise<void> {
   await redis.set(TRADING_PATTERN_KEY, pattern);
+}
+
+// ── Dynamic Symbols ──
+
+export async function loadDynamicSymbols(): Promise<DynamicSymbol[]> {
+  const data = await redis.get<DynamicSymbol[]>(DYNAMIC_SYMBOLS_KEY);
+  return Array.isArray(data) ? data : [];
+}
+
+export async function saveDynamicSymbols(list: DynamicSymbol[]): Promise<void> {
+  await redis.set(DYNAMIC_SYMBOLS_KEY, list);
+}
+
+/** 동일한 symbol이 이미 있으면 추가하지 않음 (중복 방지) */
+export async function addDynamicSymbol(item: DynamicSymbol): Promise<boolean> {
+  const list = await loadDynamicSymbols();
+  if (list.some((x) => x.symbol === item.symbol)) return false;
+  list.push(item);
+  await saveDynamicSymbols(list);
+  return true;
 }
 
 // ── Quantified ──

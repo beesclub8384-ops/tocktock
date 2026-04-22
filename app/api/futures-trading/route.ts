@@ -11,10 +11,22 @@ import {
   listMarketDataDates,
   addQuantifiedCondition,
   saveTradingPattern,
+  loadDynamicSymbols,
+  addDynamicSymbol,
 } from "@/lib/futures-trading-store";
-import type { FuturesRecord, QAThread, QuantifiedCondition } from "@/lib/types/futures-trading";
-import { analyzeWithMarketData, updateTradingPattern } from "@/lib/futures-claude-analyzer";
-import { fetchMarketDataForDate, hasAnyData } from "@/lib/futures-market-data";
+import type {
+  DynamicSymbol,
+  FuturesRecord,
+  QAThread,
+  QuantifiedCondition,
+} from "@/lib/types/futures-trading";
+import {
+  analyzeWithMarketData,
+  detectNewSymbols,
+  updateTradingPattern,
+  type DetectedSymbol,
+} from "@/lib/futures-claude-analyzer";
+import { fetchMarketDataForDate, hasAnyData, MARKET_SYMBOLS } from "@/lib/futures-market-data";
 
 const PASSWORD = "8384";
 
@@ -66,6 +78,36 @@ export async function POST(request: NextRequest) {
 
     await addRecord(record);
     console.log("[futures-trading] record saved", { id: record.id, date: record.date });
+
+    // 메모에서 새 심볼 자동 감지 (실패해도 record 저장은 유지)
+    let detectedSymbols: DetectedSymbol[] = [];
+    try {
+      if (record.memo.trim()) {
+        const dynList = await loadDynamicSymbols();
+        const existing = [...MARKET_SYMBOLS, ...dynList.map((d) => d.symbol)];
+        detectedSymbols = await detectNewSymbols(record.memo, existing);
+        for (const ds of detectedSymbols) {
+          const item: DynamicSymbol = {
+            id: crypto.randomUUID(),
+            symbol: ds.symbol,
+            name: ds.name,
+            source: ds.source,
+            addedAt: new Date().toISOString(),
+            addedFrom: record.id,
+            mentionedText: ds.mentionedText,
+          };
+          await addDynamicSymbol(item);
+        }
+        if (detectedSymbols.length) {
+          console.log("[futures-trading] dynamic symbols added", {
+            recordId: record.id,
+            symbols: detectedSymbols.map((d) => d.symbol),
+          });
+        }
+      }
+    } catch (err) {
+      console.error("[futures-trading] detectNewSymbols failed:", err);
+    }
 
     // 시장 데이터 수집 (실패해도 record 저장은 유지)
     let marketDataOk = false;
@@ -141,6 +183,7 @@ export async function POST(request: NextRequest) {
         confirmedCount: analysis.confirmedConditions.length,
         questionCount: analysis.questions.length,
         patternUpdated,
+        detectedSymbols,
       });
     } catch (err) {
       console.error("[futures-trading] market-data analysis failed:", err);
@@ -150,6 +193,7 @@ export async function POST(request: NextRequest) {
         record,
         marketDataAvailable: marketDataOk,
         analysisError: err instanceof Error ? err.message : String(err),
+        detectedSymbols,
       });
     }
   } catch (error) {

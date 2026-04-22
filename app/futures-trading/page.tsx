@@ -55,6 +55,22 @@ interface QuantifiedItem {
   createdAt: string;
 }
 
+interface StaticSymbolItem {
+  symbol: string;
+  name: string;
+  source: "yahoo" | "kis";
+}
+
+interface DynamicSymbolItem {
+  id: string;
+  symbol: string;
+  name: string;
+  source: "yahoo" | "kis";
+  addedAt: string;
+  addedFrom: string;
+  mentionedText: string;
+}
+
 const MULTIPLIER = 250000;
 
 function calcPnl(
@@ -1576,6 +1592,104 @@ function TradingPatternSection({ password }: { password: string }) {
   );
 }
 
+function CollectingDataSection({ password }: { password: string }) {
+  const [staticList, setStaticList] = useState<StaticSymbolItem[]>([]);
+  const [dynamicList, setDynamicList] = useState<DynamicSymbolItem[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const fetchSymbols = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/futures-trading/dynamic-symbols", {
+        headers: { "x-password": password },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setStaticList(Array.isArray(data.static) ? data.static : []);
+        setDynamicList(Array.isArray(data.dynamic) ? data.dynamic : []);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setLoading(false);
+    }
+  }, [password]);
+
+  useEffect(() => {
+    fetchSymbols();
+  }, [fetchSymbols]);
+
+  const fmtDate = (iso: string) => {
+    if (!iso) return "";
+    const d = new Date(iso);
+    return `${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")}`;
+  };
+
+  return (
+    <div>
+      <h3 className="mb-2 text-sm font-semibold">
+        <span className="text-foreground">수집 중인 데이터</span>
+        <span className="ml-1 text-xs text-muted-foreground">
+          ({staticList.length} 기본 + {dynamicList.length} 자동 감지)
+        </span>
+      </h3>
+      {loading ? (
+        <div className="rounded-xl border border-border bg-card px-4 py-6 text-center text-xs text-muted-foreground">
+          불러오는 중...
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <div className="rounded-xl border border-border bg-card p-4 space-y-2">
+            <p className="text-xs font-semibold text-muted-foreground">기본 심볼</p>
+            <ul className="space-y-1 text-sm">
+              {staticList.map((s) => (
+                <li key={s.symbol} className="flex items-center gap-2">
+                  <span className="font-medium">{s.name}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {s.symbol} · {s.source}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="rounded-xl border border-border bg-card p-4 space-y-2">
+            <p className="text-xs font-semibold text-muted-foreground">
+              자동 감지된 심볼 (메모/댓글에서 추출)
+            </p>
+            {dynamicList.length === 0 ? (
+              <p className="text-xs text-muted-foreground">
+                아직 자동 감지된 심볼이 없습니다.
+              </p>
+            ) : (
+              <ul className="space-y-2 text-sm">
+                {dynamicList.map((d) => (
+                  <li key={d.id} className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{d.name}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {d.symbol} · {d.source}
+                      </span>
+                      <span className="ml-auto text-[10px] text-muted-foreground">
+                        {fmtDate(d.addedAt)} 추가
+                      </span>
+                    </div>
+                    {d.mentionedText && (
+                      <p className="text-xs text-muted-foreground">
+                        “{d.mentionedText}”
+                      </p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function QuantifiedSection({ password }: { password: string }) {
   const [items, setItems] = useState<QuantifiedItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -1663,6 +1777,8 @@ function QuantifiedSection({ password }: { password: string }) {
   return (
     <div className="space-y-6">
       <TradingPatternSection password={password} />
+
+      <CollectingDataSection password={password} />
 
       <div className="rounded-lg border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
         매매 메모에서 추출된 조건의 수치화 현황입니다.

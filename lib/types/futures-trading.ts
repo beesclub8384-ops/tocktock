@@ -95,6 +95,17 @@ export interface TradingPattern {
   confidence: "low" | "medium" | "high";
 }
 
+/** 동적으로 추가된 수집 대상 심볼 (메모/댓글 자동 감지) */
+export interface DynamicSymbol {
+  id: string;
+  symbol: string; // Yahoo Finance 심볼 또는 'KIS:종목코드'
+  name: string; // 표시명 (예: '나스닥', 'VIX')
+  source: "yahoo" | "kis";
+  addedAt: string; // ISO timestamp
+  addedFrom: string; // 어느 매매 기록에서 감지됐는지 (recordId)
+  mentionedText: string; // 원문 (예: "나스닥 흐름을 봤다")
+}
+
 export const FUTURES_REDIS_KEY = "futures-trading:records";
 export const QA_REDIS_KEY = "futures-trading:qa";
 export const MSG_REDIS_KEY = "futures-trading:messages";
@@ -102,3 +113,4 @@ export const QUANTIFIED_REDIS_KEY = "futures-trading:quantified";
 export const MARKET_DATA_REDIS_KEY_PREFIX = "futures-trading:market-data:";
 export const MARKET_DATA_INDEX_KEY = "futures-trading:market-data-index"; // 날짜 목록
 export const TRADING_PATTERN_KEY = "futures-trading:pattern";
+export const DYNAMIC_SYMBOLS_KEY = "futures-trading:dynamic-symbols";

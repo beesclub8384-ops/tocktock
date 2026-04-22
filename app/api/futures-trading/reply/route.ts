@@ -7,9 +7,21 @@ import {
   updateReplyContent,
   updateThreadTitle,
   addQuantifiedCondition,
+  loadDynamicSymbols,
+  addDynamicSymbol,
 } from "@/lib/futures-trading-store";
-import type { QAReply, QuantifiedCondition } from "@/lib/types/futures-trading";
-import { analyzeReply, type AnalyzeReplyResult } from "@/lib/futures-claude-analyzer";
+import type {
+  DynamicSymbol,
+  QAReply,
+  QuantifiedCondition,
+} from "@/lib/types/futures-trading";
+import {
+  analyzeReply,
+  detectNewSymbols,
+  type AnalyzeReplyResult,
+  type DetectedSymbol,
+} from "@/lib/futures-claude-analyzer";
+import { MARKET_SYMBOLS } from "@/lib/futures-market-data";
 
 const PASSWORD = "8384";
 const LOG_TAG = "[futures-trading/reply]";
@@ -148,10 +160,39 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // 5. 용태 답변에서 새 심볼 자동 감지 (실패해도 응답엔 영향 X)
+    let detectedSymbols: DetectedSymbol[] = [];
+    try {
+      const dynList = await loadDynamicSymbols();
+      const existing = [...MARKET_SYMBOLS, ...dynList.map((d) => d.symbol)];
+      detectedSymbols = await detectNewSymbols(reply.content, existing);
+      for (const ds of detectedSymbols) {
+        const item: DynamicSymbol = {
+          id: crypto.randomUUID(),
+          symbol: ds.symbol,
+          name: ds.name,
+          source: ds.source,
+          addedAt: new Date().toISOString(),
+          addedFrom: recordId,
+          mentionedText: ds.mentionedText,
+        };
+        await addDynamicSymbol(item);
+      }
+      if (detectedSymbols.length) {
+        console.log(`${LOG_TAG} dynamic symbols added`, {
+          recordId,
+          symbols: detectedSymbols.map((d) => d.symbol),
+        });
+      }
+    } catch (err) {
+      console.error(`${LOG_TAG} detectNewSymbols failed:`, err);
+    }
+
     return NextResponse.json({
       success: true,
       reply,
       analysis,
+      detectedSymbols,
     });
   } catch (error) {
     console.error(`${LOG_TAG} POST error:`, error);

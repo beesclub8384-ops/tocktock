@@ -4,13 +4,13 @@ import type {
   QAThread,
   QuantifiedCondition,
   TradingPattern,
-} from "@/lib/types/futures-trading";
+} from "./types/futures-trading.ts";
 import {
   MARKET_SYMBOLS,
   sliceAroundEntry,
   type MarketDataForDay,
   type MinuteCandle,
-} from "@/lib/futures-market-data";
+} from "./futures-market-data.ts";
 
 const MODEL = "claude-sonnet-4-5-20250929";
 const LOG_TAG = "[futures-claude-analyzer]";
@@ -25,8 +25,10 @@ function getClient(): Anthropic {
 
 function stripCodeFence(text: string): string {
   const trimmed = text.trim();
-  if (!trimmed.startsWith("```")) return trimmed;
-  return trimmed.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
+  // 코드펜스가 본문 어디든 있으면 첫 펜스 안쪽만 추출 (펜스 바깥 설명 텍스트 무시)
+  const fenced = trimmed.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
+  if (fenced) return fenced[1].trim();
+  return trimmed;
 }
 
 function formatQuantifiedList(list: QuantifiedCondition[]): string {
@@ -363,6 +365,125 @@ ${formatQuantifiedList(quantifiedList)}
     console.error(`${LOG_TAG} analyzeWithMarketData parse error:`, err, "raw:", text);
     return fallback;
   }
+}
+
+// ─────────────────────────────────────────────────────────────
+// 4-3b. 메모/댓글에서 수집 가능한 새 심볼(지표/종목/차트) 자동 감지
+// ─────────────────────────────────────────────────────────────
+
+export interface DetectedSymbol {
+  symbol: string;
+  name: string;
+  source: "yahoo" | "kis";
+  mentionedText: string;
+}
+
+/** 화이트리스트 — 사양에 명시된 매핑만 허용. 외부에서 변환 규칙 확장 시 함께 갱신. */
+const ALLOWED_SYMBOL_MAP: Record<string, { name: string; source: "yahoo" | "kis" }> = {
+  "NQ=F": { name: "나스닥 선물", source: "yahoo" },
+  "^IXIC": { name: "나스닥 지수", source: "yahoo" },
+  "^VIX": { name: "VIX", source: "yahoo" },
+  "KRW=X": { name: "원달러 환율", source: "yahoo" },
+  "^KS11": { name: "코스피", source: "yahoo" },
+  "^N225": { name: "니케이225", source: "yahoo" },
+  "^HSI": { name: "항셍지수", source: "yahoo" },
+  "^TNX": { name: "미국채 10년", source: "yahoo" },
+  "GC=F": { name: "금 선물", source: "yahoo" },
+  "CL=F": { name: "WTI 원유 선물", source: "yahoo" },
+  "^SOX": { name: "필라델피아 반도체 지수", source: "yahoo" },
+};
+
+const DETECT_SYSTEM_PROMPT = `당신은 금융 데이터 수집 시스템입니다.
+트레이더의 매매 메모나 댓글에서 언급된 금융 지표, 종목, 차트를
+Yahoo Finance 또는 KIS API로 수집 가능한 심볼로 변환합니다.
+이미 수집 중인 심볼은 제외합니다.
+반드시 JSON만 반환합니다.`;
+
+export async function detectNewSymbols(
+  text: string,
+  existingSymbols: string[]
+): Promise<DetectedSymbol[]> {
+  const trimmed = (text || "").trim();
+  if (!trimmed) return [];
+
+  const userPrompt = `텍스트: ${trimmed}
+
+이미 수집 중인 심볼: ${existingSymbols.length ? existingSymbols.join(", ") : "(없음)"}
+
+위 텍스트에서 언급된 금융 지표/종목을 찾아서
+Yahoo Finance 심볼로 변환 가능한 것들을 JSON 배열로 반환하세요.
+
+형식: [
+  {
+    "symbol": "NQ=F",
+    "name": "나스닥 선물",
+    "source": "yahoo",
+    "mentionedText": "나스닥 흐름을 봤다"
+  }
+]
+
+변환 규칙:
+- 나스닥/나스닥선물 → NQ=F (yahoo)
+- 나스닥지수 → ^IXIC (yahoo)
+- VIX/공포지수 → ^VIX (yahoo)
+- 원달러/달러원/환율 → KRW=X (yahoo)
+- 코스피 → ^KS11 (yahoo)
+- 니케이/일본증시 → ^N225 (yahoo)
+- 항셍/홍콩증시 → ^HSI (yahoo)
+- 국채10년/미국채 → ^TNX (yahoo)
+- 금/골드 → GC=F (yahoo)
+- 유가/WTI → CL=F (yahoo)
+- 반도체지수/SOX → ^SOX (yahoo)
+- 위 목록에 없거나 불확실한 것은 포함하지 말 것
+- 이미 수집 중인 심볼과 동일하면 제외
+- 감지된 심볼이 없으면 빈 배열 [] 반환`;
+
+  let raw: string | null = null;
+  try {
+    raw = await callWithRetry(
+      {
+        model: MODEL,
+        max_tokens: 1024,
+        system: DETECT_SYSTEM_PROMPT,
+        messages: [{ role: "user", content: userPrompt }],
+      },
+      "detectNewSymbols"
+    );
+  } catch (err) {
+    console.error(`${LOG_TAG} detectNewSymbols all attempts failed:`, err);
+    return [];
+  }
+
+  if (!raw) return [];
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(stripCodeFence(raw));
+  } catch (err) {
+    console.error(`${LOG_TAG} detectNewSymbols parse error:`, err, "raw:", raw);
+    return [];
+  }
+  if (!Array.isArray(parsed)) return [];
+
+  const existingSet = new Set(existingSymbols);
+  const seen = new Set<string>();
+  const out: DetectedSymbol[] = [];
+  for (const item of parsed) {
+    const o = item as Record<string, unknown>;
+    const symbol = typeof o?.symbol === "string" ? o.symbol.trim() : "";
+    const mentionedText = typeof o?.mentionedText === "string" ? o.mentionedText.trim() : "";
+    if (!symbol || existingSet.has(symbol) || seen.has(symbol)) continue;
+    const allowed = ALLOWED_SYMBOL_MAP[symbol];
+    if (!allowed) continue; // 화이트리스트 외 심볼은 폐기
+    seen.add(symbol);
+    out.push({
+      symbol,
+      name: allowed.name,
+      source: allowed.source,
+      mentionedText,
+    });
+  }
+  return out;
 }
 
 // ─────────────────────────────────────────────────────────────
