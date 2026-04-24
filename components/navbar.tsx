@@ -19,6 +19,7 @@ const navLinks = [
   { href: "/liquidity/us", label: "미국 유동성" },
   { href: "/liquidity/global", label: "글로벌 유동성" },
   { href: "/superinvestor", label: "슈퍼투자자" },
+  { href: "/ken-fisher", label: "켄 피셔 · PER 비교" },
   { href: "/virtual-trading", label: "자동매매" },
   { href: "/ai-trading", label: "AI 자동매매" },
   { href: "/futures-trading", label: "선물매매 검증" },
@@ -50,6 +51,14 @@ const pcNavItems: NavItem[] = [
     ],
   },
   { type: "link", href: "/superinvestor", label: "슈퍼투자자" },
+  {
+    type: "dropdown",
+    label: "켄 피셔",
+    id: "ken-fisher",
+    items: [
+      { href: "/ken-fisher", label: "3대 지수 PER 비교" },
+    ],
+  },
   {
     type: "dropdown",
     label: "자동매매",
