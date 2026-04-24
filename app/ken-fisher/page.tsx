@@ -15,8 +15,6 @@ import seriesData from "@/lib/data/ken-fisher-series.json";
 import { NASDAQ100_PE_ANNUAL } from "@/lib/data/ken-fisher-nasdaq-pe";
 import { KEN_FISHER_EVENTS } from "@/lib/data/ken-fisher-events";
 
-type MonthPoint = { date: string; price?: number; value?: number };
-
 interface SeriesData {
   generatedAt: string;
   sources: { sp500: string; nasdaq100: string };
@@ -30,9 +28,13 @@ const data = seriesData as SeriesData;
 const SP_COLOR = "#a855f7"; // purple
 const NDX_COLOR = "#10b981"; // emerald
 
-// 주요 X축 연도 틱
-const YEAR_TICKS_FULL = [1985, 1990, 1995, 2000, 2005, 2010, 2015, 2020, 2025];
-const YEAR_TICKS_NDX_PE = [2000, 2005, 2010, 2015, 2020, 2025];
+// 두 차트의 X 도메인·틱 동기화
+const X_DOMAIN: [number, number] = [
+  Date.UTC(1985, 0, 1),
+  Date.UTC(2026, 3, 30),
+];
+const YEAR_TICKS = [1985, 1990, 1995, 2000, 2005, 2010, 2015, 2020, 2025];
+const YEAR_TICK_TS = YEAR_TICKS.map((y) => Date.UTC(y, 0, 1));
 
 function dateToTs(d: string): number {
   return new Date(d).getTime();
@@ -47,199 +49,167 @@ function tsToYearMonth(ts: number): string {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
-function yearsToTs(years: number[]): number[] {
-  return years.map((y) => Date.UTC(y, 0, 1));
+// 연말 NDX PE(예: 1999-12-31)를 월별 시계열에 붙이기 위해 YYYY-MM-01로 정규화
+function normalizeToMonthStart(dateStr: string): string {
+  const d = new Date(dateStr);
+  const y = d.getUTCFullYear();
+  const m = d.getUTCMonth() + 1;
+  return `${y}-${String(m).padStart(2, "0")}-01`;
 }
 
-function CustomTooltip({
-  active,
-  payload,
-  valueLabel,
-  valueFormat,
-}: {
+// 가격 포맷 (로그 틱용 간결 표기)
+function formatPrice(v: number): string {
+  if (v >= 1000) {
+    const k = v / 1000;
+    return k >= 10 ? `${Math.round(k)}k` : `${k.toFixed(1)}k`;
+  }
+  return Math.round(v).toString();
+}
+
+// 범례용 마커
+function LegendMarker({ color, dashed }: { color: string; dashed?: boolean }) {
+  return (
+    <svg width="18" height="6" className="shrink-0" aria-hidden="true">
+      <line
+        x1="0"
+        y1="3"
+        x2="18"
+        y2="3"
+        stroke={color}
+        strokeWidth={dashed ? 1.5 : 2}
+        strokeDasharray={dashed ? "3 2" : undefined}
+      />
+    </svg>
+  );
+}
+
+function DualTooltip(props: {
   active?: boolean;
-  payload?: Array<{ value: number; payload: { t: number } }>;
-  valueLabel: string;
-  valueFormat: (v: number) => string;
+  payload?: Array<{
+    dataKey: string;
+    value: number | null;
+    stroke: string;
+    payload: { t: number };
+  }>;
+  color: string;
+  priceLabel: string;
+  peLabel: string;
 }) {
+  const { active, payload, color, priceLabel, peLabel } = props;
   if (!active || !payload?.length) return null;
-  const p = payload[0];
+  const price = payload.find((p) => p.dataKey === "price")?.value ?? null;
+  const pe = payload.find((p) => p.dataKey === "pe")?.value ?? null;
+  const t = payload[0]?.payload.t;
   return (
-    <div className="rounded-lg border border-border bg-card px-3 py-2 shadow-lg text-xs">
-      <p className="font-medium tabular-nums">{tsToYearMonth(p.payload.t)}</p>
-      <p className="text-muted-foreground tabular-nums">
-        {valueLabel}:{" "}
-        <span className="text-foreground font-medium">
-          {valueFormat(p.value)}
+    <div className="rounded-lg border border-border bg-card px-3 py-2 shadow-lg text-xs space-y-1">
+      <p className="font-medium tabular-nums">{tsToYearMonth(t)}</p>
+      <div className="flex items-center gap-1.5 tabular-nums">
+        <LegendMarker color={color} />
+        <span className="text-muted-foreground">{priceLabel}</span>
+        <span className="text-foreground font-medium ml-auto">
+          {price != null ? formatPriceExact(price) : "—"}
         </span>
-      </p>
+      </div>
+      <div className="flex items-center gap-1.5 tabular-nums">
+        <LegendMarker color={color} dashed />
+        <span className="text-muted-foreground">{peLabel}</span>
+        <span className="text-foreground font-medium ml-auto">
+          {pe != null ? pe.toFixed(1) : "—"}
+        </span>
+      </div>
     </div>
   );
 }
 
-function PriceChart({
+function formatPriceExact(v: number): string {
+  return v >= 100
+    ? v.toLocaleString(undefined, { maximumFractionDigits: 0 })
+    : v.toFixed(2);
+}
+
+function CombinedChart({
   title,
-  subtitle,
   series,
   color,
-  formatValue,
+  peMaxY,
+  priceLegendLabel,
+  peLegendLabel,
 }: {
   title: string;
-  subtitle: string;
-  series: { date: string; price: number }[];
+  series: { t: number; price: number | null; pe: number | null }[];
   color: string;
-  formatValue: (v: number) => string;
+  peMaxY: number;
+  priceLegendLabel: string;
+  peLegendLabel: string;
 }) {
-  const chartData = useMemo(
-    () => series.map((r) => ({ t: dateToTs(r.date), v: r.price })),
-    [series]
-  );
-  const yearTicks = yearsToTs(YEAR_TICKS_FULL);
-
   return (
     <div className="rounded-xl border border-border bg-card p-4 sm:p-5">
       <div className="flex items-baseline justify-between mb-3 gap-2">
         <h3 className="text-sm font-semibold">{title}</h3>
-        <span className="text-xs text-muted-foreground">{subtitle}</span>
       </div>
-      <div className="h-[280px] sm:h-[340px]">
+
+      {/* 커스텀 범례 */}
+      <div className="mb-3 flex flex-wrap gap-x-5 gap-y-1.5 text-xs">
+        <span className="flex items-center gap-1.5">
+          <LegendMarker color={color} />
+          <span>{priceLegendLabel}</span>
+        </span>
+        <span className="flex items-center gap-1.5">
+          <LegendMarker color={color} dashed />
+          <span>{peLegendLabel}</span>
+        </span>
+      </div>
+
+      <div className="h-[350px] sm:h-[450px]">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart
-            data={chartData}
-            margin={{ top: 8, right: 12, bottom: 4, left: 0 }}
+            data={series}
+            margin={{ top: 8, right: 4, bottom: 4, left: 0 }}
           >
             <CartesianGrid
               stroke="hsl(var(--border))"
               strokeDasharray="3 3"
               vertical={false}
             />
-            <XAxis
-              dataKey="t"
-              type="number"
-              scale="time"
-              domain={["dataMin", "dataMax"]}
-              ticks={yearTicks}
-              tickFormatter={tsToYear}
-              tick={{
-                fontSize: 10,
-                fill: "hsl(var(--muted-foreground))",
-              }}
-              tickLine={false}
-              axisLine={false}
-            />
-            <YAxis
-              scale="log"
-              domain={["auto", "auto"]}
-              tick={{
-                fontSize: 10,
-                fill: "hsl(var(--muted-foreground))",
-              }}
-              tickFormatter={(v: number) => formatValue(v)}
-              tickLine={false}
-              axisLine={false}
-              width={48}
-            />
-            <Tooltip
-              content={
-                <CustomTooltip valueLabel="종가" valueFormat={formatValue} />
-              }
-              cursor={{
-                stroke: "hsl(var(--muted-foreground))",
-                strokeOpacity: 0.2,
-              }}
-            />
-            <Line
-              type="monotone"
-              dataKey="v"
-              stroke={color}
-              strokeWidth={1.5}
-              dot={false}
-              activeDot={{ r: 4 }}
-              isAnimationActive={false}
-            />
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
-    </div>
-  );
-}
-
-function PeChart({
-  title,
-  subtitle,
-  series,
-  color,
-  yearTicks,
-  maxY,
-}: {
-  title: string;
-  subtitle: string;
-  series: MonthPoint[];
-  color: string;
-  yearTicks: number[];
-  maxY: number;
-}) {
-  const chartData = useMemo(
-    () =>
-      series.map((r) => ({
-        t: dateToTs(r.date),
-        v: r.value ?? r.price ?? null,
-      })),
-    [series]
-  );
-
-  return (
-    <div className="rounded-xl border border-border bg-card p-4 sm:p-5">
-      <div className="flex items-baseline justify-between mb-3 gap-2">
-        <h3 className="text-sm font-semibold">{title}</h3>
-        <span className="text-xs text-muted-foreground">{subtitle}</span>
-      </div>
-      <div className="h-[280px] sm:h-[340px]">
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart
-            data={chartData}
-            margin={{ top: 8, right: 12, bottom: 4, left: 0 }}
-          >
-            <CartesianGrid
-              stroke="hsl(var(--border))"
-              strokeDasharray="3 3"
-              vertical={false}
-            />
-            {/* Fisher Zones — y1 < y2 */}
+            {/* Fisher Zones — PE 축 기준 */}
             <ReferenceArea
+              yAxisId="pe"
               y1={0}
               y2={10}
               fill="#22c55e"
-              fillOpacity={0.08}
+              fillOpacity={0.05}
               ifOverflow="visible"
             />
             <ReferenceArea
+              yAxisId="pe"
               y1={10}
               y2={13}
               fill="#eab308"
-              fillOpacity={0.08}
+              fillOpacity={0.05}
               ifOverflow="visible"
             />
             <ReferenceArea
+              yAxisId="pe"
               y1={13}
               y2={20}
               fill="#f97316"
-              fillOpacity={0.08}
+              fillOpacity={0.05}
               ifOverflow="visible"
             />
             <ReferenceArea
+              yAxisId="pe"
               y1={20}
-              y2={maxY}
+              y2={peMaxY}
               fill="#ef4444"
-              fillOpacity={0.06}
+              fillOpacity={0.05}
               ifOverflow="visible"
             />
             <XAxis
               dataKey="t"
               type="number"
               scale="time"
-              domain={["dataMin", "dataMax"]}
-              ticks={yearsToTs(yearTicks)}
+              domain={X_DOMAIN}
+              ticks={YEAR_TICK_TS}
               tickFormatter={tsToYear}
               tick={{
                 fontSize: 10,
@@ -247,35 +217,72 @@ function PeChart({
               }}
               tickLine={false}
               axisLine={false}
+              allowDataOverflow={false}
             />
             <YAxis
-              domain={[0, maxY]}
+              yAxisId="price"
+              orientation="left"
+              scale="log"
+              domain={["auto", "auto"]}
+              tickFormatter={formatPrice}
               tick={{
                 fontSize: 10,
                 fill: "hsl(var(--muted-foreground))",
               }}
-              tickFormatter={(v: number) => v.toString()}
               tickLine={false}
               axisLine={false}
-              width={36}
+              width={42}
+            />
+            <YAxis
+              yAxisId="pe"
+              orientation="right"
+              domain={[0, peMaxY]}
+              tickFormatter={(v: number) => v.toString()}
+              tick={{
+                fontSize: 10,
+                fill: "hsl(var(--muted-foreground))",
+              }}
+              tickLine={false}
+              axisLine={false}
+              width={32}
             />
             <Tooltip
               content={
-                <CustomTooltip
-                  valueLabel="PER"
-                  valueFormat={(v) => v.toFixed(1)}
-                />
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                ((props: any) => (
+                  <DualTooltip
+                    {...props}
+                    color={color}
+                    priceLabel={priceLegendLabel.replace(/\s*\(.*\)\s*/, "")}
+                    peLabel={peLegendLabel.replace(/\s*\(.*\)\s*/, "")}
+                  />
+                )) as unknown as React.ReactElement
               }
               cursor={{
                 stroke: "hsl(var(--muted-foreground))",
-                strokeOpacity: 0.2,
+                strokeOpacity: 0.25,
               }}
             />
+            {/* 가격 (실선) */}
             <Line
+              yAxisId="price"
               type="monotone"
-              dataKey="v"
+              dataKey="price"
+              stroke={color}
+              strokeWidth={2}
+              dot={false}
+              activeDot={{ r: 4 }}
+              isAnimationActive={false}
+              connectNulls
+            />
+            {/* PER (점선) */}
+            <Line
+              yAxisId="pe"
+              type="monotone"
+              dataKey="pe"
               stroke={color}
               strokeWidth={1.5}
+              strokeDasharray="4 3"
               dot={false}
               activeDot={{ r: 4 }}
               isAnimationActive={false}
@@ -289,14 +296,38 @@ function PeChart({
 }
 
 export default function KenFisherPage() {
-  const nasdaqPeSeries = useMemo(
-    () =>
-      NASDAQ100_PE_ANNUAL.map((p) => ({ date: p.date, value: p.value })),
-    []
-  );
+  const sp500Combined = useMemo(() => {
+    const byDate = new Map<string, { t: number; price: number | null; pe: number | null }>();
+    for (const r of data.sp500Price) {
+      byDate.set(r.date, { t: dateToTs(r.date), price: r.price, pe: null });
+    }
+    for (const r of data.sp500Pe) {
+      const e = byDate.get(r.date);
+      if (e) e.pe = r.value;
+      else byDate.set(r.date, { t: dateToTs(r.date), price: null, pe: r.value });
+    }
+    return Array.from(byDate.values()).sort((a, b) => a.t - b.t);
+  }, []);
 
-  const spPeRange = `${data.sp500Pe[0].date.slice(0, 7)} – ${data.sp500Pe[data.sp500Pe.length - 1].date.slice(0, 7)}`;
+  const nasdaqCombined = useMemo(() => {
+    const byDate = new Map<string, { t: number; price: number | null; pe: number | null }>();
+    for (const r of data.nasdaq100Price) {
+      byDate.set(r.date, { t: dateToTs(r.date), price: r.price, pe: null });
+    }
+    for (const p of NASDAQ100_PE_ANNUAL) {
+      const key = normalizeToMonthStart(p.date);
+      const existing = byDate.get(key);
+      if (existing) {
+        existing.pe = p.value;
+      } else {
+        byDate.set(key, { t: dateToTs(key), price: null, pe: p.value });
+      }
+    }
+    return Array.from(byDate.values()).sort((a, b) => a.t - b.t);
+  }, []);
+
   const spPriceRange = `${data.sp500Price[0].date.slice(0, 7)} – ${data.sp500Price[data.sp500Price.length - 1].date.slice(0, 7)}`;
+  const spPeRange = `${data.sp500Pe[0].date.slice(0, 7)} – ${data.sp500Pe[data.sp500Pe.length - 1].date.slice(0, 7)}`;
   const ndxPriceRange = `${data.nasdaq100Price[0].date.slice(0, 7)} – ${data.nasdaq100Price[data.nasdaq100Price.length - 1].date.slice(0, 7)}`;
   const ndxPeRange = `${NASDAQ100_PE_ANNUAL[0].date.slice(0, 4)} – ${NASDAQ100_PE_ANNUAL[NASDAQ100_PE_ANNUAL.length - 1].date.slice(0, 4)}`;
 
@@ -314,9 +345,11 @@ export default function KenFisherPage() {
           가격 vs 밸류에이션
         </p>
         <p className="mt-3 text-sm text-muted-foreground leading-relaxed">
-          켄 피셔의 『불변의 차트 90』이 제시한 PER 구간론(1987)을 실제 월별
-          지수·PER 시계열 위에 겹쳐 봅니다. 지수는 로그 스케일, PER은 선형이며,
-          Fisher Zones(&lt;10, 10–13, 13–20, 20+)가 배경에 깔립니다.
+          각 지수의 가격(실선)과 PER(점선)을 같은 차트에 겹쳐,
+          &ldquo;가격이 오를 때 PER은 어떻게 움직였는지&rdquo; 한눈에
+          비교합니다. 가격은 왼쪽 축(로그 스케일), PER은 오른쪽 축(선형)이며
+          PER 축에는 Fisher Zones(&lt;10 / 10–13 / 13–20 / 20+)가 배경으로
+          깔립니다.
         </p>
         <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
           <span>
@@ -348,46 +381,32 @@ export default function KenFisherPage() {
       </header>
 
       <div className="space-y-6">
-        {/* CHART GRID 2x2 */}
-        <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <PriceChart
-            title="S&P 500 지수 (로그)"
-            subtitle="Shiller + Yahoo · 월별"
-            series={data.sp500Price}
-            color={SP_COLOR}
-            formatValue={(v) => (v >= 1000 ? `${Math.round(v / 100) / 10}k` : v.toFixed(0))}
-          />
-          <PeChart
-            title="S&P 500 Trailing PER"
-            subtitle="Shiller · 월별"
-            series={data.sp500Pe.map((r) => ({ date: r.date, value: r.value }))}
-            color={SP_COLOR}
-            yearTicks={YEAR_TICKS_FULL}
-            maxY={50}
-          />
-          <PriceChart
-            title="Nasdaq 100 지수 (로그)"
-            subtitle="Yahoo ^NDX · 월별"
-            series={data.nasdaq100Price}
-            color={NDX_COLOR}
-            formatValue={(v) => (v >= 1000 ? `${Math.round(v / 100) / 10}k` : v.toFixed(0))}
-          />
-          <PeChart
-            title="Nasdaq 100 Trailing PER (연말 추정치)"
-            subtitle="공개 자료 종합 · 연간"
-            series={nasdaqPeSeries}
-            color={NDX_COLOR}
-            yearTicks={YEAR_TICKS_NDX_PE}
-            maxY={100}
-          />
-        </section>
+        {/* 차트 1: S&P 500 */}
+        <CombinedChart
+          title="S&P 500: 가격 × PER"
+          series={sp500Combined}
+          color={SP_COLOR}
+          peMaxY={50}
+          priceLegendLabel="S&P 500 지수 (왼쪽 축, 로그)"
+          peLegendLabel="S&P 500 PER (오른쪽 축)"
+        />
+
+        {/* 차트 2: Nasdaq 100 */}
+        <CombinedChart
+          title="Nasdaq 100: 가격 × PER"
+          series={nasdaqCombined}
+          color={NDX_COLOR}
+          peMaxY={100}
+          priceLegendLabel="Nasdaq 100 지수 (왼쪽 축, 로그)"
+          peLegendLabel="Nasdaq 100 PER (오른쪽 축, 연말)"
+        />
 
         {/* 해설: 주요 시장 사건 */}
         <section>
           <div className="flex items-baseline justify-between mb-3">
             <h2 className="text-lg font-bold">주요 사건에서 지수 × PER의 움직임</h2>
             <span className="text-xs text-muted-foreground">
-              네 개 차트를 같이 보는 관점
+              두 차트를 같이 보는 관점
             </span>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
