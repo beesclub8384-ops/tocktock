@@ -16,20 +16,22 @@ export const PER_LABELS = [
 
 export type PerKey = "dow" | "sp" | "nas";
 
+// TockTock 팔레트 기준 (Tailwind 표준 색)
+// 다우=blue, S&P=purple, 나스닥=emerald
 export const PER_DATA: Record<PerKey, PerSeries> = {
   dow: {
     label: "DJIA",
-    color: "#d4a574",
+    color: "#3b82f6",
     values: [10, 19.76, 22.56, 25.35, 30, 23.37],
   },
   sp: {
     label: "S&P 500",
-    color: "#6ba3d6",
+    color: "#a855f7",
     values: [7, 16, 18.0, 22, 33, 27.73],
   },
   nas: {
     label: "Nasdaq 100",
-    color: "#c87da8",
+    color: "#10b981",
     values: [12.44, 20, 24.47, 33.3, 38.57, 35.15],
   },
 };
