@@ -1,9 +1,12 @@
 "use client";
 
 import { useState, useMemo, useCallback, useEffect } from "react";
+import { HelpCircle, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useDraggable } from "@/hooks/useDraggable";
+import { useResizable } from "@/hooks/useResizable";
 import { SAMPLE_STOCKS } from "@/lib/data/dcf-config";
 import type { DCFAnalysis, Grade } from "@/lib/dcf-engine";
 
@@ -66,6 +69,258 @@ function priceLabel(price: number | null, currency: string): string {
   return `$${fmtNum(price, 2)}`;
 }
 
+// ── 보는 법 모달 (다른 페이지의 GuideModal 패턴과 동일) ──
+function GuideModal({ onClose }: { onClose: () => void }) {
+  const { position, handleMouseDown } = useDraggable();
+  const { size, handleResizeMouseDown } = useResizable();
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, []);
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        data-draggable-modal
+        className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-2xl"
+        style={{
+          transform: `translate(${position.x}px, ${position.y}px)`,
+          ...(size.width
+            ? { width: size.width, height: size.height }
+            : { width: "100%", maxWidth: "44rem" }),
+        }}
+      >
+        <div
+          className="overflow-y-auto p-6 sm:p-8"
+          style={{ maxHeight: size.height ? size.height - 2 : "85vh" }}
+        >
+          <button
+            onClick={onClose}
+            className="absolute right-4 top-4 z-10 rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            aria-label="닫기"
+          >
+            <X size={20} />
+          </button>
+
+          <h2
+            className="mb-6 text-xl font-bold cursor-move select-none"
+            onMouseDown={handleMouseDown}
+          >
+            DCF 가치 계산기, 이렇게 읽으세요
+          </h2>
+
+          {/* 1. 이 도구가 뭐예요? */}
+          <section className="mb-6">
+            <h3 className="mb-2 text-base font-semibold">이 도구가 뭐예요?</h3>
+            <ul className="space-y-1.5 text-sm leading-relaxed text-muted-foreground">
+              <li>
+                DCF는 <strong className="text-foreground">&ldquo;Discounted Cash Flow&rdquo;</strong>의 약자로, 한국어로는 <strong className="text-foreground">&ldquo;할인된 현금흐름&rdquo;</strong>이라고 해요.
+              </li>
+              <li>
+                쉽게 말하면, 회사가 앞으로 평생 벌어들일 돈을 현재 가치로 계산해서 <strong className="text-foreground">&ldquo;이 회사의 진짜 가치가 얼마인가?&rdquo;</strong>를 추정하는 방법이에요.
+              </li>
+              <li>
+                이 도구는 그 계산을 자동으로 해줘요. 종목 코드만 입력하면:
+                <ul className="mt-1.5 ml-5 list-disc space-y-0.5">
+                  <li>회사의 재무 데이터를 자동으로 가져오고</li>
+                  <li>합리적인 가정으로 적정 주가를 추정하고</li>
+                  <li>&ldquo;지금 주가가 비싼지 싼지&rdquo; 판단을 도와줘요.</li>
+                </ul>
+              </li>
+              <li className="text-amber-700">
+                ⚠️ 단, 이건 어디까지나 <strong>참고용</strong>이에요. 정답이 아닙니다.
+              </li>
+            </ul>
+          </section>
+
+          <hr className="my-5 border-border" />
+
+          {/* 2. 핵심 용어 */}
+          <section className="mb-6">
+            <h3 className="mb-2 text-base font-semibold">핵심 용어 (간단 사전)</h3>
+            <div className="space-y-2 text-sm leading-relaxed text-muted-foreground">
+              <div className="rounded-lg border border-border bg-muted/30 p-3">
+                <strong className="text-foreground">적정가</strong> — 이 도구가 추정한 &ldquo;진짜 가치 주가&rdquo;. 현재가와 비교해서 비싼지 싼지 봐요.
+              </div>
+              <div className="rounded-lg border border-border bg-muted/30 p-3">
+                <strong className="text-foreground">FCF (잉여현금흐름)</strong> — 회사가 1년간 실제로 손에 쥔 현금. 매출이 아닌 진짜 돈이에요.
+              </div>
+              <div className="rounded-lg border border-border bg-muted/30 p-3">
+                <strong className="text-foreground">할인율</strong> — &ldquo;미래의 돈을 현재 가치로 깎는 비율&rdquo;. 보통 7~11%를 써요.
+              </div>
+              <div className="rounded-lg border border-border bg-muted/30 p-3">
+                <strong className="text-foreground">영구성장률</strong> — 회사가 영원히 성장할 거라 가정하는 비율. 보통 3~3.5%로 잡아요.
+              </div>
+              <div className="rounded-lg border border-border bg-muted/30 p-3">
+                <strong className="text-foreground">베타</strong> — 시장 평균 대비 변동성. 1.0이면 시장과 같음, 1.5면 1.5배로 출렁여요.
+              </div>
+            </div>
+          </section>
+
+          <hr className="my-5 border-border" />
+
+          {/* 3. 4단계 등급의 의미 */}
+          <section className="mb-6">
+            <h3 className="mb-2 text-base font-semibold">4단계 등급의 의미</h3>
+            <div className="space-y-2 text-sm leading-relaxed text-muted-foreground">
+              <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/30 p-3">
+                <span className="shrink-0">🟢</span>
+                <div>
+                  <strong className="text-foreground">A등급 (안정주)</strong> — 4년 가까이 꾸준히 돈을 벌어온 안정적인 회사. DCF 결과를 어느 정도 신뢰할 수 있어요.
+                  <div className="mt-1 text-xs">예: 알파벳(GOOGL), 오라클(ORCL)</div>
+                </div>
+              </div>
+              <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/30 p-3">
+                <span className="shrink-0">🟡</span>
+                <div>
+                  <strong className="text-foreground">B등급 (대체로 안정)</strong> — 일부 변동이 있지만 큰 흐름은 일관됨. 결과는 참고용으로만.
+                  <div className="mt-1 text-xs">예: 삼성전자</div>
+                </div>
+              </div>
+              <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/30 p-3">
+                <span className="shrink-0">🟠</span>
+                <div>
+                  <strong className="text-foreground">C등급 (변동성 큰 성장주)</strong> — 미래 예측이 어려운 성장주. 결과를 절대 맹신하지 마세요.
+                  <div className="mt-1 text-xs">예: 테슬라, 팔란티어</div>
+                </div>
+              </div>
+              <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/30 p-3">
+                <span className="shrink-0">🔴</span>
+                <div>
+                  <strong className="text-foreground">D등급 (DCF 부적합)</strong> — 적자 상태이거나 데이터 부족. 적정가를 표시하지 않아요(&ldquo;DCF로는 평가 어려움&rdquo;). 다른 평가 방법(PBR 등) 사용 권장.
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <hr className="my-5 border-border" />
+
+          {/* 4. 결과 화면 읽는 법 (3단계) */}
+          <section className="mb-6">
+            <h3 className="mb-2 text-base font-semibold">결과 화면 읽는 법 (3단계)</h3>
+            <div className="space-y-3 text-sm leading-relaxed text-muted-foreground">
+              <div>
+                <p className="mb-1"><strong className="text-foreground">1단계: &ldquo;등급&rdquo; 먼저 확인</strong></p>
+                <ul className="ml-5 list-disc space-y-0.5">
+                  <li>빨간색(D등급)이면 → 결과를 신뢰하지 말고 다른 방법 사용</li>
+                  <li>노랑/주황(B/C)이면 → 결과는 참고만</li>
+                  <li>초록(A)이면 → 어느 정도 신뢰 가능</li>
+                </ul>
+              </div>
+              <div>
+                <p className="mb-1"><strong className="text-foreground">2단계: &ldquo;적정가&rdquo; 확인 (D등급 제외)</strong></p>
+                <ul className="ml-5 list-disc space-y-0.5">
+                  <li>현재가 대비 +30% 이상 → &ldquo;저평가&rdquo; 가능성</li>
+                  <li>현재가 대비 -30% 이상 → &ldquo;고평가&rdquo; 가능성</li>
+                  <li>±10% 이내 → &ldquo;적정 수준&rdquo;</li>
+                </ul>
+              </div>
+              <div>
+                <p className="mb-1"><strong className="text-foreground">3단계: &ldquo;민감도 표/슬라이더&rdquo; 꼭 확인 (가장 중요!)</strong></p>
+                <ul className="ml-5 list-disc space-y-0.5">
+                  <li>슬라이더로 가정을 살짝 바꿔보세요.</li>
+                  <li>적정가가 얼마나 변하는지 보세요.</li>
+                  <li>가정 바꿨을 때 적정가가 50% 이상 휙휙 변한다면 → 그 결과는 신뢰도가 매우 낮아요.</li>
+                </ul>
+              </div>
+            </div>
+          </section>
+
+          <hr className="my-5 border-border" />
+
+          {/* 5. 이럴 때는 이렇게 해석 */}
+          <section className="mb-6">
+            <h3 className="mb-2 text-base font-semibold">&ldquo;이럴 때는 이렇게 해석&rdquo;</h3>
+            <div className="space-y-2 text-sm leading-relaxed text-muted-foreground">
+              <div className="rounded-lg border border-border bg-muted/30 p-3">
+                <p className="mb-1"><strong className="text-foreground">상황 1.</strong> 알파벳(GOOGL) → A등급, 적정가 $318, 현재가 $344</p>
+                <p>→ &ldquo;거의 적정 수준이거나 약간 고평가. 큰 신호 아님.&rdquo;</p>
+              </div>
+              <div className="rounded-lg border border-border bg-muted/30 p-3">
+                <p className="mb-1"><strong className="text-foreground">상황 2.</strong> 삼성전자 → B등급, 적정가 ₩77,000, 현재가 ₩219,000</p>
+                <p>→ &ldquo;DCF가 65% 고평가로 봄. 단, 반도체 사이클·AI 수혜는 반영 안 됨. 슬라이더로 성장률 12%로 올려보고 결과 변화 확인 필요.&rdquo;</p>
+              </div>
+              <div className="rounded-lg border border-border bg-muted/30 p-3">
+                <p className="mb-1"><strong className="text-foreground">상황 3.</strong> 나노 → D등급</p>
+                <p>→ &ldquo;적자 회사. DCF로 판단 불가. PBR이나 자산가치로 봐야 함.&rdquo;</p>
+              </div>
+            </div>
+          </section>
+
+          <hr className="my-5 border-border" />
+
+          {/* 6. 절대 하지 말아야 할 것 */}
+          <section className="mb-6">
+            <h3 className="mb-2 text-base font-semibold">⛔ 절대 하지 말아야 할 것</h3>
+            <ul className="space-y-1.5 text-sm leading-relaxed text-muted-foreground">
+              <li>
+                ❌ <strong className="text-foreground">적정가 한 숫자만 보고 매수/매도 결정</strong>
+                <div className="ml-6 text-xs">→ 슬라이더 조작해서 가정 변동성 꼭 확인하세요.</div>
+              </li>
+              <li>
+                ❌ <strong className="text-foreground">D등급 종목에 DCF 적용해서 판단</strong>
+                <div className="ml-6 text-xs">→ 다른 평가 방법(PBR, EV/Sales 등) 사용하세요.</div>
+              </li>
+              <li>
+                ❌ <strong className="text-foreground">결과를 친구에게 &ldquo;이 회사 적정가가 얼마야&rdquo;라고 단언</strong>
+                <div className="ml-6 text-xs">→ &ldquo;이 가정 하에서 추정값은...&rdquo; 이라고 표현하세요.</div>
+              </li>
+              <li>
+                ❌ <strong className="text-foreground">DCF 결과 = 미래 주가 예측이라고 착각</strong>
+                <div className="ml-6 text-xs">→ 미래는 아무도 몰라요. DCF는 &ldquo;현재 가치 추정&rdquo;일 뿐이에요.</div>
+              </li>
+            </ul>
+          </section>
+
+          <hr className="my-5 border-border" />
+
+          {/* 7. 더 알고 싶다면 */}
+          <section className="mb-6">
+            <h3 className="mb-2 text-base font-semibold">더 알고 싶다면</h3>
+            <ul className="space-y-1.5 text-sm leading-relaxed text-muted-foreground">
+              <li>켄 피셔 카테고리의 다른 차트들도 함께 보세요:</li>
+              <li className="ml-4">
+                <a href="/ken-fisher" className="underline hover:text-foreground">
+                  S&amp;P × Nasdaq · 가격 vs PER
+                </a>{" "}
+                — 시장 전체 밸류에이션을 한눈에
+              </li>
+              <li className="ml-4">
+                <a href="/ken-fisher/earnings-yield-vs-bond" className="underline hover:text-foreground">
+                  이익수익률 vs 10년물
+                </a>{" "}
+                — 주식과 채권의 매력도 비교
+              </li>
+            </ul>
+          </section>
+        </div>
+        <div
+          onMouseDown={handleResizeMouseDown}
+          className="absolute bottom-0 right-0 cursor-se-resize px-2 py-1 text-xs text-muted-foreground hover:text-foreground select-none"
+        >
+          ↔ 크기조절
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── 클라이언트 사이드 DCF (슬라이더 실시간 재계산용) ──
 function dcfFairPrice({
   startFcf,
@@ -100,6 +355,7 @@ export default function DCFCalculatorPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<DCFAnalysis | null>(null);
+  const [showGuide, setShowGuide] = useState(false);
 
   // 슬라이더 상태 (분석 결과 로드 후 기본값 세팅)
   const [growthSlider, setGrowthSlider] = useState(0.08);
@@ -168,6 +424,15 @@ export default function DCFCalculatorPage() {
         <p className="text-sm text-muted-foreground">
           기업의 미래 잉여현금흐름(FCF)을 현재가치로 할인해 내재가치를 추정합니다.
           이 도구는 <strong>정확한 답을 내려고 하지 않습니다</strong> — DCF로 평가하기 적합한 종목인지부터 판정하고, 가정에 얼마나 민감한지를 함께 보여줍니다.
+          <span className="ml-2 inline-block">
+            <button
+              onClick={() => setShowGuide(true)}
+              className="guide-btn inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs transition-all"
+            >
+              <HelpCircle size={13} />
+              DCF 계산기 보는 법
+            </button>
+          </span>
         </p>
       </div>
 
@@ -241,6 +506,9 @@ export default function DCFCalculatorPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* 보는 법 모달 */}
+      {showGuide && <GuideModal onClose={() => setShowGuide(false)} />}
     </div>
   );
 }
