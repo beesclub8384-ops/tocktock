@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useCallback, useEffect } from "react";
-import { HelpCircle, X } from "lucide-react";
+import { HelpCircle, X, ArrowRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -530,11 +530,23 @@ function AnalysisView({
   sliderFairPrice: number | null;
   sliderUpside: number | null;
 }) {
-  const { data, grade, assumptions, dcf, sensitivity, reasonDetail, resolvedSymbol, bigTech } = analysis;
+  const { data, grade, assumptions, dcf, sensitivity, reasonDetail, industryContext, resolvedSymbol, bigTech, query } = analysis;
   const meta = GRADE_META[grade];
   const showAssumptions = grade !== "D";
   const showDCF = grade !== "D" && dcf?.ok && dcf.fairPerShare != null;
   const showSensitivity = grade !== "D" && sensitivity.length > 0;
+
+  // 입력 심볼과 분석 채택 심볼이 다르면 폴백 안내 노출
+  const fallbackInfo = (() => {
+    const inputUpper = query.trim().toUpperCase();
+    const resolvedUpper = resolvedSymbol.toUpperCase();
+    if (!inputUpper || inputUpper === resolvedUpper) return null;
+    let exchangeLabel = "";
+    if (resolvedUpper.endsWith(".KS")) exchangeLabel = "KOSPI 우선 채택";
+    else if (resolvedUpper.endsWith(".KQ")) exchangeLabel = "KOSDAQ 우선 채택";
+    else exchangeLabel = "자동 보정";
+    return { input: inputUpper, resolved: resolvedSymbol, exchangeLabel };
+  })();
 
   const upside =
     showDCF && data.price != null && dcf?.fairPerShare != null
@@ -552,6 +564,16 @@ function AnalysisView({
 
   return (
     <>
+      {/* 입력 → 분석 심볼 폴백 안내 (입력과 채택이 다를 때만) */}
+      {fallbackInfo && (
+        <div className="mb-3 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+          <span className="font-mono">📍 입력: {fallbackInfo.input}</span>
+          <ArrowRight size={12} aria-hidden="true" />
+          <span className="font-mono">분석 대상: {fallbackInfo.resolved}</span>
+          <span>({fallbackInfo.exchangeLabel})</span>
+        </div>
+      )}
+
       {/* (가) 종목 헤더 */}
       <Card className="mb-6">
         <CardContent>
@@ -655,6 +677,11 @@ function AnalysisView({
                 <div className="mb-1 font-semibold">사유</div>
                 <div className="text-muted-foreground">{reasonDetail}</div>
               </div>
+              {industryContext && (
+                <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm leading-relaxed text-amber-900">
+                  {industryContext}
+                </div>
+              )}
               <div className="mt-4 rounded-md border border-zinc-200 bg-white p-3 text-sm">
                 <div className="mb-1 font-semibold">권장 대안 평가법</div>
                 <ul className="list-disc space-y-1 pl-5 text-muted-foreground">

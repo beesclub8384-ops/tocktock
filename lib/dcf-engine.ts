@@ -95,6 +95,7 @@ export interface DCFAnalysis {
   grade: Grade;
   reasons: string[];
   reasonDetail: string;
+  industryContext: string | null;
   bigTech: BigTechEntry | null;
   assumptions: {
     growthAssumption: number;
@@ -293,11 +294,42 @@ export function buildAnnualSeries(fundamentals: unknown[] | null): SeriesResult 
 }
 
 // ── 적합도 등급 판정 ──
+// D등급일 때 사용자 이해를 돕는 산업 컨텍스트 메시지를 함께 반환.
+// 4분기 분류:
+//   A. 매출 성장 ≥20% + 양수FCF<50%   → 사이클/대규모투자기
+//   B. 매출 성장 <10% + 양수FCF<50%   → 구조조정/침체
+//   C. 직전 대비 매출 -10% 이상       → 매출 감소 추세
+//   D. 그 외                          → 일반
+function classifyDContext(
+  positivePct: number,
+  avgGrowth: number | null,
+  revenues: number[]
+): string | null {
+  // C 조건: 직전→현재 매출 감소가 가장 강한 신호이므로 우선 검사
+  if (revenues.length >= 2) {
+    const last = revenues[revenues.length - 1];
+    const prev = revenues[revenues.length - 2];
+    if (prev > 0 && last < prev * 0.9) {
+      return "💡 매출이 감소 추세입니다. 사업 전망 자체에 의문이 있을 수 있어 DCF보다는 자산가치 또는 청산가치로 접근 권장.";
+    }
+  }
+  // A 조건: 매출 폭증 + 현금흐름 부진 (사이클)
+  if (avgGrowth != null && avgGrowth > 0.2 && positivePct < 0.5) {
+    return "💡 매출은 빠르게 늘고 있지만 현금흐름이 아직 부진합니다. 조선·해운·건설·전력 같은 사이클 산업 또는 대규모 투자 단계에서 자주 보이는 패턴으로, 수년 후 흑자 전환이 누적되면 재평가 필요.";
+  }
+  // B 조건: 매출 정체 + 현금흐름 부진 (구조조정/침체)
+  if (avgGrowth != null && avgGrowth < 0.1 && positivePct < 0.5) {
+    return "💡 매출 정체와 현금흐름 부진이 동반됩니다. 구조조정 진행 중이거나 산업 침체기일 수 있어, 다른 평가법(PBR, 자산가치) 권장.";
+  }
+  // D 조건: 그 외 일반
+  return "💡 양수 FCF 데이터가 부족해 DCF 신뢰도가 낮습니다. 다른 평가법(PBR, EV/Sales)을 함께 보세요.";
+}
+
 function judgeGrade(
   series: AnnualPoint[],
   pe: number | null,
   revenues: number[]
-): { grade: Grade; reasons: string[]; reasonDetail: string } {
+): { grade: Grade; reasons: string[]; reasonDetail: string; industryContext: string | null } {
   const reasons: string[] = [];
   const fcfYears = series.filter((s) => s.fcf != null);
   const positiveFcf = fcfYears.filter((s) => (s.fcf as number) > 0).length;
@@ -360,7 +392,14 @@ function judgeGrade(
     reasonDetail += ` / 매출 추이: ${trend}`;
   }
 
-  return { grade, reasons, reasonDetail };
+  let industryContext: string | null = null;
+  if (grade === "D") {
+    const positivePct = totalFcfYears > 0 ? positiveFcf / totalFcfYears : 0;
+    const avgGrowth = mean(growthRates);
+    industryContext = classifyDContext(positivePct, avgGrowth, revenues);
+  }
+
+  return { grade, reasons, reasonDetail, industryContext };
 }
 
 // ── DCF 계산 ──
@@ -598,6 +637,7 @@ export async function analyzeSymbol(
     grade: verdict.grade,
     reasons: verdict.reasons,
     reasonDetail: verdict.reasonDetail,
+    industryContext: verdict.industryContext,
     bigTech,
     assumptions: {
       growthAssumption,
