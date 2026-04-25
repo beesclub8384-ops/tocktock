@@ -21,6 +21,7 @@ const navLinks = [
   { href: "/superinvestor", label: "슈퍼투자자" },
   { href: "/ken-fisher", label: "켄 피셔 · S&P × Nasdaq" },
   { href: "/ken-fisher/earnings-yield-vs-bond", label: "켄 피셔 · 이익수익률 vs 금리" },
+  { href: "/ken-fisher/dcf-calculator", label: "켄 피셔 · DCF 계산기" },
   { href: "/virtual-trading", label: "자동매매" },
   { href: "/ai-trading", label: "AI 자동매매" },
   { href: "/futures-trading", label: "선물매매 검증" },
@@ -59,6 +60,7 @@ const pcNavItems: NavItem[] = [
     items: [
       { href: "/ken-fisher", label: "S&P × Nasdaq · 가격 vs PER" },
       { href: "/ken-fisher/earnings-yield-vs-bond", label: "이익수익률 vs 10년물" },
+      { href: "/ken-fisher/dcf-calculator", label: "DCF 가치 계산기 (참고용)" },
     ],
   },
   {
