@@ -67,38 +67,126 @@ function extractFirstFileFromZip(zipBuf: Buffer): Buffer {
   throw new Error(`unsupported zip compression method ${method}`);
 }
 
-/** KIS 토큰 발급/재사용 — Redis에 캐싱. 만료 10분 전이면 재발급. */
+// 동시 호출 방지: 같은 프로세스에서 토큰 발급 in-flight Promise 공유
+let inflightTokenPromise: Promise<string> | null = null;
+
+/** KIS 토큰 발급/재사용 — Redis에 캐싱. 만료 10분 전이면 재발급.
+ *  병렬 호출 시 동일 발급 요청이 중복되지 않도록 in-flight promise를 공유한다. */
 export async function getKisToken(): Promise<string> {
   const cached = await redis.get<TokenCache>(TOKEN_KEY);
   if (cached?.access_token && cached.expires_at - Date.now() > TOKEN_RENEW_WINDOW_MS) {
     return cached.access_token;
   }
+  if (inflightTokenPromise) return inflightTokenPromise;
 
-  const appKey = requireEnv("KIS_APP_KEY");
-  const appSecret = requireEnv("KIS_APP_SECRET");
-  const res = await fetch(`${KIS_BASE}/oauth2/tokenP`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      grant_type: "client_credentials",
-      appkey: appKey,
-      appsecret: appSecret,
-    }),
+  inflightTokenPromise = (async () => {
+    try {
+      const appKey = requireEnv("KIS_APP_KEY");
+      const appSecret = requireEnv("KIS_APP_SECRET");
+      const res = await fetch(`${KIS_BASE}/oauth2/tokenP`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          grant_type: "client_credentials",
+          appkey: appKey,
+          appsecret: appSecret,
+        }),
+      });
+      const data = (await res.json()) as {
+        access_token?: string;
+        access_token_token_expired?: string;
+        error_description?: string;
+      };
+      if (!data.access_token || !data.access_token_token_expired) {
+        throw new Error(`KIS token issue failed: ${data.error_description ?? JSON.stringify(data)}`);
+      }
+      const expiresAt = new Date(data.access_token_token_expired.replace(" ", "T") + "+09:00").getTime();
+      const token: TokenCache = { access_token: data.access_token, expires_at: expiresAt };
+      const ttlSec = Math.max(60, Math.floor((expiresAt - Date.now()) / 1000));
+      await redis.set(TOKEN_KEY, token, { ex: ttlSec });
+      return data.access_token;
+    } finally {
+      inflightTokenPromise = null;
+    }
+  })();
+  return inflightTokenPromise;
+}
+
+/** KIS 종목 시세(현재가) 조회 — PER/EPS/PBR 포함 */
+export interface KisStockPriceInfo {
+  symbol6: string;        // 6자리 단축코드 (예: "005930")
+  market: "kospi" | "kosdaq" | "unknown";
+  price: number;          // 현재가 (원)
+  marketCapKRW: number;   // 시가총액 (원)
+  per: number | null;
+  eps: number | null;
+  pbr: number | null;
+  bps: number | null;
+  sharesOutstanding: number;
+  high52w: number | null;
+  low52w: number | null;
+  industryName: string | null;
+  fetchedAt: string;
+}
+
+const STOCK_PRICE_CACHE_TTL_SEC = 6 * 60 * 60;
+const STOCK_PRICE_CACHE_KEY = (code: string) => `kis:stock-price:${code}`;
+
+export async function fetchKoreanStockPrice(symbol6: string): Promise<KisStockPriceInfo | null> {
+  const code = symbol6.replace(/\.[A-Z]{2,3}$/, "").trim();
+  if (!/^\d{6}$/.test(code)) return null;
+
+  const cached = await redis.get<KisStockPriceInfo>(STOCK_PRICE_CACHE_KEY(code));
+  if (cached && cached.price > 0) return cached;
+
+  const token = await getKisToken();
+  const url = `${KIS_BASE}/uapi/domestic-stock/v1/quotations/inquire-price?FID_COND_MRKT_DIV_CODE=J&FID_INPUT_ISCD=${code}`;
+  const res = await fetch(url, {
+    headers: {
+      authorization: `Bearer ${token}`,
+      appkey: requireEnv("KIS_APP_KEY"),
+      appsecret: requireEnv("KIS_APP_SECRET"),
+      tr_id: "FHKST01010100",
+      custtype: "P",
+      "Content-Type": "application/json",
+    },
   });
-  const data = (await res.json()) as {
-    access_token?: string;
-    access_token_token_expired?: string;
-    error_description?: string;
+  if (!res.ok) return null;
+  const j = (await res.json()) as { rt_cd?: string; output?: Record<string, string> };
+  if (j.rt_cd !== "0" || !j.output) return null;
+  const o = j.output;
+
+  const num = (v: string | undefined) => {
+    if (v == null || v === "" || v === "0") return v === "0" ? 0 : null;
+    const n = parseFloat(v);
+    return Number.isFinite(n) ? n : null;
   };
-  if (!data.access_token || !data.access_token_token_expired) {
-    throw new Error(`KIS token issue failed: ${data.error_description ?? JSON.stringify(data)}`);
-  }
-  // "YYYY-MM-DD HH:mm:ss" (KST) → epoch ms
-  const expiresAt = new Date(data.access_token_token_expired.replace(" ", "T") + "+09:00").getTime();
-  const token: TokenCache = { access_token: data.access_token, expires_at: expiresAt };
-  const ttlSec = Math.max(60, Math.floor((expiresAt - Date.now()) / 1000));
-  await redis.set(TOKEN_KEY, token, { ex: ttlSec });
-  return data.access_token;
+
+  const price = num(o.stck_prpr);
+  const shares = num(o.lstn_stcn);
+  // hts_avls 단위는 "억원" (확인됨: 12,832,582 억원 = 1283조원 ≈ 삼성전자 시총)
+  const marketCapEokWon = num(o.hts_avls);
+  const marketCapKRW = marketCapEokWon != null ? marketCapEokWon * 1e8 : (price && shares ? price * shares : 0);
+
+  if (!price || price <= 0) return null;
+
+  const result: KisStockPriceInfo = {
+    symbol6: code,
+    market: "unknown", // 호출자가 결정 (마스터 zip 안 깨고 빠르게 가려면)
+    price,
+    marketCapKRW,
+    per: num(o.per),
+    eps: num(o.eps),
+    pbr: num(o.pbr),
+    bps: num(o.bps),
+    sharesOutstanding: shares ?? 0,
+    high52w: num(o.w52_hgpr),
+    low52w: num(o.w52_lwpr),
+    industryName: o.bstp_kor_isnm ?? null,
+    fetchedAt: new Date().toISOString(),
+  };
+  await redis.set(STOCK_PRICE_CACHE_KEY(code), result, { ex: STOCK_PRICE_CACHE_TTL_SEC });
+  return result;
 }
 
 /** KIS 마스터에서 KOSPI200 정규 선물 근월물 단축코드 반환. Redis에 당일만 캐싱. */
