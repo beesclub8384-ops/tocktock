@@ -363,3 +363,112 @@ function decrementMinute(hhmmss: string): string {
   const nmm = total % 60;
   return `${String(nhh).padStart(2, "0")}${String(nmm).padStart(2, "0")}00`;
 }
+
+/* ────────────────────────────────────────────────────────────
+ *  종목별 일별 외국인/기관/개인 매매 동향 (FHKST01010900)
+ *
+ *  KIS는 약 30거래일치만 반환한다. 그 이상의 과거는 네이버 등 다른 소스 사용.
+ *  매수=양수, 매도=음수로 정규화. 단위: shares=주, value=원.
+ * ──────────────────────────────────────────────────────────── */
+
+export interface KisInvestorDailyEntry {
+  /** YYYY-MM-DD */
+  date: string;
+  /** 종가 (원) */
+  close: number | null;
+  /** 순매수 수량 (주) — 매수=양수, 매도=음수 */
+  foreignShares: number;
+  institutionShares: number;
+  individualShares: number;
+  /** 순매수 대금 (원). KIS는 거래대금(매도+매수)을 따로 주지 않으므로 close*shares로 추정 */
+  foreignValue: number | null;
+  institutionValue: number | null;
+  individualValue: number | null;
+}
+
+interface KisInvestorRawRow {
+  stck_bsop_date?: string;
+  stck_clpr?: string;
+  /** 외국인 순매수 수량 (천주 단위로 오는 경우 많음 — 실측 후 보정) */
+  frgn_ntby_qty?: string;
+  /** 기관 합계 순매수 수량 */
+  orgn_ntby_qty?: string;
+  /** 개인 순매수 수량 */
+  prsn_ntby_qty?: string;
+  /** 외국인 순매수 대금 */
+  frgn_ntby_tr_pbmn?: string;
+  orgn_ntby_tr_pbmn?: string;
+  prsn_ntby_tr_pbmn?: string;
+}
+
+function safeNum(v: string | undefined): number {
+  if (!v) return 0;
+  const n = Number(v.replace(/,/g, ""));
+  return Number.isFinite(n) ? n : 0;
+}
+
+/**
+ * 종목 6자리 코드(예: "005930")로 일별 투자자 매매동향 조회.
+ * 기본 30거래일. KIS API 한계로 그 이상은 네이버 fallback 필요.
+ */
+export async function fetchKisInvestorTrend(
+  symbol6: string
+): Promise<KisInvestorDailyEntry[]> {
+  const code = symbol6.replace(/\.[A-Z]{2,3}$/, "").trim();
+  if (!/^\d{6}$/.test(code)) {
+    throw new Error(`invalid Korean stock code: ${symbol6}`);
+  }
+
+  const token = await getKisToken();
+  const params = new URLSearchParams({
+    FID_COND_MRKT_DIV_CODE: "J",
+    FID_INPUT_ISCD: code,
+  });
+  const url =
+    `${KIS_BASE}/uapi/domestic-stock/v1/quotations/inquire-investor` +
+    `?${params.toString()}`;
+
+  const res = await fetch(url, {
+    headers: {
+      authorization: `Bearer ${token}`,
+      appkey: requireEnv("KIS_APP_KEY"),
+      appsecret: requireEnv("KIS_APP_SECRET"),
+      tr_id: "FHKST01010900",
+      custtype: "P",
+      "Content-Type": "application/json",
+    },
+  });
+  if (!res.ok) {
+    throw new Error(`KIS investor fetch HTTP ${res.status}`);
+  }
+  const j = (await res.json()) as {
+    rt_cd?: string;
+    msg1?: string;
+    output?: KisInvestorRawRow[];
+  };
+  if (j.rt_cd !== "0") {
+    throw new Error(`KIS investor fetch failed: rt_cd=${j.rt_cd} msg=${j.msg1}`);
+  }
+  const rows = j.output ?? [];
+
+  const out: KisInvestorDailyEntry[] = [];
+  for (const r of rows) {
+    const ymd = r.stck_bsop_date;
+    if (!ymd || ymd.length !== 8) continue;
+    const date = `${ymd.slice(0, 4)}-${ymd.slice(4, 6)}-${ymd.slice(6, 8)}`;
+    const close = safeNum(r.stck_clpr) || null;
+    out.push({
+      date,
+      close,
+      foreignShares: safeNum(r.frgn_ntby_qty),
+      institutionShares: safeNum(r.orgn_ntby_qty),
+      individualShares: safeNum(r.prsn_ntby_qty),
+      foreignValue: r.frgn_ntby_tr_pbmn ? safeNum(r.frgn_ntby_tr_pbmn) : null,
+      institutionValue: r.orgn_ntby_tr_pbmn ? safeNum(r.orgn_ntby_tr_pbmn) : null,
+      individualValue: r.prsn_ntby_tr_pbmn ? safeNum(r.prsn_ntby_tr_pbmn) : null,
+    });
+  }
+  // 오름차순으로 정렬 (오래된 → 최신)
+  out.sort((a, b) => a.date.localeCompare(b.date));
+  return out;
+}
