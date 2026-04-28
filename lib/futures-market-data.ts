@@ -1,6 +1,6 @@
 import YahooFinance from "yahoo-finance2";
 import { fetchKosp200FuturesMinutes } from "./kis-client.ts";
-import { loadDynamicSymbols } from "./futures-trading-store.ts";
+import { loadDynamicSymbols, loadMarketData } from "./futures-trading-store.ts";
 
 const yahooFinance = new YahooFinance();
 
@@ -91,13 +91,28 @@ async function fetchYahooMinutes(symbol: string, date: string): Promise<MinuteCa
   return normalize(quotes);
 }
 
-/** 특정 날짜(YYYY-MM-DD)의 모든 심볼 1분봉 + 3분봉 수집 (정적 + 동적) */
+/** 특정 날짜(YYYY-MM-DD)의 모든 심볼 1분봉 + 3분봉 수집 (정적 + 동적).
+ *  Redis에 이미 해당 심볼 데이터(candles1m.length > 0)가 있으면 재수집하지 않고 보존한다. */
 export async function fetchMarketDataForDate(date: string): Promise<MarketDataForDay> {
   const symbols: Record<string, SymbolBars> = {};
 
-  // 정적 심볼 (Yahoo + KOSP200F) — 항상 수집
+  // 기존 Redis 데이터 — 심볼별 보존 판단용
+  let existing: MarketDataForDay | null = null;
+  try {
+    existing = await loadMarketData(date);
+  } catch (err) {
+    console.error("[futures-market-data] loadMarketData failed:", err instanceof Error ? err.message : err);
+  }
+  const hasExisting = (sym: string): boolean =>
+    !!(existing && existing.symbols[sym] && existing.symbols[sym].candles1m.length > 0);
+
+  // 정적 심볼 (Yahoo + KOSP200F)
   await Promise.all(
     MARKET_SYMBOLS.map(async (symbol) => {
+      if (hasExisting(symbol)) {
+        symbols[symbol] = existing!.symbols[symbol];
+        return;
+      }
       try {
         if (symbol === KOSP200F_SYMBOL) {
           const candles1m = await fetchKosp200FuturesMinutes(date);
@@ -124,6 +139,10 @@ export async function fetchMarketDataForDate(date: string): Promise<MarketDataFo
     dynamic.map(async (dyn) => {
       // 정적 심볼과 충돌하면 스킵 (정적 우선)
       if (symbols[dyn.symbol]) return;
+      if (hasExisting(dyn.symbol)) {
+        symbols[dyn.symbol] = existing!.symbols[dyn.symbol];
+        return;
+      }
       try {
         if (dyn.source === "kis" || dyn.symbol.startsWith("KIS:")) {
           // 임의 KIS 종목코드는 아직 지원하지 않음 — 빈 배열로 자리만 마련
@@ -138,6 +157,15 @@ export async function fetchMarketDataForDate(date: string): Promise<MarketDataFo
       }
     })
   );
+
+  // 기존에 있었지만 이번에 다시 수집되지 않은 심볼도 보존 (예: 동적 심볼 목록에서 빠진 경우)
+  if (existing) {
+    for (const [sym, bars] of Object.entries(existing.symbols)) {
+      if (!symbols[sym] && bars.candles1m.length > 0) {
+        symbols[sym] = bars;
+      }
+    }
+  }
 
   return {
     date,
