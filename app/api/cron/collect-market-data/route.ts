@@ -66,21 +66,33 @@ interface PendingResult {
   error?: string;
 }
 
-/** 해당 날짜의 pending 기록을 분석해서 qaThreads/quantified 생성 + 플래그 해제 */
-async function processPendingForDate(
-  date: string,
-  marketData: MarketDataForDay
+/** pending 기록을 분석해서 qaThreads/quantified 생성 + 플래그 해제 (날짜 제한 없음) */
+async function processPendingRecords(
+  preloaded?: { date: string; data: MarketDataForDay }
 ): Promise<PendingResult[]> {
   const results: PendingResult[] = [];
   const allRecords = await loadRecords();
-  const pending = allRecords.filter((r) => r.pendingAnalysis && r.date === date);
+  const pending = allRecords.filter((r) => r.pendingAnalysis);
   if (!pending.length) return results;
 
   console.log(`[cron/collect-market-data] processing ${pending.length} pending records`);
   const quantifiedList = await loadQuantified();
+  const marketDataCache = new Map<string, MarketDataForDay | null>();
+  if (preloaded) marketDataCache.set(preloaded.date, preloaded.data);
 
   for (const record of pending) {
     try {
+      let marketData = marketDataCache.get(record.date);
+      if (marketData === undefined) {
+        marketData = await loadMarketData(record.date);
+        marketDataCache.set(record.date, marketData);
+      }
+      if (!marketData) {
+        console.log(
+          `[cron/collect-market-data] skip pending record ${record.id} — no market data for ${record.date}`
+        );
+        continue;
+      }
       const analysis = await analyzeWithMarketData(record, marketData, quantifiedList);
       const now = new Date().toISOString();
       for (const c of analysis.confirmedConditions) {
@@ -160,7 +172,7 @@ export async function GET(request: Request) {
     if (existing && hasAnyData(existing)) {
       const check = validateMarketData(existing);
       if (check.ok) {
-        const pendingResults = await processPendingForDate(date, existing);
+        const pendingResults = await processPendingRecords({ date, data: existing });
         return NextResponse.json({
           success: true,
           skipped: "already-collected",
@@ -196,7 +208,7 @@ export async function GET(request: Request) {
     // pending 기록 처리
     let pendingResults: PendingResult[] = [];
     try {
-      pendingResults = await processPendingForDate(date, data);
+      pendingResults = await processPendingRecords({ date, data });
     } catch (err) {
       console.error("[cron/collect-market-data] pending-records processing failed:", err);
     }
