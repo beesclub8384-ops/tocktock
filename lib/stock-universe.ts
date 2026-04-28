@@ -2,7 +2,7 @@
  * 투자자 동향 자동 추적 대상 종목 선정.
  *
  * 기준 (모두 만족):
- *   - 시가총액: 500억 ~ 5조원
+ *   - 시가총액: 1,000억 ~ 1조원 (세력이 갖고 놀기 좋은 중소형주만)
  *   - 60일 평균 일거래대금: 10억원 이상
  *   - 30일 변동성 ((고가-저가)/저가): 5% 이상
  *   - 보통주만 (우선주·스팩·ETF·리츠·인프라 제외)
@@ -201,8 +201,8 @@ function computeStats(rows: DailyOhlc[]): HistStats {
   return { avgTradingValue60d: avg, volatility30d: vol, candleCount: rows.length };
 }
 
-const MARKET_CAP_MIN = 500 * 1e8; // 500억원
-const MARKET_CAP_MAX = 5 * 1e12; //  5조원
+const MARKET_CAP_MIN = 1000 * 1e8; // 1,000억원 — 세력이 갖고 놀기 좋은 중소형주 하한
+const MARKET_CAP_MAX = 1 * 1e12; //  1조원 — 대형주는 제외
 const AVG_VALUE_MIN = 10 * 1e8; //   10억원
 const VOL_MIN = 0.05; //              5%
 const TODAY_VALUE_PROXY_MIN = 1e8; // 1억원 — 사실상 거래 거의 없는 종목 사전 컷
