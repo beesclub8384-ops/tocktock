@@ -199,14 +199,40 @@ function GuideModal({ onClose }: { onClose: () => void }) {
                 API로 외국인·기관·개인 + 거래대금까지 모두 표시.
               </li>
               <li>
-                <strong className="text-foreground">30거래일 이전</strong>: 네이버 금융 데이터로
-                외국인·기관 매매 수량만 표시. 개인·거래대금은 표시되지 않아요.
+                <strong className="text-foreground">30거래일 이전 (추적 종목)</strong>: 매일
+                새벽 자동으로 누적 저장한 데이터로 외국인·기관·개인·거래대금 모두 표시.
               </li>
               <li>
-                일별 표의 &ldquo;출처&rdquo; 컬럼으로 어느 소스에서 왔는지 확인할 수 있어요.
+                <strong className="text-foreground">30거래일 이전 (비추적 종목)</strong>: 네이버
+                금융 데이터로 외국인·기관 매매 수량만 표시. 개인·거래대금은 표시되지 않아요.
+              </li>
+              <li>
+                일별 표의 &ldquo;출처&rdquo; 컬럼으로 어느 소스에서 왔는지 확인할 수 있어요
+                (KIS / 누적 / 네이버).
               </li>
               <li className="text-emerald-700">
-                ✅ KRX OpenAPI 승인이 완료되면 4주체 + 거래대금 + 무한 과거 조회로 자동 업그레이드돼요.
+                ✅ 시간이 지날수록 누적 데이터가 쌓여 1년치, 3년치 풀데이터가 자동으로 만들어져요.
+              </li>
+            </ul>
+          </section>
+
+          <hr className="my-5 border-border" />
+
+          <section className="mb-6">
+            <h3 className="mb-2 text-base font-semibold">자동 추적 시스템이란?</h3>
+            <ul className="space-y-1.5 text-sm leading-relaxed text-muted-foreground">
+              <li>
+                세력이 갖고 놀기 좋은 중소형주 약 500개를 자동 선정 (시총 500억~5조,
+                일평균 거래대금 10억 이상, 30일 변동성 5% 이상, 보통주만).
+              </li>
+              <li>
+                매일 새벽 6:30 KIS 데이터를 받아 Redis에 영구 저장. 종목 리스트는 매주
+                일요일 새벽에 자동 갱신.
+              </li>
+              <li>
+                추적 대상이면 검색 결과 위쪽에 <strong className="text-emerald-700">&ldquo;
+                자동 추적 중&rdquo;</strong> 배지가 뜨고, 시간이 갈수록 30일+ 과거에서도 4주체
+                풀데이터가 표시돼요.
               </li>
             </ul>
           </section>
@@ -497,6 +523,10 @@ function DailyTable({
                 <td className="px-3 py-1.5 text-center text-xs">
                   {row.source === "kis" ? (
                     <span className="rounded bg-blue-100 px-1.5 py-0.5 text-blue-700">KIS</span>
+                  ) : row.source === "archive" ? (
+                    <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-emerald-700">
+                      누적
+                    </span>
                   ) : row.source === "naver" ? (
                     <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-zinc-700">네이버</span>
                   ) : (
@@ -656,6 +686,35 @@ export default function InvestorFlowPage() {
               <span className="text-sm text-muted-foreground">
                 {trend.startDate} ~ {trend.endDate} · {trend.daily.length}거래일
               </span>
+              {trend.tracking && (
+                <span
+                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                    trend.tracking.isTracked
+                      ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                      : "bg-zinc-100 text-zinc-600 border border-zinc-200"
+                  }`}
+                  title={
+                    trend.tracking.isTracked
+                      ? "추적 대상 — 매일 새벽 KIS 데이터를 누적 저장 중"
+                      : "추적 대상 아님 — 30일+ 과거는 네이버 데이터로 표시"
+                  }
+                >
+                  {trend.tracking.isTracked ? (
+                    trend.tracking.daysTracked > 0 ? (
+                      <>
+                        ● 자동 추적 중 ·{" "}
+                        <span className="tabular-nums">
+                          {trend.tracking.daysTracked}거래일 누적
+                        </span>
+                      </>
+                    ) : (
+                      <>● 자동 추적 중 (누적 시작 전)</>
+                    )
+                  ) : (
+                    "○ 추적 대상 아님"
+                  )}
+                </span>
+              )}
             </div>
 
             {/* 누적 카드 */}

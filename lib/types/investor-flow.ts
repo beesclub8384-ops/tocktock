@@ -31,7 +31,7 @@ export interface DailyTrend {
   /** 기타법인 (KRX 4주체일 때만) */
   otherCorp: InvestorEntry | null;
   /** 이 행을 제공한 데이터 소스 표식 */
-  source: "kis" | "naver" | "krx";
+  source: "kis" | "naver" | "krx" | "archive";
 }
 
 export interface CumulativeTotals {
@@ -64,6 +64,18 @@ export interface ProviderCapabilities {
   notes: string[];
 }
 
+/** 자동 누적 추적 메타데이터 (해당 종목이 universe에 들어가 매일 KIS 데이터가 쌓이는지) */
+export interface TrackingInfo {
+  /** 추적 대상이면 true. universe에 포함되며 매일 새벽 cron이 KIS 데이터를 누적 저장 중. */
+  isTracked: boolean;
+  /** 누적된 거래일 수. 0이면 archive 비어있음. */
+  daysTracked: number;
+  /** 누적 데이터 첫 날짜 (YYYY-MM-DD), 없으면 null */
+  firstDate: string | null;
+  /** 누적 데이터 마지막 날짜 (YYYY-MM-DD), 없으면 null */
+  lastDate: string | null;
+}
+
 export interface NormalizedTrend {
   symbol: string;
   /** 종목명 (조회 가능 시) */
@@ -77,6 +89,8 @@ export interface NormalizedTrend {
   capabilities: ProviderCapabilities;
   /** 응답 생성 시각 (ISO) */
   fetchedAt: string;
+  /** 자동 추적 메타데이터 (없으면 비추적 종목) */
+  tracking?: TrackingInfo;
 }
 
 export interface InvestorFlowApiResponse {

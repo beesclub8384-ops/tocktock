@@ -1,11 +1,14 @@
 /**
  * 투자자 동향 추적 — Provider 추상화 레이어.
  *
- *   현재: HybridProvider (KIS 최근 30거래일 + Naver 그 이전)
- *   미래: KrxProvider (KRX OpenAPI 승인 후 활성화)
+ * 데이터 소스 우선순위:
+ *   1. Archive (Redis): 매일 새벽 cron이 추적 종목 약 500개에 대해 KIS 데이터를 누적 저장.
+ *      시간이 지날수록 30일+ 과거에서도 외국인·기관·개인·거래대금이 표시된다.
+ *   2. KIS API (실시간): 최근 약 30거래일. 추적 종목이 아니어도 동작.
+ *   3. Naver 스크래핑 (수년치): 30일+ 과거 fallback. 외국인·기관 수량만.
  *
- * 환경변수 KRX_OPENAPI_KEY가 설정되면 자동으로 KrxProvider로 전환.
- * UI는 capabilities를 보고 한계를 표시 — provider 교체 시 UI 코드 수정 불필요.
+ * KRX OpenAPI는 종목별 투자자 매매 데이터를 제공하지 않음(2026-04 확인).
+ * KrxProvider는 영구 미구현 — getProvider()는 무조건 HybridProvider를 반환한다.
  */
 
 import {
@@ -16,12 +19,19 @@ import {
   fetchNaverInvestorTrend,
   type NaverInvestorEntry,
 } from "@/lib/naver-investor-scraper";
+import {
+  loadArchiveRange,
+  getTrackingMetadata,
+  type ArchiveEntry,
+} from "@/lib/investor-flow-archive";
+import { peekStockUniverse } from "@/lib/stock-universe";
 import type {
   CumulativeTotals,
   CumulativeTrend,
   DailyTrend,
   NormalizedTrend,
   ProviderCapabilities,
+  TrackingInfo,
 } from "@/lib/types/investor-flow";
 
 export interface InvestorFlowProvider {
@@ -48,18 +58,6 @@ function addTotals(
     shares: shares == null ? acc.shares : (acc.shares ?? 0) + shares,
     value: value == null ? acc.value : (acc.value ?? 0) + value,
   };
-}
-
-function nullableTotals(values: (number | null)[]): CumulativeTotals {
-  let shares = 0;
-  let any = false;
-  for (const v of values) {
-    if (v != null) {
-      shares += v;
-      any = true;
-    }
-  }
-  return any ? { shares, value: null } : { shares: null, value: null };
 }
 
 /** 기간 내 일별 데이터로 누적 합계 계산. capabilities 따라 제공 여부 분기. */
@@ -94,34 +92,44 @@ export function buildCumulative(
       otherCorp = addTotals(otherCorp, row.otherCorp.shares, row.otherCorp.value);
     }
   }
-  // 거래대금이 한 번도 안 들어왔으면 null로 표시
   if (!capabilities.hasTradingValue) {
     foreign = { ...foreign, value: null };
     institution = { ...institution, value: null };
     if (individual) individual = { ...individual, value: null };
     if (otherCorp) otherCorp = { ...otherCorp, value: null };
   }
-  void nullableTotals; // 보조 함수, 미사용 시 dead-code elimination
   return { foreign, institution, individual, otherCorp };
 }
 
 /* ──────────────────────────────────────────────────────────────
- *  HybridProvider — KIS(최근 30일) + Naver(30일+)
+ *  HybridProvider — Archive + KIS + Naver 합본
  * ────────────────────────────────────────────────────────────── */
 
 const HYBRID_CAPABILITIES: ProviderCapabilities = {
-  hasIndividual: true, // KIS 구간 한정
+  hasIndividual: true,
   hasOtherCorp: false,
-  hasTradingValue: true, // KIS 구간 한정
-  maxHistoryDays: 365 * 5, // 네이버는 수년치 가능
-  providerName: "하이브리드 (KIS + 네이버)",
+  hasTradingValue: true,
+  maxHistoryDays: 365 * 5,
+  providerName: "하이브리드 (자동 누적 + KIS + 네이버)",
   notes: [
-    "최근 약 30거래일은 한국투자증권(KIS) API로 외국인·기관·개인 3주체 + 거래대금까지 제공.",
-    "그 이전 구간은 네이버 금융 페이지에서 외국인·기관 2주체 수량만 가져옴 (개인·거래대금 미제공).",
-    "기타법인은 미제공 (KRX OpenAPI 승인 후 추가 예정).",
+    "추적 대상 종목(약 500개)은 매일 새벽 KIS 데이터를 Redis에 누적 저장 — 시간이 지날수록 30일 한계가 사라진다.",
+    "최근 약 30거래일은 KIS API로 외국인·기관·개인 + 거래대금까지 실시간 제공.",
+    "추적 대상이 아닌 종목의 30일+ 과거는 네이버 금융에서 외국인·기관 수량만 보충 (개인·거래대금 미제공).",
     "표의 '출처' 컬럼으로 어느 소스에서 왔는지 구분.",
   ],
 };
+
+function archiveRowToDaily(r: ArchiveEntry): DailyTrend {
+  return {
+    date: r.date,
+    close: r.close,
+    foreign: { shares: r.foreignShares, value: r.foreignValue },
+    institution: { shares: r.institutionShares, value: r.institutionValue },
+    individual: { shares: r.individualShares, value: r.individualValue },
+    otherCorp: null,
+    source: "archive",
+  };
+}
 
 function kisRowToDaily(r: KisInvestorDailyEntry): DailyTrend {
   return {
@@ -141,7 +149,7 @@ function naverRowToDaily(r: NaverInvestorEntry): DailyTrend {
     close: r.close,
     foreign: { shares: r.foreignShares, value: null },
     institution: { shares: r.institutionShares, value: null },
-    individual: null, // 네이버는 미제공
+    individual: null,
     otherCorp: null,
     source: "naver",
   };
@@ -157,38 +165,50 @@ export class HybridProvider implements InvestorFlowProvider {
   ): Promise<NormalizedTrend> {
     const code = symbol.replace(/\.[A-Z]{2,3}$/, "").trim();
 
-    // 두 소스 병렬 호출 — 실패해도 한쪽은 살린다
-    const [kisRes, naverRes] = await Promise.allSettled([
+    // 세 소스 병렬 — 어느 하나가 실패해도 나머지는 살린다
+    const [archiveRes, kisRes, naverRes] = await Promise.allSettled([
+      loadArchiveRange(code, startDate, endDate),
       fetchKisInvestorTrend(code),
       fetchNaverInvestorTrend(code, startDate, endDate),
     ]);
 
+    const archiveRows: ArchiveEntry[] =
+      archiveRes.status === "fulfilled" ? archiveRes.value : [];
     const kisRows: KisInvestorDailyEntry[] =
       kisRes.status === "fulfilled" ? kisRes.value : [];
     const naverRows: NaverInvestorEntry[] =
       naverRes.status === "fulfilled" ? naverRes.value : [];
 
-    if (kisRows.length === 0 && naverRows.length === 0) {
+    if (
+      archiveRows.length === 0 &&
+      kisRows.length === 0 &&
+      naverRows.length === 0
+    ) {
       const reasons: string[] = [];
+      if (archiveRes.status === "rejected") reasons.push(`Archive: ${archiveRes.reason}`);
       if (kisRes.status === "rejected") reasons.push(`KIS: ${kisRes.reason}`);
-      if (naverRes.status === "rejected") {
-        reasons.push(`Naver: ${naverRes.reason}`);
-      }
+      if (naverRes.status === "rejected") reasons.push(`Naver: ${naverRes.reason}`);
       throw new Error(
         `투자자 매매 데이터를 가져오지 못했습니다. (${reasons.join(" / ") || "알 수 없는 오류"})`
       );
     }
 
-    // 병합: KIS 우선 (3주체 + 거래대금까지 제공), 그 외 날짜만 네이버에서 보충
+    /*
+     * 병합 우선순위 (각 날짜별로 가장 풍부한 소스 채택):
+     *   1. KIS (실시간, 가장 신선) > 2. Archive (KIS 출처지만 과거) > 3. Naver
+     */
     const byDate = new Map<string, DailyTrend>();
+    for (const r of naverRows) {
+      if (r.date < startDate || r.date > endDate) continue;
+      byDate.set(r.date, naverRowToDaily(r));
+    }
+    for (const r of archiveRows) {
+      if (r.date < startDate || r.date > endDate) continue;
+      byDate.set(r.date, archiveRowToDaily(r));
+    }
     for (const r of kisRows) {
       if (r.date < startDate || r.date > endDate) continue;
       byDate.set(r.date, kisRowToDaily(r));
-    }
-    for (const r of naverRows) {
-      if (r.date < startDate || r.date > endDate) continue;
-      if (byDate.has(r.date)) continue; // KIS가 이미 있음 → 더 풍부하므로 유지
-      byDate.set(r.date, naverRowToDaily(r));
     }
 
     const daily = Array.from(byDate.values()).sort((a, b) =>
@@ -196,6 +216,9 @@ export class HybridProvider implements InvestorFlowProvider {
     );
 
     const cumulative = buildCumulative(daily, HYBRID_CAPABILITIES);
+
+    // 추적 메타데이터 수집 (universe + archive 양쪽 확인)
+    const tracking = await collectTracking(code);
 
     return {
       symbol: code,
@@ -206,55 +229,66 @@ export class HybridProvider implements InvestorFlowProvider {
       cumulative,
       capabilities: HYBRID_CAPABILITIES,
       fetchedAt: new Date().toISOString(),
+      tracking,
     };
   }
 }
 
+async function collectTracking(symbol: string): Promise<TrackingInfo> {
+  // 두 호출은 Redis 단순 GET 한 번씩 — 병렬
+  const [universe, meta] = await Promise.all([
+    peekStockUniverse(),
+    getTrackingMetadata(symbol),
+  ]);
+  const isTracked = universe.symbols.includes(symbol);
+  return {
+    isTracked,
+    daysTracked: meta.daysTracked,
+    firstDate: meta.firstDate,
+    lastDate: meta.lastDate,
+  };
+}
+
 /* ──────────────────────────────────────────────────────────────
- *  KrxProvider — 미래 활성화 (스켈레톤)
+ *  KrxProvider — DEPRECATED (KRX OpenAPI 미제공 확인 2026-04)
  *
- *  KRX OpenAPI 승인 후 fetchTrend()만 구현하면 된다.
- *  - 4주체 (외국인·기관·개인·기타법인)
- *  - 거래대금(원) 제공
- *  - 무한 과거 조회
+ *  KRX OpenAPI는 종목별 투자자 매매 데이터를 제공하지 않는다(공식 서비스 목록 확인).
+ *  pykrx 같은 라이브러리는 data.krx.co.kr 웹 스크래핑으로 우회하지만 여기서는
+ *  자동 누적 시스템(HybridProvider + cron)으로 같은 목표를 달성한다.
+ *  이 클래스는 호환을 위해 남겨두지만 호출되지 않는다.
  * ────────────────────────────────────────────────────────────── */
 
-const KRX_CAPABILITIES: ProviderCapabilities = {
+const KRX_CAPABILITIES_DEPRECATED: ProviderCapabilities = {
   hasIndividual: true,
   hasOtherCorp: true,
   hasTradingValue: true,
   maxHistoryDays: Number.POSITIVE_INFINITY,
-  providerName: "KRX OpenAPI",
+  providerName: "KRX OpenAPI (사용 안 함)",
   notes: [
-    "KRX 공식 데이터로 외국인·기관·개인·기타법인 4주체 + 거래대금 + 무한 과거 조회 가능.",
+    "KRX OpenAPI에 종목별 투자자 매매 endpoint가 없음을 확인 (2026-04). 자동 누적 시스템으로 대체.",
   ],
 };
 
+/** @deprecated KRX OpenAPI에 필요한 endpoint가 존재하지 않음. 호출하면 throw. */
 export class KrxProvider implements InvestorFlowProvider {
-  readonly capabilities = KRX_CAPABILITIES;
+  readonly capabilities = KRX_CAPABILITIES_DEPRECATED;
 
   async fetchTrend(
     _symbol: string,
     _startDate: string,
     _endDate: string
   ): Promise<NormalizedTrend> {
-    // 미래 작업: KRX OpenAPI 호출 + 정규화
-    // 현재는 의도적으로 미구현 — 환경변수가 잘못 설정되어도 명확히 실패하도록.
     throw new Error(
-      "KrxProvider is not implemented yet. " +
-        "Set KRX_OPENAPI_KEY only after the KRX integration is complete. " +
-        "Implement fetchTrend() and return NormalizedTrend with KRX_CAPABILITIES."
+      "KrxProvider is permanently deprecated: KRX OpenAPI does not expose " +
+        "per-stock investor trading data. Use HybridProvider (automatic accumulation)."
     );
   }
 }
 
 /* ──────────────────────────────────────────────────────────────
- *  팩토리: 환경변수 기반 자동 선택
+ *  팩토리 — 항상 HybridProvider
  * ────────────────────────────────────────────────────────────── */
 
 export function getProvider(): InvestorFlowProvider {
-  if (process.env.KRX_OPENAPI_KEY && process.env.KRX_OPENAPI_KEY.trim()) {
-    return new KrxProvider();
-  }
   return new HybridProvider();
 }

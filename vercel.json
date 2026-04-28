@@ -39,6 +39,14 @@
     {
       "path": "/api/cron/redis-usage-check",
       "schedule": "0 1 * * 1"
+    },
+    {
+      "path": "/api/cron/investor-flow-collect",
+      "schedule": "30 21 * * *"
+    },
+    {
+      "path": "/api/cron/investor-flow-universe",
+      "schedule": "0 18 * * 6"
     }
   ]
 }
