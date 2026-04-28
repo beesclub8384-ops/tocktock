@@ -222,7 +222,7 @@ function GuideModal({ onClose }: { onClose: () => void }) {
             <h3 className="mb-2 text-base font-semibold">자동 추적 시스템이란?</h3>
             <ul className="space-y-1.5 text-sm leading-relaxed text-muted-foreground">
               <li>
-                세력이 갖고 놀기 좋은 중소형주 약 500개를 자동 선정 (시총 500억~5조,
+                세력이 갖고 놀기 좋은 중소형주 약 800개를 자동 선정 (시총 1,000억~1조,
                 일평균 거래대금 10억 이상, 30일 변동성 5% 이상, 보통주만).
               </li>
               <li>
