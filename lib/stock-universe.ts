@@ -27,7 +27,7 @@ const NAVER_HEADERS = {
 const ETF_BRAND_RE =
   /^(KODEX|TIGER|KBSTAR|ACE|ARIRANG|HANARO|SOL|KOSEF|KINDEX|TIMEFOLIO|PLUS|FOCUS|WOORI|BNK|RISE|KIWOOM|KoAct|WON|HK|1Q|TIME|DAISHIN\d+|UNICORN|TRUSTON|VITA|에셋플러스|마이다스|더제이|파워|마이티|히어로)\s/;
 
-function isRegularStock(name: string): boolean {
+export function isRegularStock(name: string): boolean {
   if (/ETF|ETN/i.test(name)) return false;
   if (ETF_BRAND_RE.test(name)) return false;
   if (name.includes("리츠") || /REIT/i.test(name)) return false;

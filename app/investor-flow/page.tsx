@@ -22,6 +22,10 @@ import type {
   NormalizedTrend,
   ProviderCapabilities,
 } from "@/lib/types/investor-flow";
+import type {
+  AccumulationScanResult,
+  AccumulationSignal,
+} from "@/lib/accumulation-scan";
 
 /* ──────────────────────────────────────────────────────────
  *  포맷 유틸
@@ -47,6 +51,22 @@ function formatValueKRW(v: number | null | undefined): string {
 function formatPriceKRW(v: number | null | undefined): string {
   if (v == null || !Number.isFinite(v)) return "—";
   return `${Math.round(v).toLocaleString("ko-KR")}원`;
+}
+
+/** 부호 없는 한국식 금액 표기 (시총 등). */
+function formatKRWUnsigned(v: number | null | undefined): string {
+  if (v == null || !Number.isFinite(v)) return "—";
+  const abs = Math.abs(v);
+  if (abs >= 1e12) return `${(abs / 1e12).toFixed(2)}조원`;
+  if (abs >= 1e8) return `${(abs / 1e8).toFixed(0)}억원`;
+  if (abs >= 1e4) return `${(abs / 1e4).toFixed(0)}만원`;
+  return `${Math.round(abs).toLocaleString("ko-KR")}원`;
+}
+
+function formatPercent(v: number, opts: { sign?: boolean } = {}): string {
+  const { sign = true } = opts;
+  const prefix = sign ? (v > 0 ? "+" : v < 0 ? "" : "") : "";
+  return `${prefix}${v.toFixed(2)}%`;
 }
 
 function ymdToday(): string {
@@ -545,6 +565,72 @@ function DailyTable({
 }
 
 /* ──────────────────────────────────────────────────────────
+ *  매집 의심 카드
+ * ────────────────────────────────────────────────────────── */
+
+function SignalCard({
+  signal,
+  onClick,
+}: {
+  signal: AccumulationSignal;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="group flex flex-col text-left rounded-xl border border-border bg-card p-4 hover:border-emerald-300 hover:shadow-md transition-all"
+    >
+      <div className="flex items-start justify-between gap-2 mb-3">
+        <div className="min-w-0">
+          <div className="font-semibold text-base truncate">{signal.name}</div>
+          <div className="text-xs text-muted-foreground tabular-nums">
+            {signal.code}
+          </div>
+        </div>
+        <div className="text-right flex-shrink-0">
+          <div className="text-emerald-700 font-bold text-lg tabular-nums">
+            {formatPercent(signal.accumulationRatio)}
+          </div>
+          <div className="text-xs text-muted-foreground tabular-nums">
+            가격 {formatPercent(signal.priceChange)}
+          </div>
+        </div>
+      </div>
+      <div className="grid grid-cols-3 gap-2 text-xs mb-2">
+        <div>
+          <div className="text-muted-foreground mb-0.5">외국인</div>
+          <div
+            className={`tabular-nums font-medium ${signal.foreignNet >= 0 ? "text-emerald-700" : "text-rose-700"}`}
+          >
+            {formatValueKRW(signal.foreignNet)}
+          </div>
+        </div>
+        <div>
+          <div className="text-muted-foreground mb-0.5">기관</div>
+          <div
+            className={`tabular-nums font-medium ${signal.institutionNet >= 0 ? "text-emerald-700" : "text-rose-700"}`}
+          >
+            {formatValueKRW(signal.institutionNet)}
+          </div>
+        </div>
+        <div>
+          <div className="text-muted-foreground mb-0.5">개인</div>
+          <div
+            className={`tabular-nums font-medium ${signal.individualNet >= 0 ? "text-emerald-700" : "text-rose-700"}`}
+          >
+            {formatValueKRW(signal.individualNet)}
+          </div>
+        </div>
+      </div>
+      <div className="text-xs text-muted-foreground tabular-nums mt-auto">
+        시총 {formatKRWUnsigned(signal.marketCap)}
+      </div>
+    </button>
+  );
+}
+
+/* ──────────────────────────────────────────────────────────
  *  메인 페이지
  * ────────────────────────────────────────────────────────── */
 
@@ -558,6 +644,39 @@ export default function InvestorFlowPage() {
   const [error, setError] = useState<string | null>(null);
   const [trend, setTrend] = useState<NormalizedTrend | null>(null);
   const [showGuide, setShowGuide] = useState(false);
+  const [scan, setScan] = useState<AccumulationScanResult | null>(null);
+  const [scanState, setScanState] = useState<"loading" | "ready" | "empty" | "pending">(
+    "loading"
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/accumulation-scan");
+        if (res.status === 404) {
+          if (!cancelled) setScanState("pending");
+          return;
+        }
+        const j = (await res.json()) as {
+          ok: boolean;
+          data?: AccumulationScanResult;
+        };
+        if (cancelled) return;
+        if (j.ok && j.data) {
+          setScan(j.data);
+          setScanState(j.data.signals.length > 0 ? "ready" : "empty");
+        } else {
+          setScanState("pending");
+        }
+      } catch {
+        if (!cancelled) setScanState("pending");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const runQuery = useCallback(async (sym: string, start: string) => {
     if (!/^\d{6}$/.test(sym)) {
@@ -589,6 +708,18 @@ export default function InvestorFlowPage() {
     e.preventDefault();
     runQuery(symbol.trim(), startDate);
   };
+
+  const handleSignalClick = useCallback(
+    (code: string) => {
+      setSymbol(code);
+      setStartDate(DEFAULT_START);
+      runQuery(code, DEFAULT_START);
+      if (typeof window !== "undefined") {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+    },
+    [runQuery]
+  );
 
   const cumulative = trend?.cumulative;
   const capabilities = trend?.capabilities;
@@ -666,6 +797,44 @@ export default function InvestorFlowPage() {
             {loading ? "조회 중..." : "분석"}
           </button>
         </form>
+
+        {/* 매집 의심 종목 — 검색창과 결과 사이에 자연스럽게 노출 */}
+        <div className="mb-8">
+          <p className="text-xs text-muted-foreground mb-3">
+            외국인·기관이 사고 개인이 파는 종목 — 가격이 거의 안 움직인 순서
+            {scan?.asOfDate && (
+              <span className="ml-2 text-muted-foreground/70">
+                · {scan.asOfDate} 기준
+              </span>
+            )}
+          </p>
+          {scanState === "loading" && (
+            <div className="rounded-xl border border-dashed border-border bg-muted/30 p-6 text-center text-sm text-muted-foreground">
+              불러오는 중...
+            </div>
+          )}
+          {scanState === "pending" && (
+            <div className="rounded-xl border border-dashed border-border bg-muted/30 p-6 text-center text-sm text-muted-foreground">
+              데이터 준비 중입니다. 매일 KST 07:00 갱신됩니다.
+            </div>
+          )}
+          {scanState === "empty" && (
+            <div className="rounded-xl border border-dashed border-border bg-muted/30 p-6 text-center text-sm text-muted-foreground">
+              오늘은 조건을 만족하는 종목이 없어요.
+            </div>
+          )}
+          {scanState === "ready" && scan && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {scan.signals.map((s) => (
+                <SignalCard
+                  key={s.code}
+                  signal={s}
+                  onClick={() => handleSignalClick(s.code)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
 
         {error && (
           <div className="mb-6 rounded-md border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
