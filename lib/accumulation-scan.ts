@@ -42,7 +42,7 @@ const RESULT_KEY = "accumulation-scan:v1";
 const RESULT_TTL_SEC = 26 * 60 * 60; // 26h — 매일 cron 갱신을 살짝 넘기는 안전치
 
 const WINDOW_DAYS = 10;
-const ACCUMULATION_RATIO_MIN = 0.5; // %
+const ACCUMULATION_RATIO_MIN = 0.3; // %
 
 /**
  * universe 종목들에 대해 archive 기반 매집 신호 스캔.
