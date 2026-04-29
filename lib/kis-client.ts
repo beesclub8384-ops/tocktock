@@ -463,9 +463,10 @@ export async function fetchKisInvestorTrend(
       foreignShares: safeNum(r.frgn_ntby_qty),
       institutionShares: safeNum(r.orgn_ntby_qty),
       individualShares: safeNum(r.prsn_ntby_qty),
-      foreignValue: r.frgn_ntby_tr_pbmn ? safeNum(r.frgn_ntby_tr_pbmn) : null,
-      institutionValue: r.orgn_ntby_tr_pbmn ? safeNum(r.orgn_ntby_tr_pbmn) : null,
-      individualValue: r.prsn_ntby_tr_pbmn ? safeNum(r.prsn_ntby_tr_pbmn) : null,
+      // KIS API returns value in millions of KRW — convert to KRW for unit consistency
+      foreignValue: r.frgn_ntby_tr_pbmn ? safeNum(r.frgn_ntby_tr_pbmn) * 1_000_000 : null,
+      institutionValue: r.orgn_ntby_tr_pbmn ? safeNum(r.orgn_ntby_tr_pbmn) * 1_000_000 : null,
+      individualValue: r.prsn_ntby_tr_pbmn ? safeNum(r.prsn_ntby_tr_pbmn) * 1_000_000 : null,
     });
   }
   // 오름차순으로 정렬 (오래된 → 최신)
