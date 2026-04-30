@@ -14,7 +14,7 @@
     },
     {
       "path": "/api/cron/ai-trading-scan",
-      "schedule": "0 7 * * 1-5"
+      "schedule": "10 7 * * 1-5"
     },
     {
       "path": "/api/cron/ai-trading-trade",

@@ -250,6 +250,20 @@ export async function GET() {
 
   await saveState(state);
 
+  // cron 실행 시각 업데이트 (lastScanTime은 보존)
+  const existingCronStatusRaw = await redis.get("virtual-trading:cron-status");
+  const existingCronStatus =
+    typeof existingCronStatusRaw === "string"
+      ? JSON.parse(existingCronStatusRaw)
+      : existingCronStatusRaw ?? {};
+  await redis.set(
+    "virtual-trading:cron-status",
+    JSON.stringify({
+      ...existingCronStatus,
+      lastTradeCheckTime: new Date().toISOString(),
+    })
+  );
+
   return NextResponse.json({
     message: "매매 체크 완료",
     date: todayDate,
