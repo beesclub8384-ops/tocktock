@@ -186,7 +186,12 @@ export async function GET() {
   const remainingPositions: Position[] = [];
 
   for (const pos of state.positions) {
-    const price = await fetchCurrentPrice(pos.code);
+    // KIS 우선, 실패 시 네이버 fallback
+    let price: { open: number; high: number; close: number } | null =
+      await fetchKisPrice(pos.code);
+    if (!price) {
+      price = await fetchCurrentPrice(pos.code);
+    }
     if (!price) {
       remainingPositions.push(pos);
       continue;
