@@ -47,6 +47,9 @@ yarn-error.log*
 data/krx-history/krx-daily-all.json
 data/krx-history/.collect-checkpoint.json
 
+# personal trade exports (private)
+data/live-trades-export.json
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
