@@ -21,14 +21,6 @@
       "schedule": "5 0 * * 1-5"
     },
     {
-      "path": "/api/cron/market-events",
-      "schedule": "30 7 * * 1-5"
-    },
-    {
-      "path": "/api/cron/market-events",
-      "schedule": "30 22 * * 1-5"
-    },
-    {
       "path": "/api/cron/superinvestor-scan",
       "schedule": "0 1 * * 1"
     },
