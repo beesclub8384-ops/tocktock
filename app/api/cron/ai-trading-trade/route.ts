@@ -24,6 +24,103 @@ function parseNum(s: string): number {
   return Number(s.replace(/,/g, "")) || 0;
 }
 
+// ── KIS API: 시가 조회용 (lib/kis-client.ts와 동일 토큰 캐시 키 공유) ──
+const KIS_BASE = "https://openapi.koreainvestment.com:9443";
+const KIS_TOKEN_KEY = "futures-trading:kis-token";
+
+interface KisTokenCache {
+  access_token: string;
+  expires_at: number;
+}
+
+async function getKisAccessToken(): Promise<string | null> {
+  const appKey = process.env.KIS_APP_KEY;
+  const appSecret = process.env.KIS_APP_SECRET;
+  if (!appKey || !appSecret) return null;
+  try {
+    const cached = await redis.get<KisTokenCache>(KIS_TOKEN_KEY);
+    if (cached?.access_token && cached.expires_at - Date.now() > 10 * 60 * 1000) {
+      return cached.access_token;
+    }
+    const res = await fetch(`${KIS_BASE}/oauth2/tokenP`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        grant_type: "client_credentials",
+        appkey: appKey,
+        appsecret: appSecret,
+      }),
+      signal: AbortSignal.timeout(8000),
+    });
+    const data = (await res.json()) as {
+      access_token?: string;
+      access_token_token_expired?: string;
+    };
+    if (!data.access_token || !data.access_token_token_expired) return null;
+    const expiresAt = new Date(
+      data.access_token_token_expired.replace(" ", "T") + "+09:00"
+    ).getTime();
+    await redis.set(KIS_TOKEN_KEY, {
+      access_token: data.access_token,
+      expires_at: expiresAt,
+    });
+    return data.access_token;
+  } catch (err) {
+    console.error("[kis-token] failed:", err instanceof Error ? err.message : err);
+    return null;
+  }
+}
+
+/** KIS 실시간 시세 조회 — 매수 시 시가(stck_oprc) 확보용 */
+async function fetchKisPrice(
+  code: string
+): Promise<{ open: number; high: number; low: number; close: number } | null> {
+  const appKey = process.env.KIS_APP_KEY;
+  const appSecret = process.env.KIS_APP_SECRET;
+  if (!appKey || !appSecret) return null;
+  const token = await getKisAccessToken();
+  if (!token) return null;
+  try {
+    const url = `${KIS_BASE}/uapi/domestic-stock/v1/quotations/inquire-price?FID_COND_MRKT_DIV_CODE=J&FID_INPUT_ISCD=${code}`;
+    const res = await fetch(url, {
+      headers: {
+        authorization: `Bearer ${token}`,
+        appkey: appKey,
+        appsecret: appSecret,
+        tr_id: "FHKST01010100",
+        custtype: "P",
+        "Content-Type": "application/json",
+      },
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as {
+      rt_cd?: string;
+      output?: {
+        stck_oprc?: string;
+        stck_hgpr?: string;
+        stck_lwpr?: string;
+        stck_prpr?: string;
+      };
+    };
+    if (data.rt_cd !== "0" || !data.output) return null;
+    const open = Number(data.output.stck_oprc ?? "0");
+    const high = Number(data.output.stck_hgpr ?? "0");
+    const low = Number(data.output.stck_lwpr ?? "0");
+    const close = Number(data.output.stck_prpr ?? "0");
+    if (open <= 0) return null;
+    return {
+      open,
+      high: high > 0 ? high : open,
+      low: low > 0 ? low : open,
+      close: close > 0 ? close : open,
+    };
+  } catch (err) {
+    console.error("[kis-price] failed:", err instanceof Error ? err.message : err);
+    return null;
+  }
+}
+
 /** 개별 종목 현재가 + 고가 + 저가 조회 (todayDate가 주어지면 당일 데이터만 반환) */
 async function fetchCurrentPrice(
   code: string,
@@ -184,10 +281,13 @@ export async function GET() {
       break;
     }
 
-    // D+3 시가에 매수 (당일 데이터만 사용)
-    const price = await fetchCurrentPrice(candidate.code, todayDate);
+    // D+3 시가에 매수: KIS 우선, 실패 시 네이버 fallback
+    let price = await fetchKisPrice(candidate.code);
     if (!price || price.open <= 0) {
-      console.log(`[trade] ${candidate.name}: 당일 시가 조회 실패 (오늘 데이터 없음)`);
+      price = await fetchCurrentPrice(candidate.code, todayDate);
+    }
+    if (!price || price.open <= 0) {
+      console.log(`[trade] ${candidate.name}: 당일 시가 조회 실패 (KIS+네이버 모두)`);
       continue;
     }
 
