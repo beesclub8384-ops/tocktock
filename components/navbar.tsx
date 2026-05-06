@@ -15,6 +15,7 @@ const navLinks = [
   { href: "/global-indicators", label: "글로벌 지표" },
   { href: "/liquidity/us", label: "미국 유동성" },
   { href: "/liquidity/global", label: "글로벌 유동성" },
+  { href: "/inflation", label: "미국 인플레이션" },
   { href: "/superinvestor", label: "슈퍼투자자" },
   { href: "/ken-fisher", label: "켄 피셔 · S&P × Nasdaq" },
   { href: "/ken-fisher/earnings-yield-vs-bond", label: "켄 피셔 · 이익수익률 vs 금리" },
@@ -45,6 +46,14 @@ const pcNavItems: NavItem[] = [
     items: [
       { href: "/liquidity/us", label: "미국 유동성" },
       { href: "/liquidity/global", label: "글로벌 유동성" },
+    ],
+  },
+  {
+    type: "dropdown",
+    label: "인플레이션",
+    id: "inflation",
+    items: [
+      { href: "/inflation", label: "미국 인플레이션" },
     ],
   },
   { type: "link", href: "/superinvestor", label: "슈퍼투자자" },
