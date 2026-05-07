@@ -172,6 +172,17 @@ export default async function InflationPage() {
             emphasized
           />
         </div>
+
+        {/* YoY 추이 차트 */}
+        <div className="mt-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 sm:p-5">
+          <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 mb-1">
+            전년 동월 대비(YoY) 추이
+          </h3>
+          <p className="text-xs text-zinc-500 mb-4">
+            Fed 목표 2% 가로 점선 기준. 기간 버튼으로 확대/축소.
+          </p>
+          <InflationChart series={data.series} />
+        </div>
       </section>
 
       {/* 그룹 디바이더 */}
@@ -188,17 +199,6 @@ export default async function InflationPage() {
         <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,320px))] gap-3 sm:gap-4">
           <VixCard />
         </div>
-      </section>
-
-      {/* 메인 차트 */}
-      <section className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 sm:p-5 mb-6">
-        <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 mb-1">
-          전년 동월 대비(YoY) 추이
-        </h2>
-        <p className="text-xs text-zinc-500 mb-4">
-          Fed 목표 2% 가로 점선 기준. 기간 버튼으로 확대/축소.
-        </p>
-        <InflationChart series={data.series} />
       </section>
 
       {/* 해석 가이드 */}
