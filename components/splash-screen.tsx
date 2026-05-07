@@ -12,11 +12,11 @@ export function SplashScreen() {
   // 초기 마운트: sessionStorage 확인
   useEffect(() => {
     if (sessionStorage.getItem("splashShown")) {
-      setUnmount(true);
+      // show가 초기값 false 그대로라 컴포넌트는 자연스럽게 null을 반환함
       return;
     }
-    setShow(true);
     sessionStorage.setItem("splashShown", "1");
+    requestAnimationFrame(() => setShow(true));
 
     // 최소 1초 타이머
     const timer = setTimeout(() => setMinTimePassed(true), 1000);
@@ -24,7 +24,7 @@ export function SplashScreen() {
     // 페이지 로딩 완료 감지
     const handleLoad = () => setPageLoaded(true);
     if (document.readyState === "complete") {
-      setPageLoaded(true);
+      requestAnimationFrame(() => setPageLoaded(true));
     } else {
       window.addEventListener("load", handleLoad);
     }
