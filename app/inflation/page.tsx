@@ -143,38 +143,49 @@ export default async function InflationPage() {
         </p>
       </header>
 
-      {/* 최신값 카드 3개 */}
-      <section className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6">
-        <LatestCard
-          title="Headline CPI"
-          subtitle="전체 소비자물가 (식료품·에너지 포함)"
-          value={data.latest.headline.value}
-          date={data.latest.headline.date}
-          prevValue={data.latest.headline.prevValue}
-        />
-        <LatestCard
-          title="Core CPI"
-          subtitle="소비자물가 (식료품·에너지 제외)"
-          value={data.latest.core.value}
-          date={data.latest.core.date}
-          prevValue={data.latest.core.prevValue}
-        />
-        <LatestCard
-          title="Core PCE"
-          subtitle="개인소비지출물가 (식료품·에너지 제외)"
-          value={data.latest.corePce.value}
-          date={data.latest.corePce.date}
-          prevValue={data.latest.corePce.prevValue}
-          emphasized
-        />
-      </section>
-
-      {/* 시장 신호 */}
+      {/* 물가 지표 */}
       <section className="mb-6">
-        <h2 className="text-sm font-semibold text-zinc-500 mb-3">
-          시장 신호 (Market Signals)
+        <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100 mb-3">
+          물가 지표 (Inflation Indicators)
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+          <LatestCard
+            title="Headline CPI"
+            subtitle="전체 소비자물가 (식료품·에너지 포함)"
+            value={data.latest.headline.value}
+            date={data.latest.headline.date}
+            prevValue={data.latest.headline.prevValue}
+          />
+          <LatestCard
+            title="Core CPI"
+            subtitle="소비자물가 (식료품·에너지 제외)"
+            value={data.latest.core.value}
+            date={data.latest.core.date}
+            prevValue={data.latest.core.prevValue}
+          />
+          <LatestCard
+            title="Core PCE"
+            subtitle="개인소비지출물가 (식료품·에너지 제외)"
+            value={data.latest.corePce.value}
+            date={data.latest.corePce.date}
+            prevValue={data.latest.corePce.prevValue}
+            emphasized
+          />
+        </div>
+      </section>
+
+      {/* 그룹 디바이더 */}
+      <div
+        className="border-t border-zinc-200 dark:border-zinc-800 my-8"
+        aria-hidden="true"
+      />
+
+      {/* 시장 변동성 */}
+      <section className="mb-6">
+        <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100 mb-3">
+          시장 변동성 (Market Volatility)
+        </h2>
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,320px))] gap-3 sm:gap-4">
           <VixCard />
         </div>
       </section>
