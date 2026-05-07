@@ -83,6 +83,12 @@ export function VixCard() {
             ? "—"
             : quote.price.toFixed(2)}
         </div>
+        {quote?.price !== null && quote?.price !== undefined && (
+          <div className="mt-1 text-xs text-zinc-500 dark:text-zinc-400 tabular-nums">
+            ≈ 일간 ±{(quote.price / Math.sqrt(252)).toFixed(1)}% · 월간 ±
+            {(quote.price / Math.sqrt(12)).toFixed(1)}%
+          </div>
+        )}
         <div className="mt-2 flex items-center justify-between text-xs">
           <span className="text-zinc-500">index · 전일 대비</span>
           <span className={diffColor}>{diffLabel}</span>
