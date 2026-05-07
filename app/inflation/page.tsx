@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import InflationChart from "./InflationChart";
+import { VixCard } from "@/components/vix-card";
 import type { InflationData } from "@/app/api/inflation/data/route";
 
 export const metadata: Metadata = {
@@ -166,6 +167,16 @@ export default async function InflationPage() {
           prevValue={data.latest.corePce.prevValue}
           emphasized
         />
+      </section>
+
+      {/* 시장 신호 */}
+      <section className="mb-6">
+        <h2 className="text-sm font-semibold text-zinc-500 mb-3">
+          시장 신호 (Market Signals)
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+          <VixCard />
+        </div>
       </section>
 
       {/* 메인 차트 */}
