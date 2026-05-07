@@ -6,8 +6,8 @@ export function SplashScreen() {
   const [show, setShow] = useState(false);
   const [minTimePassed, setMinTimePassed] = useState(false);
   const [pageLoaded, setPageLoaded] = useState(false);
-  const [fadeOut, setFadeOut] = useState(false);
   const [unmount, setUnmount] = useState(false);
+  const fadeOut = minTimePassed && pageLoaded;
 
   // 초기 마운트: sessionStorage 확인
   useEffect(() => {
@@ -35,10 +35,9 @@ export function SplashScreen() {
     };
   }, []);
 
-  // 두 조건 모두 충족되면 페이드아웃 시작
+  // 두 조건 모두 충족되면 페이드아웃 후 unmount
   useEffect(() => {
     if (minTimePassed && pageLoaded) {
-      setFadeOut(true);
       const timer = setTimeout(() => setUnmount(true), 500);
       return () => clearTimeout(timer);
     }

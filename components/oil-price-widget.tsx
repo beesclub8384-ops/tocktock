@@ -262,11 +262,12 @@ function OilChartModal({
                     fontSize: 11,
                     color: "hsl(var(--muted-foreground))",
                   }}
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  /* eslint-disable @typescript-eslint/no-explicit-any */
                   formatter={((value: any, name: any) => [
                     `$${Number(value).toFixed(2)}`,
                     name === "brent" ? "브렌트" : "WTI",
                   ]) as any}
+                  /* eslint-enable @typescript-eslint/no-explicit-any */
                 />
                 <Legend
                   wrapperStyle={{ fontSize: 12 }}
@@ -419,11 +420,12 @@ export function OilPriceWidget() {
                 fontSize: 10,
                 color: "hsl(var(--muted-foreground))",
               }}
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              /* eslint-disable @typescript-eslint/no-explicit-any */
               formatter={((value: any, name: any) => [
                 `$${Number(value).toFixed(2)}`,
                 name === "brent" ? "브렌트" : "WTI",
               ]) as any}
+              /* eslint-enable @typescript-eslint/no-explicit-any */
             />
             <Legend
               wrapperStyle={{ fontSize: 9 }}

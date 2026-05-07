@@ -13,11 +13,6 @@ export function useDraggable() {
   const offset = useRef<Position>({ x: 0, y: 0 });
   const modalRef = useRef<HTMLDivElement | null>(null);
 
-  // 모달이 열릴 때마다 position 초기화
-  useEffect(() => {
-    setPosition({ x: 0, y: 0 });
-  }, []);
-
   const handleMouseDown = useCallback(
     (e: React.MouseEvent<HTMLElement>) => {
       // 닫기 버튼 등 클릭 시 드래그 방지

@@ -630,7 +630,6 @@ export default function SuperinvestorPage() {
   const [guideOpen, setGuideOpen] = useState(false);
 
   useEffect(() => {
-    setLoading(true);
     fetch("/api/superinvestor")
       .then((r) => r.json())
       .then((data) => {

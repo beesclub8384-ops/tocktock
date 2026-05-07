@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { BarChart3, X } from "lucide-react";
-import { usePathname } from "next/navigation";
 import { GrowthScorePanel } from "@/components/growth-score-panel";
 import { DollarIndexWidget } from "@/components/dollar-index-widget";
 import { UsTreasury10yWidget } from "@/components/us-treasury-10y-widget";
@@ -11,12 +10,11 @@ import { UsdKrwWidget } from "@/components/usd-krw";
 
 export function Sidebar() {
   const [open, setOpen] = useState(false);
-  const pathname = usePathname();
 
-  // 페이지 이동 시 모바일 사이드바 닫기
-  useEffect(() => {
-    setOpen(false);
-  }, [pathname]);
+  // 사이드바 내부 링크 클릭 시 모바일 사이드바 닫기
+  const handleAsideClick = (e: React.MouseEvent<HTMLElement>) => {
+    if ((e.target as HTMLElement).closest("a")) setOpen(false);
+  };
 
   // 모바일 사이드바 열릴 때 배경 스크롤 방지 + data attribute 설정
   useEffect(() => {
@@ -54,6 +52,7 @@ export function Sidebar() {
 
       {/* 사이드바 */}
       <aside
+        onClick={handleAsideClick}
         className={`
           fixed top-[88px] left-0 z-40 h-[calc(100vh-88px)] max-h-[calc(100vh-88px)] w-[13rem] shrink-0 overflow-y-auto border-r border-border/40 bg-background p-1.5 transition-transform duration-200
           ${open ? "translate-x-0" : "-translate-x-full"}

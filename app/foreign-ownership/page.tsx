@@ -426,11 +426,10 @@ function Modal({
 }) {
   const [period, setPeriod] = useState<Period>("1m");
   const [fullData, setFullData] = useState<ForeignEntry[]>(stock.data);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   // Fetch ALL data once on open
   useEffect(() => {
-    setLoading(true);
     fetch(`/api/foreign-ownership?ticker=${stock.ticker}`)
       .then((r) => r.json())
       .then((json) => {
@@ -592,7 +591,6 @@ export default function ForeignOwnershipPage() {
   const [showGuide, setShowGuide] = useState(false);
 
   useEffect(() => {
-    setLoading(true);
     fetch(`/api/foreign-ownership?market=${market}`)
       .then((r) => r.json())
       .then((json) => setStocks(json.stocks || []))

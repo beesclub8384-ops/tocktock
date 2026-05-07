@@ -155,7 +155,7 @@ export function Navbar() {
     } else {
       document.documentElement.removeAttribute("data-menu-open");
       document.body.style.overflow = "";
-      setVisible(false);
+      requestAnimationFrame(() => setVisible(false));
     }
     return () => {
       document.documentElement.removeAttribute("data-menu-open");

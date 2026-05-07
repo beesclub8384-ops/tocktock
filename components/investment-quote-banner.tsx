@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useState } from "react";
 
 const INVESTMENT_QUOTES: { quote: string; author: string }[] = [
   // 워런 버핏 (Warren Buffett) — 20개
@@ -117,9 +117,10 @@ const INVESTMENT_QUOTES: { quote: string; author: string }[] = [
 ];
 
 export function InvestmentQuoteBanner() {
-  const { quote, author } = useMemo(() => {
-    return INVESTMENT_QUOTES[Math.floor(Math.random() * INVESTMENT_QUOTES.length)];
-  }, []);
+  const [{ quote, author }] = useState(
+    () =>
+      INVESTMENT_QUOTES[Math.floor(Math.random() * INVESTMENT_QUOTES.length)],
+  );
 
   return (
     <div className="w-full border-b border-border/30 bg-muted/30">
