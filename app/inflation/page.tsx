@@ -78,13 +78,7 @@ function LatestCard({ title, subtitle, value, date, prevValue, emphasized }: Car
           : "text-zinc-500";
 
   return (
-    <div
-      className={`rounded-xl p-4 sm:p-5 bg-white dark:bg-zinc-900 border ${
-        emphasized
-          ? "border-blue-300 dark:border-blue-600 shadow-[0_0_0_1px_rgba(37,99,235,0.2)]"
-          : "border-zinc-200 dark:border-zinc-800"
-      }`}
-    >
+    <div className="rounded-xl p-4 sm:p-5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
       <div className="flex items-baseline justify-between gap-2">
         <div>
           <div className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
@@ -144,7 +138,7 @@ export default async function InflationPage() {
       </header>
 
       {/* 물가 지표 */}
-      <section className="rounded-2xl bg-zinc-50/50 dark:bg-zinc-900/30 border border-zinc-200 dark:border-zinc-800 p-5 sm:p-6 mb-6">
+      <section className="rounded-2xl bg-zinc-50/50 dark:bg-zinc-900/30 border border-zinc-300 dark:border-zinc-700 p-5 sm:p-6 mb-6">
         <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100 mb-4">
           물가 지표 (Inflation Indicators)
         </h2>
@@ -186,7 +180,7 @@ export default async function InflationPage() {
       </section>
 
       {/* 시장 변동성 */}
-      <section className="rounded-2xl bg-zinc-50/50 dark:bg-zinc-900/30 border border-zinc-200 dark:border-zinc-800 p-5 sm:p-6 mb-6">
+      <section className="rounded-2xl bg-zinc-50/50 dark:bg-zinc-900/30 border border-zinc-300 dark:border-zinc-700 p-5 sm:p-6 mb-6">
         <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100 mb-4">
           시장 변동성 (Market Volatility)
         </h2>
