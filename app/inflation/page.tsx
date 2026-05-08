@@ -200,30 +200,6 @@ export default async function InflationPage() {
           <VixCard />
         </div>
       </section>
-
-      {/* 해석 가이드 */}
-      <section className="rounded-xl bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800 p-4 sm:p-5">
-        <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-3">
-          어떻게 읽나요
-        </h2>
-        <ul className="space-y-2 text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed">
-          <li>
-            Core PCE 는 Fed 가 통화정책 결정에 우선적으로 보는 핵심 인플레이션
-            지표입니다.
-          </li>
-          <li>
-            Core CPI 는 변동성이 큰 식료품/에너지를 제외한 추세 인플레이션을
-            보여줍니다.
-          </li>
-          <li>
-            Headline CPI 는 시장이 가장 빠르게 반응하지만 유가 등 외부 충격에
-            민감합니다.
-          </li>
-          <li>
-            Fed 목표 2% 선과의 격차가 향후 금리 경로 판단의 핵심 단서가 됩니다.
-          </li>
-        </ul>
-      </section>
     </div>
   );
 }
