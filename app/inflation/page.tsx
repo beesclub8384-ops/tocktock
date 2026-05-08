@@ -144,8 +144,8 @@ export default async function InflationPage() {
       </header>
 
       {/* 물가 지표 */}
-      <section className="mb-6">
-        <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100 mb-3">
+      <section className="rounded-2xl bg-zinc-50/50 dark:bg-zinc-900/30 border border-zinc-200 dark:border-zinc-800 p-5 sm:p-6 mb-6">
+        <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100 mb-4">
           물가 지표 (Inflation Indicators)
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
@@ -185,15 +185,9 @@ export default async function InflationPage() {
         </div>
       </section>
 
-      {/* 그룹 디바이더 */}
-      <div
-        className="border-t border-zinc-200 dark:border-zinc-800 my-8"
-        aria-hidden="true"
-      />
-
       {/* 시장 변동성 */}
-      <section className="mb-6">
-        <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100 mb-3">
+      <section className="rounded-2xl bg-zinc-50/50 dark:bg-zinc-900/30 border border-zinc-200 dark:border-zinc-800 p-5 sm:p-6 mb-6">
+        <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100 mb-4">
           시장 변동성 (Market Volatility)
         </h2>
         <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,320px))] gap-3 sm:gap-4">
