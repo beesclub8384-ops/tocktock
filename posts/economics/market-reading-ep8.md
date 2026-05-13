@@ -1,5 +1,5 @@
 ---
-title: "시장을 읽는 눈 EP.8 — PER를 어떻게 읽는가"
+title: "EP.8 — PER를 어떻게 읽는가"
 date: "2026-03-31"
 category: "경제공부"
 series: "시장을 읽는 눈"
