@@ -10,6 +10,12 @@ interface ChapterGroup {
   posts: PostMeta[];
 }
 
+// slug 끝의 ep 숫자 추출 (예: "market-reading-ep10" → 10). 매칭 실패 시 끝으로 보냄.
+function getEpisodeNumber(slug: string): number {
+  const m = slug.match(/ep(\d+)$/i);
+  return m ? parseInt(m[1], 10) : Number.MAX_SAFE_INTEGER;
+}
+
 function groupByChapter(posts: PostMeta[]): ChapterGroup[] {
   const chapterMap = new Map<number, ChapterGroup>();
 
@@ -23,6 +29,13 @@ function groupByChapter(posts: PostMeta[]): ChapterGroup[] {
       });
     }
     chapterMap.get(post.chapter)!.posts.push(post);
+  }
+
+  // 각 챕터 내부에서 ep 번호 오름차순 정렬 (ep1 → ep2 → ... → ep10)
+  for (const group of chapterMap.values()) {
+    group.posts.sort(
+      (a, b) => getEpisodeNumber(a.slug) - getEpisodeNumber(b.slug)
+    );
   }
 
   return Array.from(chapterMap.values()).sort(
