@@ -92,7 +92,7 @@ export async function getPostData(
   } else {
     const processedContent = await remark()
       .use(remarkGfm)
-      .use(html)
+      .use(html, { sanitize: false })
       .process(matterResult.content);
     contentHtml = processedContent.toString();
   }
