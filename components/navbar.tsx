@@ -7,7 +7,6 @@ import { InvestmentQuoteBanner } from "@/components/investment-quote-banner";
 
 const navLinks = [
   { href: "/news", label: "뉴스" },
-  { href: "/blog", label: "거시전망" },
   { href: "/credit", label: "빚투" },
   { href: "/economics", label: "경제공부" },
   { href: "/foreign-ownership", label: "외국인 지분율" },
@@ -33,7 +32,6 @@ type NavItem =
 
 const pcNavItems: NavItem[] = [
   { type: "link", href: "/news", label: "뉴스" },
-  { type: "link", href: "/blog", label: "거시전망" },
   { type: "link", href: "/credit", label: "빚투" },
   { type: "link", href: "/economics", label: "경제공부" },
   { type: "link", href: "/foreign-ownership", label: "외국인 지분율" },

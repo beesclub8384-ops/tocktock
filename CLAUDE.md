@@ -321,7 +321,7 @@ npm run build
 
 ## 📋 구현된 페이지 및 기능
 
-페이지(23개): /, /news, /blog, /blog/[slug], /fed-rate, /fed-rate/[slug], /economics, /economics/[slug], /indices, /indices/fear-greed, /market-events, /global-indicators, /foreign-ownership, /stock/[symbol], /money-flow, /money-flow/[id], /money-flow/treasury-auction, /liquidity/us, /liquidity/us/backtest, /liquidity/global, /virtual-trading, /ai-trading, /diagrams/new
+페이지: /, /news, /fed-rate, /fed-rate/[slug], /economics, /economics/[slug], /indices, /indices/fear-greed, /market-events, /global-indicators, /foreign-ownership, /stock/[symbol], /money-flow, /money-flow/[id], /money-flow/treasury-auction, /liquidity/us, /liquidity/us/backtest, /liquidity/global, /virtual-trading, /ai-trading, /diagrams/new
 
 API(31개): /api/stock/[symbol]/quote|chart|trendlines|growth-score|search, /api/usd-krw, /api/oil-prices, /api/credit-balance|overheat|vs-index, /api/money-flow-data|analysis, /api/treasury-auction|bill-history, /api/global-indicators, /api/foreign-ownership, /api/liquidity/us|backtest, /api/market-events, /api/ai-trading, /api/virtual-trading, /api/diagrams/save
 
@@ -399,13 +399,13 @@ TockTock에 글(칼럼, 분석, 가이드 등)을 작성할 때 반드시 아래
   형식: > "요약 문장"
 
 ### 9. 카테고리별 톤 차이
-- 거시전망/연준과 금리: 분석적, 결론 먼저, 투자 시사점 포함
+- 연준과 금리: 분석적, 결론 먼저, 투자 시사점 포함
 - 종목분석: 깊은 분석, 시나리오 제시, 표 적극 활용
 - 톡톡 칼럼: 비유 중심, 교양 톤, 핵심 요약 상단 배치
 - 경제공부: 교육 목적, 가장 쉬운 비유, 초보자 기준으로 작성
 
 ### 10. 투자 관련 글 면책 문구
-거시전망/종목분석/연준과 금리 카테고리 글 마지막에 반드시 추가:
+종목분석/연준과 금리 카테고리 글 마지막에 반드시 추가:
 > 이 글은 투자 권유가 아닙니다. 모든 투자 판단은 본인의 책임입니다.
 
 ### 11. 경제공부 카테고리 연재 규칙
