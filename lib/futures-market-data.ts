@@ -103,8 +103,15 @@ export async function fetchMarketDataForDate(date: string): Promise<MarketDataFo
   } catch (err) {
     console.error("[futures-market-data] loadMarketData failed:", err instanceof Error ? err.message : err);
   }
-  const hasExisting = (sym: string): boolean =>
-    !!(existing && existing.symbols[sym] && existing.symbols[sym].candles1m.length > 0);
+  // 장 중 불완전 수집 데이터가 영원히 캐시되는 것 방지 — 1분봉 100건 이상일 때만 보존.
+  // KOSP200F는 당일에만 KIS에서 제공되므로 예외(1건이라도 있으면 보존).
+  const MIN_CANDLES = 100;
+  const hasExisting = (sym: string): boolean => {
+    if (!existing || !existing.symbols[sym]) return false;
+    const len = existing.symbols[sym].candles1m.length;
+    if (sym === KOSP200F_SYMBOL) return len > 0;
+    return len >= MIN_CANDLES;
+  };
 
   // 정적 심볼 (Yahoo + KOSP200F)
   await Promise.all(

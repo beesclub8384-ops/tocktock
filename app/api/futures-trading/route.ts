@@ -122,12 +122,25 @@ export async function POST(request: NextRequest) {
       let marketData = await loadMarketData(record.date);
       if (!marketData || !hasAnyData(marketData)) {
         marketData = await fetchMarketDataForDate(record.date);
-        await saveMarketData(record.date, marketData);
+        // 장 중 부분 수집 데이터가 Redis에 굳어버리는 것 방지 —
+        // 005930.KS 1분봉 100건 이상일 때만 저장. 미달이면 Cron(KST 16:30)이 마저 처리.
+        const samsungCount = marketData.symbols["005930.KS"]?.candles1m.length ?? 0;
+        if (samsungCount >= 100) {
+          await saveMarketData(record.date, marketData);
+        } else {
+          console.log("[futures-trading] market data incomplete, skip save", {
+            date: record.date,
+            samsungCount,
+          });
+        }
       }
-      marketDataOk = hasAnyData(marketData);
+      const samsungCount = marketData.symbols["005930.KS"]?.candles1m.length ?? 0;
+      marketDataOk = hasAnyData(marketData) && samsungCount >= 100;
       console.log("[futures-trading] market data", {
         date: record.date,
-        hasData: marketDataOk,
+        hasData: hasAnyData(marketData),
+        samsungCount,
+        ready: marketDataOk,
       });
 
       // 시장 데이터 없으면 분석 보류 — Cron(KST 16:30)이 데이터 수집 후 자동 처리
