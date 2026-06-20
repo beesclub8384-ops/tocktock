@@ -21,7 +21,7 @@ async function downloadTSLAData() {
 
     const yahoo = new YahooFinance();
     const endDate = new Date();
-    const startDate = new Date(endDate.getFullYear() - 5, endDate.getMonth(), endDate.getDate());
+    const startDate = new Date(2010, endDate.getMonth(), endDate.getDate());
 
     const quotes = await yahoo.historical('TSLA', {
       period1: startDate,
