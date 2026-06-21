@@ -1,0 +1,6576 @@
+{
+  "ticker": "TSLA",
+  "meta": {
+    "from": "2010-09-23",
+    "to": "2026-06-17",
+    "candles": 4018,
+    "baseRate": 51.1,
+    "inSample": true,
+    "validated": false,
+    "note": "전체기간 in-sample 확률입니다. 검증 전 조사 후보이며, 미래 예측력을 보장하지 않습니다.",
+    "verification": "단일 31개·조합 563개를 OOS(전후반 분리)+본페로니 보정으로 검증한 결과, 통과한 패턴은 0개였습니다."
+  },
+  "overfitting": [
+    {
+      "scope": "단일 조건 31개",
+      "search": 31,
+      "maxProb": 56.9
+    },
+    {
+      "scope": "2·3개 조합 563개",
+      "search": 563,
+      "maxProb": 77.1
+    },
+    {
+      "scope": "재료 확장 4,962개",
+      "search": 4962,
+      "maxProb": 80
+    }
+  ],
+  "candidates": [
+    {
+      "rank": 1,
+      "condition": "거래량1.5 + 음봉1",
+      "prob": 60.4,
+      "occ": 197,
+      "lift": 9.3,
+      "avg": 0.91
+    },
+    {
+      "rank": 2,
+      "condition": "10일+20% + RSI과매수70 + 양봉1",
+      "prob": 59.6,
+      "occ": 151,
+      "lift": 8.5,
+      "avg": 0.99
+    },
+    {
+      "rank": 3,
+      "condition": "3%하락 + 이격-5 + 종가하락2",
+      "prob": 59.5,
+      "occ": 158,
+      "lift": 8.4,
+      "avg": 0.88
+    },
+    {
+      "rank": 4,
+      "condition": "20아래 + RSI과매도30 + 고변동5",
+      "prob": 59.5,
+      "occ": 153,
+      "lift": 8.4,
+      "avg": 0.72
+    },
+    {
+      "rank": 5,
+      "condition": "RSI과매도30 + 고변동5",
+      "prob": 59.5,
+      "occ": 153,
+      "lift": 8.4,
+      "avg": 0.72
+    },
+    {
+      "rank": 6,
+      "condition": "RSI과매도30 + 고변동5 + 이격-5",
+      "prob": 59.5,
+      "occ": 153,
+      "lift": 8.4,
+      "avg": 0.72
+    },
+    {
+      "rank": 7,
+      "condition": "20위 + 고변동5 + 음봉1",
+      "prob": 59.5,
+      "occ": 185,
+      "lift": 8.4,
+      "avg": 0.71
+    },
+    {
+      "rank": 8,
+      "condition": "종가하락2 + 종가하락3 + 종가하락4",
+      "prob": 59.4,
+      "occ": 165,
+      "lift": 8.3,
+      "avg": 0.86
+    },
+    {
+      "rank": 9,
+      "condition": "종가하락2 + 종가하락4",
+      "prob": 59.4,
+      "occ": 165,
+      "lift": 8.3,
+      "avg": 0.86
+    },
+    {
+      "rank": 10,
+      "condition": "종가하락3 + 종가하락4",
+      "prob": 59.4,
+      "occ": 165,
+      "lift": 8.3,
+      "avg": 0.86
+    },
+    {
+      "rank": 11,
+      "condition": "종가하락4",
+      "prob": 59.4,
+      "occ": 165,
+      "lift": 8.3,
+      "avg": 0.86
+    },
+    {
+      "rank": 12,
+      "condition": "10일+20% + 20위 + RSI과매수70",
+      "prob": 59.2,
+      "occ": 228,
+      "lift": 8.1,
+      "avg": 0.98
+    },
+    {
+      "rank": 13,
+      "condition": "10일+20% + RSI과매수70",
+      "prob": 59.2,
+      "occ": 228,
+      "lift": 8.1,
+      "avg": 0.98
+    },
+    {
+      "rank": 14,
+      "condition": "10일+20% + RSI과매수70 + 이격+5",
+      "prob": 59.2,
+      "occ": 228,
+      "lift": 8.1,
+      "avg": 0.98
+    },
+    {
+      "rank": 15,
+      "condition": "3%하락 + 고변동5 + 종가하락2",
+      "prob": 59.1,
+      "occ": 176,
+      "lift": 8,
+      "avg": 0.98
+    },
+    {
+      "rank": 16,
+      "condition": "10일+20% + 20위 + 양봉1",
+      "prob": 59.1,
+      "occ": 171,
+      "lift": 8,
+      "avg": 0.84
+    },
+    {
+      "rank": 17,
+      "condition": "10일+20% + 양봉1 + 이격+5",
+      "prob": 59.1,
+      "occ": 171,
+      "lift": 8,
+      "avg": 0.84
+    },
+    {
+      "rank": 18,
+      "condition": "고변동5 + 이격-5 + 종가하락2",
+      "prob": 59.1,
+      "occ": 171,
+      "lift": 8,
+      "avg": 0.66
+    },
+    {
+      "rank": 19,
+      "condition": "10일+20% + RSI과매수70 + 이격+10",
+      "prob": 59,
+      "occ": 227,
+      "lift": 7.9,
+      "avg": 0.98
+    },
+    {
+      "rank": 20,
+      "condition": "10일+20% + 60위 + RSI과매수70",
+      "prob": 59,
+      "occ": 222,
+      "lift": 7.9,
+      "avg": 0.92
+    },
+    {
+      "rank": 21,
+      "condition": "3%하락 + 60위 + 음봉1",
+      "prob": 58.8,
+      "occ": 216,
+      "lift": 7.7,
+      "avg": 0.53
+    },
+    {
+      "rank": 22,
+      "condition": "3%하락 + 60위",
+      "prob": 58.8,
+      "occ": 228,
+      "lift": 7.7,
+      "avg": 0.52
+    },
+    {
+      "rank": 23,
+      "condition": "10일+20% + 양봉1",
+      "prob": 58.7,
+      "occ": 172,
+      "lift": 7.6,
+      "avg": 0.79
+    },
+    {
+      "rank": 24,
+      "condition": "10일+20% + 20위 + 이격+5",
+      "prob": 58.7,
+      "occ": 264,
+      "lift": 7.6,
+      "avg": 0.88
+    },
+    {
+      "rank": 25,
+      "condition": "10일+20% + 이격+5",
+      "prob": 58.7,
+      "occ": 264,
+      "lift": 7.6,
+      "avg": 0.88
+    },
+    {
+      "rank": 26,
+      "condition": "10일+20% + 20위 + 이격+10",
+      "prob": 58.5,
+      "occ": 253,
+      "lift": 7.4,
+      "avg": 0.86
+    },
+    {
+      "rank": 27,
+      "condition": "10일+20% + 이격+10",
+      "prob": 58.5,
+      "occ": 253,
+      "lift": 7.4,
+      "avg": 0.86
+    },
+    {
+      "rank": 28,
+      "condition": "10일+20% + 이격+10 + 이격+5",
+      "prob": 58.5,
+      "occ": 253,
+      "lift": 7.4,
+      "avg": 0.86
+    },
+    {
+      "rank": 29,
+      "condition": "10일+20% + 20위",
+      "prob": 58.5,
+      "occ": 265,
+      "lift": 7.4,
+      "avg": 0.84
+    },
+    {
+      "rank": 30,
+      "condition": "10일+20% + 양봉1 + 이격+10",
+      "prob": 58.3,
+      "occ": 168,
+      "lift": 7.2,
+      "avg": 0.76
+    },
+    {
+      "rank": 31,
+      "condition": "60아래 + 고변동5 + 종가하락2",
+      "prob": 58.2,
+      "occ": 170,
+      "lift": 7.1,
+      "avg": 0.43
+    },
+    {
+      "rank": 32,
+      "condition": "60아래 + 음봉2 + 종가하락3",
+      "prob": 58.1,
+      "occ": 179,
+      "lift": 7,
+      "avg": 0.24
+    },
+    {
+      "rank": 33,
+      "condition": "10일+20%",
+      "prob": 58.1,
+      "occ": 267,
+      "lift": 7,
+      "avg": 0.78
+    },
+    {
+      "rank": 34,
+      "condition": "10일+20% + 60위 + 이격+10",
+      "prob": 58,
+      "occ": 243,
+      "lift": 6.9,
+      "avg": 0.82
+    },
+    {
+      "rank": 35,
+      "condition": "20아래 + 고변동5 + 이격-10",
+      "prob": 58,
+      "occ": 181,
+      "lift": 6.9,
+      "avg": 0.83
+    },
+    {
+      "rank": 36,
+      "condition": "고변동5 + 이격-10",
+      "prob": 58,
+      "occ": 181,
+      "lift": 6.9,
+      "avg": 0.83
+    },
+    {
+      "rank": 37,
+      "condition": "고변동5 + 이격-10 + 이격-5",
+      "prob": 58,
+      "occ": 181,
+      "lift": 6.9,
+      "avg": 0.83
+    },
+    {
+      "rank": 38,
+      "condition": "10일+20% + 60위 + 이격+5",
+      "prob": 58,
+      "occ": 250,
+      "lift": 6.9,
+      "avg": 0.8
+    },
+    {
+      "rank": 39,
+      "condition": "RSI과매수70 + 음봉1 + 이격+10",
+      "prob": 58,
+      "occ": 150,
+      "lift": 6.9,
+      "avg": 0.61
+    },
+    {
+      "rank": 40,
+      "condition": "60아래 + 음봉1 + 종가하락3",
+      "prob": 57.9,
+      "occ": 214,
+      "lift": 6.8,
+      "avg": 0.51
+    },
+    {
+      "rank": 41,
+      "condition": "60아래 + 고변동5 + 이격-10",
+      "prob": 57.8,
+      "occ": 166,
+      "lift": 6.7,
+      "avg": 0.8
+    },
+    {
+      "rank": 42,
+      "condition": "20아래 + 60아래 + 종가하락3",
+      "prob": 57.8,
+      "occ": 244,
+      "lift": 6.7,
+      "avg": 0.55
+    },
+    {
+      "rank": 43,
+      "condition": "고변동5 + 종가하락2",
+      "prob": 57.8,
+      "occ": 270,
+      "lift": 6.7,
+      "avg": 0.57
+    },
+    {
+      "rank": 44,
+      "condition": "10일+20% + 20위 + 60위",
+      "prob": 57.8,
+      "occ": 251,
+      "lift": 6.7,
+      "avg": 0.76
+    },
+    {
+      "rank": 45,
+      "condition": "10일+20% + 60위",
+      "prob": 57.8,
+      "occ": 251,
+      "lift": 6.7,
+      "avg": 0.76
+    },
+    {
+      "rank": 46,
+      "condition": "60아래 + 종가하락2 + 종가하락3",
+      "prob": 57.7,
+      "occ": 253,
+      "lift": 6.6,
+      "avg": 0.57
+    },
+    {
+      "rank": 47,
+      "condition": "60아래 + 종가하락3",
+      "prob": 57.7,
+      "occ": 253,
+      "lift": 6.6,
+      "avg": 0.57
+    },
+    {
+      "rank": 48,
+      "condition": "60위 + 고변동5 + 음봉1",
+      "prob": 57.6,
+      "occ": 243,
+      "lift": 6.5,
+      "avg": 0.4
+    },
+    {
+      "rank": 49,
+      "condition": "3%하락 + 종가하락2",
+      "prob": 57.6,
+      "occ": 276,
+      "lift": 6.5,
+      "avg": 0.77
+    },
+    {
+      "rank": 50,
+      "condition": "RSI과매수70 + 음봉1 + 이격+5",
+      "prob": 57.6,
+      "occ": 238,
+      "lift": 6.5,
+      "avg": 0.36
+    },
+    {
+      "rank": 51,
+      "condition": "10일+20% + 60위 + 양봉1",
+      "prob": 57.5,
+      "occ": 160,
+      "lift": 6.4,
+      "avg": 0.68
+    },
+    {
+      "rank": 52,
+      "condition": "갭하락1 + 종가하락2 + 종가하락3",
+      "prob": 57.3,
+      "occ": 150,
+      "lift": 6.2,
+      "avg": 0.53
+    },
+    {
+      "rank": 53,
+      "condition": "갭하락1 + 종가하락3",
+      "prob": 57.3,
+      "occ": 150,
+      "lift": 6.2,
+      "avg": 0.53
+    },
+    {
+      "rank": 54,
+      "condition": "20위 + 3%하락",
+      "prob": 57.3,
+      "occ": 157,
+      "lift": 6.2,
+      "avg": 0.29
+    },
+    {
+      "rank": 55,
+      "condition": "음봉1 + 종가상승2",
+      "prob": 57.3,
+      "occ": 192,
+      "lift": 6.2,
+      "avg": 0.82
+    },
+    {
+      "rank": 56,
+      "condition": "3일-10%",
+      "prob": 57.2,
+      "occ": 159,
+      "lift": 6.1,
+      "avg": 0.94
+    },
+    {
+      "rank": 57,
+      "condition": "고변동5 + 음봉1 + 종가하락2",
+      "prob": 57.2,
+      "occ": 236,
+      "lift": 6.1,
+      "avg": 0.57
+    },
+    {
+      "rank": 58,
+      "condition": "60위 + RSI과매수70 + 음봉1",
+      "prob": 57.2,
+      "occ": 257,
+      "lift": 6.1,
+      "avg": 0.41
+    },
+    {
+      "rank": 59,
+      "condition": "20위 + RSI과매수70 + 음봉1",
+      "prob": 57.2,
+      "occ": 271,
+      "lift": 6.1,
+      "avg": 0.33
+    },
+    {
+      "rank": 60,
+      "condition": "RSI과매수70 + 음봉1",
+      "prob": 57.2,
+      "occ": 271,
+      "lift": 6.1,
+      "avg": 0.33
+    },
+    {
+      "rank": 61,
+      "condition": "20위 + 음봉1 + 이격+10",
+      "prob": 57.1,
+      "occ": 182,
+      "lift": 6,
+      "avg": 0.71
+    },
+    {
+      "rank": 62,
+      "condition": "음봉1 + 이격+10",
+      "prob": 57.1,
+      "occ": 182,
+      "lift": 6,
+      "avg": 0.71
+    },
+    {
+      "rank": 63,
+      "condition": "음봉1 + 이격+10 + 이격+5",
+      "prob": 57.1,
+      "occ": 182,
+      "lift": 6,
+      "avg": 0.71
+    },
+    {
+      "rank": 64,
+      "condition": "20아래 + 3%하락 + 종가하락2",
+      "prob": 57.1,
+      "occ": 226,
+      "lift": 6,
+      "avg": 0.76
+    },
+    {
+      "rank": 65,
+      "condition": "20아래 + 고변동5 + 종가하락2",
+      "prob": 57.1,
+      "occ": 219,
+      "lift": 6,
+      "avg": 0.46
+    },
+    {
+      "rank": 66,
+      "condition": "5_10상향",
+      "prob": 56.9,
+      "occ": 202,
+      "lift": 5.8,
+      "avg": 0.64
+    },
+    {
+      "rank": 67,
+      "condition": "60아래 + 음봉3 + 종가하락2",
+      "prob": 56.8,
+      "occ": 183,
+      "lift": 5.7,
+      "avg": 0.19
+    },
+    {
+      "rank": 68,
+      "condition": "RSI과매수70 + 이격+10 + 종가상승3",
+      "prob": 56.7,
+      "occ": 164,
+      "lift": 5.6,
+      "avg": 0.88
+    },
+    {
+      "rank": 69,
+      "condition": "3%하락 + 음봉1 + 종가하락2",
+      "prob": 56.6,
+      "occ": 256,
+      "lift": 5.5,
+      "avg": 0.78
+    },
+    {
+      "rank": 70,
+      "condition": "RSI과매수80 + 양봉1 + 이격+10",
+      "prob": 56.6,
+      "occ": 166,
+      "lift": 5.5,
+      "avg": 0.57
+    },
+    {
+      "rank": 71,
+      "condition": "20위 + 이격+10 + 종가상승3",
+      "prob": 56.6,
+      "occ": 189,
+      "lift": 5.5,
+      "avg": 0.8
+    },
+    {
+      "rank": 72,
+      "condition": "이격+10 + 이격+5 + 종가상승3",
+      "prob": 56.6,
+      "occ": 189,
+      "lift": 5.5,
+      "avg": 0.8
+    },
+    {
+      "rank": 73,
+      "condition": "이격+10 + 종가상승2 + 종가상승3",
+      "prob": 56.6,
+      "occ": 189,
+      "lift": 5.5,
+      "avg": 0.8
+    },
+    {
+      "rank": 74,
+      "condition": "이격+10 + 종가상승3",
+      "prob": 56.6,
+      "occ": 189,
+      "lift": 5.5,
+      "avg": 0.8
+    },
+    {
+      "rank": 75,
+      "condition": "20아래 + 종가하락2 + 종가하락3",
+      "prob": 56.6,
+      "occ": 318,
+      "lift": 5.5,
+      "avg": 0.56
+    },
+    {
+      "rank": 76,
+      "condition": "20아래 + 종가하락3",
+      "prob": 56.6,
+      "occ": 318,
+      "lift": 5.5,
+      "avg": 0.56
+    },
+    {
+      "rank": 77,
+      "condition": "3%하락 + 5%하락",
+      "prob": 56.6,
+      "occ": 212,
+      "lift": 5.5,
+      "avg": 0.89
+    },
+    {
+      "rank": 78,
+      "condition": "5%하락",
+      "prob": 56.6,
+      "occ": 212,
+      "lift": 5.5,
+      "avg": 0.89
+    },
+    {
+      "rank": 79,
+      "condition": "20위 + 종가하락2",
+      "prob": 56.6,
+      "occ": 258,
+      "lift": 5.5,
+      "avg": 0.4
+    },
+    {
+      "rank": 80,
+      "condition": "갭상승1 + 고변동5 + 음봉1",
+      "prob": 56.6,
+      "occ": 175,
+      "lift": 5.5,
+      "avg": 0.43
+    },
+    {
+      "rank": 81,
+      "condition": "종가하락2 + 종가하락3",
+      "prob": 56.5,
+      "occ": 391,
+      "lift": 5.4,
+      "avg": 0.56
+    },
+    {
+      "rank": 82,
+      "condition": "종가하락3",
+      "prob": 56.5,
+      "occ": 391,
+      "lift": 5.4,
+      "avg": 0.56
+    },
+    {
+      "rank": 83,
+      "condition": "양봉1 + 이격+10 + 종가상승3",
+      "prob": 56.5,
+      "occ": 154,
+      "lift": 5.4,
+      "avg": 0.74
+    },
+    {
+      "rank": 84,
+      "condition": "20아래 + 거래량1.5",
+      "prob": 56.5,
+      "occ": 170,
+      "lift": 5.4,
+      "avg": 0.63
+    },
+    {
+      "rank": 85,
+      "condition": "음봉1 + 음봉3 + 종가하락3",
+      "prob": 56.5,
+      "occ": 232,
+      "lift": 5.4,
+      "avg": 0.25
+    },
+    {
+      "rank": 86,
+      "condition": "음봉2 + 음봉3 + 종가하락3",
+      "prob": 56.5,
+      "occ": 232,
+      "lift": 5.4,
+      "avg": 0.25
+    },
+    {
+      "rank": 87,
+      "condition": "음봉3 + 종가하락2 + 종가하락3",
+      "prob": 56.5,
+      "occ": 232,
+      "lift": 5.4,
+      "avg": 0.25
+    },
+    {
+      "rank": 88,
+      "condition": "음봉3 + 종가하락3",
+      "prob": 56.5,
+      "occ": 232,
+      "lift": 5.4,
+      "avg": 0.25
+    },
+    {
+      "rank": 89,
+      "condition": "20위 + 음봉1 + 종가하락2",
+      "prob": 56.5,
+      "occ": 209,
+      "lift": 5.4,
+      "avg": 0.35
+    },
+    {
+      "rank": 90,
+      "condition": "20아래 + 음봉3 + 종가하락3",
+      "prob": 56.4,
+      "occ": 195,
+      "lift": 5.3,
+      "avg": 0.3
+    },
+    {
+      "rank": 91,
+      "condition": "20아래 + 음봉1 + 음봉4",
+      "prob": 56.3,
+      "occ": 183,
+      "lift": 5.2,
+      "avg": 0.14
+    },
+    {
+      "rank": 92,
+      "condition": "20아래 + 음봉2 + 음봉4",
+      "prob": 56.3,
+      "occ": 183,
+      "lift": 5.2,
+      "avg": 0.14
+    },
+    {
+      "rank": 93,
+      "condition": "20아래 + 음봉3 + 음봉4",
+      "prob": 56.3,
+      "occ": 183,
+      "lift": 5.2,
+      "avg": 0.14
+    },
+    {
+      "rank": 94,
+      "condition": "20아래 + 음봉4",
+      "prob": 56.3,
+      "occ": 183,
+      "lift": 5.2,
+      "avg": 0.14
+    },
+    {
+      "rank": 95,
+      "condition": "60위 + 음봉1 + 이격+10",
+      "prob": 56.3,
+      "occ": 176,
+      "lift": 5.2,
+      "avg": 0.7
+    },
+    {
+      "rank": 96,
+      "condition": "20위 + RSI과매수70 + 고변동5",
+      "prob": 56.2,
+      "occ": 201,
+      "lift": 5.1,
+      "avg": 0.41
+    },
+    {
+      "rank": 97,
+      "condition": "RSI과매수70 + 고변동5",
+      "prob": 56.2,
+      "occ": 201,
+      "lift": 5.1,
+      "avg": 0.41
+    },
+    {
+      "rank": 98,
+      "condition": "60아래 + 이격-5 + 종가하락3",
+      "prob": 56.1,
+      "occ": 187,
+      "lift": 5.1,
+      "avg": 0.53
+    },
+    {
+      "rank": 99,
+      "condition": "음봉1 + 종가하락2 + 종가하락3",
+      "prob": 56.1,
+      "occ": 328,
+      "lift": 5,
+      "avg": 0.42
+    },
+    {
+      "rank": 100,
+      "condition": "음봉1 + 종가하락3",
+      "prob": 56.1,
+      "occ": 328,
+      "lift": 5,
+      "avg": 0.42
+    },
+    {
+      "rank": 101,
+      "condition": "RSI과매수70 + 고변동5 + 이격+5",
+      "prob": 56,
+      "occ": 200,
+      "lift": 4.9,
+      "avg": 0.4
+    },
+    {
+      "rank": 102,
+      "condition": "20위 + RSI과매수70 + 이격+10",
+      "prob": 56,
+      "occ": 459,
+      "lift": 4.9,
+      "avg": 0.68
+    },
+    {
+      "rank": 103,
+      "condition": "RSI과매수70 + 이격+10",
+      "prob": 56,
+      "occ": 459,
+      "lift": 4.9,
+      "avg": 0.68
+    },
+    {
+      "rank": 104,
+      "condition": "RSI과매수70 + 이격+10 + 이격+5",
+      "prob": 56,
+      "occ": 459,
+      "lift": 4.9,
+      "avg": 0.68
+    },
+    {
+      "rank": 105,
+      "condition": "3%하락 + 5%하락 + 고변동5",
+      "prob": 56,
+      "occ": 184,
+      "lift": 4.9,
+      "avg": 0.97
+    },
+    {
+      "rank": 106,
+      "condition": "5%하락 + 고변동5",
+      "prob": 56,
+      "occ": 184,
+      "lift": 4.9,
+      "avg": 0.97
+    },
+    {
+      "rank": 107,
+      "condition": "20위 + RSI과매수80 + 이격+10",
+      "prob": 55.9,
+      "occ": 227,
+      "lift": 4.8,
+      "avg": 0.51
+    },
+    {
+      "rank": 108,
+      "condition": "RSI과매수70 + RSI과매수80 + 이격+10",
+      "prob": 55.9,
+      "occ": 227,
+      "lift": 4.8,
+      "avg": 0.51
+    },
+    {
+      "rank": 109,
+      "condition": "RSI과매수80 + 이격+10",
+      "prob": 55.9,
+      "occ": 227,
+      "lift": 4.8,
+      "avg": 0.51
+    },
+    {
+      "rank": 110,
+      "condition": "RSI과매수80 + 이격+10 + 이격+5",
+      "prob": 55.9,
+      "occ": 227,
+      "lift": 4.8,
+      "avg": 0.51
+    },
+    {
+      "rank": 111,
+      "condition": "3%하락 + 고변동5 + 이격-5",
+      "prob": 55.9,
+      "occ": 188,
+      "lift": 4.8,
+      "avg": 0.82
+    },
+    {
+      "rank": 112,
+      "condition": "20아래 + 음봉2 + 종가하락3",
+      "prob": 55.8,
+      "occ": 231,
+      "lift": 4.7,
+      "avg": 0.23
+    },
+    {
+      "rank": 113,
+      "condition": "고변동5 + 음봉2 + 이격-5",
+      "prob": 55.8,
+      "occ": 156,
+      "lift": 4.7,
+      "avg": 0.45
+    },
+    {
+      "rank": 114,
+      "condition": "60위 + RSI과매수70 + 고변동5",
+      "prob": 55.7,
+      "occ": 192,
+      "lift": 4.6,
+      "avg": 0.4
+    },
+    {
+      "rank": 115,
+      "condition": "5%하락 + 고변동5 + 음봉1",
+      "prob": 55.7,
+      "occ": 176,
+      "lift": 4.6,
+      "avg": 0.95
+    },
+    {
+      "rank": 116,
+      "condition": "20위 + 60위 + 종가하락2",
+      "prob": 55.7,
+      "occ": 212,
+      "lift": 4.6,
+      "avg": 0.43
+    },
+    {
+      "rank": 117,
+      "condition": "20아래 + 음봉1 + 종가하락3",
+      "prob": 55.6,
+      "occ": 266,
+      "lift": 4.5,
+      "avg": 0.42
+    },
+    {
+      "rank": 118,
+      "condition": "RSI과매수70 + 양봉2 + 이격+10",
+      "prob": 55.6,
+      "occ": 187,
+      "lift": 4.5,
+      "avg": 0.66
+    },
+    {
+      "rank": 119,
+      "condition": "20아래 + 이격-5 + 종가하락3",
+      "prob": 55.6,
+      "occ": 214,
+      "lift": 4.5,
+      "avg": 0.6
+    },
+    {
+      "rank": 120,
+      "condition": "이격-5 + 종가하락2 + 종가하락3",
+      "prob": 55.6,
+      "occ": 214,
+      "lift": 4.5,
+      "avg": 0.6
+    },
+    {
+      "rank": 121,
+      "condition": "이격-5 + 종가하락3",
+      "prob": 55.6,
+      "occ": 214,
+      "lift": 4.5,
+      "avg": 0.6
+    },
+    {
+      "rank": 122,
+      "condition": "음봉1 + 음봉3 + 종가하락2",
+      "prob": 55.6,
+      "occ": 295,
+      "lift": 4.5,
+      "avg": 0.19
+    },
+    {
+      "rank": 123,
+      "condition": "음봉2 + 음봉3 + 종가하락2",
+      "prob": 55.6,
+      "occ": 295,
+      "lift": 4.5,
+      "avg": 0.19
+    },
+    {
+      "rank": 124,
+      "condition": "음봉3 + 종가하락2",
+      "prob": 55.6,
+      "occ": 295,
+      "lift": 4.5,
+      "avg": 0.19
+    },
+    {
+      "rank": 125,
+      "condition": "3%하락 + 60아래 + 종가하락2",
+      "prob": 55.6,
+      "occ": 171,
+      "lift": 4.5,
+      "avg": 0.61
+    },
+    {
+      "rank": 126,
+      "condition": "20아래 + 3%하락 + 5%하락",
+      "prob": 55.5,
+      "occ": 164,
+      "lift": 4.4,
+      "avg": 0.95
+    },
+    {
+      "rank": 127,
+      "condition": "20아래 + 5%하락",
+      "prob": 55.5,
+      "occ": 164,
+      "lift": 4.4,
+      "avg": 0.95
+    },
+    {
+      "rank": 128,
+      "condition": "20아래 + 음봉3 + 종가하락2",
+      "prob": 55.5,
+      "occ": 238,
+      "lift": 4.4,
+      "avg": 0.24
+    },
+    {
+      "rank": 129,
+      "condition": "20아래 + 갭하락1 + 갭하락2",
+      "prob": 55.5,
+      "occ": 211,
+      "lift": 4.4,
+      "avg": 0.4
+    },
+    {
+      "rank": 130,
+      "condition": "20아래 + 갭하락2",
+      "prob": 55.5,
+      "occ": 211,
+      "lift": 4.4,
+      "avg": 0.4
+    },
+    {
+      "rank": 131,
+      "condition": "60위 + 이격+10 + 종가상승3",
+      "prob": 55.4,
+      "occ": 175,
+      "lift": 4.3,
+      "avg": 0.63
+    },
+    {
+      "rank": 132,
+      "condition": "3%하락 + 갭하락1 + 갭하락2",
+      "prob": 55.4,
+      "occ": 166,
+      "lift": 4.3,
+      "avg": 0.35
+    },
+    {
+      "rank": 133,
+      "condition": "3%하락 + 갭하락2",
+      "prob": 55.4,
+      "occ": 166,
+      "lift": 4.3,
+      "avg": 0.35
+    },
+    {
+      "rank": 134,
+      "condition": "3%하락 + 갭하락1 + 종가하락2",
+      "prob": 55.4,
+      "occ": 157,
+      "lift": 4.3,
+      "avg": 0.31
+    },
+    {
+      "rank": 135,
+      "condition": "음봉1 + 음봉2 + 종가하락3",
+      "prob": 55.4,
+      "occ": 278,
+      "lift": 4.3,
+      "avg": 0.13
+    },
+    {
+      "rank": 136,
+      "condition": "음봉2 + 종가하락2 + 종가하락3",
+      "prob": 55.4,
+      "occ": 278,
+      "lift": 4.3,
+      "avg": 0.13
+    },
+    {
+      "rank": 137,
+      "condition": "음봉2 + 종가하락3",
+      "prob": 55.4,
+      "occ": 278,
+      "lift": 4.3,
+      "avg": 0.13
+    },
+    {
+      "rank": 138,
+      "condition": "갭하락1 + 갭하락2 + 고변동5",
+      "prob": 55.4,
+      "occ": 168,
+      "lift": 4.3,
+      "avg": 0.5
+    },
+    {
+      "rank": 139,
+      "condition": "갭하락2 + 고변동5",
+      "prob": 55.4,
+      "occ": 168,
+      "lift": 4.3,
+      "avg": 0.5
+    },
+    {
+      "rank": 140,
+      "condition": "20위 + 이격+10",
+      "prob": 55.3,
+      "occ": 553,
+      "lift": 4.2,
+      "avg": 0.65
+    },
+    {
+      "rank": 141,
+      "condition": "20위 + 이격+10 + 이격+5",
+      "prob": 55.3,
+      "occ": 553,
+      "lift": 4.2,
+      "avg": 0.65
+    },
+    {
+      "rank": 142,
+      "condition": "이격+10",
+      "prob": 55.3,
+      "occ": 553,
+      "lift": 4.2,
+      "avg": 0.65
+    },
+    {
+      "rank": 143,
+      "condition": "이격+10 + 이격+5",
+      "prob": 55.3,
+      "occ": 553,
+      "lift": 4.2,
+      "avg": 0.65
+    },
+    {
+      "rank": 144,
+      "condition": "60위 + RSI과매수70 + 이격+10",
+      "prob": 55.3,
+      "occ": 443,
+      "lift": 4.2,
+      "avg": 0.62
+    },
+    {
+      "rank": 145,
+      "condition": "3%상승 + 이격+5 + 종가상승2",
+      "prob": 55.3,
+      "occ": 208,
+      "lift": 4.2,
+      "avg": 0.58
+    },
+    {
+      "rank": 146,
+      "condition": "3%하락 + 5%하락 + 음봉1",
+      "prob": 55.3,
+      "occ": 199,
+      "lift": 4.2,
+      "avg": 0.82
+    },
+    {
+      "rank": 147,
+      "condition": "5%하락 + 음봉1",
+      "prob": 55.3,
+      "occ": 199,
+      "lift": 4.2,
+      "avg": 0.82
+    },
+    {
+      "rank": 148,
+      "condition": "RSI과매수70 + 이격+10 + 종가상승2",
+      "prob": 55.3,
+      "occ": 237,
+      "lift": 4.2,
+      "avg": 0.78
+    },
+    {
+      "rank": 149,
+      "condition": "양봉1 + 이격+10 + 종가상승2",
+      "prob": 55.3,
+      "occ": 228,
+      "lift": 4.2,
+      "avg": 0.61
+    },
+    {
+      "rank": 150,
+      "condition": "RSI과매도30 + 음봉1 + 이격-10",
+      "prob": 55.3,
+      "occ": 152,
+      "lift": 4.2,
+      "avg": 0.03
+    },
+    {
+      "rank": 151,
+      "condition": "60위 + RSI과매수80 + 이격+10",
+      "prob": 55.2,
+      "occ": 221,
+      "lift": 4.1,
+      "avg": 0.4
+    },
+    {
+      "rank": 152,
+      "condition": "RSI과매수70 + 양봉1 + 이격+10",
+      "prob": 55.2,
+      "occ": 308,
+      "lift": 4.1,
+      "avg": 0.73
+    },
+    {
+      "rank": 153,
+      "condition": "RSI과매수70 + 갭상승1 + 이격+10",
+      "prob": 55.2,
+      "occ": 203,
+      "lift": 4.1,
+      "avg": 0.51
+    },
+    {
+      "rank": 154,
+      "condition": "RSI과매수70 + 양봉1 + 종가상승3",
+      "prob": 55.1,
+      "occ": 167,
+      "lift": 4,
+      "avg": 0.68
+    },
+    {
+      "rank": 155,
+      "condition": "20위 + 이격+10 + 종가상승2",
+      "prob": 55,
+      "occ": 278,
+      "lift": 3.9,
+      "avg": 0.68
+    },
+    {
+      "rank": 156,
+      "condition": "이격+10 + 이격+5 + 종가상승2",
+      "prob": 55,
+      "occ": 278,
+      "lift": 3.9,
+      "avg": 0.68
+    },
+    {
+      "rank": 157,
+      "condition": "이격+10 + 종가상승2",
+      "prob": 55,
+      "occ": 278,
+      "lift": 3.9,
+      "avg": 0.68
+    },
+    {
+      "rank": 158,
+      "condition": "20위 + 5일+15% + 이격+5",
+      "prob": 55,
+      "occ": 160,
+      "lift": 3.9,
+      "avg": 0.93
+    },
+    {
+      "rank": 159,
+      "condition": "5일+15% + 이격+5",
+      "prob": 55,
+      "occ": 160,
+      "lift": 3.9,
+      "avg": 0.93
+    },
+    {
+      "rank": 160,
+      "condition": "고변동5 + 음봉2 + 종가하락2",
+      "prob": 55,
+      "occ": 200,
+      "lift": 3.9,
+      "avg": 0.35
+    },
+    {
+      "rank": 161,
+      "condition": "3%하락 + 고변동5",
+      "prob": 54.9,
+      "occ": 355,
+      "lift": 3.8,
+      "avg": 0.58
+    },
+    {
+      "rank": 162,
+      "condition": "고변동5 + 음봉1",
+      "prob": 54.9,
+      "occ": 548,
+      "lift": 3.8,
+      "avg": 0.37
+    },
+    {
+      "rank": 163,
+      "condition": "20위 + 양봉2 + 이격+10",
+      "prob": 54.9,
+      "occ": 224,
+      "lift": 3.8,
+      "avg": 0.53
+    },
+    {
+      "rank": 164,
+      "condition": "양봉1 + 양봉2 + 이격+10",
+      "prob": 54.9,
+      "occ": 224,
+      "lift": 3.8,
+      "avg": 0.53
+    },
+    {
+      "rank": 165,
+      "condition": "양봉2 + 이격+10",
+      "prob": 54.9,
+      "occ": 224,
+      "lift": 3.8,
+      "avg": 0.53
+    },
+    {
+      "rank": 166,
+      "condition": "양봉2 + 이격+10 + 이격+5",
+      "prob": 54.9,
+      "occ": 224,
+      "lift": 3.8,
+      "avg": 0.53
+    },
+    {
+      "rank": 167,
+      "condition": "RSI과매수70 + 고변동5 + 이격+10",
+      "prob": 54.9,
+      "occ": 184,
+      "lift": 3.8,
+      "avg": 0.38
+    },
+    {
+      "rank": 168,
+      "condition": "3%하락 + 음봉2 + 종가하락2",
+      "prob": 54.9,
+      "occ": 215,
+      "lift": 3.8,
+      "avg": 0.59
+    },
+    {
+      "rank": 169,
+      "condition": "RSI과매수80 + 이격+5 + 종가상승2",
+      "prob": 54.9,
+      "occ": 164,
+      "lift": 3.8,
+      "avg": 0.56
+    },
+    {
+      "rank": 170,
+      "condition": "20위 + RSI과매수70 + 종가상승3",
+      "prob": 54.9,
+      "occ": 206,
+      "lift": 3.8,
+      "avg": 0.68
+    },
+    {
+      "rank": 171,
+      "condition": "RSI과매수70 + 종가상승2 + 종가상승3",
+      "prob": 54.9,
+      "occ": 206,
+      "lift": 3.8,
+      "avg": 0.68
+    },
+    {
+      "rank": 172,
+      "condition": "RSI과매수70 + 종가상승3",
+      "prob": 54.9,
+      "occ": 206,
+      "lift": 3.8,
+      "avg": 0.68
+    },
+    {
+      "rank": 173,
+      "condition": "음봉1 + 이격-5 + 종가하락3",
+      "prob": 54.8,
+      "occ": 177,
+      "lift": 3.7,
+      "avg": 0.43
+    },
+    {
+      "rank": 174,
+      "condition": "20위 + 고변동5 + 이격+5",
+      "prob": 54.8,
+      "occ": 334,
+      "lift": 3.7,
+      "avg": 0.21
+    },
+    {
+      "rank": 175,
+      "condition": "고변동5 + 이격+5",
+      "prob": 54.8,
+      "occ": 334,
+      "lift": 3.7,
+      "avg": 0.21
+    },
+    {
+      "rank": 176,
+      "condition": "20위 + 고변동5 + 이격+10",
+      "prob": 54.8,
+      "occ": 230,
+      "lift": 3.7,
+      "avg": 0.29
+    },
+    {
+      "rank": 177,
+      "condition": "고변동5 + 이격+10",
+      "prob": 54.8,
+      "occ": 230,
+      "lift": 3.7,
+      "avg": 0.29
+    },
+    {
+      "rank": 178,
+      "condition": "고변동5 + 이격+10 + 이격+5",
+      "prob": 54.8,
+      "occ": 230,
+      "lift": 3.7,
+      "avg": 0.29
+    },
+    {
+      "rank": 179,
+      "condition": "고변동5 + 음봉1 + 이격-5",
+      "prob": 54.8,
+      "occ": 252,
+      "lift": 3.7,
+      "avg": 0.47
+    },
+    {
+      "rank": 180,
+      "condition": "60아래 + 음봉1 + 이격-10",
+      "prob": 54.7,
+      "occ": 192,
+      "lift": 3.6,
+      "avg": 0.2
+    },
+    {
+      "rank": 181,
+      "condition": "3%상승 + RSI과매수70 + 이격+10",
+      "prob": 54.7,
+      "occ": 172,
+      "lift": 3.6,
+      "avg": 0.67
+    },
+    {
+      "rank": 182,
+      "condition": "20아래 + 고변동5 + 이격-5",
+      "prob": 54.6,
+      "occ": 359,
+      "lift": 3.5,
+      "avg": 0.59
+    },
+    {
+      "rank": 183,
+      "condition": "고변동5 + 이격-5",
+      "prob": 54.6,
+      "occ": 359,
+      "lift": 3.5,
+      "avg": 0.59
+    },
+    {
+      "rank": 184,
+      "condition": "20아래 + 음봉1 + 이격-10",
+      "prob": 54.6,
+      "occ": 207,
+      "lift": 3.5,
+      "avg": 0.19
+    },
+    {
+      "rank": 185,
+      "condition": "음봉1 + 이격-10",
+      "prob": 54.6,
+      "occ": 207,
+      "lift": 3.5,
+      "avg": 0.19
+    },
+    {
+      "rank": 186,
+      "condition": "음봉1 + 이격-10 + 이격-5",
+      "prob": 54.6,
+      "occ": 207,
+      "lift": 3.5,
+      "avg": 0.19
+    },
+    {
+      "rank": 187,
+      "condition": "20위 + RSI과매수80 + 종가상승2",
+      "prob": 54.5,
+      "occ": 165,
+      "lift": 3.4,
+      "avg": 0.55
+    },
+    {
+      "rank": 188,
+      "condition": "RSI과매수70 + RSI과매수80 + 종가상승2",
+      "prob": 54.5,
+      "occ": 165,
+      "lift": 3.4,
+      "avg": 0.55
+    },
+    {
+      "rank": 189,
+      "condition": "RSI과매수80 + 종가상승2",
+      "prob": 54.5,
+      "occ": 165,
+      "lift": 3.4,
+      "avg": 0.55
+    },
+    {
+      "rank": 190,
+      "condition": "60아래 + 고변동5 + 음봉2",
+      "prob": 54.5,
+      "occ": 165,
+      "lift": 3.4,
+      "avg": 0.27
+    },
+    {
+      "rank": 191,
+      "condition": "20위 + 양봉1 + 이격+10",
+      "prob": 54.5,
+      "occ": 369,
+      "lift": 3.4,
+      "avg": 0.62
+    },
+    {
+      "rank": 192,
+      "condition": "양봉1 + 이격+10",
+      "prob": 54.5,
+      "occ": 369,
+      "lift": 3.4,
+      "avg": 0.62
+    },
+    {
+      "rank": 193,
+      "condition": "양봉1 + 이격+10 + 이격+5",
+      "prob": 54.5,
+      "occ": 369,
+      "lift": 3.4,
+      "avg": 0.62
+    },
+    {
+      "rank": 194,
+      "condition": "20위 + 60위 + 고변동5",
+      "prob": 54.5,
+      "occ": 393,
+      "lift": 3.4,
+      "avg": 0.32
+    },
+    {
+      "rank": 195,
+      "condition": "20위 + 60위 + 이격+10",
+      "prob": 54.4,
+      "occ": 529,
+      "lift": 3.3,
+      "avg": 0.6
+    },
+    {
+      "rank": 196,
+      "condition": "60위 + 이격+10",
+      "prob": 54.4,
+      "occ": 529,
+      "lift": 3.3,
+      "avg": 0.6
+    },
+    {
+      "rank": 197,
+      "condition": "60위 + 이격+10 + 이격+5",
+      "prob": 54.4,
+      "occ": 529,
+      "lift": 3.3,
+      "avg": 0.6
+    },
+    {
+      "rank": 198,
+      "condition": "3%하락 + 고변동5 + 음봉1",
+      "prob": 54.4,
+      "occ": 340,
+      "lift": 3.3,
+      "avg": 0.6
+    },
+    {
+      "rank": 199,
+      "condition": "3%하락 + 고변동5 + 음봉2",
+      "prob": 54.4,
+      "occ": 171,
+      "lift": 3.3,
+      "avg": 0.7
+    },
+    {
+      "rank": 200,
+      "condition": "20아래 + RSI과매도30 + 이격-10",
+      "prob": 54.3,
+      "occ": 219,
+      "lift": 3.2,
+      "avg": 0.24
+    },
+    {
+      "rank": 201,
+      "condition": "RSI과매도30 + 이격-10",
+      "prob": 54.3,
+      "occ": 219,
+      "lift": 3.2,
+      "avg": 0.24
+    },
+    {
+      "rank": 202,
+      "condition": "RSI과매도30 + 이격-10 + 이격-5",
+      "prob": 54.3,
+      "occ": 219,
+      "lift": 3.2,
+      "avg": 0.24
+    },
+    {
+      "rank": 203,
+      "condition": "60아래 + RSI과매도30 + 이격-10",
+      "prob": 54.3,
+      "occ": 210,
+      "lift": 3.2,
+      "avg": 0.28
+    },
+    {
+      "rank": 204,
+      "condition": "60위 + 고변동5",
+      "prob": 54.3,
+      "occ": 516,
+      "lift": 3.2,
+      "avg": 0.27
+    },
+    {
+      "rank": 205,
+      "condition": "갭상승1 + 음봉1 + 종가상승2",
+      "prob": 54.2,
+      "occ": 153,
+      "lift": 3.1,
+      "avg": 0.83
+    },
+    {
+      "rank": 206,
+      "condition": "3%상승 + 갭상승1 + 종가상승2",
+      "prob": 54.2,
+      "occ": 177,
+      "lift": 3.1,
+      "avg": 0.56
+    },
+    {
+      "rank": 207,
+      "condition": "RSI과매수70 + 이격+5 + 종가상승3",
+      "prob": 54.2,
+      "occ": 201,
+      "lift": 3.1,
+      "avg": 0.69
+    },
+    {
+      "rank": 208,
+      "condition": "음봉1 + 음봉2 + 음봉4",
+      "prob": 54.2,
+      "occ": 225,
+      "lift": 3.1,
+      "avg": 0.08
+    },
+    {
+      "rank": 209,
+      "condition": "음봉1 + 음봉3 + 음봉4",
+      "prob": 54.2,
+      "occ": 225,
+      "lift": 3.1,
+      "avg": 0.08
+    },
+    {
+      "rank": 210,
+      "condition": "음봉1 + 음봉4",
+      "prob": 54.2,
+      "occ": 225,
+      "lift": 3.1,
+      "avg": 0.08
+    },
+    {
+      "rank": 211,
+      "condition": "음봉2 + 음봉3 + 음봉4",
+      "prob": 54.2,
+      "occ": 225,
+      "lift": 3.1,
+      "avg": 0.08
+    },
+    {
+      "rank": 212,
+      "condition": "음봉2 + 음봉4",
+      "prob": 54.2,
+      "occ": 225,
+      "lift": 3.1,
+      "avg": 0.08
+    },
+    {
+      "rank": 213,
+      "condition": "음봉3 + 음봉4",
+      "prob": 54.2,
+      "occ": 225,
+      "lift": 3.1,
+      "avg": 0.08
+    },
+    {
+      "rank": 214,
+      "condition": "음봉4",
+      "prob": 54.2,
+      "occ": 225,
+      "lift": 3.1,
+      "avg": 0.08
+    },
+    {
+      "rank": 215,
+      "condition": "60위 + 고변동5 + 이격+5",
+      "prob": 54.2,
+      "occ": 297,
+      "lift": 3.1,
+      "avg": 0.22
+    },
+    {
+      "rank": 216,
+      "condition": "RSI과매수80 + 양봉1 + 이격+5",
+      "prob": 54.2,
+      "occ": 203,
+      "lift": 3.1,
+      "avg": 0.44
+    },
+    {
+      "rank": 217,
+      "condition": "20위 + 갭상승1 + 이격+10",
+      "prob": 54.1,
+      "occ": 242,
+      "lift": 3,
+      "avg": 0.51
+    },
+    {
+      "rank": 218,
+      "condition": "갭상승1 + 이격+10",
+      "prob": 54.1,
+      "occ": 242,
+      "lift": 3,
+      "avg": 0.51
+    },
+    {
+      "rank": 219,
+      "condition": "갭상승1 + 이격+10 + 이격+5",
+      "prob": 54.1,
+      "occ": 242,
+      "lift": 3,
+      "avg": 0.51
+    },
+    {
+      "rank": 220,
+      "condition": "3%상승 + 종가상승2 + 종가상승3",
+      "prob": 54.1,
+      "occ": 159,
+      "lift": 3,
+      "avg": 0.71
+    },
+    {
+      "rank": 221,
+      "condition": "3%상승 + 종가상승3",
+      "prob": 54.1,
+      "occ": 159,
+      "lift": 3,
+      "avg": 0.71
+    },
+    {
+      "rank": 222,
+      "condition": "20위 + 3%상승 + 이격+10",
+      "prob": 54,
+      "occ": 211,
+      "lift": 2.9,
+      "avg": 0.57
+    },
+    {
+      "rank": 223,
+      "condition": "3%상승 + 이격+10",
+      "prob": 54,
+      "occ": 211,
+      "lift": 2.9,
+      "avg": 0.57
+    },
+    {
+      "rank": 224,
+      "condition": "3%상승 + 이격+10 + 이격+5",
+      "prob": 54,
+      "occ": 211,
+      "lift": 2.9,
+      "avg": 0.57
+    },
+    {
+      "rank": 225,
+      "condition": "20아래 + 3%상승",
+      "prob": 54,
+      "occ": 174,
+      "lift": 2.9,
+      "avg": 0.41
+    },
+    {
+      "rank": 226,
+      "condition": "5_10하향",
+      "prob": 54,
+      "occ": 200,
+      "lift": 2.9,
+      "avg": 0.32
+    },
+    {
+      "rank": 227,
+      "condition": "20위 + 5일+15% + 60위",
+      "prob": 54,
+      "occ": 150,
+      "lift": 2.9,
+      "avg": 0.84
+    },
+    {
+      "rank": 228,
+      "condition": "5일+15% + 60위",
+      "prob": 54,
+      "occ": 150,
+      "lift": 2.9,
+      "avg": 0.84
+    },
+    {
+      "rank": 229,
+      "condition": "20위 + 60위 + 음봉1",
+      "prob": 53.9,
+      "occ": 710,
+      "lift": 2.8,
+      "avg": 0.33
+    },
+    {
+      "rank": 230,
+      "condition": "20위 + RSI과매수70",
+      "prob": 53.9,
+      "occ": 753,
+      "lift": 2.8,
+      "avg": 0.47
+    },
+    {
+      "rank": 231,
+      "condition": "RSI과매수70",
+      "prob": 53.9,
+      "occ": 753,
+      "lift": 2.8,
+      "avg": 0.47
+    },
+    {
+      "rank": 232,
+      "condition": "60위 + 고변동5 + 이격+10",
+      "prob": 53.9,
+      "occ": 217,
+      "lift": 2.8,
+      "avg": 0.29
+    },
+    {
+      "rank": 233,
+      "condition": "60위 + RSI과매수70 + 종가상승3",
+      "prob": 53.9,
+      "occ": 193,
+      "lift": 2.8,
+      "avg": 0.52
+    },
+    {
+      "rank": 234,
+      "condition": "20아래 + 갭상승1 + 이격-5",
+      "prob": 53.9,
+      "occ": 193,
+      "lift": 2.8,
+      "avg": 0.52
+    },
+    {
+      "rank": 235,
+      "condition": "갭상승1 + 이격-5",
+      "prob": 53.9,
+      "occ": 193,
+      "lift": 2.8,
+      "avg": 0.52
+    },
+    {
+      "rank": 236,
+      "condition": "20위 + 음봉1 + 이격+5",
+      "prob": 53.8,
+      "occ": 416,
+      "lift": 2.7,
+      "avg": 0.49
+    },
+    {
+      "rank": 237,
+      "condition": "음봉1 + 이격+5",
+      "prob": 53.8,
+      "occ": 416,
+      "lift": 2.7,
+      "avg": 0.49
+    },
+    {
+      "rank": 238,
+      "condition": "3%하락",
+      "prob": 53.8,
+      "occ": 552,
+      "lift": 2.7,
+      "avg": 0.44
+    },
+    {
+      "rank": 239,
+      "condition": "20위 + RSI과매수70 + 양봉2",
+      "prob": 53.8,
+      "occ": 277,
+      "lift": 2.7,
+      "avg": 0.54
+    },
+    {
+      "rank": 240,
+      "condition": "RSI과매수70 + 양봉1 + 양봉2",
+      "prob": 53.8,
+      "occ": 277,
+      "lift": 2.7,
+      "avg": 0.54
+    },
+    {
+      "rank": 241,
+      "condition": "RSI과매수70 + 양봉2",
+      "prob": 53.8,
+      "occ": 277,
+      "lift": 2.7,
+      "avg": 0.54
+    },
+    {
+      "rank": 242,
+      "condition": "20위 + RSI과매수70 + 이격+5",
+      "prob": 53.8,
+      "occ": 692,
+      "lift": 2.7,
+      "avg": 0.47
+    },
+    {
+      "rank": 243,
+      "condition": "RSI과매수70 + 이격+5",
+      "prob": 53.8,
+      "occ": 692,
+      "lift": 2.7,
+      "avg": 0.47
+    },
+    {
+      "rank": 244,
+      "condition": "60위 + RSI과매수80 + 종가상승2",
+      "prob": 53.8,
+      "occ": 160,
+      "lift": 2.7,
+      "avg": 0.42
+    },
+    {
+      "rank": 245,
+      "condition": "갭하락1 + 갭하락2",
+      "prob": 53.8,
+      "occ": 320,
+      "lift": 2.7,
+      "avg": 0.19
+    },
+    {
+      "rank": 246,
+      "condition": "갭하락2",
+      "prob": 53.8,
+      "occ": 320,
+      "lift": 2.7,
+      "avg": 0.19
+    },
+    {
+      "rank": 247,
+      "condition": "20아래 + 3%하락 + 이격-5",
+      "prob": 53.7,
+      "occ": 255,
+      "lift": 2.6,
+      "avg": 0.62
+    },
+    {
+      "rank": 248,
+      "condition": "3%하락 + 이격-5",
+      "prob": 53.7,
+      "occ": 255,
+      "lift": 2.6,
+      "avg": 0.62
+    },
+    {
+      "rank": 249,
+      "condition": "20위 + 음봉1",
+      "prob": 53.7,
+      "occ": 873,
+      "lift": 2.6,
+      "avg": 0.3
+    },
+    {
+      "rank": 250,
+      "condition": "60아래 + 음봉1 + 음봉3",
+      "prob": 53.7,
+      "occ": 272,
+      "lift": 2.6,
+      "avg": 0.02
+    },
+    {
+      "rank": 251,
+      "condition": "60아래 + 음봉2 + 음봉3",
+      "prob": 53.7,
+      "occ": 272,
+      "lift": 2.6,
+      "avg": 0.02
+    },
+    {
+      "rank": 252,
+      "condition": "60아래 + 음봉3",
+      "prob": 53.7,
+      "occ": 272,
+      "lift": 2.6,
+      "avg": 0.02
+    },
+    {
+      "rank": 253,
+      "condition": "5일+15%",
+      "prob": 53.7,
+      "occ": 177,
+      "lift": 2.6,
+      "avg": 0.83
+    },
+    {
+      "rank": 254,
+      "condition": "60위 + 이격+10 + 종가상승2",
+      "prob": 53.7,
+      "occ": 259,
+      "lift": 2.6,
+      "avg": 0.58
+    },
+    {
+      "rank": 255,
+      "condition": "20위 + 갭상승1 + 종가상승3",
+      "prob": 53.7,
+      "occ": 164,
+      "lift": 2.6,
+      "avg": 0.49
+    },
+    {
+      "rank": 256,
+      "condition": "20위 + RSI과매수80 + 양봉1",
+      "prob": 53.7,
+      "occ": 205,
+      "lift": 2.6,
+      "avg": 0.43
+    },
+    {
+      "rank": 257,
+      "condition": "RSI과매수70 + RSI과매수80 + 양봉1",
+      "prob": 53.7,
+      "occ": 205,
+      "lift": 2.6,
+      "avg": 0.43
+    },
+    {
+      "rank": 258,
+      "condition": "RSI과매수80 + 양봉1",
+      "prob": 53.7,
+      "occ": 205,
+      "lift": 2.6,
+      "avg": 0.43
+    },
+    {
+      "rank": 259,
+      "condition": "20아래 + 이격-10",
+      "prob": 53.6,
+      "occ": 302,
+      "lift": 2.5,
+      "avg": 0.29
+    },
+    {
+      "rank": 260,
+      "condition": "20아래 + 이격-10 + 이격-5",
+      "prob": 53.6,
+      "occ": 302,
+      "lift": 2.5,
+      "avg": 0.29
+    },
+    {
+      "rank": 261,
+      "condition": "이격-10",
+      "prob": 53.6,
+      "occ": 302,
+      "lift": 2.5,
+      "avg": 0.29
+    },
+    {
+      "rank": 262,
+      "condition": "이격-10 + 이격-5",
+      "prob": 53.6,
+      "occ": 302,
+      "lift": 2.5,
+      "avg": 0.29
+    },
+    {
+      "rank": 263,
+      "condition": "60위 + 종가하락2",
+      "prob": 53.6,
+      "occ": 371,
+      "lift": 2.5,
+      "avg": 0.24
+    },
+    {
+      "rank": 264,
+      "condition": "60위 + 고변동5 + 종가상승2",
+      "prob": 53.6,
+      "occ": 166,
+      "lift": 2.5,
+      "avg": 0.22
+    },
+    {
+      "rank": 265,
+      "condition": "20위 + 3%상승 + RSI과매수70",
+      "prob": 53.6,
+      "occ": 194,
+      "lift": 2.5,
+      "avg": 0.69
+    },
+    {
+      "rank": 266,
+      "condition": "3%상승 + RSI과매수70",
+      "prob": 53.6,
+      "occ": 194,
+      "lift": 2.5,
+      "avg": 0.69
+    },
+    {
+      "rank": 267,
+      "condition": "3%상승 + RSI과매수70 + 이격+5",
+      "prob": 53.6,
+      "occ": 194,
+      "lift": 2.5,
+      "avg": 0.69
+    },
+    {
+      "rank": 268,
+      "condition": "20아래 + 5%하락 + 음봉1",
+      "prob": 53.6,
+      "occ": 153,
+      "lift": 2.5,
+      "avg": 0.84
+    },
+    {
+      "rank": 269,
+      "condition": "종가하락2",
+      "prob": 53.6,
+      "occ": 868,
+      "lift": 2.5,
+      "avg": 0.2
+    },
+    {
+      "rank": 270,
+      "condition": "20위 + 5일+15%",
+      "prob": 53.6,
+      "occ": 168,
+      "lift": 2.5,
+      "avg": 0.79
+    },
+    {
+      "rank": 271,
+      "condition": "60위 + 양봉1 + 이격+10",
+      "prob": 53.6,
+      "occ": 351,
+      "lift": 2.5,
+      "avg": 0.54
+    },
+    {
+      "rank": 272,
+      "condition": "60위 + 양봉2 + 이격+10",
+      "prob": 53.6,
+      "occ": 211,
+      "lift": 2.5,
+      "avg": 0.44
+    },
+    {
+      "rank": 273,
+      "condition": "60아래 + 종가하락2",
+      "prob": 53.5,
+      "occ": 497,
+      "lift": 2.4,
+      "avg": 0.16
+    },
+    {
+      "rank": 274,
+      "condition": "20위 + 60위 + RSI과매수70",
+      "prob": 53.5,
+      "occ": 714,
+      "lift": 2.4,
+      "avg": 0.46
+    },
+    {
+      "rank": 275,
+      "condition": "60위 + RSI과매수70",
+      "prob": 53.5,
+      "occ": 714,
+      "lift": 2.4,
+      "avg": 0.46
+    },
+    {
+      "rank": 276,
+      "condition": "20아래 + 3%하락 + 고변동5",
+      "prob": 53.5,
+      "occ": 258,
+      "lift": 2.4,
+      "avg": 0.6
+    },
+    {
+      "rank": 277,
+      "condition": "20아래 + 60아래 + 음봉3",
+      "prob": 53.5,
+      "occ": 260,
+      "lift": 2.4,
+      "avg": 0.06
+    },
+    {
+      "rank": 278,
+      "condition": "60위 + 거래량1.5 + 고변동5",
+      "prob": 53.5,
+      "occ": 159,
+      "lift": 2.4,
+      "avg": 0.56
+    },
+    {
+      "rank": 279,
+      "condition": "갭하락1 + 종가하락2",
+      "prob": 53.4,
+      "occ": 290,
+      "lift": 2.3,
+      "avg": 0.11
+    },
+    {
+      "rank": 280,
+      "condition": "60위 + RSI과매수70 + 이격+5",
+      "prob": 53.4,
+      "occ": 661,
+      "lift": 2.3,
+      "avg": 0.46
+    },
+    {
+      "rank": 281,
+      "condition": "60아래 + 음봉1 + 종가하락2",
+      "prob": 53.4,
+      "occ": 412,
+      "lift": 2.3,
+      "avg": 0.16
+    },
+    {
+      "rank": 282,
+      "condition": "음봉1 + 음봉2 + 음봉3",
+      "prob": 53.4,
+      "occ": 472,
+      "lift": 2.3,
+      "avg": 0.1
+    },
+    {
+      "rank": 283,
+      "condition": "음봉1 + 음봉3",
+      "prob": 53.4,
+      "occ": 472,
+      "lift": 2.3,
+      "avg": 0.1
+    },
+    {
+      "rank": 284,
+      "condition": "음봉2 + 음봉3",
+      "prob": 53.4,
+      "occ": 472,
+      "lift": 2.3,
+      "avg": 0.1
+    },
+    {
+      "rank": 285,
+      "condition": "음봉3",
+      "prob": 53.4,
+      "occ": 472,
+      "lift": 2.3,
+      "avg": 0.1
+    },
+    {
+      "rank": 286,
+      "condition": "고변동5 + 음봉1 + 음봉2",
+      "prob": 53.4,
+      "occ": 281,
+      "lift": 2.3,
+      "avg": 0.32
+    },
+    {
+      "rank": 287,
+      "condition": "고변동5 + 음봉2",
+      "prob": 53.4,
+      "occ": 281,
+      "lift": 2.3,
+      "avg": 0.32
+    },
+    {
+      "rank": 288,
+      "condition": "20위 + 음봉2 + 종가하락2",
+      "prob": 53.4,
+      "occ": 163,
+      "lift": 2.3,
+      "avg": -0.04
+    },
+    {
+      "rank": 289,
+      "condition": "20위 + RSI과매수80 + 이격+5",
+      "prob": 53.4,
+      "occ": 283,
+      "lift": 2.3,
+      "avg": 0.36
+    },
+    {
+      "rank": 290,
+      "condition": "RSI과매수70 + RSI과매수80 + 이격+5",
+      "prob": 53.4,
+      "occ": 283,
+      "lift": 2.3,
+      "avg": 0.36
+    },
+    {
+      "rank": 291,
+      "condition": "RSI과매수80 + 이격+5",
+      "prob": 53.4,
+      "occ": 283,
+      "lift": 2.3,
+      "avg": 0.36
+    },
+    {
+      "rank": 292,
+      "condition": "20아래 + 60아래 + 이격-10",
+      "prob": 53.4,
+      "occ": 283,
+      "lift": 2.3,
+      "avg": 0.28
+    },
+    {
+      "rank": 293,
+      "condition": "60아래 + 이격-10",
+      "prob": 53.4,
+      "occ": 283,
+      "lift": 2.3,
+      "avg": 0.28
+    },
+    {
+      "rank": 294,
+      "condition": "60아래 + 이격-10 + 이격-5",
+      "prob": 53.4,
+      "occ": 283,
+      "lift": 2.3,
+      "avg": 0.28
+    },
+    {
+      "rank": 295,
+      "condition": "갭상승1 + 종가상승2",
+      "prob": 53.4,
+      "occ": 388,
+      "lift": 2.3,
+      "avg": 0.55
+    },
+    {
+      "rank": 296,
+      "condition": "60아래 + 갭하락1 + 갭하락2",
+      "prob": 53.3,
+      "occ": 182,
+      "lift": 2.2,
+      "avg": 0.28
+    },
+    {
+      "rank": 297,
+      "condition": "60아래 + 갭하락2",
+      "prob": 53.3,
+      "occ": 182,
+      "lift": 2.2,
+      "avg": 0.28
+    },
+    {
+      "rank": 298,
+      "condition": "3%상승 + 60위 + 이격+10",
+      "prob": 53.3,
+      "occ": 199,
+      "lift": 2.2,
+      "avg": 0.52
+    },
+    {
+      "rank": 299,
+      "condition": "20아래 + 음봉1 + 음봉3",
+      "prob": 53.3,
+      "occ": 353,
+      "lift": 2.2,
+      "avg": 0.06
+    },
+    {
+      "rank": 300,
+      "condition": "20아래 + 음봉2 + 음봉3",
+      "prob": 53.3,
+      "occ": 353,
+      "lift": 2.2,
+      "avg": 0.06
+    },
+    {
+      "rank": 301,
+      "condition": "20아래 + 음봉3",
+      "prob": 53.3,
+      "occ": 353,
+      "lift": 2.2,
+      "avg": 0.06
+    },
+    {
+      "rank": 302,
+      "condition": "3%하락 + 음봉1",
+      "prob": 53.2,
+      "occ": 524,
+      "lift": 2.1,
+      "avg": 0.43
+    },
+    {
+      "rank": 303,
+      "condition": "60위 + 음봉1",
+      "prob": 53.2,
+      "occ": 1005,
+      "lift": 2.1,
+      "avg": 0.23
+    },
+    {
+      "rank": 304,
+      "condition": "3%상승 + 60위 + RSI과매수70",
+      "prob": 53.2,
+      "occ": 186,
+      "lift": 2.1,
+      "avg": 0.59
+    },
+    {
+      "rank": 305,
+      "condition": "3%하락 + 음봉1 + 음봉2",
+      "prob": 53.2,
+      "occ": 265,
+      "lift": 2.1,
+      "avg": 0.46
+    },
+    {
+      "rank": 306,
+      "condition": "3%하락 + 음봉2",
+      "prob": 53.2,
+      "occ": 265,
+      "lift": 2.1,
+      "avg": 0.46
+    },
+    {
+      "rank": 307,
+      "condition": "3%상승 + 종가상승2",
+      "prob": 53.2,
+      "occ": 314,
+      "lift": 2.1,
+      "avg": 0.54
+    },
+    {
+      "rank": 308,
+      "condition": "60아래 + 음봉2 + 종가하락2",
+      "prob": 53.2,
+      "occ": 348,
+      "lift": 2.1,
+      "avg": 0
+    },
+    {
+      "rank": 309,
+      "condition": "20위 + 3일+10% + 이격+5",
+      "prob": 53.1,
+      "occ": 175,
+      "lift": 2,
+      "avg": 0.87
+    },
+    {
+      "rank": 310,
+      "condition": "3일+10% + 이격+5",
+      "prob": 53.1,
+      "occ": 175,
+      "lift": 2,
+      "avg": 0.87
+    },
+    {
+      "rank": 311,
+      "condition": "20위 + RSI과매수70 + 갭상승1",
+      "prob": 53.1,
+      "occ": 241,
+      "lift": 2,
+      "avg": 0.34
+    },
+    {
+      "rank": 312,
+      "condition": "RSI과매수70 + 갭상승1",
+      "prob": 53.1,
+      "occ": 241,
+      "lift": 2,
+      "avg": 0.34
+    },
+    {
+      "rank": 313,
+      "condition": "60아래 + 고변동5 + 이격-5",
+      "prob": 53.1,
+      "occ": 307,
+      "lift": 2,
+      "avg": 0.54
+    },
+    {
+      "rank": 314,
+      "condition": "60위 + RSI과매수70 + 양봉2",
+      "prob": 53.1,
+      "occ": 262,
+      "lift": 2,
+      "avg": 0.48
+    },
+    {
+      "rank": 315,
+      "condition": "60위 + RSI과매수70 + 갭상승1",
+      "prob": 53,
+      "occ": 232,
+      "lift": 1.9,
+      "avg": 0.32
+    },
+    {
+      "rank": 316,
+      "condition": "60위 + 갭상승1 + 이격+10",
+      "prob": 53,
+      "occ": 232,
+      "lift": 1.9,
+      "avg": 0.4
+    },
+    {
+      "rank": 317,
+      "condition": "60위 + 음봉1 + 음봉3",
+      "prob": 53,
+      "occ": 200,
+      "lift": 1.9,
+      "avg": 0.21
+    },
+    {
+      "rank": 318,
+      "condition": "60위 + 음봉2 + 음봉3",
+      "prob": 53,
+      "occ": 200,
+      "lift": 1.9,
+      "avg": 0.21
+    },
+    {
+      "rank": 319,
+      "condition": "60위 + 음봉3",
+      "prob": 53,
+      "occ": 200,
+      "lift": 1.9,
+      "avg": 0.21
+    },
+    {
+      "rank": 320,
+      "condition": "3%하락 + 60아래 + 이격-5",
+      "prob": 53,
+      "occ": 217,
+      "lift": 1.9,
+      "avg": 0.66
+    },
+    {
+      "rank": 321,
+      "condition": "60위 + 음봉1 + 이격+5",
+      "prob": 53,
+      "occ": 385,
+      "lift": 1.9,
+      "avg": 0.51
+    },
+    {
+      "rank": 322,
+      "condition": "음봉1 + 종가하락2",
+      "prob": 53,
+      "occ": 721,
+      "lift": 1.9,
+      "avg": 0.17
+    },
+    {
+      "rank": 323,
+      "condition": "갭상승1 + 양봉1 + 이격+10",
+      "prob": 53,
+      "occ": 151,
+      "lift": 1.9,
+      "avg": 0.3
+    },
+    {
+      "rank": 324,
+      "condition": "20위 + 60아래 + 양봉2",
+      "prob": 53,
+      "occ": 151,
+      "lift": 1.9,
+      "avg": 0.22
+    },
+    {
+      "rank": 325,
+      "condition": "3%상승 + 갭상승1 + 이격+5",
+      "prob": 53,
+      "occ": 185,
+      "lift": 1.9,
+      "avg": 0.56
+    },
+    {
+      "rank": 326,
+      "condition": "양봉2 + 이격+10 + 종가상승2",
+      "prob": 53,
+      "occ": 185,
+      "lift": 1.9,
+      "avg": 0.34
+    },
+    {
+      "rank": 327,
+      "condition": "RSI과매수70 + 갭상승1 + 이격+5",
+      "prob": 53,
+      "occ": 236,
+      "lift": 1.9,
+      "avg": 0.35
+    },
+    {
+      "rank": 328,
+      "condition": "60위 + RSI과매수80 + 이격+5",
+      "prob": 52.9,
+      "occ": 276,
+      "lift": 1.8,
+      "avg": 0.28
+    },
+    {
+      "rank": 329,
+      "condition": "20아래 + 갭상승1 + 음봉1",
+      "prob": 52.9,
+      "occ": 242,
+      "lift": 1.8,
+      "avg": 0.17
+    },
+    {
+      "rank": 330,
+      "condition": "3%하락 + 음봉1 + 이격-5",
+      "prob": 52.9,
+      "occ": 242,
+      "lift": 1.8,
+      "avg": 0.58
+    },
+    {
+      "rank": 331,
+      "condition": "음봉2 + 이격-5 + 종가하락2",
+      "prob": 52.9,
+      "occ": 244,
+      "lift": 1.8,
+      "avg": 0.1
+    },
+    {
+      "rank": 332,
+      "condition": "3%상승 + 60아래",
+      "prob": 52.9,
+      "occ": 210,
+      "lift": 1.8,
+      "avg": 0.53
+    },
+    {
+      "rank": 333,
+      "condition": "3%상승 + 양봉1 + 이격+10",
+      "prob": 52.8,
+      "occ": 195,
+      "lift": 1.7,
+      "avg": 0.41
+    },
+    {
+      "rank": 334,
+      "condition": "20위 + 고변동5",
+      "prob": 52.8,
+      "occ": 479,
+      "lift": 1.7,
+      "avg": 0.24
+    },
+    {
+      "rank": 335,
+      "condition": "갭상승1 + 양봉1 + 종가상승2",
+      "prob": 52.8,
+      "occ": 231,
+      "lift": 1.7,
+      "avg": 0.38
+    },
+    {
+      "rank": 336,
+      "condition": "60아래 + RSI과매도30 + 음봉1",
+      "prob": 52.8,
+      "occ": 231,
+      "lift": 1.7,
+      "avg": 0.31
+    },
+    {
+      "rank": 337,
+      "condition": "20위 + 갭상승2 + 이격+5",
+      "prob": 52.8,
+      "occ": 178,
+      "lift": 1.7,
+      "avg": 0.68
+    },
+    {
+      "rank": 338,
+      "condition": "RSI과매수70 + 양봉2 + 이격+5",
+      "prob": 52.8,
+      "occ": 267,
+      "lift": 1.7,
+      "avg": 0.49
+    },
+    {
+      "rank": 339,
+      "condition": "갭상승1 + 갭상승2 + 이격+5",
+      "prob": 52.8,
+      "occ": 178,
+      "lift": 1.7,
+      "avg": 0.68
+    },
+    {
+      "rank": 340,
+      "condition": "갭상승2 + 이격+5",
+      "prob": 52.8,
+      "occ": 178,
+      "lift": 1.7,
+      "avg": 0.68
+    },
+    {
+      "rank": 341,
+      "condition": "20아래 + 3%상승 + 양봉1",
+      "prob": 52.8,
+      "occ": 161,
+      "lift": 1.7,
+      "avg": 0.28
+    },
+    {
+      "rank": 342,
+      "condition": "60아래 + 고변동5 + 음봉1",
+      "prob": 52.8,
+      "occ": 305,
+      "lift": 1.7,
+      "avg": 0.35
+    },
+    {
+      "rank": 343,
+      "condition": "20위 + 3%상승 + 이격+5",
+      "prob": 52.8,
+      "occ": 324,
+      "lift": 1.7,
+      "avg": 0.54
+    },
+    {
+      "rank": 344,
+      "condition": "3%상승 + 이격+5",
+      "prob": 52.8,
+      "occ": 324,
+      "lift": 1.7,
+      "avg": 0.54
+    },
+    {
+      "rank": 345,
+      "condition": "20위 + RSI과매수70 + RSI과매수80",
+      "prob": 52.8,
+      "occ": 288,
+      "lift": 1.7,
+      "avg": 0.35
+    },
+    {
+      "rank": 346,
+      "condition": "20위 + RSI과매수80",
+      "prob": 52.8,
+      "occ": 288,
+      "lift": 1.7,
+      "avg": 0.35
+    },
+    {
+      "rank": 347,
+      "condition": "RSI과매수70 + RSI과매수80",
+      "prob": 52.8,
+      "occ": 288,
+      "lift": 1.7,
+      "avg": 0.35
+    },
+    {
+      "rank": 348,
+      "condition": "RSI과매수80",
+      "prob": 52.8,
+      "occ": 288,
+      "lift": 1.7,
+      "avg": 0.35
+    },
+    {
+      "rank": 349,
+      "condition": "20아래 + 60아래 + 종가하락2",
+      "prob": 52.8,
+      "occ": 451,
+      "lift": 1.7,
+      "avg": 0.15
+    },
+    {
+      "rank": 350,
+      "condition": "20아래 + 60아래 + 갭하락2",
+      "prob": 52.8,
+      "occ": 163,
+      "lift": 1.7,
+      "avg": 0.42
+    },
+    {
+      "rank": 351,
+      "condition": "20위 + 60아래 + 음봉1",
+      "prob": 52.8,
+      "occ": 163,
+      "lift": 1.7,
+      "avg": 0.18
+    },
+    {
+      "rank": 352,
+      "condition": "음봉1 + 이격-5 + 종가하락2",
+      "prob": 52.7,
+      "occ": 292,
+      "lift": 1.6,
+      "avg": 0.2
+    },
+    {
+      "rank": 353,
+      "condition": "RSI과매도30 + 음봉1 + 이격-5",
+      "prob": 52.7,
+      "occ": 239,
+      "lift": 1.6,
+      "avg": 0.21
+    },
+    {
+      "rank": 354,
+      "condition": "갭하락1 + 갭하락2 + 양봉1",
+      "prob": 52.7,
+      "occ": 167,
+      "lift": 1.6,
+      "avg": 0.11
+    },
+    {
+      "rank": 355,
+      "condition": "갭하락2 + 양봉1",
+      "prob": 52.7,
+      "occ": 167,
+      "lift": 1.6,
+      "avg": 0.11
+    },
+    {
+      "rank": 356,
+      "condition": "20아래 + 음봉3 + 이격-5",
+      "prob": 52.7,
+      "occ": 205,
+      "lift": 1.6,
+      "avg": 0.02
+    },
+    {
+      "rank": 357,
+      "condition": "음봉1 + 음봉3 + 이격-5",
+      "prob": 52.7,
+      "occ": 205,
+      "lift": 1.6,
+      "avg": 0.02
+    },
+    {
+      "rank": 358,
+      "condition": "음봉2 + 음봉3 + 이격-5",
+      "prob": 52.7,
+      "occ": 205,
+      "lift": 1.6,
+      "avg": 0.02
+    },
+    {
+      "rank": 359,
+      "condition": "음봉3 + 이격-5",
+      "prob": 52.7,
+      "occ": 205,
+      "lift": 1.6,
+      "avg": 0.02
+    },
+    {
+      "rank": 360,
+      "condition": "60위 + 갭상승1 + 종가상승2",
+      "prob": 52.7,
+      "occ": 281,
+      "lift": 1.6,
+      "avg": 0.36
+    },
+    {
+      "rank": 361,
+      "condition": "20아래 + 이격-5 + 종가하락2",
+      "prob": 52.6,
+      "occ": 359,
+      "lift": 1.5,
+      "avg": 0.2
+    },
+    {
+      "rank": 362,
+      "condition": "이격-5 + 종가하락2",
+      "prob": 52.6,
+      "occ": 359,
+      "lift": 1.5,
+      "avg": 0.2
+    },
+    {
+      "rank": 363,
+      "condition": "20아래 + 고변동5 + 음봉1",
+      "prob": 52.6,
+      "occ": 363,
+      "lift": 1.5,
+      "avg": 0.2
+    },
+    {
+      "rank": 364,
+      "condition": "20위 + 3일+10%",
+      "prob": 52.6,
+      "occ": 192,
+      "lift": 1.5,
+      "avg": 0.84
+    },
+    {
+      "rank": 365,
+      "condition": "20위 + RSI과매수70 + 종가상승2",
+      "prob": 52.6,
+      "occ": 327,
+      "lift": 1.5,
+      "avg": 0.56
+    },
+    {
+      "rank": 366,
+      "condition": "RSI과매수70 + 종가상승2",
+      "prob": 52.6,
+      "occ": 327,
+      "lift": 1.5,
+      "avg": 0.56
+    },
+    {
+      "rank": 367,
+      "condition": "60아래 + 이격-5 + 종가하락2",
+      "prob": 52.6,
+      "occ": 310,
+      "lift": 1.5,
+      "avg": 0.21
+    },
+    {
+      "rank": 368,
+      "condition": "갭상승1 + 이격+5 + 종가상승2",
+      "prob": 52.6,
+      "occ": 215,
+      "lift": 1.5,
+      "avg": 0.52
+    },
+    {
+      "rank": 369,
+      "condition": "거래량1.5 + 고변동5",
+      "prob": 52.6,
+      "occ": 274,
+      "lift": 1.5,
+      "avg": 0.58
+    },
+    {
+      "rank": 370,
+      "condition": "갭상승1 + 종가상승2 + 종가상승3",
+      "prob": 52.6,
+      "occ": 196,
+      "lift": 1.5,
+      "avg": 0.49
+    },
+    {
+      "rank": 371,
+      "condition": "갭상승1 + 종가상승3",
+      "prob": 52.6,
+      "occ": 196,
+      "lift": 1.5,
+      "avg": 0.49
+    },
+    {
+      "rank": 372,
+      "condition": "3%상승 + RSI과매수70 + 양봉1",
+      "prob": 52.5,
+      "occ": 177,
+      "lift": 1.4,
+      "avg": 0.54
+    },
+    {
+      "rank": 373,
+      "condition": "20위 + 60아래 + 양봉1",
+      "prob": 52.5,
+      "occ": 276,
+      "lift": 1.4,
+      "avg": 0.18
+    },
+    {
+      "rank": 374,
+      "condition": "20아래 + 고변동5 + 음봉2",
+      "prob": 52.5,
+      "occ": 217,
+      "lift": 1.4,
+      "avg": 0.1
+    },
+    {
+      "rank": 375,
+      "condition": "20위 + 60위 + RSI과매수80",
+      "prob": 52.5,
+      "occ": 280,
+      "lift": 1.4,
+      "avg": 0.27
+    },
+    {
+      "rank": 376,
+      "condition": "60위 + RSI과매수70 + RSI과매수80",
+      "prob": 52.5,
+      "occ": 280,
+      "lift": 1.4,
+      "avg": 0.27
+    },
+    {
+      "rank": 377,
+      "condition": "60위 + RSI과매수80",
+      "prob": 52.5,
+      "occ": 280,
+      "lift": 1.4,
+      "avg": 0.27
+    },
+    {
+      "rank": 378,
+      "condition": "60위 + RSI과매수80 + 양봉1",
+      "prob": 52.5,
+      "occ": 200,
+      "lift": 1.4,
+      "avg": 0.29
+    },
+    {
+      "rank": 379,
+      "condition": "20위 + 3%상승 + 종가상승2",
+      "prob": 52.5,
+      "occ": 261,
+      "lift": 1.4,
+      "avg": 0.48
+    },
+    {
+      "rank": 380,
+      "condition": "고변동5",
+      "prob": 52.5,
+      "occ": 1010,
+      "lift": 1.4,
+      "avg": 0.27
+    },
+    {
+      "rank": 381,
+      "condition": "20아래 + 갭하락1 + 종가하락2",
+      "prob": 52.4,
+      "occ": 225,
+      "lift": 1.3,
+      "avg": -0.03
+    },
+    {
+      "rank": 382,
+      "condition": "60위 + 갭상승2 + 이격+5",
+      "prob": 52.4,
+      "occ": 164,
+      "lift": 1.3,
+      "avg": 0.57
+    },
+    {
+      "rank": 383,
+      "condition": "RSI과매수70 + 양봉1 + 종가상승2",
+      "prob": 52.4,
+      "occ": 267,
+      "lift": 1.3,
+      "avg": 0.49
+    },
+    {
+      "rank": 384,
+      "condition": "60위 + 음봉1 + 종가하락2",
+      "prob": 52.4,
+      "occ": 309,
+      "lift": 1.3,
+      "avg": 0.19
+    },
+    {
+      "rank": 385,
+      "condition": "20아래 + RSI과매도30 + 음봉1",
+      "prob": 52.4,
+      "occ": 248,
+      "lift": 1.3,
+      "avg": 0.21
+    },
+    {
+      "rank": 386,
+      "condition": "RSI과매도30 + 음봉1",
+      "prob": 52.4,
+      "occ": 248,
+      "lift": 1.3,
+      "avg": 0.21
+    },
+    {
+      "rank": 387,
+      "condition": "20위 + 갭상승1 + 종가상승2",
+      "prob": 52.4,
+      "occ": 290,
+      "lift": 1.3,
+      "avg": 0.41
+    },
+    {
+      "rank": 388,
+      "condition": "20아래 + 3%하락",
+      "prob": 52.4,
+      "occ": 395,
+      "lift": 1.3,
+      "avg": 0.5
+    },
+    {
+      "rank": 389,
+      "condition": "3%하락 + 60아래 + 고변동5",
+      "prob": 52.3,
+      "occ": 214,
+      "lift": 1.2,
+      "avg": 0.61
+    },
+    {
+      "rank": 390,
+      "condition": "20위 + 60아래",
+      "prob": 52.3,
+      "occ": 451,
+      "lift": 1.2,
+      "avg": 0.17
+    },
+    {
+      "rank": 391,
+      "condition": "20아래 + 종가하락2",
+      "prob": 52.3,
+      "occ": 610,
+      "lift": 1.2,
+      "avg": 0.11
+    },
+    {
+      "rank": 392,
+      "condition": "갭상승1 + 음봉1 + 이격+5",
+      "prob": 52.3,
+      "occ": 153,
+      "lift": 1.2,
+      "avg": 0.57
+    },
+    {
+      "rank": 393,
+      "condition": "20위 + 60위 + 음봉2",
+      "prob": 52.3,
+      "occ": 266,
+      "lift": 1.2,
+      "avg": 0.25
+    },
+    {
+      "rank": 394,
+      "condition": "20위 + 음봉1 + 음봉2",
+      "prob": 52.2,
+      "occ": 312,
+      "lift": 1.1,
+      "avg": 0.14
+    },
+    {
+      "rank": 395,
+      "condition": "20위 + 음봉2",
+      "prob": 52.2,
+      "occ": 312,
+      "lift": 1.1,
+      "avg": 0.14
+    },
+    {
+      "rank": 396,
+      "condition": "20아래 + 음봉1 + 이격-5",
+      "prob": 52.2,
+      "occ": 536,
+      "lift": 1.1,
+      "avg": 0.24
+    },
+    {
+      "rank": 397,
+      "condition": "음봉1 + 이격-5",
+      "prob": 52.2,
+      "occ": 536,
+      "lift": 1.1,
+      "avg": 0.24
+    },
+    {
+      "rank": 398,
+      "condition": "60위 + 갭상승1 + 종가상승3",
+      "prob": 52.2,
+      "occ": 157,
+      "lift": 1.1,
+      "avg": 0.3
+    },
+    {
+      "rank": 399,
+      "condition": "20위 + RSI과매수70 + 양봉1",
+      "prob": 52.2,
+      "occ": 475,
+      "lift": 1.1,
+      "avg": 0.55
+    },
+    {
+      "rank": 400,
+      "condition": "RSI과매수70 + 양봉1",
+      "prob": 52.2,
+      "occ": 475,
+      "lift": 1.1,
+      "avg": 0.55
+    },
+    {
+      "rank": 401,
+      "condition": "20위 + 갭하락1 + 이격+5",
+      "prob": 52.2,
+      "occ": 159,
+      "lift": 1.1,
+      "avg": 0.16
+    },
+    {
+      "rank": 402,
+      "condition": "갭하락1 + 이격+5",
+      "prob": 52.2,
+      "occ": 159,
+      "lift": 1.1,
+      "avg": 0.16
+    },
+    {
+      "rank": 403,
+      "condition": "60위 + 갭하락1",
+      "prob": 52.2,
+      "occ": 343,
+      "lift": 1.1,
+      "avg": 0.09
+    },
+    {
+      "rank": 404,
+      "condition": "20아래 + 갭상승1",
+      "prob": 52.2,
+      "occ": 389,
+      "lift": 1.1,
+      "avg": 0.28
+    },
+    {
+      "rank": 405,
+      "condition": "3%상승 + 60위 + 종가상승2",
+      "prob": 52.2,
+      "occ": 230,
+      "lift": 1.1,
+      "avg": 0.35
+    },
+    {
+      "rank": 406,
+      "condition": "20아래 + 고변동5",
+      "prob": 52.2,
+      "occ": 531,
+      "lift": 1.1,
+      "avg": 0.29
+    },
+    {
+      "rank": 407,
+      "condition": "20아래 + 60아래 + 갭상승1",
+      "prob": 52.1,
+      "occ": 282,
+      "lift": 1,
+      "avg": 0.39
+    },
+    {
+      "rank": 408,
+      "condition": "음봉1",
+      "prob": 52.1,
+      "occ": 1944,
+      "lift": 1,
+      "avg": 0.19
+    },
+    {
+      "rank": 409,
+      "condition": "20아래 + 종가상승2",
+      "prob": 52.1,
+      "occ": 240,
+      "lift": 1,
+      "avg": 0.37
+    },
+    {
+      "rank": 410,
+      "condition": "60아래 + 갭상승1 + 이격-5",
+      "prob": 52.1,
+      "occ": 169,
+      "lift": 1,
+      "avg": 0.44
+    },
+    {
+      "rank": 411,
+      "condition": "RSI과매수70 + 이격+5 + 종가상승2",
+      "prob": 52.1,
+      "occ": 315,
+      "lift": 1,
+      "avg": 0.56
+    },
+    {
+      "rank": 412,
+      "condition": "3%상승 + 양봉1 + 종가상승2",
+      "prob": 52,
+      "occ": 296,
+      "lift": 0.9,
+      "avg": 0.41
+    },
+    {
+      "rank": 413,
+      "condition": "60아래 + 음봉3 + 이격-5",
+      "prob": 52,
+      "occ": 173,
+      "lift": 0.9,
+      "avg": -0.07
+    },
+    {
+      "rank": 414,
+      "condition": "60아래 + 갭상승1 + 음봉1",
+      "prob": 52,
+      "occ": 223,
+      "lift": 0.9,
+      "avg": 0.05
+    },
+    {
+      "rank": 415,
+      "condition": "60위 + 거래량1.5",
+      "prob": 52,
+      "occ": 250,
+      "lift": 0.9,
+      "avg": 0.35
+    },
+    {
+      "rank": 416,
+      "condition": "60아래 + 갭상승1",
+      "prob": 52,
+      "occ": 377,
+      "lift": 0.9,
+      "avg": 0.37
+    },
+    {
+      "rank": 417,
+      "condition": "3%상승 + 양봉1 + 이격+5",
+      "prob": 52,
+      "occ": 302,
+      "lift": 0.9,
+      "avg": 0.41
+    },
+    {
+      "rank": 418,
+      "condition": "60아래 + RSI과매도30 + 이격-5",
+      "prob": 52,
+      "occ": 331,
+      "lift": 0.9,
+      "avg": 0.35
+    },
+    {
+      "rank": 419,
+      "condition": "60위 + RSI과매수70 + 종가상승2",
+      "prob": 52,
+      "occ": 306,
+      "lift": 0.9,
+      "avg": 0.48
+    },
+    {
+      "rank": 420,
+      "condition": "20고점 + 50고점 + 양봉1",
+      "prob": 52,
+      "occ": 204,
+      "lift": 0.9,
+      "avg": 0.44
+    },
+    {
+      "rank": 421,
+      "condition": "20위 + 50고점 + 양봉1",
+      "prob": 52,
+      "occ": 204,
+      "lift": 0.9,
+      "avg": 0.44
+    },
+    {
+      "rank": 422,
+      "condition": "50고점 + 60위 + 양봉1",
+      "prob": 52,
+      "occ": 204,
+      "lift": 0.9,
+      "avg": 0.44
+    },
+    {
+      "rank": 423,
+      "condition": "50고점 + 양봉1",
+      "prob": 52,
+      "occ": 204,
+      "lift": 0.9,
+      "avg": 0.44
+    },
+    {
+      "rank": 424,
+      "condition": "3%상승 + 양봉2 + 이격+5",
+      "prob": 52,
+      "occ": 179,
+      "lift": 0.9,
+      "avg": 0.15
+    },
+    {
+      "rank": 425,
+      "condition": "50고점 + RSI과매수70 + 양봉1",
+      "prob": 51.9,
+      "occ": 156,
+      "lift": 0.8,
+      "avg": 0.4
+    },
+    {
+      "rank": 426,
+      "condition": "RSI과매수70 + 양봉1 + 이격+5",
+      "prob": 51.9,
+      "occ": 447,
+      "lift": 0.8,
+      "avg": 0.53
+    },
+    {
+      "rank": 427,
+      "condition": "20아래 + 60아래 + 종가상승2",
+      "prob": 51.9,
+      "occ": 160,
+      "lift": 0.8,
+      "avg": 0.59
+    },
+    {
+      "rank": 428,
+      "condition": "20위 + 3일+10% + 60위",
+      "prob": 51.9,
+      "occ": 162,
+      "lift": 0.8,
+      "avg": 0.76
+    },
+    {
+      "rank": 429,
+      "condition": "20아래 + 3%하락 + 음봉2",
+      "prob": 51.9,
+      "occ": 216,
+      "lift": 0.8,
+      "avg": 0.41
+    },
+    {
+      "rank": 430,
+      "condition": "음봉1 + 음봉2 + 종가하락2",
+      "prob": 51.8,
+      "occ": 598,
+      "lift": 0.7,
+      "avg": 0
+    },
+    {
+      "rank": 431,
+      "condition": "음봉2 + 종가하락2",
+      "prob": 51.8,
+      "occ": 598,
+      "lift": 0.7,
+      "avg": 0
+    },
+    {
+      "rank": 432,
+      "condition": "3%하락 + 60아래 + 음봉2",
+      "prob": 51.8,
+      "occ": 164,
+      "lift": 0.7,
+      "avg": 0.39
+    },
+    {
+      "rank": 433,
+      "condition": "20아래 + RSI과매도30 + 이격-5",
+      "prob": 51.8,
+      "occ": 357,
+      "lift": 0.7,
+      "avg": 0.31
+    },
+    {
+      "rank": 434,
+      "condition": "RSI과매도30 + 이격-5",
+      "prob": 51.8,
+      "occ": 357,
+      "lift": 0.7,
+      "avg": 0.31
+    },
+    {
+      "rank": 435,
+      "condition": "20아래 + 60아래 + 고변동5",
+      "prob": 51.7,
+      "occ": 408,
+      "lift": 0.6,
+      "avg": 0.35
+    },
+    {
+      "rank": 436,
+      "condition": "20아래 + 60아래 + RSI과매도30",
+      "prob": 51.7,
+      "occ": 350,
+      "lift": 0.6,
+      "avg": 0.33
+    },
+    {
+      "rank": 437,
+      "condition": "60아래 + RSI과매도30",
+      "prob": 51.7,
+      "occ": 350,
+      "lift": 0.6,
+      "avg": 0.33
+    },
+    {
+      "rank": 438,
+      "condition": "20위 + 이격+5",
+      "prob": 51.7,
+      "occ": 1172,
+      "lift": 0.6,
+      "avg": 0.38
+    },
+    {
+      "rank": 439,
+      "condition": "이격+5",
+      "prob": 51.7,
+      "occ": 1172,
+      "lift": 0.6,
+      "avg": 0.38
+    },
+    {
+      "rank": 440,
+      "condition": "갭상승1 + 갭상승2 + 종가상승2",
+      "prob": 51.7,
+      "occ": 178,
+      "lift": 0.6,
+      "avg": 0.57
+    },
+    {
+      "rank": 441,
+      "condition": "갭상승2 + 종가상승2",
+      "prob": 51.7,
+      "occ": 178,
+      "lift": 0.6,
+      "avg": 0.57
+    },
+    {
+      "rank": 442,
+      "condition": "3%상승",
+      "prob": 51.7,
+      "occ": 625,
+      "lift": 0.6,
+      "avg": 0.41
+    },
+    {
+      "rank": 443,
+      "condition": "20위 + 고변동5 + 양봉2",
+      "prob": 51.7,
+      "occ": 151,
+      "lift": 0.6,
+      "avg": -0.02
+    },
+    {
+      "rank": 444,
+      "condition": "50고점 + 양봉1 + 종가상승2",
+      "prob": 51.7,
+      "occ": 151,
+      "lift": 0.6,
+      "avg": 0.43
+    },
+    {
+      "rank": 445,
+      "condition": "20아래 + 이격-5",
+      "prob": 51.6,
+      "occ": 819,
+      "lift": 0.5,
+      "avg": 0.34
+    },
+    {
+      "rank": 446,
+      "condition": "이격-5",
+      "prob": 51.6,
+      "occ": 819,
+      "lift": 0.5,
+      "avg": 0.34
+    },
+    {
+      "rank": 447,
+      "condition": "RSI과매도30 + 이격-5 + 종가하락2",
+      "prob": 51.6,
+      "occ": 153,
+      "lift": 0.5,
+      "avg": 0.05
+    },
+    {
+      "rank": 448,
+      "condition": "20위",
+      "prob": 51.6,
+      "occ": 2181,
+      "lift": 0.5,
+      "avg": 0.26
+    },
+    {
+      "rank": 449,
+      "condition": "3일+10% + 60위 + 이격+5",
+      "prob": 51.6,
+      "occ": 155,
+      "lift": 0.5,
+      "avg": 0.82
+    },
+    {
+      "rank": 450,
+      "condition": "20위 + 이격+5 + 종가상승3",
+      "prob": 51.6,
+      "occ": 312,
+      "lift": 0.5,
+      "avg": 0.54
+    },
+    {
+      "rank": 451,
+      "condition": "이격+5 + 종가상승2 + 종가상승3",
+      "prob": 51.6,
+      "occ": 312,
+      "lift": 0.5,
+      "avg": 0.54
+    },
+    {
+      "rank": 452,
+      "condition": "이격+5 + 종가상승3",
+      "prob": 51.6,
+      "occ": 312,
+      "lift": 0.5,
+      "avg": 0.54
+    },
+    {
+      "rank": 453,
+      "condition": "20고점 + 양봉1 + 이격+10",
+      "prob": 51.6,
+      "occ": 157,
+      "lift": 0.5,
+      "avg": 0.45
+    },
+    {
+      "rank": 454,
+      "condition": "갭하락1 + 이격-5 + 종가하락2",
+      "prob": 51.6,
+      "occ": 157,
+      "lift": 0.5,
+      "avg": 0.06
+    },
+    {
+      "rank": 455,
+      "condition": "거래량1.5",
+      "prob": 51.6,
+      "occ": 413,
+      "lift": 0.5,
+      "avg": 0.39
+    },
+    {
+      "rank": 456,
+      "condition": "20아래 + 음봉1 + 종가하락2",
+      "prob": 51.6,
+      "occ": 512,
+      "lift": 0.5,
+      "avg": 0.1
+    },
+    {
+      "rank": 457,
+      "condition": "60위 + RSI과매수70 + 양봉1",
+      "prob": 51.6,
+      "occ": 450,
+      "lift": 0.5,
+      "avg": 0.5
+    },
+    {
+      "rank": 458,
+      "condition": "60위 + 종가상승2 + 종가상승3",
+      "prob": 51.5,
+      "occ": 388,
+      "lift": 0.4,
+      "avg": 0.23
+    },
+    {
+      "rank": 459,
+      "condition": "60위 + 종가상승3",
+      "prob": 51.5,
+      "occ": 388,
+      "lift": 0.4,
+      "avg": 0.23
+    },
+    {
+      "rank": 460,
+      "condition": "20아래 + 60위 + 음봉1",
+      "prob": 51.5,
+      "occ": 295,
+      "lift": 0.4,
+      "avg": 0
+    },
+    {
+      "rank": 461,
+      "condition": "3%상승 + 60아래 + 양봉1",
+      "prob": 51.5,
+      "occ": 198,
+      "lift": 0.4,
+      "avg": 0.46
+    },
+    {
+      "rank": 462,
+      "condition": "3일+10% + 60위",
+      "prob": 51.5,
+      "occ": 167,
+      "lift": 0.4,
+      "avg": 0.78
+    },
+    {
+      "rank": 463,
+      "condition": "20위 + 갭상승1 + 이격+5",
+      "prob": 51.5,
+      "occ": 375,
+      "lift": 0.4,
+      "avg": 0.44
+    },
+    {
+      "rank": 464,
+      "condition": "갭상승1 + 이격+5",
+      "prob": 51.5,
+      "occ": 375,
+      "lift": 0.4,
+      "avg": 0.44
+    },
+    {
+      "rank": 465,
+      "condition": "20아래 + RSI과매도30",
+      "prob": 51.5,
+      "occ": 379,
+      "lift": 0.4,
+      "avg": 0.29
+    },
+    {
+      "rank": 466,
+      "condition": "RSI과매도30",
+      "prob": 51.5,
+      "occ": 379,
+      "lift": 0.4,
+      "avg": 0.29
+    },
+    {
+      "rank": 467,
+      "condition": "20위 + 60위",
+      "prob": 51.4,
+      "occ": 1730,
+      "lift": 0.3,
+      "avg": 0.28
+    },
+    {
+      "rank": 468,
+      "condition": "갭상승1 + 음봉1",
+      "prob": 51.4,
+      "occ": 498,
+      "lift": 0.3,
+      "avg": 0.2
+    },
+    {
+      "rank": 469,
+      "condition": "20고점 + 20위 + 50고점",
+      "prob": 51.4,
+      "occ": 214,
+      "lift": 0.3,
+      "avg": 0.4
+    },
+    {
+      "rank": 470,
+      "condition": "20고점 + 50고점",
+      "prob": 51.4,
+      "occ": 214,
+      "lift": 0.3,
+      "avg": 0.4
+    },
+    {
+      "rank": 471,
+      "condition": "20고점 + 50고점 + 60위",
+      "prob": 51.4,
+      "occ": 214,
+      "lift": 0.3,
+      "avg": 0.4
+    },
+    {
+      "rank": 472,
+      "condition": "20위 + 50고점",
+      "prob": 51.4,
+      "occ": 214,
+      "lift": 0.3,
+      "avg": 0.4
+    },
+    {
+      "rank": 473,
+      "condition": "20위 + 50고점 + 60위",
+      "prob": 51.4,
+      "occ": 214,
+      "lift": 0.3,
+      "avg": 0.4
+    },
+    {
+      "rank": 474,
+      "condition": "50고점",
+      "prob": 51.4,
+      "occ": 214,
+      "lift": 0.3,
+      "avg": 0.4
+    },
+    {
+      "rank": 475,
+      "condition": "50고점 + 60위",
+      "prob": 51.4,
+      "occ": 214,
+      "lift": 0.3,
+      "avg": 0.4
+    },
+    {
+      "rank": 476,
+      "condition": "3%상승 + 60위 + 이격+5",
+      "prob": 51.4,
+      "occ": 286,
+      "lift": 0.3,
+      "avg": 0.48
+    },
+    {
+      "rank": 477,
+      "condition": "갭하락1 + 음봉1 + 종가하락2",
+      "prob": 51.4,
+      "occ": 179,
+      "lift": 0.3,
+      "avg": -0.01
+    },
+    {
+      "rank": 478,
+      "condition": "20위 + 60위 + 종가상승3",
+      "prob": 51.4,
+      "occ": 360,
+      "lift": 0.3,
+      "avg": 0.28
+    },
+    {
+      "rank": 479,
+      "condition": "20위 + 고변동5 + 종가상승2",
+      "prob": 51.4,
+      "occ": 181,
+      "lift": 0.3,
+      "avg": 0.17
+    },
+    {
+      "rank": 480,
+      "condition": "60아래 + 갭상승1 + 양봉1",
+      "prob": 51.3,
+      "occ": 150,
+      "lift": 0.2,
+      "avg": 0.8
+    },
+    {
+      "rank": 481,
+      "condition": "고변동5 + 고변동8",
+      "prob": 51.3,
+      "occ": 226,
+      "lift": 0.2,
+      "avg": 0.35
+    },
+    {
+      "rank": 482,
+      "condition": "고변동8",
+      "prob": 51.3,
+      "occ": 226,
+      "lift": 0.2,
+      "avg": 0.35
+    },
+    {
+      "rank": 483,
+      "condition": "50고점 + 양봉1 + 이격+5",
+      "prob": 51.3,
+      "occ": 191,
+      "lift": 0.2,
+      "avg": 0.44
+    },
+    {
+      "rank": 484,
+      "condition": "60아래 + 음봉1 + 이격-5",
+      "prob": 51.3,
+      "occ": 462,
+      "lift": 0.2,
+      "avg": 0.24
+    },
+    {
+      "rank": 485,
+      "condition": "고변동5 + 양봉1 + 이격+10",
+      "prob": 51.3,
+      "occ": 154,
+      "lift": 0.2,
+      "avg": 0.12
+    },
+    {
+      "rank": 486,
+      "condition": "20고점 + 50고점 + 종가상승2",
+      "prob": 51.3,
+      "occ": 154,
+      "lift": 0.2,
+      "avg": 0.41
+    },
+    {
+      "rank": 487,
+      "condition": "20위 + 50고점 + 종가상승2",
+      "prob": 51.3,
+      "occ": 154,
+      "lift": 0.2,
+      "avg": 0.41
+    },
+    {
+      "rank": 488,
+      "condition": "50고점 + 60위 + 종가상승2",
+      "prob": 51.3,
+      "occ": 154,
+      "lift": 0.2,
+      "avg": 0.41
+    },
+    {
+      "rank": 489,
+      "condition": "50고점 + 종가상승2",
+      "prob": 51.3,
+      "occ": 154,
+      "lift": 0.2,
+      "avg": 0.41
+    },
+    {
+      "rank": 490,
+      "condition": "3%상승 + 갭상승1",
+      "prob": 51.3,
+      "occ": 347,
+      "lift": 0.2,
+      "avg": 0.4
+    },
+    {
+      "rank": 491,
+      "condition": "60위 + 종가상승2",
+      "prob": 51.3,
+      "occ": 702,
+      "lift": 0.2,
+      "avg": 0.2
+    },
+    {
+      "rank": 492,
+      "condition": "20아래 + 음봉2 + 종가하락2",
+      "prob": 51.3,
+      "occ": 435,
+      "lift": 0.2,
+      "avg": 0.02
+    },
+    {
+      "rank": 493,
+      "condition": "60위",
+      "prob": 51.3,
+      "occ": 2228,
+      "lift": 0.2,
+      "avg": 0.2
+    },
+    {
+      "rank": 494,
+      "condition": "20고점 + 20위 + 이격+10",
+      "prob": 51.2,
+      "occ": 160,
+      "lift": 0.2,
+      "avg": 0.4
+    },
+    {
+      "rank": 495,
+      "condition": "20고점 + 이격+10",
+      "prob": 51.2,
+      "occ": 160,
+      "lift": 0.2,
+      "avg": 0.4
+    },
+    {
+      "rank": 496,
+      "condition": "20고점 + 이격+10 + 이격+5",
+      "prob": 51.2,
+      "occ": 160,
+      "lift": 0.2,
+      "avg": 0.4
+    },
+    {
+      "rank": 497,
+      "condition": "20위 + RSI과매수70 + 양봉3",
+      "prob": 51.2,
+      "occ": 160,
+      "lift": 0.2,
+      "avg": 0.44
+    },
+    {
+      "rank": 498,
+      "condition": "RSI과매수70 + 양봉1 + 양봉3",
+      "prob": 51.2,
+      "occ": 160,
+      "lift": 0.2,
+      "avg": 0.44
+    },
+    {
+      "rank": 499,
+      "condition": "RSI과매수70 + 양봉2 + 양봉3",
+      "prob": 51.2,
+      "occ": 160,
+      "lift": 0.2,
+      "avg": 0.44
+    },
+    {
+      "rank": 500,
+      "condition": "RSI과매수70 + 양봉3",
+      "prob": 51.2,
+      "occ": 160,
+      "lift": 0.2,
+      "avg": 0.44
+    },
+    {
+      "rank": 501,
+      "condition": "20아래 + 3%하락 + 음봉1",
+      "prob": 51.2,
+      "occ": 375,
+      "lift": 0.1,
+      "avg": 0.44
+    },
+    {
+      "rank": 502,
+      "condition": "20아래 + 60아래 + 이격-5",
+      "prob": 51.2,
+      "occ": 709,
+      "lift": 0.1,
+      "avg": 0.35
+    },
+    {
+      "rank": 503,
+      "condition": "60아래 + 이격-5",
+      "prob": 51.2,
+      "occ": 709,
+      "lift": 0.1,
+      "avg": 0.35
+    },
+    {
+      "rank": 504,
+      "condition": "20위 + 이격+5 + 종가상승2",
+      "prob": 51.2,
+      "occ": 506,
+      "lift": 0.1,
+      "avg": 0.4
+    },
+    {
+      "rank": 505,
+      "condition": "이격+5 + 종가상승2",
+      "prob": 51.2,
+      "occ": 506,
+      "lift": 0.1,
+      "avg": 0.4
+    },
+    {
+      "rank": 506,
+      "condition": "20위 + 60위 + 종가상승2",
+      "prob": 51.1,
+      "occ": 622,
+      "lift": 0,
+      "avg": 0.23
+    },
+    {
+      "rank": 507,
+      "condition": "3%상승 + 60위",
+      "prob": 51.1,
+      "occ": 415,
+      "lift": 0,
+      "avg": 0.35
+    },
+    {
+      "rank": 508,
+      "condition": "종가상승2",
+      "prob": 51.1,
+      "occ": 1016,
+      "lift": 0,
+      "avg": 0.28
+    },
+    {
+      "rank": 509,
+      "condition": "20아래 + 음봉2 + 이격-5",
+      "prob": 51.1,
+      "occ": 331,
+      "lift": 0,
+      "avg": 0.08
+    },
+    {
+      "rank": 510,
+      "condition": "음봉1 + 음봉2 + 이격-5",
+      "prob": 51.1,
+      "occ": 331,
+      "lift": 0,
+      "avg": 0.08
+    },
+    {
+      "rank": 511,
+      "condition": "음봉2 + 이격-5",
+      "prob": 51.1,
+      "occ": 331,
+      "lift": 0,
+      "avg": 0.08
+    },
+    {
+      "rank": 512,
+      "condition": "3%하락 + 갭하락1",
+      "prob": 51,
+      "occ": 286,
+      "lift": -0.1,
+      "avg": 0.1
+    },
+    {
+      "rank": 513,
+      "condition": "갭상승1",
+      "prob": 51,
+      "occ": 959,
+      "lift": -0.1,
+      "avg": 0.26
+    },
+    {
+      "rank": 514,
+      "condition": "3일+10% + 종가상승2",
+      "prob": 51,
+      "occ": 153,
+      "lift": -0.1,
+      "avg": 0.77
+    },
+    {
+      "rank": 515,
+      "condition": "갭상승1 + 갭상승2 + 음봉1",
+      "prob": 51,
+      "occ": 208,
+      "lift": -0.1,
+      "avg": 0.49
+    },
+    {
+      "rank": 516,
+      "condition": "갭상승2 + 음봉1",
+      "prob": 51,
+      "occ": 208,
+      "lift": -0.1,
+      "avg": 0.49
+    },
+    {
+      "rank": 517,
+      "condition": "갭상승1 + 거래량1.5",
+      "prob": 51,
+      "occ": 157,
+      "lift": -0.1,
+      "avg": 0.34
+    },
+    {
+      "rank": 518,
+      "condition": "양봉1 + 이격+5 + 종가상승2",
+      "prob": 50.9,
+      "occ": 422,
+      "lift": -0.2,
+      "avg": 0.32
+    },
+    {
+      "rank": 519,
+      "condition": "20아래 + 60위 + 종가하락2",
+      "prob": 50.9,
+      "occ": 159,
+      "lift": -0.2,
+      "avg": -0.02
+    },
+    {
+      "rank": 520,
+      "condition": "3%상승 + 양봉1",
+      "prob": 50.9,
+      "occ": 587,
+      "lift": -0.2,
+      "avg": 0.31
+    },
+    {
+      "rank": 521,
+      "condition": "20고점 + 50고점 + RSI과매수70",
+      "prob": 50.9,
+      "occ": 163,
+      "lift": -0.2,
+      "avg": 0.37
+    },
+    {
+      "rank": 522,
+      "condition": "20위 + 50고점 + RSI과매수70",
+      "prob": 50.9,
+      "occ": 163,
+      "lift": -0.2,
+      "avg": 0.37
+    },
+    {
+      "rank": 523,
+      "condition": "50고점 + 60위 + RSI과매수70",
+      "prob": 50.9,
+      "occ": 163,
+      "lift": -0.2,
+      "avg": 0.37
+    },
+    {
+      "rank": 524,
+      "condition": "50고점 + RSI과매수70",
+      "prob": 50.9,
+      "occ": 163,
+      "lift": -0.2,
+      "avg": 0.37
+    },
+    {
+      "rank": 525,
+      "condition": "60아래 + 거래량1.5",
+      "prob": 50.9,
+      "occ": 163,
+      "lift": -0.2,
+      "avg": 0.46
+    },
+    {
+      "rank": 526,
+      "condition": "60위 + 갭상승1 + 음봉1",
+      "prob": 50.9,
+      "occ": 275,
+      "lift": -0.2,
+      "avg": 0.31
+    },
+    {
+      "rank": 527,
+      "condition": "갭상승1 + 양봉1 + 이격+5",
+      "prob": 50.9,
+      "occ": 220,
+      "lift": -0.2,
+      "avg": 0.33
+    },
+    {
+      "rank": 528,
+      "condition": "60아래 + 음봉1",
+      "prob": 50.9,
+      "occ": 939,
+      "lift": -0.2,
+      "avg": 0.14
+    },
+    {
+      "rank": 529,
+      "condition": "20위 + 양봉2 + 이격+5",
+      "prob": 50.9,
+      "occ": 442,
+      "lift": -0.2,
+      "avg": 0.24
+    },
+    {
+      "rank": 530,
+      "condition": "양봉1 + 양봉2 + 이격+5",
+      "prob": 50.9,
+      "occ": 442,
+      "lift": -0.2,
+      "avg": 0.24
+    },
+    {
+      "rank": 531,
+      "condition": "양봉2 + 이격+5",
+      "prob": 50.9,
+      "occ": 442,
+      "lift": -0.2,
+      "avg": 0.24
+    },
+    {
+      "rank": 532,
+      "condition": "20아래 + 고변동5 + 양봉1",
+      "prob": 50.9,
+      "occ": 167,
+      "lift": -0.2,
+      "avg": 0.5
+    },
+    {
+      "rank": 533,
+      "condition": "60아래",
+      "prob": 50.9,
+      "occ": 1729,
+      "lift": -0.2,
+      "avg": 0.22
+    },
+    {
+      "rank": 534,
+      "condition": "60위 + 이격+5 + 종가상승3",
+      "prob": 50.9,
+      "occ": 279,
+      "lift": -0.2,
+      "avg": 0.42
+    },
+    {
+      "rank": 535,
+      "condition": "20위 + 갭하락1",
+      "prob": 50.9,
+      "occ": 285,
+      "lift": -0.2,
+      "avg": -0.04
+    },
+    {
+      "rank": 536,
+      "condition": "60아래 + 양봉1",
+      "prob": 50.9,
+      "occ": 747,
+      "lift": -0.2,
+      "avg": 0.31
+    },
+    {
+      "rank": 537,
+      "condition": "20위 + 60위 + 이격+5",
+      "prob": 50.8,
+      "occ": 1060,
+      "lift": -0.3,
+      "avg": 0.36
+    },
+    {
+      "rank": 538,
+      "condition": "60위 + 이격+5",
+      "prob": 50.8,
+      "occ": 1060,
+      "lift": -0.3,
+      "avg": 0.36
+    },
+    {
+      "rank": 539,
+      "condition": "60아래 + 음봉1 + 음봉2",
+      "prob": 50.8,
+      "occ": 492,
+      "lift": -0.3,
+      "avg": -0.04
+    },
+    {
+      "rank": 540,
+      "condition": "60아래 + 음봉2",
+      "prob": 50.8,
+      "occ": 492,
+      "lift": -0.3,
+      "avg": -0.04
+    },
+    {
+      "rank": 541,
+      "condition": "60위 + 양봉1 + 종가상승3",
+      "prob": 50.8,
+      "occ": 309,
+      "lift": -0.3,
+      "avg": 0.18
+    },
+    {
+      "rank": 542,
+      "condition": "20위 + 종가상승2 + 종가상승3",
+      "prob": 50.8,
+      "occ": 439,
+      "lift": -0.3,
+      "avg": 0.37
+    },
+    {
+      "rank": 543,
+      "condition": "20위 + 종가상승3",
+      "prob": 50.8,
+      "occ": 439,
+      "lift": -0.3,
+      "avg": 0.37
+    },
+    {
+      "rank": 544,
+      "condition": "20아래 + 음봉1",
+      "prob": 50.8,
+      "occ": 1071,
+      "lift": -0.3,
+      "avg": 0.1
+    },
+    {
+      "rank": 545,
+      "condition": "20위 + 3%상승",
+      "prob": 50.8,
+      "occ": 451,
+      "lift": -0.3,
+      "avg": 0.41
+    },
+    {
+      "rank": 546,
+      "condition": "양봉1 + 이격+5 + 종가상승3",
+      "prob": 50.8,
+      "occ": 258,
+      "lift": -0.3,
+      "avg": 0.47
+    },
+    {
+      "rank": 547,
+      "condition": "20위 + 종가상승2",
+      "prob": 50.8,
+      "occ": 776,
+      "lift": -0.3,
+      "avg": 0.25
+    },
+    {
+      "rank": 548,
+      "condition": "20고점 + 50고점 + 이격+5",
+      "prob": 50.8,
+      "occ": 197,
+      "lift": -0.3,
+      "avg": 0.42
+    },
+    {
+      "rank": 549,
+      "condition": "20위 + 50고점 + 이격+5",
+      "prob": 50.8,
+      "occ": 197,
+      "lift": -0.3,
+      "avg": 0.42
+    },
+    {
+      "rank": 550,
+      "condition": "50고점 + 60위 + 이격+5",
+      "prob": 50.8,
+      "occ": 197,
+      "lift": -0.3,
+      "avg": 0.42
+    },
+    {
+      "rank": 551,
+      "condition": "50고점 + 이격+5",
+      "prob": 50.8,
+      "occ": 197,
+      "lift": -0.3,
+      "avg": 0.42
+    },
+    {
+      "rank": 552,
+      "condition": "60위 + 고변동5 + 양봉1",
+      "prob": 50.7,
+      "occ": 270,
+      "lift": -0.4,
+      "avg": 0.12
+    },
+    {
+      "rank": 553,
+      "condition": "20위 + 양봉1 + 종가상승3",
+      "prob": 50.7,
+      "occ": 357,
+      "lift": -0.4,
+      "avg": 0.37
+    },
+    {
+      "rank": 554,
+      "condition": "음봉1 + 음봉2",
+      "prob": 50.7,
+      "occ": 929,
+      "lift": -0.4,
+      "avg": 0.02
+    },
+    {
+      "rank": 555,
+      "condition": "음봉2",
+      "prob": 50.7,
+      "occ": 929,
+      "lift": -0.4,
+      "avg": 0.02
+    },
+    {
+      "rank": 556,
+      "condition": "20위 + 양봉1 + 이격+5",
+      "prob": 50.7,
+      "occ": 736,
+      "lift": -0.4,
+      "avg": 0.32
+    },
+    {
+      "rank": 557,
+      "condition": "양봉1 + 이격+5",
+      "prob": 50.7,
+      "occ": 736,
+      "lift": -0.4,
+      "avg": 0.32
+    },
+    {
+      "rank": 558,
+      "condition": "20아래 + 60아래 + 음봉2",
+      "prob": 50.7,
+      "occ": 446,
+      "lift": -0.4,
+      "avg": 0.01
+    },
+    {
+      "rank": 559,
+      "condition": "고변동5 + 종가상승2",
+      "prob": 50.7,
+      "occ": 227,
+      "lift": -0.4,
+      "avg": 0.25
+    },
+    {
+      "rank": 560,
+      "condition": "20아래 + RSI과매도30 + 음봉2",
+      "prob": 50.6,
+      "occ": 154,
+      "lift": -0.4,
+      "avg": -0.07
+    },
+    {
+      "rank": 561,
+      "condition": "RSI과매도30 + 음봉1 + 음봉2",
+      "prob": 50.6,
+      "occ": 154,
+      "lift": -0.4,
+      "avg": -0.07
+    },
+    {
+      "rank": 562,
+      "condition": "RSI과매도30 + 음봉2",
+      "prob": 50.6,
+      "occ": 154,
+      "lift": -0.4,
+      "avg": -0.07
+    },
+    {
+      "rank": 563,
+      "condition": "20위 + 갭상승1 + 양봉1",
+      "prob": 50.6,
+      "occ": 310,
+      "lift": -0.5,
+      "avg": 0.26
+    },
+    {
+      "rank": 564,
+      "condition": "3%상승 + 60위 + 양봉1",
+      "prob": 50.6,
+      "occ": 389,
+      "lift": -0.5,
+      "avg": 0.23
+    },
+    {
+      "rank": 565,
+      "condition": "50고점 + RSI과매수70 + 이격+5",
+      "prob": 50.6,
+      "occ": 156,
+      "lift": -0.5,
+      "avg": 0.39
+    },
+    {
+      "rank": 566,
+      "condition": "60아래 + 종가상승2",
+      "prob": 50.6,
+      "occ": 314,
+      "lift": -0.5,
+      "avg": 0.46
+    },
+    {
+      "rank": 567,
+      "condition": "20아래 + RSI과매도30 + 종가하락2",
+      "prob": 50.6,
+      "occ": 160,
+      "lift": -0.5,
+      "avg": 0.03
+    },
+    {
+      "rank": 568,
+      "condition": "RSI과매도30 + 종가하락2",
+      "prob": 50.6,
+      "occ": 160,
+      "lift": -0.5,
+      "avg": 0.03
+    },
+    {
+      "rank": 569,
+      "condition": "갭상승1 + 고변동5",
+      "prob": 50.6,
+      "occ": 324,
+      "lift": -0.5,
+      "avg": 0.15
+    },
+    {
+      "rank": 570,
+      "condition": "60아래 + 고변동5",
+      "prob": 50.6,
+      "occ": 494,
+      "lift": -0.5,
+      "avg": 0.27
+    },
+    {
+      "rank": 571,
+      "condition": "20아래 + 60위",
+      "prob": 50.6,
+      "occ": 498,
+      "lift": -0.5,
+      "avg": -0.09
+    },
+    {
+      "rank": 572,
+      "condition": "60위 + 음봉1 + 음봉2",
+      "prob": 50.6,
+      "occ": 437,
+      "lift": -0.5,
+      "avg": 0.1
+    },
+    {
+      "rank": 573,
+      "condition": "60위 + 음봉2",
+      "prob": 50.6,
+      "occ": 437,
+      "lift": -0.5,
+      "avg": 0.1
+    },
+    {
+      "rank": 574,
+      "condition": "3%상승 + 고변동5 + 이격+5",
+      "prob": 50.6,
+      "occ": 178,
+      "lift": -0.5,
+      "avg": 0.17
+    },
+    {
+      "rank": 575,
+      "condition": "20위 + 3%상승 + 60위",
+      "prob": 50.6,
+      "occ": 360,
+      "lift": -0.5,
+      "avg": 0.41
+    },
+    {
+      "rank": 576,
+      "condition": "60위 + 양봉1 + 종가상승2",
+      "prob": 50.5,
+      "occ": 560,
+      "lift": -0.6,
+      "avg": 0.11
+    },
+    {
+      "rank": 577,
+      "condition": "60아래 + 음봉2 + 이격-5",
+      "prob": 50.5,
+      "occ": 285,
+      "lift": -0.6,
+      "avg": 0.07
+    },
+    {
+      "rank": 578,
+      "condition": "20아래 + 60아래 + 음봉1",
+      "prob": 50.5,
+      "occ": 776,
+      "lift": -0.6,
+      "avg": 0.13
+    },
+    {
+      "rank": 579,
+      "condition": "20아래",
+      "prob": 50.5,
+      "occ": 1776,
+      "lift": -0.6,
+      "avg": 0.15
+    },
+    {
+      "rank": 580,
+      "condition": "3일+10%",
+      "prob": 50.5,
+      "occ": 222,
+      "lift": -0.6,
+      "avg": 0.83
+    },
+    {
+      "rank": 581,
+      "condition": "60위 + 이격+5 + 종가상승2",
+      "prob": 50.4,
+      "occ": 450,
+      "lift": -0.7,
+      "avg": 0.35
+    },
+    {
+      "rank": 582,
+      "condition": "20위 + 3%상승 + 갭상승1",
+      "prob": 50.4,
+      "occ": 236,
+      "lift": -0.7,
+      "avg": 0.4
+    },
+    {
+      "rank": 583,
+      "condition": "20아래 + 60아래",
+      "prob": 50.4,
+      "occ": 1278,
+      "lift": -0.7,
+      "avg": 0.24
+    },
+    {
+      "rank": 584,
+      "condition": "20위 + 양봉1",
+      "prob": 50.4,
+      "occ": 1267,
+      "lift": -0.7,
+      "avg": 0.23
+    },
+    {
+      "rank": 585,
+      "condition": "60위 + 갭상승1",
+      "prob": 50.3,
+      "occ": 582,
+      "lift": -0.8,
+      "avg": 0.19
+    },
+    {
+      "rank": 586,
+      "condition": "20고점 + 60위 + 이격+10",
+      "prob": 50.3,
+      "occ": 155,
+      "lift": -0.8,
+      "avg": 0.32
+    },
+    {
+      "rank": 587,
+      "condition": "3%하락 + 60아래",
+      "prob": 50.3,
+      "occ": 324,
+      "lift": -0.8,
+      "avg": 0.38
+    },
+    {
+      "rank": 588,
+      "condition": "거래량절반",
+      "prob": 50.3,
+      "occ": 163,
+      "lift": -0.8,
+      "avg": 0.21
+    },
+    {
+      "rank": 589,
+      "condition": "60아래 + 갭하락1 + 종가하락2",
+      "prob": 50.3,
+      "occ": 179,
+      "lift": -0.8,
+      "avg": -0.18
+    },
+    {
+      "rank": 590,
+      "condition": "60위 + 갭상승1 + 고변동5",
+      "prob": 50.3,
+      "occ": 185,
+      "lift": -0.8,
+      "avg": -0.11
+    },
+    {
+      "rank": 591,
+      "condition": "20위 + 60위 + 갭상승2",
+      "prob": 50.2,
+      "occ": 205,
+      "lift": -0.9,
+      "avg": 0.37
+    },
+    {
+      "rank": 592,
+      "condition": "20위 + 3%상승 + 양봉1",
+      "prob": 50.2,
+      "occ": 426,
+      "lift": -0.9,
+      "avg": 0.32
+    },
+    {
+      "rank": 593,
+      "condition": "20고점 + 양봉1 + 종가상승2",
+      "prob": 50.2,
+      "occ": 217,
+      "lift": -0.9,
+      "avg": 0.44
+    },
+    {
+      "rank": 594,
+      "condition": "20위 + 60위 + 거래량1.5",
+      "prob": 50.2,
+      "occ": 219,
+      "lift": -0.9,
+      "avg": 0.35
+    },
+    {
+      "rank": 595,
+      "condition": "갭상승1 + 양봉1",
+      "prob": 50.2,
+      "occ": 452,
+      "lift": -0.9,
+      "avg": 0.3
+    },
+    {
+      "rank": 596,
+      "condition": "60위 + 갭상승1 + 갭상승2",
+      "prob": 50.2,
+      "occ": 243,
+      "lift": -0.9,
+      "avg": 0.3
+    },
+    {
+      "rank": 597,
+      "condition": "60위 + 갭상승2",
+      "prob": 50.2,
+      "occ": 243,
+      "lift": -0.9,
+      "avg": 0.3
+    },
+    {
+      "rank": 598,
+      "condition": "20위 + 갭상승1",
+      "prob": 50.2,
+      "occ": 570,
+      "lift": -0.9,
+      "avg": 0.24
+    },
+    {
+      "rank": 599,
+      "condition": "20고점 + 20위 + 양봉1",
+      "prob": 50.2,
+      "occ": 299,
+      "lift": -0.9,
+      "avg": 0.39
+    },
+    {
+      "rank": 600,
+      "condition": "20고점 + 양봉1",
+      "prob": 50.2,
+      "occ": 299,
+      "lift": -0.9,
+      "avg": 0.39
+    },
+    {
+      "rank": 601,
+      "condition": "60위 + 갭상승1 + 이격+5",
+      "prob": 50.1,
+      "occ": 343,
+      "lift": -1,
+      "avg": 0.37
+    },
+    {
+      "rank": 602,
+      "condition": "양봉1",
+      "prob": 50.1,
+      "occ": 1930,
+      "lift": -1,
+      "avg": 0.22
+    },
+    {
+      "rank": 603,
+      "condition": "20위 + 양봉1 + 종가상승2",
+      "prob": 50.1,
+      "occ": 635,
+      "lift": -1,
+      "avg": 0.18
+    },
+    {
+      "rank": 604,
+      "condition": "20위 + 60위 + 갭하락1",
+      "prob": 50,
+      "occ": 226,
+      "lift": -1.1,
+      "avg": -0.02
+    },
+    {
+      "rank": 605,
+      "condition": "60위 + 거래량1.5 + 이격+5",
+      "prob": 50,
+      "occ": 176,
+      "lift": -1.1,
+      "avg": 0.41
+    },
+    {
+      "rank": 606,
+      "condition": "20위 + 갭상승1 + 음봉1",
+      "prob": 50,
+      "occ": 256,
+      "lift": -1.1,
+      "avg": 0.22
+    },
+    {
+      "rank": 607,
+      "condition": "20고점 + RSI과매수70 + 양봉1",
+      "prob": 50,
+      "occ": 206,
+      "lift": -1.1,
+      "avg": 0.32
+    },
+    {
+      "rank": 608,
+      "condition": "60위 + 음봉2 + 종가하락2",
+      "prob": 50,
+      "occ": 250,
+      "lift": -1.1,
+      "avg": 0
+    },
+    {
+      "rank": 609,
+      "condition": "3%상승 + 60위 + 고변동5",
+      "prob": 50,
+      "occ": 210,
+      "lift": -1.1,
+      "avg": 0.23
+    },
+    {
+      "rank": 610,
+      "condition": "3%상승 + 고변동5 + 종가상승2",
+      "prob": 50,
+      "occ": 166,
+      "lift": -1.1,
+      "avg": 0.29
+    },
+    {
+      "rank": 611,
+      "condition": "3%하락 + 갭하락1 + 고변동5",
+      "prob": 50,
+      "occ": 150,
+      "lift": -1.1,
+      "avg": 0.15
+    },
+    {
+      "rank": 612,
+      "condition": "갭하락1 + 음봉1",
+      "prob": 50,
+      "occ": 344,
+      "lift": -1.1,
+      "avg": -0.03
+    },
+    {
+      "rank": 613,
+      "condition": "60위 + RSI과매수70 + 양봉3",
+      "prob": 50,
+      "occ": 150,
+      "lift": -1.1,
+      "avg": 0.32
+    },
+    {
+      "rank": 614,
+      "condition": "RSI과매수70 + 양봉3 + 이격+5",
+      "prob": 50,
+      "occ": 154,
+      "lift": -1.1,
+      "avg": 0.45
+    },
+    {
+      "rank": 615,
+      "condition": "갭하락1 + 음봉2 + 종가하락2",
+      "prob": 50,
+      "occ": 154,
+      "lift": -1.1,
+      "avg": -0.04
+    },
+    {
+      "rank": 616,
+      "condition": "60아래 + 양봉1 + 이격-5",
+      "prob": 50,
+      "occ": 234,
+      "lift": -1.1,
+      "avg": 0.52
+    },
+    {
+      "rank": 617,
+      "condition": "20아래 + 갭하락1 + 양봉1",
+      "prob": 50,
+      "occ": 200,
+      "lift": -1.1,
+      "avg": 0.05
+    },
+    {
+      "rank": 618,
+      "condition": "60아래 + 갭하락1 + 양봉1",
+      "prob": 50,
+      "occ": 186,
+      "lift": -1.1,
+      "avg": -0.03
+    },
+    {
+      "rank": 619,
+      "condition": "20아래 + 음봉1 + 음봉2",
+      "prob": 49.9,
+      "occ": 617,
+      "lift": -1.2,
+      "avg": -0.03
+    },
+    {
+      "rank": 620,
+      "condition": "20아래 + 음봉2",
+      "prob": 49.9,
+      "occ": 617,
+      "lift": -1.2,
+      "avg": -0.03
+    },
+    {
+      "rank": 621,
+      "condition": "20위 + 60위 + 갭상승1",
+      "prob": 49.9,
+      "occ": 475,
+      "lift": -1.2,
+      "avg": 0.23
+    },
+    {
+      "rank": 622,
+      "condition": "20아래 + 60아래 + 양봉1",
+      "prob": 49.9,
+      "occ": 471,
+      "lift": -1.2,
+      "avg": 0.38
+    },
+    {
+      "rank": 623,
+      "condition": "양봉2 + 이격+5 + 종가상승2",
+      "prob": 49.9,
+      "occ": 353,
+      "lift": -1.2,
+      "avg": 0.1
+    },
+    {
+      "rank": 624,
+      "condition": "20고점",
+      "prob": 49.8,
+      "occ": 311,
+      "lift": -1.3,
+      "avg": 0.36
+    },
+    {
+      "rank": 625,
+      "condition": "20고점 + 20위",
+      "prob": 49.8,
+      "occ": 311,
+      "lift": -1.3,
+      "avg": 0.36
+    },
+    {
+      "rank": 626,
+      "condition": "3%상승 + 갭상승1 + 양봉1",
+      "prob": 49.8,
+      "occ": 309,
+      "lift": -1.3,
+      "avg": 0.2
+    },
+    {
+      "rank": 627,
+      "condition": "20아래 + 양봉1 + 이격-5",
+      "prob": 49.8,
+      "occ": 267,
+      "lift": -1.3,
+      "avg": 0.5
+    },
+    {
+      "rank": 628,
+      "condition": "양봉1 + 이격-5",
+      "prob": 49.8,
+      "occ": 267,
+      "lift": -1.3,
+      "avg": 0.5
+    },
+    {
+      "rank": 629,
+      "condition": "3%상승 + 60위 + 갭상승1",
+      "prob": 49.8,
+      "occ": 229,
+      "lift": -1.3,
+      "avg": 0.23
+    },
+    {
+      "rank": 630,
+      "condition": "20고점 + 20위 + 종가상승2",
+      "prob": 49.8,
+      "occ": 221,
+      "lift": -1.3,
+      "avg": 0.42
+    },
+    {
+      "rank": 631,
+      "condition": "20고점 + 종가상승2",
+      "prob": 49.8,
+      "occ": 221,
+      "lift": -1.3,
+      "avg": 0.42
+    },
+    {
+      "rank": 632,
+      "condition": "RSI과매수70 + 양봉2 + 종가상승2",
+      "prob": 49.8,
+      "occ": 217,
+      "lift": -1.3,
+      "avg": 0.2
+    },
+    {
+      "rank": 633,
+      "condition": "양봉1 + 종가상승2",
+      "prob": 49.8,
+      "occ": 810,
+      "lift": -1.3,
+      "avg": 0.16
+    },
+    {
+      "rank": 634,
+      "condition": "20위 + 60위 + 양봉1",
+      "prob": 49.7,
+      "occ": 991,
+      "lift": -1.4,
+      "avg": 0.25
+    },
+    {
+      "rank": 635,
+      "condition": "갭상승1 + 갭상승2 + 고변동5",
+      "prob": 49.7,
+      "occ": 185,
+      "lift": -1.4,
+      "avg": 0.08
+    },
+    {
+      "rank": 636,
+      "condition": "갭상승2 + 고변동5",
+      "prob": 49.7,
+      "occ": 185,
+      "lift": -1.4,
+      "avg": 0.08
+    },
+    {
+      "rank": 637,
+      "condition": "종가상승2 + 종가상승3",
+      "prob": 49.7,
+      "occ": 519,
+      "lift": -1.4,
+      "avg": 0.25
+    },
+    {
+      "rank": 638,
+      "condition": "종가상승3",
+      "prob": 49.7,
+      "occ": 519,
+      "lift": -1.4,
+      "avg": 0.25
+    },
+    {
+      "rank": 639,
+      "condition": "거래량1.5 + 거래량2",
+      "prob": 49.7,
+      "occ": 155,
+      "lift": -1.4,
+      "avg": 0.62
+    },
+    {
+      "rank": 640,
+      "condition": "거래량2",
+      "prob": 49.7,
+      "occ": 155,
+      "lift": -1.4,
+      "avg": 0.62
+    },
+    {
+      "rank": 641,
+      "condition": "20위 + 거래량1.5 + 고변동5",
+      "prob": 49.7,
+      "occ": 155,
+      "lift": -1.4,
+      "avg": 0.51
+    },
+    {
+      "rank": 642,
+      "condition": "60위 + 갭상승1 + 양봉1",
+      "prob": 49.7,
+      "occ": 302,
+      "lift": -1.4,
+      "avg": 0.06
+    },
+    {
+      "rank": 643,
+      "condition": "20아래 + 3%하락 + 60아래",
+      "prob": 49.7,
+      "occ": 298,
+      "lift": -1.4,
+      "avg": 0.44
+    },
+    {
+      "rank": 644,
+      "condition": "양봉1 + 종가상승2 + 종가상승3",
+      "prob": 49.6,
+      "occ": 413,
+      "lift": -1.5,
+      "avg": 0.22
+    },
+    {
+      "rank": 645,
+      "condition": "양봉1 + 종가상승3",
+      "prob": 49.6,
+      "occ": 413,
+      "lift": -1.5,
+      "avg": 0.22
+    },
+    {
+      "rank": 646,
+      "condition": "20아래 + 양봉1",
+      "prob": 49.6,
+      "occ": 663,
+      "lift": -1.5,
+      "avg": 0.2
+    },
+    {
+      "rank": 647,
+      "condition": "60위 + 양봉1 + 이격+5",
+      "prob": 49.6,
+      "occ": 659,
+      "lift": -1.5,
+      "avg": 0.27
+    },
+    {
+      "rank": 648,
+      "condition": "60위 + 양봉1",
+      "prob": 49.6,
+      "occ": 1183,
+      "lift": -1.5,
+      "avg": 0.17
+    },
+    {
+      "rank": 649,
+      "condition": "60위 + 양봉2 + 이격+5",
+      "prob": 49.6,
+      "occ": 393,
+      "lift": -1.5,
+      "avg": 0.17
+    },
+    {
+      "rank": 650,
+      "condition": "3%하락 + 갭하락1 + 음봉1",
+      "prob": 49.6,
+      "occ": 258,
+      "lift": -1.5,
+      "avg": 0.06
+    },
+    {
+      "rank": 651,
+      "condition": "갭하락1 + 양봉1",
+      "prob": 49.6,
+      "occ": 379,
+      "lift": -1.5,
+      "avg": -0.05
+    },
+    {
+      "rank": 652,
+      "condition": "갭상승1 + 음봉1 + 음봉2",
+      "prob": 49.5,
+      "occ": 216,
+      "lift": -1.6,
+      "avg": 0.04
+    },
+    {
+      "rank": 653,
+      "condition": "갭상승1 + 음봉2",
+      "prob": 49.5,
+      "occ": 216,
+      "lift": -1.6,
+      "avg": 0.04
+    },
+    {
+      "rank": 654,
+      "condition": "20고점 + 20위 + RSI과매수70",
+      "prob": 49.5,
+      "occ": 214,
+      "lift": -1.6,
+      "avg": 0.3
+    },
+    {
+      "rank": 655,
+      "condition": "20고점 + RSI과매수70",
+      "prob": 49.5,
+      "occ": 214,
+      "lift": -1.6,
+      "avg": 0.3
+    },
+    {
+      "rank": 656,
+      "condition": "60아래 + 양봉1 + 양봉2",
+      "prob": 49.5,
+      "occ": 317,
+      "lift": -1.6,
+      "avg": 0.16
+    },
+    {
+      "rank": 657,
+      "condition": "60아래 + 양봉2",
+      "prob": 49.5,
+      "occ": 317,
+      "lift": -1.6,
+      "avg": 0.16
+    },
+    {
+      "rank": 658,
+      "condition": "갭하락1",
+      "prob": 49.5,
+      "occ": 737,
+      "lift": -1.6,
+      "avg": -0.04
+    },
+    {
+      "rank": 659,
+      "condition": "양봉2 + 이격+5 + 종가상승3",
+      "prob": 49.5,
+      "occ": 210,
+      "lift": -1.6,
+      "avg": 0.22
+    },
+    {
+      "rank": 660,
+      "condition": "20위 + 양봉1 + 양봉2",
+      "prob": 49.5,
+      "occ": 675,
+      "lift": -1.6,
+      "avg": 0.08
+    },
+    {
+      "rank": 661,
+      "condition": "20위 + 양봉2",
+      "prob": 49.5,
+      "occ": 675,
+      "lift": -1.6,
+      "avg": 0.08
+    },
+    {
+      "rank": 662,
+      "condition": "20고점 + 양봉1 + 이격+5",
+      "prob": 49.5,
+      "occ": 281,
+      "lift": -1.6,
+      "avg": 0.35
+    },
+    {
+      "rank": 663,
+      "condition": "3%하락 + 60아래 + 음봉1",
+      "prob": 49.4,
+      "occ": 308,
+      "lift": -1.7,
+      "avg": 0.36
+    },
+    {
+      "rank": 664,
+      "condition": "20위 + 60아래 + 종가상승2",
+      "prob": 49.4,
+      "occ": 154,
+      "lift": -1.7,
+      "avg": 0.32
+    },
+    {
+      "rank": 665,
+      "condition": "고변동5 + 양봉1",
+      "prob": 49.3,
+      "occ": 458,
+      "lift": -1.8,
+      "avg": 0.14
+    },
+    {
+      "rank": 666,
+      "condition": "20고점 + 60위 + 양봉1",
+      "prob": 49.3,
+      "occ": 282,
+      "lift": -1.8,
+      "avg": 0.34
+    },
+    {
+      "rank": 667,
+      "condition": "20고점 + 20위 + 양봉2",
+      "prob": 49.3,
+      "occ": 211,
+      "lift": -1.8,
+      "avg": 0.36
+    },
+    {
+      "rank": 668,
+      "condition": "20고점 + 양봉1 + 양봉2",
+      "prob": 49.3,
+      "occ": 211,
+      "lift": -1.8,
+      "avg": 0.36
+    },
+    {
+      "rank": 669,
+      "condition": "20고점 + 양봉2",
+      "prob": 49.3,
+      "occ": 211,
+      "lift": -1.8,
+      "avg": 0.36
+    },
+    {
+      "rank": 670,
+      "condition": "20위 + 양봉2 + 종가상승3",
+      "prob": 49.3,
+      "occ": 278,
+      "lift": -1.8,
+      "avg": 0.12
+    },
+    {
+      "rank": 671,
+      "condition": "3%상승 + 갭상승1 + 갭상승2",
+      "prob": 49.3,
+      "occ": 207,
+      "lift": -1.8,
+      "avg": 0.28
+    },
+    {
+      "rank": 672,
+      "condition": "3%상승 + 갭상승2",
+      "prob": 49.3,
+      "occ": 207,
+      "lift": -1.8,
+      "avg": 0.28
+    },
+    {
+      "rank": 673,
+      "condition": "20고점 + 60위 + 종가상승2",
+      "prob": 49.3,
+      "occ": 207,
+      "lift": -1.8,
+      "avg": 0.35
+    },
+    {
+      "rank": 674,
+      "condition": "20고점 + RSI과매수70 + 이격+5",
+      "prob": 49.3,
+      "occ": 207,
+      "lift": -1.8,
+      "avg": 0.32
+    },
+    {
+      "rank": 675,
+      "condition": "20고점 + 양봉2 + 이격+5",
+      "prob": 49.3,
+      "occ": 201,
+      "lift": -1.8,
+      "avg": 0.37
+    },
+    {
+      "rank": 676,
+      "condition": "60위 + 갭하락1 + 양봉1",
+      "prob": 49.2,
+      "occ": 193,
+      "lift": -1.9,
+      "avg": -0.06
+    },
+    {
+      "rank": 677,
+      "condition": "20위 + 갭하락1 + 양봉1",
+      "prob": 49.2,
+      "occ": 179,
+      "lift": -1.9,
+      "avg": -0.15
+    },
+    {
+      "rank": 678,
+      "condition": "60위 + 양봉2 + 종가상승3",
+      "prob": 49.2,
+      "occ": 238,
+      "lift": -1.9,
+      "avg": -0.05
+    },
+    {
+      "rank": 679,
+      "condition": "20고점 + 20위 + 60위",
+      "prob": 49.1,
+      "occ": 293,
+      "lift": -2,
+      "avg": 0.32
+    },
+    {
+      "rank": 680,
+      "condition": "20고점 + 60위",
+      "prob": 49.1,
+      "occ": 293,
+      "lift": -2,
+      "avg": 0.32
+    },
+    {
+      "rank": 681,
+      "condition": "20고점 + 20위 + 이격+5",
+      "prob": 49.1,
+      "occ": 289,
+      "lift": -2,
+      "avg": 0.33
+    },
+    {
+      "rank": 682,
+      "condition": "20고점 + 이격+5",
+      "prob": 49.1,
+      "occ": 289,
+      "lift": -2,
+      "avg": 0.33
+    },
+    {
+      "rank": 683,
+      "condition": "갭하락1 + 고변동5",
+      "prob": 49.1,
+      "occ": 289,
+      "lift": -2,
+      "avg": 0.01
+    },
+    {
+      "rank": 684,
+      "condition": "20위 + 3%상승 + 양봉2",
+      "prob": 49.1,
+      "occ": 228,
+      "lift": -2,
+      "avg": 0.07
+    },
+    {
+      "rank": 685,
+      "condition": "3%상승 + 고변동5",
+      "prob": 49.1,
+      "occ": 324,
+      "lift": -2,
+      "avg": 0.23
+    },
+    {
+      "rank": 686,
+      "condition": "양봉1 + 양봉2",
+      "prob": 49.1,
+      "occ": 915,
+      "lift": -2,
+      "avg": 0.06
+    },
+    {
+      "rank": 687,
+      "condition": "양봉2",
+      "prob": 49.1,
+      "occ": 915,
+      "lift": -2,
+      "avg": 0.06
+    },
+    {
+      "rank": 688,
+      "condition": "60위 + 갭상승1 + 양봉2",
+      "prob": 49.1,
+      "occ": 161,
+      "lift": -2,
+      "avg": -0.1
+    },
+    {
+      "rank": 689,
+      "condition": "고변동5 + 양봉1 + 이격+5",
+      "prob": 49.1,
+      "occ": 214,
+      "lift": -2,
+      "avg": -0.14
+    },
+    {
+      "rank": 690,
+      "condition": "20고점 + 60위 + RSI과매수70",
+      "prob": 49,
+      "occ": 208,
+      "lift": -2.1,
+      "avg": 0.23
+    },
+    {
+      "rank": 691,
+      "condition": "3%상승 + 60위 + 양봉2",
+      "prob": 49,
+      "occ": 198,
+      "lift": -2.1,
+      "avg": -0.08
+    },
+    {
+      "rank": 692,
+      "condition": "20위 + 갭상승1 + 갭상승2",
+      "prob": 49,
+      "occ": 247,
+      "lift": -2.1,
+      "avg": 0.38
+    },
+    {
+      "rank": 693,
+      "condition": "20위 + 갭상승2",
+      "prob": 49,
+      "occ": 247,
+      "lift": -2.1,
+      "avg": 0.38
+    },
+    {
+      "rank": 694,
+      "condition": "20아래 + 60위 + 양봉1",
+      "prob": 49,
+      "occ": 192,
+      "lift": -2.1,
+      "avg": -0.24
+    },
+    {
+      "rank": 695,
+      "condition": "20고점 + 양봉2 + 종가상승2",
+      "prob": 48.9,
+      "occ": 188,
+      "lift": -2.2,
+      "avg": 0.41
+    },
+    {
+      "rank": 696,
+      "condition": "갭상승1 + 양봉2 + 종가상승2",
+      "prob": 48.9,
+      "occ": 184,
+      "lift": -2.2,
+      "avg": 0.03
+    },
+    {
+      "rank": 697,
+      "condition": "60위 + 양봉1 + 양봉2",
+      "prob": 48.8,
+      "occ": 598,
+      "lift": -2.3,
+      "avg": 0
+    },
+    {
+      "rank": 698,
+      "condition": "60위 + 양봉2",
+      "prob": 48.8,
+      "occ": 598,
+      "lift": -2.3,
+      "avg": 0
+    },
+    {
+      "rank": 699,
+      "condition": "3%상승 + 5%상승",
+      "prob": 48.8,
+      "occ": 254,
+      "lift": -2.3,
+      "avg": 0.27
+    },
+    {
+      "rank": 700,
+      "condition": "5%상승",
+      "prob": 48.8,
+      "occ": 254,
+      "lift": -2.3,
+      "avg": 0.27
+    },
+    {
+      "rank": 701,
+      "condition": "20위 + 갭상승1 + 양봉2",
+      "prob": 48.8,
+      "occ": 168,
+      "lift": -2.3,
+      "avg": -0.06
+    },
+    {
+      "rank": 702,
+      "condition": "20고점 + 이격+5 + 종가상승2",
+      "prob": 48.8,
+      "occ": 209,
+      "lift": -2.3,
+      "avg": 0.42
+    },
+    {
+      "rank": 703,
+      "condition": "20아래 + 3%하락 + 갭하락1",
+      "prob": 48.8,
+      "occ": 207,
+      "lift": -2.3,
+      "avg": 0.15
+    },
+    {
+      "rank": 704,
+      "condition": "3%상승 + 양봉1 + 양봉2",
+      "prob": 48.8,
+      "occ": 287,
+      "lift": -2.3,
+      "avg": 0.04
+    },
+    {
+      "rank": 705,
+      "condition": "3%상승 + 양봉2",
+      "prob": 48.8,
+      "occ": 287,
+      "lift": -2.3,
+      "avg": 0.04
+    },
+    {
+      "rank": 706,
+      "condition": "60위 + 양봉2 + 종가상승2",
+      "prob": 48.8,
+      "occ": 445,
+      "lift": -2.3,
+      "avg": -0.1
+    },
+    {
+      "rank": 707,
+      "condition": "갭상승1 + 갭상승2",
+      "prob": 48.7,
+      "occ": 392,
+      "lift": -2.4,
+      "avg": 0.23
+    },
+    {
+      "rank": 708,
+      "condition": "갭상승2",
+      "prob": 48.7,
+      "occ": 392,
+      "lift": -2.4,
+      "avg": 0.23
+    },
+    {
+      "rank": 709,
+      "condition": "3%상승 + 5%상승 + 고변동5",
+      "prob": 48.7,
+      "occ": 193,
+      "lift": -2.4,
+      "avg": 0.28
+    },
+    {
+      "rank": 710,
+      "condition": "5%상승 + 고변동5",
+      "prob": 48.7,
+      "occ": 193,
+      "lift": -2.4,
+      "avg": 0.28
+    },
+    {
+      "rank": 711,
+      "condition": "20위 + 3%상승 + 고변동5",
+      "prob": 48.7,
+      "occ": 230,
+      "lift": -2.4,
+      "avg": 0.13
+    },
+    {
+      "rank": 712,
+      "condition": "20아래 + 갭하락1",
+      "prob": 48.7,
+      "occ": 452,
+      "lift": -2.4,
+      "avg": -0.04
+    },
+    {
+      "rank": 713,
+      "condition": "20위 + 거래량1.5 + 이격+5",
+      "prob": 48.7,
+      "occ": 187,
+      "lift": -2.4,
+      "avg": 0.34
+    },
+    {
+      "rank": 714,
+      "condition": "거래량1.5 + 이격+5",
+      "prob": 48.7,
+      "occ": 187,
+      "lift": -2.4,
+      "avg": 0.34
+    },
+    {
+      "rank": 715,
+      "condition": "20아래 + 갭하락1 + 고변동5",
+      "prob": 48.6,
+      "occ": 185,
+      "lift": -2.5,
+      "avg": 0.17
+    },
+    {
+      "rank": 716,
+      "condition": "20위 + 갭상승1 + 고변동5",
+      "prob": 48.6,
+      "occ": 183,
+      "lift": -2.5,
+      "avg": -0.09
+    },
+    {
+      "rank": 717,
+      "condition": "양봉1 + 양봉2 + 종가상승3",
+      "prob": 48.6,
+      "occ": 317,
+      "lift": -2.5,
+      "avg": 0.01
+    },
+    {
+      "rank": 718,
+      "condition": "양봉2 + 종가상승2 + 종가상승3",
+      "prob": 48.6,
+      "occ": 317,
+      "lift": -2.5,
+      "avg": 0.01
+    },
+    {
+      "rank": 719,
+      "condition": "양봉2 + 종가상승3",
+      "prob": 48.6,
+      "occ": 317,
+      "lift": -2.5,
+      "avg": 0.01
+    },
+    {
+      "rank": 720,
+      "condition": "20아래 + 양봉1 + 종가상승2",
+      "prob": 48.6,
+      "occ": 175,
+      "lift": -2.5,
+      "avg": 0.12
+    },
+    {
+      "rank": 721,
+      "condition": "20위 + 60위 + 양봉2",
+      "prob": 48.5,
+      "occ": 524,
+      "lift": -2.6,
+      "avg": 0.04
+    },
+    {
+      "rank": 722,
+      "condition": "20고점 + 60위 + 양봉2",
+      "prob": 48.5,
+      "occ": 196,
+      "lift": -2.6,
+      "avg": 0.28
+    },
+    {
+      "rank": 723,
+      "condition": "20위 + 고변동5 + 양봉1",
+      "prob": 48.5,
+      "occ": 291,
+      "lift": -2.6,
+      "avg": -0.07
+    },
+    {
+      "rank": 724,
+      "condition": "20위 + 양봉2 + 종가상승2",
+      "prob": 48.4,
+      "occ": 514,
+      "lift": -2.7,
+      "avg": -0.07
+    },
+    {
+      "rank": 725,
+      "condition": "고변동5 + 양봉1 + 종가상승2",
+      "prob": 48.4,
+      "occ": 192,
+      "lift": -2.7,
+      "avg": 0.11
+    },
+    {
+      "rank": 726,
+      "condition": "20위 + 양봉3 + 종가상승3",
+      "prob": 48.4,
+      "occ": 217,
+      "lift": -2.7,
+      "avg": 0.04
+    },
+    {
+      "rank": 727,
+      "condition": "20위 + 5%상승 + 60위",
+      "prob": 48.4,
+      "occ": 153,
+      "lift": -2.7,
+      "avg": 0.42
+    },
+    {
+      "rank": 728,
+      "condition": "60위 + 양봉3 + 종가상승3",
+      "prob": 48.4,
+      "occ": 182,
+      "lift": -2.7,
+      "avg": -0.12
+    },
+    {
+      "rank": 729,
+      "condition": "양봉1 + 양봉3 + 종가상승3",
+      "prob": 48.3,
+      "occ": 242,
+      "lift": -2.8,
+      "avg": -0.02
+    },
+    {
+      "rank": 730,
+      "condition": "양봉2 + 양봉3 + 종가상승3",
+      "prob": 48.3,
+      "occ": 242,
+      "lift": -2.8,
+      "avg": -0.02
+    },
+    {
+      "rank": 731,
+      "condition": "양봉3 + 종가상승2 + 종가상승3",
+      "prob": 48.3,
+      "occ": 242,
+      "lift": -2.8,
+      "avg": -0.02
+    },
+    {
+      "rank": 732,
+      "condition": "양봉3 + 종가상승3",
+      "prob": 48.3,
+      "occ": 242,
+      "lift": -2.8,
+      "avg": -0.02
+    },
+    {
+      "rank": 733,
+      "condition": "20아래 + 갭하락1 + 음봉1",
+      "prob": 48.3,
+      "occ": 242,
+      "lift": -2.8,
+      "avg": -0.1
+    },
+    {
+      "rank": 734,
+      "condition": "양봉1 + 양봉2 + 종가상승2",
+      "prob": 48.3,
+      "occ": 644,
+      "lift": -2.8,
+      "avg": -0.03
+    },
+    {
+      "rank": 735,
+      "condition": "양봉2 + 종가상승2",
+      "prob": 48.3,
+      "occ": 644,
+      "lift": -2.8,
+      "avg": -0.03
+    },
+    {
+      "rank": 736,
+      "condition": "양봉3 + 이격+5 + 종가상승3",
+      "prob": 48.2,
+      "occ": 166,
+      "lift": -2.9,
+      "avg": 0.16
+    },
+    {
+      "rank": 737,
+      "condition": "20고점 + 60위 + 이격+5",
+      "prob": 48.2,
+      "occ": 272,
+      "lift": -2.9,
+      "avg": 0.28
+    },
+    {
+      "rank": 738,
+      "condition": "20위 + 거래량1.5",
+      "prob": 48.1,
+      "occ": 243,
+      "lift": -3,
+      "avg": 0.23
+    },
+    {
+      "rank": 739,
+      "condition": "20위 + 3%상승 + 5%상승",
+      "prob": 48.1,
+      "occ": 189,
+      "lift": -3,
+      "avg": 0.31
+    },
+    {
+      "rank": 740,
+      "condition": "20위 + 5%상승",
+      "prob": 48.1,
+      "occ": 189,
+      "lift": -3,
+      "avg": 0.31
+    },
+    {
+      "rank": 741,
+      "condition": "3%상승 + 5%상승 + 양봉1",
+      "prob": 48.1,
+      "occ": 235,
+      "lift": -3,
+      "avg": 0.05
+    },
+    {
+      "rank": 742,
+      "condition": "5%상승 + 양봉1",
+      "prob": 48.1,
+      "occ": 235,
+      "lift": -3,
+      "avg": 0.05
+    },
+    {
+      "rank": 743,
+      "condition": "갭하락1 + 음봉1 + 음봉2",
+      "prob": 48,
+      "occ": 177,
+      "lift": -3.1,
+      "avg": -0.2
+    },
+    {
+      "rank": 744,
+      "condition": "갭하락1 + 음봉2",
+      "prob": 48,
+      "occ": 177,
+      "lift": -3.1,
+      "avg": -0.2
+    },
+    {
+      "rank": 745,
+      "condition": "60아래 + 양봉1 + 종가상승2",
+      "prob": 48,
+      "occ": 250,
+      "lift": -3.1,
+      "avg": 0.28
+    },
+    {
+      "rank": 746,
+      "condition": "20아래 + 60위 + 음봉2",
+      "prob": 48,
+      "occ": 171,
+      "lift": -3.1,
+      "avg": -0.14
+    },
+    {
+      "rank": 747,
+      "condition": "3%상승 + 5%상승 + 60위",
+      "prob": 48,
+      "occ": 171,
+      "lift": -3.1,
+      "avg": 0.32
+    },
+    {
+      "rank": 748,
+      "condition": "5%상승 + 60위",
+      "prob": 48,
+      "occ": 171,
+      "lift": -3.1,
+      "avg": 0.32
+    },
+    {
+      "rank": 749,
+      "condition": "20아래 + 양봉1 + 양봉2",
+      "prob": 47.9,
+      "occ": 240,
+      "lift": -3.2,
+      "avg": -0.01
+    },
+    {
+      "rank": 750,
+      "condition": "20아래 + 양봉2",
+      "prob": 47.9,
+      "occ": 240,
+      "lift": -3.2,
+      "avg": -0.01
+    },
+    {
+      "rank": 751,
+      "condition": "3%상승 + 양봉2 + 종가상승2",
+      "prob": 47.9,
+      "occ": 236,
+      "lift": -3.2,
+      "avg": 0.01
+    },
+    {
+      "rank": 752,
+      "condition": "3%상승 + 갭상승1 + 고변동5",
+      "prob": 47.8,
+      "occ": 159,
+      "lift": -3.3,
+      "avg": 0.15
+    },
+    {
+      "rank": 753,
+      "condition": "갭상승1 + 양봉1 + 양봉2",
+      "prob": 47.8,
+      "occ": 226,
+      "lift": -3.3,
+      "avg": 0
+    },
+    {
+      "rank": 754,
+      "condition": "갭상승1 + 양봉2",
+      "prob": 47.8,
+      "occ": 226,
+      "lift": -3.3,
+      "avg": 0
+    },
+    {
+      "rank": 755,
+      "condition": "5%상승 + 고변동5 + 양봉1",
+      "prob": 47.8,
+      "occ": 180,
+      "lift": -3.3,
+      "avg": 0.06
+    },
+    {
+      "rank": 756,
+      "condition": "20위 + 5%상승 + 양봉1",
+      "prob": 47.8,
+      "occ": 178,
+      "lift": -3.3,
+      "avg": 0.1
+    },
+    {
+      "rank": 757,
+      "condition": "고변동5 + 양봉1 + 양봉2",
+      "prob": 47.7,
+      "occ": 199,
+      "lift": -3.4,
+      "avg": -0.23
+    },
+    {
+      "rank": 758,
+      "condition": "고변동5 + 양봉2",
+      "prob": 47.7,
+      "occ": 199,
+      "lift": -3.4,
+      "avg": -0.23
+    },
+    {
+      "rank": 759,
+      "condition": "20위 + 양봉3 + 이격+5",
+      "prob": 47.7,
+      "occ": 243,
+      "lift": -3.4,
+      "avg": 0.18
+    },
+    {
+      "rank": 760,
+      "condition": "양봉1 + 양봉3 + 이격+5",
+      "prob": 47.7,
+      "occ": 243,
+      "lift": -3.4,
+      "avg": 0.18
+    },
+    {
+      "rank": 761,
+      "condition": "양봉2 + 양봉3 + 이격+5",
+      "prob": 47.7,
+      "occ": 243,
+      "lift": -3.4,
+      "avg": 0.18
+    },
+    {
+      "rank": 762,
+      "condition": "양봉3 + 이격+5",
+      "prob": 47.7,
+      "occ": 243,
+      "lift": -3.4,
+      "avg": 0.18
+    },
+    {
+      "rank": 763,
+      "condition": "3%상승 + 고변동5 + 양봉1",
+      "prob": 47.7,
+      "occ": 304,
+      "lift": -3.4,
+      "avg": 0.07
+    },
+    {
+      "rank": 764,
+      "condition": "양봉1 + 양봉2 + 양봉3",
+      "prob": 47.6,
+      "occ": 416,
+      "lift": -3.5,
+      "avg": -0.02
+    },
+    {
+      "rank": 765,
+      "condition": "양봉1 + 양봉3",
+      "prob": 47.6,
+      "occ": 416,
+      "lift": -3.5,
+      "avg": -0.02
+    },
+    {
+      "rank": 766,
+      "condition": "양봉2 + 양봉3",
+      "prob": 47.6,
+      "occ": 416,
+      "lift": -3.5,
+      "avg": -0.02
+    },
+    {
+      "rank": 767,
+      "condition": "양봉3",
+      "prob": 47.6,
+      "occ": 416,
+      "lift": -3.5,
+      "avg": -0.02
+    },
+    {
+      "rank": 768,
+      "condition": "20위 + 양봉1 + 양봉3",
+      "prob": 47.5,
+      "occ": 343,
+      "lift": -3.6,
+      "avg": 0.01
+    },
+    {
+      "rank": 769,
+      "condition": "20위 + 양봉2 + 양봉3",
+      "prob": 47.5,
+      "occ": 343,
+      "lift": -3.6,
+      "avg": 0.01
+    },
+    {
+      "rank": 770,
+      "condition": "20위 + 양봉3",
+      "prob": 47.5,
+      "occ": 343,
+      "lift": -3.6,
+      "avg": 0.01
+    },
+    {
+      "rank": 771,
+      "condition": "5%상승 + 60위 + 양봉1",
+      "prob": 47.5,
+      "occ": 160,
+      "lift": -3.6,
+      "avg": 0.08
+    },
+    {
+      "rank": 772,
+      "condition": "20아래 + 갭하락1 + 이격-5",
+      "prob": 47.4,
+      "occ": 266,
+      "lift": -3.7,
+      "avg": -0.03
+    },
+    {
+      "rank": 773,
+      "condition": "갭하락1 + 이격-5",
+      "prob": 47.4,
+      "occ": 266,
+      "lift": -3.7,
+      "avg": -0.03
+    },
+    {
+      "rank": 774,
+      "condition": "60아래 + 고변동5 + 양봉1",
+      "prob": 47.3,
+      "occ": 188,
+      "lift": -3.8,
+      "avg": 0.15
+    },
+    {
+      "rank": 775,
+      "condition": "3%상승 + 5%상승 + 갭상승1",
+      "prob": 47.3,
+      "occ": 184,
+      "lift": -3.8,
+      "avg": 0.13
+    },
+    {
+      "rank": 776,
+      "condition": "5%상승 + 갭상승1",
+      "prob": 47.3,
+      "occ": 184,
+      "lift": -3.8,
+      "avg": 0.13
+    },
+    {
+      "rank": 777,
+      "condition": "60아래 + 양봉2 + 종가상승2",
+      "prob": 47.2,
+      "occ": 199,
+      "lift": -3.9,
+      "avg": 0.12
+    },
+    {
+      "rank": 778,
+      "condition": "60아래 + 갭하락1",
+      "prob": 47.2,
+      "occ": 394,
+      "lift": -3.9,
+      "avg": -0.16
+    },
+    {
+      "rank": 779,
+      "condition": "양봉1 + 양봉3 + 종가상승2",
+      "prob": 47,
+      "occ": 283,
+      "lift": -4.1,
+      "avg": -0.14
+    },
+    {
+      "rank": 780,
+      "condition": "양봉2 + 양봉3 + 종가상승2",
+      "prob": 47,
+      "occ": 283,
+      "lift": -4.1,
+      "avg": -0.14
+    },
+    {
+      "rank": 781,
+      "condition": "양봉3 + 종가상승2",
+      "prob": 47,
+      "occ": 283,
+      "lift": -4.1,
+      "avg": -0.14
+    },
+    {
+      "rank": 782,
+      "condition": "20위 + 양봉3 + 종가상승2",
+      "prob": 47,
+      "occ": 247,
+      "lift": -4.1,
+      "avg": -0.07
+    },
+    {
+      "rank": 783,
+      "condition": "3일+10% + 양봉1",
+      "prob": 46.9,
+      "occ": 160,
+      "lift": -4.2,
+      "avg": 0.49
+    },
+    {
+      "rank": 784,
+      "condition": "3%상승 + 갭상승1 + 양봉2",
+      "prob": 46.8,
+      "occ": 156,
+      "lift": -4.3,
+      "avg": -0.08
+    },
+    {
+      "rank": 785,
+      "condition": "갭하락1 + 양봉1 + 양봉2",
+      "prob": 46.8,
+      "occ": 156,
+      "lift": -4.3,
+      "avg": -0.33
+    },
+    {
+      "rank": 786,
+      "condition": "갭하락1 + 양봉2",
+      "prob": 46.8,
+      "occ": 156,
+      "lift": -4.3,
+      "avg": -0.33
+    },
+    {
+      "rank": 787,
+      "condition": "양봉3 + 이격+5 + 종가상승2",
+      "prob": 46.6,
+      "occ": 189,
+      "lift": -4.5,
+      "avg": 0.08
+    },
+    {
+      "rank": 788,
+      "condition": "20위 + 60위 + 양봉3",
+      "prob": 46.4,
+      "occ": 265,
+      "lift": -4.7,
+      "avg": 0.01
+    },
+    {
+      "rank": 789,
+      "condition": "갭하락1 + 음봉1 + 이격-5",
+      "prob": 46.4,
+      "occ": 153,
+      "lift": -4.7,
+      "avg": -0.08
+    },
+    {
+      "rank": 790,
+      "condition": "20아래 + 60아래 + 양봉2",
+      "prob": 46.4,
+      "occ": 166,
+      "lift": -4.7,
+      "avg": 0.11
+    },
+    {
+      "rank": 791,
+      "condition": "60위 + 양봉3 + 종가상승2",
+      "prob": 46.3,
+      "occ": 205,
+      "lift": -4.8,
+      "avg": -0.16
+    },
+    {
+      "rank": 792,
+      "condition": "60위 + 양봉3 + 이격+5",
+      "prob": 46.2,
+      "occ": 212,
+      "lift": -4.9,
+      "avg": 0.08
+    },
+    {
+      "rank": 793,
+      "condition": "3%상승 + 갭상승2 + 양봉1",
+      "prob": 46.2,
+      "occ": 169,
+      "lift": -4.9,
+      "avg": -0.1
+    },
+    {
+      "rank": 794,
+      "condition": "갭상승1 + 갭상승2 + 양봉1",
+      "prob": 46.2,
+      "occ": 182,
+      "lift": -4.9,
+      "avg": -0.05
+    },
+    {
+      "rank": 795,
+      "condition": "갭상승2 + 양봉1",
+      "prob": 46.2,
+      "occ": 182,
+      "lift": -4.9,
+      "avg": -0.05
+    },
+    {
+      "rank": 796,
+      "condition": "5%상승 + 갭상승1 + 양봉1",
+      "prob": 46.1,
+      "occ": 165,
+      "lift": -5,
+      "avg": -0.19
+    },
+    {
+      "rank": 797,
+      "condition": "20아래 + 60아래 + 갭하락1",
+      "prob": 46,
+      "occ": 335,
+      "lift": -5.1,
+      "avg": -0.17
+    },
+    {
+      "rank": 798,
+      "condition": "60위 + 양봉1 + 양봉3",
+      "prob": 46,
+      "occ": 285,
+      "lift": -5.1,
+      "avg": -0.05
+    },
+    {
+      "rank": 799,
+      "condition": "60위 + 양봉2 + 양봉3",
+      "prob": 46,
+      "occ": 285,
+      "lift": -5.1,
+      "avg": -0.05
+    },
+    {
+      "rank": 800,
+      "condition": "60위 + 양봉3",
+      "prob": 46,
+      "occ": 285,
+      "lift": -5.1,
+      "avg": -0.05
+    },
+    {
+      "rank": 801,
+      "condition": "60아래 + 갭하락1 + 이격-5",
+      "prob": 45.6,
+      "occ": 226,
+      "lift": -5.5,
+      "avg": -0.14
+    },
+    {
+      "rank": 802,
+      "condition": "양봉1 + 양봉2 + 양봉4",
+      "prob": 45.5,
+      "occ": 187,
+      "lift": -5.6,
+      "avg": -0.12
+    },
+    {
+      "rank": 803,
+      "condition": "양봉1 + 양봉3 + 양봉4",
+      "prob": 45.5,
+      "occ": 187,
+      "lift": -5.6,
+      "avg": -0.12
+    },
+    {
+      "rank": 804,
+      "condition": "양봉1 + 양봉4",
+      "prob": 45.5,
+      "occ": 187,
+      "lift": -5.6,
+      "avg": -0.12
+    },
+    {
+      "rank": 805,
+      "condition": "양봉2 + 양봉3 + 양봉4",
+      "prob": 45.5,
+      "occ": 187,
+      "lift": -5.6,
+      "avg": -0.12
+    },
+    {
+      "rank": 806,
+      "condition": "양봉2 + 양봉4",
+      "prob": 45.5,
+      "occ": 187,
+      "lift": -5.6,
+      "avg": -0.12
+    },
+    {
+      "rank": 807,
+      "condition": "양봉3 + 양봉4",
+      "prob": 45.5,
+      "occ": 187,
+      "lift": -5.6,
+      "avg": -0.12
+    },
+    {
+      "rank": 808,
+      "condition": "양봉4",
+      "prob": 45.5,
+      "occ": 187,
+      "lift": -5.6,
+      "avg": -0.12
+    },
+    {
+      "rank": 809,
+      "condition": "60아래 + 갭하락1 + 음봉1",
+      "prob": 45.2,
+      "occ": 199,
+      "lift": -5.9,
+      "avg": -0.27
+    },
+    {
+      "rank": 810,
+      "condition": "3%하락 + 60아래 + 갭하락1",
+      "prob": 45,
+      "occ": 171,
+      "lift": -6.1,
+      "avg": -0.16
+    },
+    {
+      "rank": 811,
+      "condition": "20위 + 양봉1 + 양봉4",
+      "prob": 44.8,
+      "occ": 165,
+      "lift": -6.3,
+      "avg": -0.18
+    },
+    {
+      "rank": 812,
+      "condition": "20위 + 양봉2 + 양봉4",
+      "prob": 44.8,
+      "occ": 165,
+      "lift": -6.3,
+      "avg": -0.18
+    },
+    {
+      "rank": 813,
+      "condition": "20위 + 양봉3 + 양봉4",
+      "prob": 44.8,
+      "occ": 165,
+      "lift": -6.3,
+      "avg": -0.18
+    },
+    {
+      "rank": 814,
+      "condition": "20위 + 양봉4",
+      "prob": 44.8,
+      "occ": 165,
+      "lift": -6.3,
+      "avg": -0.18
+    },
+    {
+      "rank": 815,
+      "condition": "60아래 + 갭하락1 + 고변동5",
+      "prob": 44.4,
+      "occ": 171,
+      "lift": -6.7,
+      "avg": -0.18
+    },
+    {
+      "rank": 816,
+      "condition": "거래량1.5 + 양봉1",
+      "prob": 43.8,
+      "occ": 210,
+      "lift": -7.3,
+      "avg": -0.05
+    },
+    {
+      "rank": 817,
+      "condition": "60위 + 거래량1.5 + 양봉1",
+      "prob": 43.7,
+      "occ": 151,
+      "lift": -7.4,
+      "avg": -0.22
+    },
+    {
+      "rank": 818,
+      "condition": "20위 + 거래량1.5 + 양봉1",
+      "prob": 41.1,
+      "occ": 163,
+      "lift": -10,
+      "avg": -0.36
+    }
+  ]
+}
