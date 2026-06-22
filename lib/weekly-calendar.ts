@@ -302,25 +302,40 @@ async function fetchOpenDartConfirmed(): Promise<{
 
   type DartRow = { corp_name?: string; report_nm?: string; rcept_dt?: string };
   const list: DartRow[] = [];
-  try {
-    let totalPage = 1;
-    for (let page = 1; page <= totalPage && page <= 40; page++) {
+
+  // 한 페이지 조회 (에러는 빈 결과로 흡수 → 일부 실패해도 전체 수집 유지)
+  async function fetchDartPage(
+    page: number
+  ): Promise<{ rows: DartRow[]; totalPage: number; ok: boolean }> {
+    try {
       const url =
         `https://opendart.fss.or.kr/api/list.json?crtfc_key=${key}` +
         `&bgn_de=${bgn}&end_de=${end}&page_count=100&page_no=${page}`;
       const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
-      if (!res.ok) break;
+      if (!res.ok) return { rows: [], totalPage: 1, ok: false };
       const json = (await res.json()) as {
         status?: string;
         total_page?: number;
         list?: DartRow[];
       };
-      if (json.status !== "000") break;
-      totalPage = json.total_page ?? 1;
-      list.push(...(json.list ?? []));
+      if (json.status !== "000") return { rows: [], totalPage: 1, ok: false };
+      return { rows: json.list ?? [], totalPage: json.total_page ?? 1, ok: true };
+    } catch {
+      return { rows: [], totalPage: 1, ok: false };
     }
-  } catch {
-    return { events, confirmedNames };
+  }
+
+  // 1페이지로 total_page 파악 → 나머지는 배치 병렬(동시 6개)로 수집
+  const first = await fetchDartPage(1);
+  if (!first.ok) return { events, confirmedNames };
+  list.push(...first.rows);
+  const totalPage = Math.min(first.totalPage, 40);
+  if (totalPage > 1) {
+    const restPages = Array.from({ length: totalPage - 1 }, (_, i) => i + 2);
+    const batches = await pool(restPages, 6, (p) =>
+      fetchDartPage(p).then((r) => r.rows)
+    );
+    for (const rows of batches) list.push(...rows);
   }
 
   for (const row of list) {
@@ -371,6 +386,16 @@ export async function buildWeeklyCalendar(): Promise<WeeklyCalendarBlob> {
     if (e.market === "KR" && e.category === "earnings" && e.status !== "확정") {
       return !dart.confirmedNames.has(normName(e.name));
     }
+    return true;
+  });
+
+  // 동일 (market + date + name + category) 중복 제거
+  //   (예: OpenDART에 같은 종목이 보고서명 2개로 들어와 2번 잡히는 경우 → 1개)
+  const seen = new Set<string>();
+  events = events.filter((e) => {
+    const k = `${e.market}|${e.date}|${e.name}|${e.category}`;
+    if (seen.has(k)) return false;
+    seen.add(k);
     return true;
   });
 
