@@ -47,6 +47,10 @@
     {
       "path": "/api/cron/inflation-refresh",
       "schedule": "30 14 * * *"
+    },
+    {
+      "path": "/api/cron/weekly-calendar",
+      "schedule": "0 22 * * 0-4"
     }
   ]
 }
