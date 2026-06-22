@@ -14,6 +14,21 @@ import * as cheerio from "cheerio";
 import YahooFinance from "yahoo-finance2";
 import { fetchAllListedStocks } from "@/lib/stock-universe";
 
+export interface EarningsDetail {
+  /** % 단위 (Yahoo 소수값에 ×100). 발표 완료 항목만 */
+  surprisePercent?: number;
+  /** 실제 EPS (발표 완료) */
+  epsActual?: number;
+  /** 예상(컨센서스) EPS */
+  epsEstimate?: number;
+  /** 매출 (실제 또는 예상) */
+  revenue?: number;
+  /** 순이익 (발표 완료) */
+  netIncome?: number;
+  /** 통화: KR→KRW, US→USD */
+  currency: "KRW" | "USD";
+}
+
 export interface CalendarEvent {
   /** YYYY-MM-DD (KST) */
   date: string;
@@ -24,6 +39,8 @@ export interface CalendarEvent {
   /** 실적: 예정(추정)/확정, 지표: null */
   status: "예정(추정)" | "확정" | null;
   detail: string;
+  /** 실적 상세 (실적 항목만). 지표/FOMC는 비움 */
+  earnings?: EarningsDetail;
 }
 
 export interface WeeklyCalendarBlob {
@@ -210,7 +227,23 @@ const US_TICKERS: string[] = [
 type YfEarnings = {
   earningsDate?: Date[];
   isEarningsDateEstimate?: boolean;
+  earningsAverage?: number;
+  revenueAverage?: number;
 };
+type YfHistoryRow = {
+  epsActual?: number | null;
+  epsEstimate?: number | null;
+  surprisePercent?: number | null;
+};
+type YfFinRow = { revenue?: number | null; earnings?: number | null };
+type YfQuoteSummary = {
+  calendarEvents?: { earnings?: YfEarnings };
+  earningsHistory?: { history?: YfHistoryRow[] };
+  earnings?: { financialsChart?: { quarterly?: YfFinRow[] } };
+};
+
+const isFiniteNum = (v: unknown): v is number =>
+  typeof v === "number" && isFinite(v);
 
 async function fetchYahooEarnings(
   start: string,
@@ -239,13 +272,15 @@ async function fetchYahooEarnings(
     ...US_TICKERS.map((t) => ({ symbol: t, name: t, market: "US" as const })),
   ];
 
+  const todayYmd = kstTodayYmd();
+
   const results = await pool(targets, 6, async (t) => {
     try {
       const r = (await yf.quoteSummary(
         t.symbol,
-        { modules: ["calendarEvents"] },
+        { modules: ["calendarEvents", "earnings", "earningsHistory"] },
         { validateResult: false }
-      )) as unknown as { calendarEvents?: { earnings?: YfEarnings } };
+      )) as unknown as YfQuoteSummary;
       const ed = (r?.calendarEvents?.earnings ?? {}) as YfEarnings;
       const dates = Array.isArray(ed.earningsDate) ? ed.earningsDate : [];
       if (dates.length === 0) return null;
@@ -257,6 +292,28 @@ async function fetchYahooEarnings(
         if (ymd >= start && (picked === null || ymd < picked)) picked = ymd;
       }
       if (!picked || picked > end) return null;
+
+      const currency: "KRW" | "USD" = t.market === "KR" ? "KRW" : "USD";
+      const detail: EarningsDetail = { currency };
+      const isPast = picked < todayYmd; // 발표 완료 = 발표일이 오늘 이전
+      if (isPast) {
+        // 발표 완료: earningsHistory 최근 분기 실제/예상 + financialsChart 매출/순이익
+        const hist = r?.earningsHistory?.history ?? [];
+        const lh = hist.length ? hist[hist.length - 1] : undefined;
+        const fin = r?.earnings?.financialsChart?.quarterly ?? [];
+        const lf = fin.length ? fin[fin.length - 1] : undefined;
+        if (lh && isFiniteNum(lh.epsActual)) detail.epsActual = lh.epsActual;
+        if (lh && isFiniteNum(lh.epsEstimate)) detail.epsEstimate = lh.epsEstimate;
+        if (lh && isFiniteNum(lh.surprisePercent))
+          detail.surprisePercent = lh.surprisePercent * 100; // 소수→%
+        if (lf && isFiniteNum(lf.revenue)) detail.revenue = lf.revenue;
+        if (lf && isFiniteNum(lf.earnings)) detail.netIncome = lf.earnings;
+      } else {
+        // 예정: calendarEvents 컨센서스(예상 EPS/매출)만
+        if (isFiniteNum(ed.earningsAverage)) detail.epsEstimate = ed.earningsAverage;
+        if (isFiniteNum(ed.revenueAverage)) detail.revenue = ed.revenueAverage;
+      }
+
       const ev: CalendarEvent = {
         date: picked,
         market: t.market,
@@ -265,6 +322,8 @@ async function fetchYahooEarnings(
         status: ed.isEarningsDateEstimate === false ? "확정" : "예정(추정)",
         detail: t.market === "US" ? "미국 기업 실적" : "한국 기업 실적",
       };
+      // currency 외 실제 데이터가 하나라도 있을 때만 부착 (무음실패 원칙)
+      if (Object.keys(detail).length > 1) ev.earnings = detail;
       return ev;
     } catch {
       return null;
