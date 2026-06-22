@@ -126,6 +126,8 @@ export function WeeklyCalendarModal() {
     setOpen(false);
   };
 
+  const today = localTodayStr();
+
   // 날짜별 그룹화 (events는 이미 날짜순 정렬됨)
   const groups: { date: string; items: CalendarEvent[] }[] = [];
   for (const ev of data.events) {
@@ -173,27 +175,42 @@ export function WeeklyCalendarModal() {
 
         {/* 본문 */}
         <div className="flex-1 overflow-y-auto px-5 py-3">
-          {groups.map((g) => (
-            <div key={g.date} className="py-2">
-              <p className="mb-2 text-sm font-semibold text-muted-foreground">
-                {formatDateLabel(g.date)}
-              </p>
-              <ul className="space-y-1.5">
-                {g.items.map((ev, i) => (
-                  <li
-                    key={`${ev.date}-${ev.name}-${i}`}
-                    className="flex items-center gap-2"
-                  >
-                    <MarketTag market={ev.market} />
-                    <span className="flex-1 truncate text-sm" title={ev.detail}>
-                      {ev.name}
+          {groups.map((g) => {
+            const isPast = g.date < today;
+            return (
+              <div key={g.date} className="py-2">
+                <p className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-muted-foreground">
+                  <span className={isPast ? "opacity-60" : ""}>
+                    {formatDateLabel(g.date)}
+                  </span>
+                  {isPast && (
+                    <span className="rounded bg-zinc-100 px-1 py-0.5 text-xs font-medium text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+                      발표 완료
                     </span>
-                    <KindBadge ev={ev} />
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+                  )}
+                </p>
+                <ul className="space-y-1.5">
+                  {g.items.map((ev, i) => (
+                    <li
+                      key={`${ev.date}-${ev.name}-${i}`}
+                      className="flex items-center gap-2"
+                    >
+                      <MarketTag market={ev.market} />
+                      <span
+                        className={`flex-1 truncate text-sm ${
+                          isPast ? "text-muted-foreground" : ""
+                        }`}
+                        title={ev.detail}
+                      >
+                        {ev.name}
+                      </span>
+                      <KindBadge ev={ev} />
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })}
         </div>
 
         {/* 푸터 */}

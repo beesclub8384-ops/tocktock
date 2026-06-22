@@ -349,11 +349,13 @@ async function fetchOpenDartConfirmed(): Promise<{
 export async function buildWeeklyCalendar(): Promise<WeeklyCalendarBlob> {
   const start = kstTodayYmd();
   const end = addDaysYmd(start, 7);
+  // 실적은 최근 발표분도 보여주기 위해 시작을 5일 앞당김 (지표/FOMC는 미래만)
+  const earningsStart = addDaysYmd(start, -5);
 
   const [fred, fomc, yahoo, dart] = await Promise.all([
     fetchFredIndicators(start, end),
     fetchFomcMeetings(start, end),
-    fetchYahooEarnings(start, end),
+    fetchYahooEarnings(earningsStart, end),
     fetchOpenDartConfirmed(),
   ]);
 
@@ -372,8 +374,13 @@ export async function buildWeeklyCalendar(): Promise<WeeklyCalendarBlob> {
     return true;
   });
 
-  // 오늘 ~ +7일만
-  events = events.filter((e) => e.date >= start && e.date <= end);
+  // 카테고리별 기간 필터:
+  //   실적(earnings): 오늘-5일 ~ 오늘+7일 (최근 발표 + 다가올 예정)
+  //   지표/FOMC(indicator): 오늘 ~ 오늘+7일 (미래만)
+  events = events.filter((e) => {
+    if (e.category === "earnings") return e.date >= earningsStart && e.date <= end;
+    return e.date >= start && e.date <= end;
+  });
 
   // 날짜 → 시장(KR먼저) → 종류(indicator먼저) → 이름 순 정렬
   events.sort((a, b) => {
