@@ -1,11 +1,11 @@
 /**
  * "이번 주 주요 일정" 통합 빌더.
  *
- * 4개 소스를 공통 스키마로 변환 → 오늘부터 +7일 필터 → 날짜순 정렬:
+ * 3개 소스를 공통 스키마로 변환 → 기간 필터 → 날짜순 정렬:
  *   1) 미국 경제지표  : FRED release/dates (CPI/고용/GDP/PCE/PPI/소매판매)
  *   2) FOMC 회의      : federalreserve.gov fomccalendars.htm (cheerio 파싱)
- *   3) 한·미 실적예정  : yahoo-finance2 quoteSummary calendarEvents.earnings
- *   4) 한국 실적확정  : OpenDART list.json 최근 7일 (화이트리스트)
+ *   3) 한·미 실적     : yahoo-finance2 quoteSummary calendarEvents.earnings
+ *                      (isEarningsDateEstimate → 예정(추정)/확정)
  *
  * 단위/시간대: 모든 날짜는 KST 기준 YYYY-MM-DD 문자열로 통일.
  */
@@ -274,92 +274,6 @@ async function fetchYahooEarnings(
   return results.filter((e): e is CalendarEvent => e !== null);
 }
 
-/* ── 4) OpenDART 실적 확정 공시 ────────────────────────────── */
-const DART_WHITELIST = [
-  /영업\(잠정\)실적/,
-  /연결재무제표기준영업\(잠정\)실적/,
-  /영업실적등에대한전망/,
-  /매출액또는손익구조/,
-];
-const DART_EXCLUDE = [/증권발행실적/, /소액공모실적/];
-
-function normName(s: string): string {
-  return s.replace(/\s+/g, "").replace(/(주식회사|\(주\))/g, "").toLowerCase();
-}
-
-async function fetchOpenDartConfirmed(): Promise<{
-  events: CalendarEvent[];
-  confirmedNames: Set<string>;
-}> {
-  const key = process.env.OPENDART_API_KEY;
-  const confirmedNames = new Set<string>();
-  const events: CalendarEvent[] = [];
-  if (!key) return { events, confirmedNames };
-
-  const today = kstTodayYmd();
-  const bgn = addDaysYmd(today, -7).replace(/-/g, "");
-  const end = today.replace(/-/g, "");
-
-  type DartRow = { corp_name?: string; report_nm?: string; rcept_dt?: string };
-  const list: DartRow[] = [];
-
-  // 한 페이지 조회 (에러는 빈 결과로 흡수 → 일부 실패해도 전체 수집 유지)
-  async function fetchDartPage(
-    page: number
-  ): Promise<{ rows: DartRow[]; totalPage: number; ok: boolean }> {
-    try {
-      const url =
-        `https://opendart.fss.or.kr/api/list.json?crtfc_key=${key}` +
-        `&bgn_de=${bgn}&end_de=${end}&page_count=100&page_no=${page}`;
-      const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
-      if (!res.ok) return { rows: [], totalPage: 1, ok: false };
-      const json = (await res.json()) as {
-        status?: string;
-        total_page?: number;
-        list?: DartRow[];
-      };
-      if (json.status !== "000") return { rows: [], totalPage: 1, ok: false };
-      return { rows: json.list ?? [], totalPage: json.total_page ?? 1, ok: true };
-    } catch {
-      return { rows: [], totalPage: 1, ok: false };
-    }
-  }
-
-  // 1페이지로 total_page 파악 → 나머지는 배치 병렬(동시 6개)로 수집
-  const first = await fetchDartPage(1);
-  if (!first.ok) return { events, confirmedNames };
-  list.push(...first.rows);
-  const totalPage = Math.min(first.totalPage, 40);
-  if (totalPage > 1) {
-    const restPages = Array.from({ length: totalPage - 1 }, (_, i) => i + 2);
-    const batches = await pool(restPages, 6, (p) =>
-      fetchDartPage(p).then((r) => r.rows)
-    );
-    for (const rows of batches) list.push(...rows);
-  }
-
-  for (const row of list) {
-    const reportNm = row.report_nm ?? "";
-    const corp = row.corp_name ?? "";
-    if (!reportNm || !corp || !row.rcept_dt) continue;
-    if (DART_EXCLUDE.some((re) => re.test(reportNm))) continue;
-    if (!DART_WHITELIST.some((re) => re.test(reportNm))) continue;
-
-    confirmedNames.add(normName(corp));
-    const d = row.rcept_dt;
-    const ymd = `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}`;
-    events.push({
-      date: ymd,
-      market: "KR",
-      category: "earnings",
-      name: corp,
-      status: "확정",
-      detail: reportNm.replace(/\s+/g, " ").trim(),
-    });
-  }
-  return { events, confirmedNames };
-}
-
 /* ── 통합 ──────────────────────────────────────────────────── */
 export async function buildWeeklyCalendar(): Promise<WeeklyCalendarBlob> {
   const start = kstTodayYmd();
@@ -367,30 +281,16 @@ export async function buildWeeklyCalendar(): Promise<WeeklyCalendarBlob> {
   // 실적은 최근 발표분도 보여주기 위해 시작을 5일 앞당김 (지표/FOMC는 미래만)
   const earningsStart = addDaysYmd(start, -5);
 
-  const [fred, fomc, yahoo, dart] = await Promise.all([
+  const [fred, fomc, yahoo] = await Promise.all([
     fetchFredIndicators(start, end),
     fetchFomcMeetings(start, end),
     fetchYahooEarnings(earningsStart, end),
-    fetchOpenDartConfirmed(),
   ]);
 
-  let events: CalendarEvent[] = [
-    ...fred,
-    ...fomc,
-    ...yahoo,
-    ...dart.events,
-  ];
-
-  // 한국 종목이 Yahoo(예정)와 OpenDART(확정)에 모두 있으면 확정 우선 → 예정 제거
-  events = events.filter((e) => {
-    if (e.market === "KR" && e.category === "earnings" && e.status !== "확정") {
-      return !dart.confirmedNames.has(normName(e.name));
-    }
-    return true;
-  });
+  let events: CalendarEvent[] = [...fred, ...fomc, ...yahoo];
 
   // 동일 (market + date + name + category) 중복 제거
-  //   (예: OpenDART에 같은 종목이 보고서명 2개로 들어와 2번 잡히는 경우 → 1개)
+  //   (같은 종목이 여러 소스로 중복 유입되는 경우 1개만 남김)
   const seen = new Set<string>();
   events = events.filter((e) => {
     const k = `${e.market}|${e.date}|${e.name}|${e.category}`;
