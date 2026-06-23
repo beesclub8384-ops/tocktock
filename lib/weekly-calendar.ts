@@ -140,10 +140,16 @@ function koreanClock(hour: number, minute: number): string {
   return `${period} ${h12}:${String(minute).padStart(2, "0")}`;
 }
 
-/** instant를 한국시각 한국식 라벨로 */
-function kstKoreanLabel(instant: Date): string {
+/**
+ * instant를 한국시각 한국식 라벨로.
+ * 한국 날짜(일)가 현지 발표일(localDateYmd의 '일')과 다르면 "26일 새벽 5:00"처럼 '일'을 덧붙임.
+ * 같은 날이면 시각만 ("밤 9:30").
+ */
+function kstKoreanLabel(instant: Date, localDateYmd: string): string {
   const p = zonedParts("Asia/Seoul", instant);
-  return koreanClock(p.hour, p.minute);
+  const clock = koreanClock(p.hour, p.minute);
+  const localDay = Number(localDateYmd.split("-")[2]);
+  return p.day === localDay ? clock : `${p.day}일 ${clock}`;
 }
 
 /** 미국 실적 instant → "16:00 ET 장 마감 후" 식 현지 표기 */
@@ -216,7 +222,7 @@ async function fetchFredIndicators(
               status: null,
               detail: "미국 경제지표 발표",
               timeLocal: "08:30 ET",
-              timeKst: kstKoreanLabel(inst),
+              timeKst: kstKoreanLabel(inst, rd.date),
             });
           }
         }
@@ -296,7 +302,7 @@ async function fetchFomcMeetings(
                 ? "통화정책 회의 (경제전망·점도표 발표)"
                 : "통화정책 회의",
               timeLocal: "14:00 ET",
-              timeKst: kstKoreanLabel(inst),
+              timeKst: kstKoreanLabel(inst, ymd),
             });
           }
         });
@@ -427,7 +433,7 @@ async function fetchYahooEarnings(
       // 발표 시각: 미국=Yahoo 실제 시각(ET+한국), 한국=분 단위 부정확 → "오후(장 마감 무렵)"
       if (t.market === "US") {
         ev.timeLocal = etEarningsLabel(pickedInstant);
-        ev.timeKst = kstKoreanLabel(pickedInstant);
+        ev.timeKst = kstKoreanLabel(pickedInstant, picked);
       } else {
         ev.timeLocal = "오후";
         ev.timeNote = "장 마감 무렵";
