@@ -48,6 +48,29 @@ function localTodayStr(): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 
+function addDaysStr(ymd: string, n: number): string {
+  const [y, m, d] = ymd.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  dt.setUTCDate(dt.getUTCDate() + n);
+  const p = (x: number) => String(x).padStart(2, "0");
+  return `${dt.getUTCFullYear()}-${p(dt.getUTCMonth() + 1)}-${p(dt.getUTCDate())}`;
+}
+
+/**
+ * 팝업 전용 7일 필터 — 넓은 공용 데이터가 와도 팝업 화면은 7일만(기존과 동일).
+ *   실적: 오늘-5 ~ 오늘+7 / 지표·FOMC: 오늘 ~ 오늘+7
+ */
+function filterToPopupWindow(events: CalendarEvent[]): CalendarEvent[] {
+  const today = localTodayStr();
+  const end7 = addDaysStr(today, 7);
+  const earnStart = addDaysStr(today, -5);
+  return events.filter((e) =>
+    e.category === "earnings"
+      ? e.date >= earnStart && e.date <= end7
+      : e.date >= today && e.date <= end7
+  );
+}
+
 function formatDateLabel(ymd: string): string {
   const [y, m, d] = ymd.split("-").map(Number);
   const wd = WEEKDAYS[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
@@ -233,9 +256,13 @@ export function WeeklyCalendarModal() {
         if (!res.ok) return;
         const json = (await res.json()) as CalendarData;
         if (cancelled) return;
-        if (json && Array.isArray(json.events) && json.events.length > 0) {
-          setData(json);
-          setOpen(true);
+        if (json && Array.isArray(json.events)) {
+          // 넓은 공용 데이터 → 팝업은 7일만 표시 (기존 화면 100% 유지)
+          const popupEvents = filterToPopupWindow(json.events);
+          if (popupEvents.length > 0) {
+            setData({ ...json, events: popupEvents });
+            setOpen(true);
+          }
         }
       } catch {
         /* 조용히 무시 — 팝업은 부가 기능 */

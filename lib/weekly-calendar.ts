@@ -450,9 +450,10 @@ async function fetchYahooEarnings(
 /* ── 통합 ──────────────────────────────────────────────────── */
 export async function buildWeeklyCalendar(): Promise<WeeklyCalendarBlob> {
   const start = kstTodayYmd();
-  const end = addDaysYmd(start, 7);
-  // 실적은 최근 발표분도 보여주기 위해 시작을 5일 앞당김 (지표/FOMC는 미래만)
-  const earningsStart = addDaysYmd(start, -5);
+  // 팝업·페이지 공용 데이터: 수집 범위를 넓게 (팝업은 클라이언트에서 7일로 재필터)
+  //   지표/FOMC: 오늘 ~ +45일 / 실적: 오늘-7일 ~ +45일
+  const end = addDaysYmd(start, 45);
+  const earningsStart = addDaysYmd(start, -7);
 
   const [fred, fomc, yahoo] = await Promise.all([
     fetchFredIndicators(start, end),
@@ -473,8 +474,8 @@ export async function buildWeeklyCalendar(): Promise<WeeklyCalendarBlob> {
   });
 
   // 카테고리별 기간 필터:
-  //   실적(earnings): 오늘-5일 ~ 오늘+7일 (최근 발표 + 다가올 예정)
-  //   지표/FOMC(indicator): 오늘 ~ 오늘+7일 (미래만)
+  //   실적(earnings): 오늘-7일 ~ 오늘+45일 (최근 발표 + 다가올 예정)
+  //   지표/FOMC(indicator): 오늘 ~ 오늘+45일 (미래만)
   events = events.filter((e) => {
     if (e.category === "earnings") return e.date >= earningsStart && e.date <= end;
     return e.date >= start && e.date <= end;
@@ -490,7 +491,8 @@ export async function buildWeeklyCalendar(): Promise<WeeklyCalendarBlob> {
 
   return {
     updatedAt: new Date().toISOString(),
-    rangeStart: start,
+    // 넓힌 전체 범위 (실적이 가장 이르게 -7일까지)
+    rangeStart: earningsStart,
     rangeEnd: end,
     events,
   };
