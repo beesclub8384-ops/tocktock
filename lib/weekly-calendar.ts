@@ -41,6 +41,12 @@ export interface CalendarEvent {
   detail: string;
   /** 실적 상세 (실적 항목만). 지표/FOMC는 비움 */
   earnings?: EarningsDetail;
+  /** 현지 발표 시각 표기 (예: "08:30 ET", "16:00 ET 장 마감 후", "오후") */
+  timeLocal?: string;
+  /** 한국 시각 (예: "밤 9:30"). 한국 항목은 생략 */
+  timeKst?: string;
+  /** 보조 라벨 (예: "장 마감 무렵") */
+  timeNote?: string;
 }
 
 export interface WeeklyCalendarBlob {
@@ -67,6 +73,88 @@ function addDaysYmd(ymd: string, n: number): string {
   const dt = new Date(Date.UTC(y, m - 1, d));
   dt.setUTCDate(dt.getUTCDate() + n);
   return `${dt.getUTCFullYear()}-${pad(dt.getUTCMonth() + 1)}-${pad(dt.getUTCDate())}`;
+}
+
+/* ── 시각/타임존 유틸 (서머타임 자동 반영, Intl 기반 — 고정 오프셋 금지) ── */
+/** 주어진 instant를 timeZone의 벽시계 구성요소로 분해 */
+function zonedParts(timeZone: string, date: Date) {
+  const dtf = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    hour12: false,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+  const m: Record<string, string> = {};
+  for (const p of dtf.formatToParts(date)) m[p.type] = p.value;
+  let hour = Number(m.hour);
+  if (hour === 24) hour = 0; // 일부 엔진의 자정 "24" 보정
+  return {
+    year: Number(m.year),
+    month: Number(m.month),
+    day: Number(m.day),
+    hour,
+    minute: Number(m.minute),
+    second: Number(m.second),
+  };
+}
+
+/** timeZone이 UTC보다 앞선 분(offset) — 해당 instant의 DST 반영 */
+function tzOffsetMinutes(timeZone: string, date: Date): number {
+  const p = zonedParts(timeZone, date);
+  const asUTC = Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second);
+  return (asUTC - date.getTime()) / 60000;
+}
+
+/** timeZone의 벽시계(y-mo-d h:mi)를 가리키는 실제 UTC instant */
+function wallClockToUtc(
+  timeZone: string,
+  y: number,
+  mo: number,
+  d: number,
+  h: number,
+  mi: number
+): Date {
+  const guess = Date.UTC(y, mo - 1, d, h, mi, 0);
+  let off = tzOffsetMinutes(timeZone, new Date(guess));
+  let utc = guess - off * 60000;
+  off = tzOffsetMinutes(timeZone, new Date(utc)); // DST 경계 안전 1회 보정
+  utc = guess - off * 60000;
+  return new Date(utc);
+}
+
+/** 한국식 시각 라벨: "밤 9:30", "오후 3:00", "새벽 5:00" 등 */
+function koreanClock(hour: number, minute: number): string {
+  let period: string;
+  if (hour <= 5) period = "새벽";
+  else if (hour <= 11) period = "아침";
+  else if (hour === 12) period = "낮";
+  else if (hour <= 17) period = "오후";
+  else if (hour <= 20) period = "저녁";
+  else period = "밤";
+  let h12 = hour % 12;
+  if (h12 === 0) h12 = 12;
+  return `${period} ${h12}:${String(minute).padStart(2, "0")}`;
+}
+
+/** instant를 한국시각 한국식 라벨로 */
+function kstKoreanLabel(instant: Date): string {
+  const p = zonedParts("Asia/Seoul", instant);
+  return koreanClock(p.hour, p.minute);
+}
+
+/** 미국 실적 instant → "16:00 ET 장 마감 후" 식 현지 표기 */
+function etEarningsLabel(instant: Date): string {
+  const p = zonedParts("America/New_York", instant);
+  const hhmm = `${String(p.hour).padStart(2, "0")}:${String(p.minute).padStart(2, "0")}`;
+  const mins = p.hour * 60 + p.minute;
+  let suffix = "";
+  if (mins >= 16 * 60) suffix = " 장 마감 후";
+  else if (mins <= 9 * 60 + 30) suffix = " 장 시작 전";
+  return `${hhmm} ET${suffix}`;
 }
 
 /** 동시 실행 수를 제한하는 간단한 풀 */
@@ -118,6 +206,8 @@ async function fetchFredIndicators(
         };
         for (const rd of json.release_dates ?? []) {
           if (rd.date >= start && rd.date <= end) {
+            const [y, mo, d] = rd.date.split("-").map(Number);
+            const inst = wallClockToUtc("America/New_York", y, mo, d, 8, 30);
             events.push({
               date: rd.date,
               market: "US",
@@ -125,6 +215,8 @@ async function fetchFredIndicators(
               name: rel.name,
               status: null,
               detail: "미국 경제지표 발표",
+              timeLocal: "08:30 ET",
+              timeKst: kstKoreanLabel(inst),
             });
           }
         }
@@ -193,6 +285,7 @@ async function fetchFomcMeetings(
           const day = Number(dayMatch[0]);
           const ymd = `${year}-${pad(mNum)}-${pad(day)}`;
           if (ymd >= start && ymd <= end) {
+            const inst = wallClockToUtc("America/New_York", year, mNum, day, 14, 0);
             events.push({
               date: ymd,
               market: "US",
@@ -202,6 +295,8 @@ async function fetchFomcMeetings(
               detail: dateRaw.includes("*")
                 ? "통화정책 회의 (경제전망·점도표 발표)"
                 : "통화정책 회의",
+              timeLocal: "14:00 ET",
+              timeKst: kstKoreanLabel(inst),
             });
           }
         });
@@ -286,12 +381,16 @@ async function fetchYahooEarnings(
       if (dates.length === 0) return null;
       // 배열 길이 2(범위)도 처리: 오늘 이후의 가장 빠른 날짜 채택
       let picked: string | null = null;
+      let pickedInstant: Date | null = null;
       for (const d of dates) {
         if (!(d instanceof Date) || isNaN(d.getTime())) continue;
         const ymd = toKstYmd(d);
-        if (ymd >= start && (picked === null || ymd < picked)) picked = ymd;
+        if (ymd >= start && (picked === null || ymd < picked)) {
+          picked = ymd;
+          pickedInstant = d;
+        }
       }
-      if (!picked || picked > end) return null;
+      if (!picked || picked > end || !pickedInstant) return null;
 
       const currency: "KRW" | "USD" = t.market === "KR" ? "KRW" : "USD";
       const detail: EarningsDetail = { currency };
@@ -324,6 +423,15 @@ async function fetchYahooEarnings(
       };
       // currency 외 실제 데이터가 하나라도 있을 때만 부착 (무음실패 원칙)
       if (Object.keys(detail).length > 1) ev.earnings = detail;
+
+      // 발표 시각: 미국=Yahoo 실제 시각(ET+한국), 한국=분 단위 부정확 → "오후(장 마감 무렵)"
+      if (t.market === "US") {
+        ev.timeLocal = etEarningsLabel(pickedInstant);
+        ev.timeKst = kstKoreanLabel(pickedInstant);
+      } else {
+        ev.timeLocal = "오후";
+        ev.timeNote = "장 마감 무렵";
+      }
       return ev;
     } catch {
       return null;

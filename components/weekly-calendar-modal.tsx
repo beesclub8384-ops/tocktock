@@ -19,6 +19,17 @@ interface CalendarEvent {
   status: "예정(추정)" | "확정" | null;
   detail: string;
   earnings?: EarningsDetail;
+  timeLocal?: string;
+  timeKst?: string;
+  timeNote?: string;
+}
+
+/** 시각 표시 문구. 미국=현지/한국 라벨, 한국=현지(=한국)라 라벨 생략 */
+function eventTimeText(ev: CalendarEvent): string | null {
+  if (ev.timeKst) return `현지 ${ev.timeLocal} (한국 ${ev.timeKst})`;
+  if (ev.timeLocal)
+    return ev.timeNote ? `${ev.timeLocal} (${ev.timeNote})` : ev.timeLocal;
+  return null;
 }
 
 interface CalendarData {
@@ -315,18 +326,26 @@ export function WeeklyCalendarModal() {
                   {g.items.map((ev, i) => {
                     if (ev.category !== "earnings") {
                       // 지표/FOMC: 펼침 없음
+                      const itime = eventTimeText(ev);
                       return (
                         <li
                           key={`${ev.date}-${ev.name}-${i}`}
                           className="flex items-center gap-2"
                         >
                           <MarketTag market={ev.market} />
-                          <span
-                            className="flex-1 truncate text-sm"
-                            title={ev.detail}
-                          >
-                            {ev.name}
-                          </span>
+                          <div className="min-w-0 flex-1">
+                            <span
+                              className="block truncate text-sm"
+                              title={ev.detail}
+                            >
+                              {ev.name}
+                            </span>
+                            {itime && (
+                              <span className="block text-xs text-muted-foreground">
+                                {itime}
+                              </span>
+                            )}
+                          </div>
                           <KindBadge ev={ev} />
                         </li>
                       );
@@ -343,14 +362,21 @@ export function WeeklyCalendarModal() {
                           className="flex w-full items-center gap-2 text-left"
                         >
                           <MarketTag market={ev.market} />
-                          <span
-                            className={`flex-1 truncate text-sm ${
-                              isPast ? "text-muted-foreground" : ""
-                            }`}
-                            title={ev.detail}
-                          >
-                            {ev.name}
-                          </span>
+                          <div className="min-w-0 flex-1">
+                            <span
+                              className={`block truncate text-sm ${
+                                isPast ? "text-muted-foreground" : ""
+                              }`}
+                              title={ev.detail}
+                            >
+                              {ev.name}
+                            </span>
+                            {eventTimeText(ev) && (
+                              <span className="block text-xs text-muted-foreground">
+                                {eventTimeText(ev)}
+                              </span>
+                            )}
+                          </div>
                           {isPast ? (
                             hasSurprise ? (
                               <SurpriseChip
