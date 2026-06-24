@@ -27,6 +27,13 @@ export interface EarningsDetail {
   netIncome?: number;
   /** 통화: KR→KRW, US→USD */
   currency: "KRW" | "USD";
+  /** 최근 최대 4분기 서프라이즈 이력 (차트용, 오래된→최신). 데이터 없으면 생략 */
+  history?: {
+    /** "YYYY-MM" 형태 (분기 식별) */
+    quarter: string;
+    /** % 단위 (Yahoo 소수값에 ×100) */
+    surprisePercent: number;
+  }[];
 }
 
 export interface CalendarEvent {
@@ -332,6 +339,7 @@ type YfEarnings = {
   revenueAverage?: number;
 };
 type YfHistoryRow = {
+  quarter?: Date | string | null;
   epsActual?: number | null;
   epsEstimate?: number | null;
   surprisePercent?: number | null;
@@ -345,6 +353,20 @@ type YfQuoteSummary = {
 
 const isFiniteNum = (v: unknown): v is number =>
   typeof v === "number" && isFinite(v);
+
+/** earningsHistory.quarter(Date 또는 문자열) → "YYYY-MM". 파싱 실패 시 null */
+function quarterToYm(q: Date | string | null | undefined): string | null {
+  if (q instanceof Date) {
+    if (isNaN(q.getTime())) return null;
+    return `${q.getUTCFullYear()}-${pad(q.getUTCMonth() + 1)}`;
+  }
+  if (typeof q === "string") {
+    const d = new Date(q);
+    if (isNaN(d.getTime())) return null;
+    return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}`;
+  }
+  return null;
+}
 
 async function fetchYahooEarnings(
   start: string,
@@ -418,6 +440,21 @@ async function fetchYahooEarnings(
         if (isFiniteNum(ed.earningsAverage)) detail.epsEstimate = ed.earningsAverage;
         if (isFiniteNum(ed.revenueAverage)) detail.revenue = ed.revenueAverage;
       }
+
+      // 차트용 최근 최대 4분기 서프라이즈 이력 (발표 완료/예정 무관).
+      //   각 행: quarter(Date→"YYYY-MM") + surprisePercent(소수→%). 둘 다 유효한 행만.
+      //   시간순 정렬(오래된→최신) 후 최근 4개.
+      const allHist = r?.earningsHistory?.history ?? [];
+      const history = allHist
+        .map((h) => {
+          const quarter = quarterToYm(h.quarter);
+          if (!quarter || !isFiniteNum(h.surprisePercent)) return null;
+          return { quarter, surprisePercent: h.surprisePercent * 100 };
+        })
+        .filter((h): h is { quarter: string; surprisePercent: number } => h !== null)
+        .sort((a, b) => a.quarter.localeCompare(b.quarter))
+        .slice(-4);
+      if (history.length > 0) detail.history = history;
 
       const ev: CalendarEvent = {
         date: picked,
