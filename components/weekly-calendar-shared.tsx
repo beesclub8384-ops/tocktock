@@ -106,6 +106,53 @@ export function isEarningsReported(ev: CalendarEvent): boolean {
   );
 }
 
+/**
+ * 지표 이름(name) → 해설(무엇/왜). 데이터의 name과 정확히 매칭.
+ * 매핑에 없는 지표명은 해설 펼침 비활성(한 줄로만 표시).
+ */
+export const INDICATOR_DESC: Record<string, { what: string; why: string }> = {
+  "소비자물가지수(CPI)": {
+    what: "소비자가 사는 상품·서비스 가격이 얼마나 올랐는지 보여주는 대표 물가 지표입니다.",
+    why: "인플레이션을 가장 먼저·널리 보는 숫자라 연준의 금리 결정과 시장이 크게 반응합니다.",
+  },
+  "PCE 물가(개인소득·지출)": {
+    what: "소비자가 실제 지출한 내역까지 반영한 물가 지표로, 연준이 통화정책의 공식 기준으로 삼습니다.",
+    why: "CPI보다 발표는 늦지만 연준이 더 중시해 금리 향방의 핵심 단서가 됩니다.",
+  },
+  "생산자물가지수(PPI)": {
+    what: "기업이 물건을 만들어 팔 때 받는 가격, 즉 생산자 단계의 물가입니다.",
+    why: "생산 단가가 시차를 두고 소비자 물가로 옮겨가, CPI보다 앞선 인플레이션 선행 신호로 봅니다.",
+  },
+  고용보고서: {
+    what: "한 달간 늘어난 일자리 수와 실업률을 보여주는 핵심 고용 지표입니다(매월 첫째 주 발표).",
+    why: "고용은 경기·소비의 바탕이라, 연준이 물가와 함께 가장 무겁게 보는 두 축 중 하나입니다.",
+  },
+  소매판매: {
+    what: "소비자가 실제로 얼마나 돈을 썼는지 보여주는 지표입니다.",
+    why: "미국은 소비 비중이 커서, 늘면 경기 호조·줄면 둔화 우려로 읽힙니다.",
+  },
+  GDP: {
+    what: "한 나라가 일정 기간 만들어낸 경제 활동의 총량으로, 경기 전체의 성적표입니다.",
+    why: "분기마다 1·2·3차로 나눠 발표되며(뒤로 갈수록 확정치), 예상과 다르면 시장이 크게 움직입니다.",
+  },
+  "FOMC 회의": {
+    what: "미국의 기준금리를 결정하는 연준의 통화정책 회의입니다(연 8회).",
+    why: "금리와 함께 발표되는 방향성·점도표가 시장 전체에 가장 큰 영향을 주는 이벤트입니다.",
+  },
+};
+
+/** 지표 해설 펼침 패널. 해설이 있으면 무엇/왜 2줄, 없으면 null */
+export function IndicatorDescPanel({ name }: { name: string }) {
+  const desc = INDICATOR_DESC[name];
+  if (!desc) return null;
+  return (
+    <div className="ml-9 mt-1 space-y-0.5 text-xs text-muted-foreground">
+      <div>{desc.what}</div>
+      <div>{desc.why}</div>
+    </div>
+  );
+}
+
 const POS_CLS = "text-green-600 dark:text-green-400";
 const NEG_CLS = "text-red-600 dark:text-red-400";
 
@@ -338,7 +385,7 @@ function EarningsDetailPanel({ ev }: { ev: CalendarEvent }) {
 }
 
 /**
- * 일정 한 줄. 실적은 클릭 시 펼침(상세). 지표/FOMC는 펼침 없음.
+ * 일정 한 줄. 실적은 클릭 시 펼침(결과 상세). 지표는 해설이 있으면 클릭 시 펼침(무엇/왜).
  * 모달의 행 표시와 동일한 모양.
  */
 export function EventRow({
@@ -354,18 +401,50 @@ export function EventRow({
   const reported = isEarningsReported(ev);
 
   if (ev.category !== "earnings") {
+    const hasDesc = !!INDICATOR_DESC[ev.name];
+    // 해설 없는 지표는 펼침 없이 기존처럼 한 줄
+    if (!hasDesc) {
+      return (
+        <li className="flex items-center gap-2">
+          <MarketTag market={ev.market} />
+          <div className="min-w-0 flex-1">
+            <span className="block truncate text-sm" title={ev.detail}>
+              {ev.name}
+            </span>
+            {itime && (
+              <span className="block text-xs text-muted-foreground">
+                {itime}
+              </span>
+            )}
+          </div>
+          <KindBadge ev={ev} />
+        </li>
+      );
+    }
+    // 해설 있는 지표: 실적과 동일한 모양으로 클릭 펼침
     return (
-      <li className="flex items-center gap-2">
-        <MarketTag market={ev.market} />
-        <div className="min-w-0 flex-1">
-          <span className="block truncate text-sm" title={ev.detail}>
-            {ev.name}
+      <li>
+        <button
+          onClick={onToggle}
+          className="flex w-full items-center gap-2 text-left"
+        >
+          <MarketTag market={ev.market} />
+          <div className="min-w-0 flex-1">
+            <span className="block truncate text-sm" title={ev.detail}>
+              {ev.name}
+            </span>
+            {itime && (
+              <span className="block text-xs text-muted-foreground">
+                {itime}
+              </span>
+            )}
+          </div>
+          <KindBadge ev={ev} />
+          <span className="shrink-0 text-xs text-muted-foreground">
+            {expanded ? "▴" : "▾"}
           </span>
-          {itime && (
-            <span className="block text-xs text-muted-foreground">{itime}</span>
-          )}
-        </div>
-        <KindBadge ev={ev} />
+        </button>
+        {expanded && <IndicatorDescPanel name={ev.name} />}
       </li>
     );
   }

@@ -1,6 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import {
+  INDICATOR_DESC,
+  IndicatorDescPanel,
+} from "@/components/weekly-calendar-shared";
 
 interface EarningsDetail {
   surprisePercent?: number;
@@ -364,28 +368,61 @@ export function WeeklyCalendarModal() {
                 <ul className="space-y-1.5">
                   {g.items.map((ev, i) => {
                     if (ev.category !== "earnings") {
-                      // 지표/FOMC: 펼침 없음
+                      // 지표: 해설이 있으면 클릭 펼침, 없으면 한 줄
                       const itime = eventTimeText(ev);
-                      return (
-                        <li
-                          key={`${ev.date}-${ev.name}-${i}`}
-                          className="flex items-center gap-2"
-                        >
-                          <MarketTag market={ev.market} />
-                          <div className="min-w-0 flex-1">
-                            <span
-                              className="block truncate text-sm"
-                              title={ev.detail}
-                            >
-                              {ev.name}
-                            </span>
-                            {itime && (
-                              <span className="block text-xs text-muted-foreground">
-                                {itime}
+                      const hasDesc = !!INDICATOR_DESC[ev.name];
+                      if (!hasDesc) {
+                        return (
+                          <li
+                            key={`${ev.date}-${ev.name}-${i}`}
+                            className="flex items-center gap-2"
+                          >
+                            <MarketTag market={ev.market} />
+                            <div className="min-w-0 flex-1">
+                              <span
+                                className="block truncate text-sm"
+                                title={ev.detail}
+                              >
+                                {ev.name}
                               </span>
-                            )}
-                          </div>
-                          <KindBadge ev={ev} />
+                              {itime && (
+                                <span className="block text-xs text-muted-foreground">
+                                  {itime}
+                                </span>
+                              )}
+                            </div>
+                            <KindBadge ev={ev} />
+                          </li>
+                        );
+                      }
+                      const indKey = `${ev.date}|${ev.market}|${ev.name}`;
+                      const indOpen = expanded.has(indKey);
+                      return (
+                        <li key={`${ev.date}-${ev.name}-${i}`}>
+                          <button
+                            onClick={() => toggleExpand(indKey)}
+                            className="flex w-full items-center gap-2 text-left"
+                          >
+                            <MarketTag market={ev.market} />
+                            <div className="min-w-0 flex-1">
+                              <span
+                                className="block truncate text-sm"
+                                title={ev.detail}
+                              >
+                                {ev.name}
+                              </span>
+                              {itime && (
+                                <span className="block text-xs text-muted-foreground">
+                                  {itime}
+                                </span>
+                              )}
+                            </div>
+                            <KindBadge ev={ev} />
+                            <span className="shrink-0 text-xs text-muted-foreground">
+                              {indOpen ? "▴" : "▾"}
+                            </span>
+                          </button>
+                          {indOpen && <IndicatorDescPanel name={ev.name} />}
                         </li>
                       );
                     }
