@@ -217,7 +217,12 @@ function EarningsDetailPanel({ ev }: { ev: CalendarEvent }) {
                 : ""}
             </div>
           )}
-          {fin.length > 0 && <div>{fin.join(" · ")}</div>}
+          {fin.length > 0 && (
+            <div>
+              <span className="mr-1 text-muted-foreground/60">실적</span>
+              {fin.join(" · ")}
+            </div>
+          )}
         </>
       ) : (
         <>
