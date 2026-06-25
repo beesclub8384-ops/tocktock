@@ -368,6 +368,13 @@ function quarterToYm(q: Date | string | null | undefined): string | null {
   return null;
 }
 
+/** "YYYY-MM" 두 값의 개월 차(b - a). 둘 다 파싱 가능 가정 */
+function monthsBetween(a: string, b: string): number {
+  const [ay, am] = a.split("-").map(Number);
+  const [by, bm] = b.split("-").map(Number);
+  return (by - ay) * 12 + (bm - am);
+}
+
 async function fetchYahooEarnings(
   start: string,
   end: string
@@ -395,8 +402,6 @@ async function fetchYahooEarnings(
     ...US_TICKERS.map((t) => ({ symbol: t, name: t, market: "US" as const })),
   ];
 
-  const todayYmd = kstTodayYmd();
-
   const results = await pool(targets, 6, async (t) => {
     try {
       const r = (await yf.quoteSummary(
@@ -422,11 +427,35 @@ async function fetchYahooEarnings(
 
       const currency: "KRW" | "USD" = t.market === "KR" ? "KRW" : "USD";
       const detail: EarningsDetail = { currency };
-      const isPast = picked < todayYmd; // 발표 완료 = 발표일이 오늘 이전
+
+      // ── 발표 완료 판정 ────────────────────────────────────────────
+      // "날짜"가 아니라 "Yahoo에 실제 결과(epsActual)가 들어왔는지"로 판정한다.
+      //   earningsHistory에서 epsActual이 유효한 가장 최근 분기를 찾고, 그 분기(YYYY-MM)가
+      //   채택 발표월(picked의 월)과 0~3개월 이내로 매칭되면 발표 완료로 본다.
+      //   · 발표 당일(picked==오늘)이어도 결과가 들어와 있으면 완료 (마이크론 케이스)
+      //   · 미래 예정은 직전 분기 실적이 history에 남아 있어도 예정 유지 (삼성 7/29 케이스):
+      //     직전 분기는 발표월과 3개월을 초과해 떨어져 매칭되지 않음
+      const hist = r?.earningsHistory?.history ?? [];
+      let reportedRow: YfHistoryRow | undefined;
+      for (let i = hist.length - 1; i >= 0; i--) {
+        if (isFiniteNum(hist[i].epsActual)) {
+          reportedRow = hist[i];
+          break;
+        }
+      }
+      const reportedYm = reportedRow ? quarterToYm(reportedRow.quarter) : null;
+      const pickedYm = picked.slice(0, 7); // "YYYY-MM"
+      const monthsApart =
+        reportedYm !== null ? monthsBetween(reportedYm, pickedYm) : null;
+      const isPast =
+        reportedRow !== undefined &&
+        monthsApart !== null &&
+        monthsApart >= 0 &&
+        monthsApart <= 3;
+
       if (isPast) {
-        // 발표 완료: earningsHistory 최근 분기 실제/예상 + financialsChart 매출/순이익
-        const hist = r?.earningsHistory?.history ?? [];
-        const lh = hist.length ? hist[hist.length - 1] : undefined;
+        // 발표 완료: earningsHistory 실측 분기 실제/예상 + financialsChart 매출/순이익
+        const lh = reportedRow;
         const fin = r?.earnings?.financialsChart?.quarterly ?? [];
         const lf = fin.length ? fin[fin.length - 1] : undefined;
         if (lh && isFiniteNum(lh.epsActual)) detail.epsActual = lh.epsActual;
