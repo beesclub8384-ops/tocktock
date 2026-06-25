@@ -13,6 +13,8 @@ export interface EarningsDetail {
   revenue?: number;
   netIncome?: number;
   currency: "KRW" | "USD";
+  /** 최근 최대 4분기 서프라이즈 이력 (오래된→최신). 차트용 */
+  history?: { quarter: string; surprisePercent: number }[];
 }
 
 export interface CalendarEvent {
@@ -167,6 +169,92 @@ function EarningsStatusChip({ status }: { status: CalendarEvent["status"] }) {
   );
 }
 
+/** "2025-06" → "25.06" (YYYY-MM → YY.MM) */
+function fmtQuarterShort(q: string): string {
+  const m = q.match(/^(\d{4})-(\d{2})/);
+  if (!m) return q;
+  return `${m[1].slice(2)}.${m[2]}`;
+}
+
+const POS_BAR = "bg-green-600 dark:bg-green-400";
+const NEG_BAR = "bg-red-600 dark:bg-red-400";
+
+/**
+ * 최근 4분기 서프라이즈 막대 차트 (순수 CSS).
+ * 0% 기준선 위(상회=초록)/아래(하회=빨강)로 갈리며, 막대 높이는
+ * 그룹 내 |surprisePercent| 최대값 기준 상대 정규화. 항목 2개 이상일 때만 렌더.
+ */
+function SurpriseBarChart({
+  history,
+}: {
+  history: { quarter: string; surprisePercent: number }[];
+}) {
+  if (!history || history.length < 2) return null;
+  const MAXH = 30; // 기준선 한쪽 막대 최대 높이(px)
+  const maxAbs = Math.max(...history.map((h) => Math.abs(h.surprisePercent)), 0);
+  const barPx = (v: number) =>
+    maxAbs > 0 ? Math.max(3, Math.round((Math.abs(v) / maxAbs) * MAXH)) : 1;
+
+  return (
+    <div className="mt-2">
+      <div className="mb-1 text-[11px] text-muted-foreground">
+        최근 4분기 서프라이즈
+      </div>
+      <div className="flex items-stretch gap-3">
+        {history.map((h) => {
+          const up = h.surprisePercent >= 0;
+          const label = `${up ? "+" : ""}${h.surprisePercent.toFixed(1)}%`;
+          const hpx = barPx(h.surprisePercent);
+          return (
+            <div
+              key={h.quarter}
+              className="flex flex-1 flex-col items-center gap-0.5"
+            >
+              {/* 양수(상회): 기준선 위 */}
+              <div className="flex h-9 w-full flex-col items-center justify-end">
+                {up && (
+                  <>
+                    <span
+                      className={`text-[10px] font-semibold leading-none ${POS_CLS}`}
+                    >
+                      {label}
+                    </span>
+                    <div
+                      className={`mt-0.5 w-3 rounded-t-sm ${POS_BAR}`}
+                      style={{ height: hpx }}
+                    />
+                  </>
+                )}
+              </div>
+              {/* 0% 기준선 */}
+              <div className="h-px w-full bg-border" />
+              {/* 음수(하회): 기준선 아래 */}
+              <div className="flex h-9 w-full flex-col items-center justify-start">
+                {!up && (
+                  <>
+                    <div
+                      className={`mb-0.5 w-3 rounded-b-sm ${NEG_BAR}`}
+                      style={{ height: hpx }}
+                    />
+                    <span
+                      className={`text-[10px] font-semibold leading-none ${NEG_CLS}`}
+                    >
+                      {label}
+                    </span>
+                  </>
+                )}
+              </div>
+              <span className="text-[10px] leading-none text-muted-foreground">
+                {fmtQuarterShort(h.quarter)}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function EarningsDetailPanel({
   ev,
   isPast,
@@ -212,6 +300,7 @@ function EarningsDetailPanel({
             </div>
           )}
           {fin.length > 0 && <div>{fin.join(" · ")}</div>}
+          {e.history && <SurpriseBarChart history={e.history} />}
         </>
       ) : (
         <>
@@ -220,6 +309,14 @@ function EarningsDetailPanel({
           )}
           {typeof e.revenue === "number" && (
             <div>예상 매출 {fmtMoney(e.revenue, cur)}</div>
+          )}
+          {e.history && (
+            <div>
+              <div className="mt-1 text-[11px] text-muted-foreground">
+                과거 흐름
+              </div>
+              <SurpriseBarChart history={e.history} />
+            </div>
           )}
         </>
       )}
