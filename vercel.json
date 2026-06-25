@@ -51,6 +51,14 @@
     {
       "path": "/api/cron/weekly-calendar",
       "schedule": "0 22 * * 0-4"
+    },
+    {
+      "path": "/api/cron/weekly-calendar-dawn",
+      "schedule": "0 21 * * 0-4"
+    },
+    {
+      "path": "/api/cron/weekly-calendar-evening",
+      "schedule": "0 14 * * 1-5"
     }
   ]
 }
