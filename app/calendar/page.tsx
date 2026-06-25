@@ -202,7 +202,6 @@ export default function CalendarPage() {
                           <EventRow
                             key={eventKey(ev)}
                             ev={ev}
-                            isPast={isPast}
                             expanded={expandedEarnings.has(eventKey(ev))}
                             onToggle={() => toggleEarnings(eventKey(ev))}
                           />
@@ -246,7 +245,6 @@ export default function CalendarPage() {
                             <EventRow
                               key={eventKey(ev)}
                               ev={ev}
-                              isPast={false}
                               expanded={expandedEarnings.has(eventKey(ev))}
                               onToggle={() => toggleEarnings(eventKey(ev))}
                             />

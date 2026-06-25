@@ -32,6 +32,18 @@ function eventTimeText(ev: CalendarEvent): string | null {
   return null;
 }
 
+/**
+ * 이 실적 항목이 "발표 완료"인가 — 날짜가 아니라 실제 결과 유무로 판정.
+ * surprisePercent 또는 epsActual이 유효(finite)하면 발표 완료(발표 당일이라도).
+ */
+function isEarningsReported(ev: CalendarEvent): boolean {
+  return (
+    ev.category === "earnings" &&
+    (Number.isFinite(ev.earnings?.surprisePercent) ||
+      Number.isFinite(ev.earnings?.epsActual))
+  );
+}
+
 interface CalendarData {
   updatedAt: string | null;
   rangeStart: string | null;
@@ -164,13 +176,7 @@ function EarningsStatusChip({ status }: { status: CalendarEvent["status"] }) {
   );
 }
 
-function EarningsDetailPanel({
-  ev,
-  isPast,
-}: {
-  ev: CalendarEvent;
-  isPast: boolean;
-}) {
+function EarningsDetailPanel({ ev }: { ev: CalendarEvent }) {
   const e = ev.earnings;
   if (!e) {
     return (
@@ -179,6 +185,7 @@ function EarningsDetailPanel({
       </div>
     );
   }
+  const reported = isEarningsReported(ev);
   const cur = e.currency;
   const fin = [
     typeof e.revenue === "number" ? `매출 ${fmtMoney(e.revenue, cur)}` : null,
@@ -189,7 +196,7 @@ function EarningsDetailPanel({
 
   return (
     <div className="ml-9 mt-1 space-y-0.5 text-xs text-muted-foreground">
-      {isPast ? (
+      {reported ? (
         <>
           {typeof e.surprisePercent === "number" && (
             <div>
@@ -380,8 +387,11 @@ export function WeeklyCalendarModal() {
                     // 실적: 클릭 시 펼침/접힘
                     const key = `${ev.date}|${ev.market}|${ev.name}`;
                     const isOpen = expanded.has(key);
+                    // 발표완료 여부는 날짜가 아니라 항목의 실제 결과 유무로 판정
+                    const reported = isEarningsReported(ev);
                     const hasSurprise =
-                      isPast && typeof ev.earnings?.surprisePercent === "number";
+                      reported &&
+                      typeof ev.earnings?.surprisePercent === "number";
                     return (
                       <li key={`${ev.date}-${ev.name}-${i}`}>
                         <button
@@ -392,7 +402,7 @@ export function WeeklyCalendarModal() {
                           <div className="min-w-0 flex-1">
                             <span
                               className={`block truncate text-sm ${
-                                isPast ? "text-muted-foreground" : ""
+                                reported ? "text-muted-foreground" : ""
                               }`}
                               title={ev.detail}
                             >
@@ -404,7 +414,7 @@ export function WeeklyCalendarModal() {
                               </span>
                             )}
                           </div>
-                          {isPast ? (
+                          {reported ? (
                             hasSurprise ? (
                               <SurpriseChip
                                 v={ev.earnings!.surprisePercent as number}
@@ -421,9 +431,7 @@ export function WeeklyCalendarModal() {
                             {isOpen ? "▴" : "▾"}
                           </span>
                         </button>
-                        {isOpen && (
-                          <EarningsDetailPanel ev={ev} isPast={isPast} />
-                        )}
+                        {isOpen && <EarningsDetailPanel ev={ev} />}
                       </li>
                     );
                   })}

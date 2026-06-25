@@ -93,6 +93,19 @@ export function eventKey(ev: CalendarEvent): string {
   return `${ev.date}|${ev.market}|${ev.name}`;
 }
 
+/**
+ * 이 실적 항목이 "발표 완료"인가 — 날짜가 아니라 실제 결과 유무로 판정.
+ * earnings.surprisePercent 또는 epsActual이 유효(finite)하게 들어와 있으면 발표 완료.
+ * (발표 당일이라도 결과가 채워졌으면 완료. 같은 날 그룹에 완료/예정이 섞여도 항목별로 정확)
+ */
+export function isEarningsReported(ev: CalendarEvent): boolean {
+  return (
+    ev.category === "earnings" &&
+    (Number.isFinite(ev.earnings?.surprisePercent) ||
+      Number.isFinite(ev.earnings?.epsActual))
+  );
+}
+
 const POS_CLS = "text-green-600 dark:text-green-400";
 const NEG_CLS = "text-red-600 dark:text-red-400";
 
@@ -255,13 +268,7 @@ function SurpriseBarChart({
   );
 }
 
-function EarningsDetailPanel({
-  ev,
-  isPast,
-}: {
-  ev: CalendarEvent;
-  isPast: boolean;
-}) {
+function EarningsDetailPanel({ ev }: { ev: CalendarEvent }) {
   const e = ev.earnings;
   if (!e) {
     return (
@@ -270,6 +277,7 @@ function EarningsDetailPanel({
       </div>
     );
   }
+  const reported = isEarningsReported(ev);
   const cur = e.currency;
   const fin = [
     typeof e.revenue === "number" ? `매출 ${fmtMoney(e.revenue, cur)}` : null,
@@ -280,7 +288,7 @@ function EarningsDetailPanel({
 
   return (
     <div className="ml-9 mt-1 space-y-0.5 text-xs text-muted-foreground">
-      {isPast ? (
+      {reported ? (
         <>
           {typeof e.surprisePercent === "number" && (
             <div>
@@ -330,16 +338,15 @@ function EarningsDetailPanel({
  */
 export function EventRow({
   ev,
-  isPast,
   expanded,
   onToggle,
 }: {
   ev: CalendarEvent;
-  isPast: boolean;
   expanded: boolean;
   onToggle: () => void;
 }) {
   const itime = eventTimeText(ev);
+  const reported = isEarningsReported(ev);
 
   if (ev.category !== "earnings") {
     return (
@@ -359,7 +366,7 @@ export function EventRow({
   }
 
   const hasSurprise =
-    isPast && typeof ev.earnings?.surprisePercent === "number";
+    reported && typeof ev.earnings?.surprisePercent === "number";
   return (
     <li>
       <button
@@ -370,7 +377,7 @@ export function EventRow({
         <div className="min-w-0 flex-1">
           <span
             className={`block truncate text-sm ${
-              isPast ? "text-muted-foreground" : ""
+              reported ? "text-muted-foreground" : ""
             }`}
             title={ev.detail}
           >
@@ -380,7 +387,7 @@ export function EventRow({
             <span className="block text-xs text-muted-foreground">{itime}</span>
           )}
         </div>
-        {isPast ? (
+        {reported ? (
           hasSurprise ? (
             <SurpriseChip v={ev.earnings!.surprisePercent as number} />
           ) : (
@@ -395,7 +402,7 @@ export function EventRow({
           {expanded ? "▴" : "▾"}
         </span>
       </button>
-      {expanded && <EarningsDetailPanel ev={ev} isPast={isPast} />}
+      {expanded && <EarningsDetailPanel ev={ev} />}
     </li>
   );
 }
