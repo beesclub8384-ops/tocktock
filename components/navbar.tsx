@@ -13,6 +13,7 @@ const navLinks = [
   { href: "/economics", label: "경제공부" },
   { href: "/foreign-ownership", label: "외국인 지분율" },
   { href: "/investor-flow", label: "투자자 동향 추적" },
+  { href: "/sectors", label: "섹터별 현황" },
   { href: "/global-indicators", label: "글로벌 지표" },
   { href: "/liquidity/us", label: "미국 유동성" },
   { href: "/liquidity/global", label: "글로벌 유동성" },
@@ -40,6 +41,7 @@ const pcNavItems: NavItem[] = [
   { type: "link", href: "/economics", label: "경제공부" },
   { type: "link", href: "/foreign-ownership", label: "외국인 지분율" },
   { type: "link", href: "/investor-flow", label: "투자자 동향 추적" },
+  { type: "link", href: "/sectors", label: "섹터별 현황" },
   { type: "link", href: "/global-indicators", label: "글로벌 지표" },
   {
     type: "dropdown",
