@@ -9241,7 +9241,7 @@
     "code": "159910",
     "name": "에코글로우",
     "corp_code": "00896753",
-    "is_preferred": true
+    "is_preferred": false
   },
   {
     "code": "115570",
@@ -10963,7 +10963,7 @@
     "code": "115960",
     "name": "연우",
     "corp_code": "00372253",
-    "is_preferred": true
+    "is_preferred": false
   },
   {
     "code": "060850",
@@ -12103,7 +12103,7 @@
     "code": "294090",
     "name": "이오플로우",
     "corp_code": "01274310",
-    "is_preferred": true
+    "is_preferred": false
   },
   {
     "code": "088290",
@@ -16634,7 +16634,7 @@
     "code": "458650",
     "name": "성우",
     "corp_code": "00319272",
-    "is_preferred": true
+    "is_preferred": false
   },
   {
     "code": "488060",
