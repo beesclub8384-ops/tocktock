@@ -30,6 +30,8 @@ const CACHE_KEY = "us-sector-board:data";
 const GICS = JSON.parse(fs.readFileSync(path.join(REPO, "data/us-gics-mapping.json"), "utf8"));
 const SUB2GROUP = GICS.subIndustryToGroup;
 const GROUP_KO = GICS.groups;
+// 미국 종목 한글명 (data/us-stock-names-ko.json, 네이버 1회 수집분). 없으면 영문 폴백.
+const NAMES_KO = JSON.parse(fs.readFileSync(path.join(REPO, "data/us-stock-names-ko.json"), "utf8"));
 
 // ── 위키 S&P500 파싱 ──
 async function fetchSP500() {
@@ -91,7 +93,7 @@ async function main() {
     const price = Number(q.regularMarketPrice) || 0;
     const volume = Number(q.regularMarketVolume) || 0;
     const entry = {
-      ticker: it.ticker, name: it.name,
+      ticker: it.ticker, name: it.name, nameKo: NAMES_KO[it.ticker] || it.name, // 한글명(없으면 영문 폴백)
       marketCap: Number(q.marketCap),
       price, changeRate: Number(q.regularMarketChangePercent) || 0,
       tradingValue: Math.round(price * volume), // 근사(현재가×거래량)

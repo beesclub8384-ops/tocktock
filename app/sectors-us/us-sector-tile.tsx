@@ -6,7 +6,8 @@ import { X } from "lucide-react";
 /* ── 타입 (Redis us-sector-board:data 구조) ── */
 export interface UsStock {
   ticker: string;
-  name: string;
+  name: string; // 영문 회사명
+  nameKo?: string; // 한글명(없으면 영문 폴백)
   marketCap: number; // USD
   price: number; // USD
   changeRate: number; // %
@@ -47,10 +48,11 @@ function fmtRate(rate: number): string {
 }
 
 function StockRow({ s }: { s: UsStock }) {
+  const label = s.nameKo || s.name; // 한글명 우선, 없으면 영문
   return (
     <li className="flex items-center gap-2 text-xs">
-      <span className="min-w-0 flex-1 truncate" title={`${s.name} (${s.ticker}) · 시총 ${fmtUSD(s.marketCap)}`}>
-        {s.name} <span className="text-muted-foreground">{s.ticker}</span>
+      <span className="min-w-0 flex-1 truncate" title={`${label} (${s.ticker}) · ${s.name} · 시총 ${fmtUSD(s.marketCap)}`}>
+        {label} <span className="text-muted-foreground">({s.ticker})</span>
       </span>
       <span className={`w-14 shrink-0 text-right tabular-nums ${changeClass(s.changeRate)}`}>{fmtRate(s.changeRate)}</span>
       <span className="w-16 shrink-0 text-right tabular-nums text-muted-foreground">{fmtUSD(s.tradingValue)}</span>
@@ -85,7 +87,7 @@ function SectorModal({ sub, onClose }: { sub: UsSector; onClose: () => void }) {
       >
         <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
           <h3 className="truncate text-sm font-semibold">
-            {sub.name} <span className="text-muted-foreground">({sub.nameKo})</span>{" "}
+            {sub.nameKo || sub.name}{" "}
             <span className="text-xs font-normal text-muted-foreground">{sub.count}종목 · 시총순</span>
           </h3>
           <button onClick={onClose} aria-label="닫기" className="shrink-0 rounded p-1 text-muted-foreground hover:bg-muted">
@@ -116,9 +118,7 @@ export function UsSectorTile({ sub }: { sub: UsSector }) {
   return (
     <div className="rounded-lg border border-border bg-card p-4">
       <div className="mb-2 flex items-baseline justify-between gap-2 border-b border-border pb-2">
-        <h3 className="min-w-0 truncate text-sm font-semibold">
-          {sub.name} <span className="text-xs font-normal text-muted-foreground">({sub.nameKo})</span>
-        </h3>
+        <h3 className="min-w-0 truncate text-sm font-semibold">{sub.nameKo || sub.name}</h3>
         <span className="shrink-0 text-xs text-muted-foreground">{sub.count}종목</span>
       </div>
       {top.length === 0 ? (

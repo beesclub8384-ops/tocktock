@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { redis } from "@/lib/redis";
 import YahooFinance from "yahoo-finance2";
 import gicsMap from "@/data/us-gics-mapping.json";
+import namesKo from "@/data/us-stock-names-ko.json";
 
 /**
  * 미국 섹터 보드(S&P500·GICS) 빌더 + cron 핸들러.
@@ -17,6 +18,7 @@ const yf = new YahooFinance({ suppressNotices: ["yahooSurvey", "ripHistorical"] 
 // GICS 세부산업 → 산업그룹(25) 매핑 (data/us-gics-mapping.json)
 const SUB2GROUP = (gicsMap as { subIndustryToGroup: Record<string, string> }).subIndustryToGroup;
 const GROUP_KO = (gicsMap as { groups: Record<string, string> }).groups;
+const NAMES_KO = namesKo as Record<string, string>; // 미국 종목 한글명(없으면 영문 폴백)
 
 interface SP500Row {
   ticker: string;
@@ -89,6 +91,7 @@ export async function buildUsSectorBoard() {
     const entry = {
       ticker: it.ticker,
       name: it.name,
+      nameKo: NAMES_KO[it.ticker] || it.name, // 한글명(없으면 영문 폴백)
       marketCap: Number(q.marketCap),
       price,
       changeRate: Number(q.regularMarketChangePercent) || 0,
