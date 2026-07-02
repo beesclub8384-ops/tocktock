@@ -1,5 +1,6 @@
 import { redis } from "@/lib/redis";
 import { SectorTile, type SubSector } from "./sector-tile";
+import { SectorTabs } from "@/components/sector-tabs";
 
 export const dynamic = "force-dynamic";
 
@@ -49,6 +50,8 @@ export default async function SectorsPage() {
           기준 {fmtUpdatedAt(data.updatedAt)} · 시세 출처 네이버
         </p>
       </header>
+
+      <SectorTabs active="kr" />
 
       <div className="space-y-12">
         {data.대분류.map((maj) => (

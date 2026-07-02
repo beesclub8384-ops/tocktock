@@ -1,5 +1,6 @@
 import { redis } from "@/lib/redis";
 import { UsSectorTile, type UsSector } from "./us-sector-tile";
+import { SectorTabs } from "@/components/sector-tabs";
 
 export const dynamic = "force-dynamic";
 
@@ -44,6 +45,8 @@ export default async function SectorsUsPage() {
           기준 {fmtUpdatedAt(data.updatedAt)} · 출처 위키피디아(명단·GICS) + 야후파이낸스(시세) · 거래대금은 현재가×거래량 근사
         </p>
       </header>
+
+      <SectorTabs active="us" />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         {data.섹터.map((sec) => (
