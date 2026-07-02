@@ -26,19 +26,10 @@ const redis = new Redis({ url: loadEnv("UPSTASH_REDIS_REST_URL"), token: loadEnv
 const yf = new YahooFinance({ suppressNotices: ["yahooSurvey", "ripHistorical"] });
 const CACHE_KEY = "us-sector-board:data";
 
-const GICS_KO = {
-  "Information Technology": "정보기술",
-  "Health Care": "헬스케어",
-  "Financials": "금융",
-  "Consumer Discretionary": "경기소비재",
-  "Communication Services": "커뮤니케이션서비스",
-  "Industrials": "산업재",
-  "Consumer Staples": "필수소비재",
-  "Energy": "에너지",
-  "Utilities": "유틸리티",
-  "Real Estate": "부동산",
-  "Materials": "소재",
-};
+// GICS 세부산업 → 산업그룹(25) 매핑 (data/us-gics-mapping.json)
+const GICS = JSON.parse(fs.readFileSync(path.join(REPO, "data/us-gics-mapping.json"), "utf8"));
+const SUB2GROUP = GICS.subIndustryToGroup;
+const GROUP_KO = GICS.groups;
 
 // ── 위키 S&P500 파싱 ──
 async function fetchSP500() {
@@ -55,7 +46,7 @@ async function fetchSP500() {
       m[1].replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/\n/g, " ").trim()
     );
     if (cells.length >= 4 && /^[A-Z.]{1,6}$/.test(cells[0])) {
-      out.push({ ticker: cells[0], yahoo: cells[0].replace(/\./g, "-"), name: cells[1], gicsSector: cells[2] });
+      out.push({ ticker: cells[0], yahoo: cells[0].replace(/\./g, "-"), name: cells[1], gicsSector: cells[2], subIndustry: cells[3] });
     }
   }
   if (out.length < 450) throw new Error(`위키 파싱 행 부족(${out.length}) — 포맷 변경 의심, 중단`);
@@ -87,12 +78,15 @@ async function main() {
   const qmap = await fetchQuotes(list.map((x) => x.yahoo));
   console.log(`   시세 응답 ${qmap.size}종목`);
 
-  console.log("3) 조인 + GICS 섹터 묶기...");
-  const bySector = new Map(); // sector → stocks[]
+  console.log("3) 조인 + GICS 산업그룹(25) 묶기...");
+  const byGroup = new Map(); // 산업그룹 → stocks[]
   let joined = 0, skipped = 0;
+  const unmapped = new Set();
   for (const it of list) {
     const q = qmap.get(it.yahoo);
     if (!q || !Number.isFinite(q.marketCap) || !Number.isFinite(q.regularMarketVolume)) { skipped++; continue; }
+    let group = SUB2GROUP[it.subIndustry];
+    if (!group) { unmapped.add(it.subIndustry); group = "기타"; } // 검증상 0이어야 함
     joined++;
     const price = Number(q.regularMarketPrice) || 0;
     const volume = Number(q.regularMarketVolume) || 0;
@@ -103,33 +97,38 @@ async function main() {
       tradingValue: Math.round(price * volume), // 근사(현재가×거래량)
       volume,
     };
-    if (!bySector.has(it.gicsSector)) bySector.set(it.gicsSector, []);
-    bySector.get(it.gicsSector).push(entry);
+    if (!byGroup.has(group)) byGroup.set(group, []);
+    byGroup.get(group).push(entry);
   }
 
-  const 섹터 = [];
-  for (const [sec, stocks] of bySector) {
+  const 산업그룹 = [];
+  for (const [g, stocks] of byGroup) {
     stocks.sort((a, b) => b.marketCap - a.marketCap);
-    섹터.push({ name: sec, nameKo: GICS_KO[sec] || sec, count: stocks.length, stocks });
+    산업그룹.push({ name: g, nameKo: GROUP_KO[g] || g, count: stocks.length, stocks });
   }
-  섹터.sort((a, b) => b.stocks.reduce((s, x) => s + x.marketCap, 0) - a.stocks.reduce((s, x) => s + x.marketCap, 0));
+  산업그룹.sort((a, b) => b.stocks.reduce((s, x) => s + x.marketCap, 0) - a.stocks.reduce((s, x) => s + x.marketCap, 0));
 
   const blob = {
     updatedAt: new Date().toISOString(),
-    source: "wikipedia S&P500 + yahoo-finance2",
+    source: "wikipedia S&P500 + yahoo-finance2 · GICS 산업그룹(25)",
     units: { currency: "USD", marketCap: "USD", price: "USD", tradingValue: "USD", volume: "주", changeRate: "%" },
-    totalQuotes: qmap.size, joined, 섹터,
+    totalQuotes: qmap.size, joined, 산업그룹,
   };
   await redis.set(CACHE_KEY, blob);
   console.log(`4) Redis 저장 → ${CACHE_KEY} (${(Buffer.byteLength(JSON.stringify(blob)) / 1024).toFixed(0)}KB)`);
-  console.log(`   조인 ${joined} / 스킵(결측) ${skipped} / 섹터 ${섹터.length}`);
+  console.log(`   조인 ${joined} / 스킵(결측) ${skipped} / 산업그룹 ${산업그룹.length}`);
 
-  // 검증 샘플
-  console.log("\n섹터별 종목수:", 섹터.map((s) => `${s.nameKo} ${s.count}`).join(", "));
-  const it2 = 섹터.find((s) => s.name === "Information Technology");
-  console.log("정보기술 top3:", it2.stocks.slice(0, 3).map((s) => `${s.name}(${s.ticker}) $${(s.marketCap / 1e9).toFixed(0)}B ${s.changeRate.toFixed(2)}%`).join(" / "));
-  // 점티커 확인
-  const brk = 섹터.flatMap((s) => s.stocks).find((s) => s.ticker === "BRK.B");
-  console.log("BRK.B 조인:", brk ? `OK $${(brk.marketCap / 1e9).toFixed(0)}B` : "❌ 없음(점티커 변환 확인)");
+  // 검증
+  console.log("\n매핑 안 된 세부산업:", unmapped.size, unmapped.size ? "❌ " + [...unmapped].join(", ") : "✅ 0개");
+  const single = 산업그룹.filter((s) => s.count === 1).length;
+  console.log("산업그룹별 종목수:", 산업그룹.map((s) => `${s.nameKo} ${s.count}`).join(", "));
+  console.log("1종목 그룹:", single, "| 그룹당 평균:", (joined / 산업그룹.length).toFixed(1));
+  const flat = 산업그룹.flatMap((s) => s.stocks.map((x) => ({ ...x, g: s.name })));
+  for (const [tk, exp] of [["AAPL", "Technology Hardware & Equipment"], ["NVDA", "Semiconductors & Semiconductor Equipment"], ["JPM", "Banks"]]) {
+    const f = flat.find((x) => x.ticker === tk);
+    console.log(`  ${tk} → ${f?.g} ${f?.g === exp ? "✅" : "❌(기대 " + exp + ")"}`);
+  }
+  const brk = flat.find((x) => x.ticker === "BRK.B");
+  console.log("  BRK.B 조인:", brk ? `OK → ${brk.g}` : "❌ 없음");
 }
 main().then(() => process.exit(0)).catch((e) => { console.error("실패:", e.message); process.exit(1); });

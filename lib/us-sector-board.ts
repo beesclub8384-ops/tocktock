@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { redis } from "@/lib/redis";
 import YahooFinance from "yahoo-finance2";
+import gicsMap from "@/data/us-gics-mapping.json";
 
 /**
  * 미국 섹터 보드(S&P500·GICS) 빌더 + cron 핸들러.
@@ -13,25 +14,16 @@ export const US_SECTOR_BOARD_KEY = "us-sector-board:data";
 
 const yf = new YahooFinance({ suppressNotices: ["yahooSurvey", "ripHistorical"] });
 
-const GICS_KO: Record<string, string> = {
-  "Information Technology": "정보기술",
-  "Health Care": "헬스케어",
-  Financials: "금융",
-  "Consumer Discretionary": "경기소비재",
-  "Communication Services": "커뮤니케이션서비스",
-  Industrials: "산업재",
-  "Consumer Staples": "필수소비재",
-  Energy: "에너지",
-  Utilities: "유틸리티",
-  "Real Estate": "부동산",
-  Materials: "소재",
-};
+// GICS 세부산업 → 산업그룹(25) 매핑 (data/us-gics-mapping.json)
+const SUB2GROUP = (gicsMap as { subIndustryToGroup: Record<string, string> }).subIndustryToGroup;
+const GROUP_KO = (gicsMap as { groups: Record<string, string> }).groups;
 
 interface SP500Row {
   ticker: string;
   yahoo: string;
   name: string;
   gicsSector: string;
+  subIndustry: string;
 }
 
 // ── 위키 S&P500 파싱 ──
@@ -51,7 +43,7 @@ async function fetchSP500(): Promise<SP500Row[]> {
       m[1].replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/\n/g, " ").trim()
     );
     if (cells.length >= 4 && /^[A-Z.]{1,6}$/.test(cells[0])) {
-      out.push({ ticker: cells[0], yahoo: cells[0].replace(/\./g, "-"), name: cells[1], gicsSector: cells[2] });
+      out.push({ ticker: cells[0], yahoo: cells[0].replace(/\./g, "-"), name: cells[1], gicsSector: cells[2], subIndustry: cells[3] });
     }
   }
   if (out.length < 450) throw new Error(`위키 파싱 행 부족(${out.length}) — 포맷 변경 의심`);
@@ -83,13 +75,14 @@ export async function buildUsSectorBoard() {
   const list = await fetchSP500();
   const qmap = await fetchQuotes(list.map((x) => x.yahoo));
 
-  const bySector = new Map<string, unknown[]>();
+  const byGroup = new Map<string, unknown[]>();
   let joined = 0;
   for (const it of list) {
     const q = qmap.get(it.yahoo) as
       | { marketCap?: number; regularMarketPrice?: number; regularMarketChangePercent?: number; regularMarketVolume?: number }
       | undefined;
     if (!q || !Number.isFinite(q.marketCap) || !Number.isFinite(q.regularMarketVolume)) continue;
+    const group = SUB2GROUP[it.subIndustry] || "기타"; // 매핑 검증상 0(기타 없음)
     joined++;
     const price = Number(q.regularMarketPrice) || 0;
     const volume = Number(q.regularMarketVolume) || 0;
@@ -102,25 +95,25 @@ export async function buildUsSectorBoard() {
       tradingValue: Math.round(price * volume), // 근사(현재가×거래량)
       volume,
     };
-    if (!bySector.has(it.gicsSector)) bySector.set(it.gicsSector, []);
-    bySector.get(it.gicsSector)!.push(entry);
+    if (!byGroup.has(group)) byGroup.set(group, []);
+    byGroup.get(group)!.push(entry);
   }
 
-  const 섹터 = [];
-  for (const [sec, stocks] of bySector) {
+  const 산업그룹 = [];
+  for (const [g, stocks] of byGroup) {
     (stocks as { marketCap: number }[]).sort((a, b) => b.marketCap - a.marketCap);
-    섹터.push({ name: sec, nameKo: GICS_KO[sec] || sec, count: stocks.length, stocks });
+    산업그룹.push({ name: g, nameKo: GROUP_KO[g] || g, count: stocks.length, stocks });
   }
   const cap = (s: { stocks: unknown[] }) => (s.stocks as { marketCap: number }[]).reduce((a, x) => a + x.marketCap, 0);
-  섹터.sort((a, b) => cap(b) - cap(a));
+  산업그룹.sort((a, b) => cap(b) - cap(a));
 
   return {
     updatedAt: new Date().toISOString(),
-    source: "wikipedia S&P500 + yahoo-finance2",
+    source: "wikipedia S&P500 + yahoo-finance2 · GICS 산업그룹(25)",
     units: { currency: "USD", marketCap: "USD", price: "USD", tradingValue: "USD", volume: "주", changeRate: "%" },
     totalQuotes: qmap.size,
     joined,
-    섹터,
+    산업그룹,
   };
 }
 
@@ -138,7 +131,7 @@ export async function handleUsSectorBoardCron(request: Request) {
       updatedAt: blob.updatedAt,
       totalQuotes: blob.totalQuotes,
       joined: blob.joined,
-      sectors: blob.섹터.length,
+      groups: blob.산업그룹.length,
     });
   } catch (error) {
     return NextResponse.json(
