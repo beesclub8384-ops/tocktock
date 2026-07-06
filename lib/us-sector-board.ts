@@ -38,7 +38,7 @@ async function fetchSP500(): Promise<SP500Row[]> {
   ).text();
   const s = html.indexOf('id="constituents"');
   const tbl = html.slice(s, html.indexOf("</table>", s));
-  const rows = tbl.split("<tr>").slice(2);
+  const rows = tbl.split(/<tr[^>]*>/).slice(2); // 위키가 <tr>→<tr 속성...>로 바뀌어도 대응
   const out: SP500Row[] = [];
   for (const r of rows) {
     const cells = [...r.matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/g)].map((m) =>
@@ -73,6 +73,23 @@ async function fetchQuotes(tickers: string[]) {
   return map;
 }
 
+// ── 섹터 평균 등락 (시총가중 + 단순평균). build-us-sector-board.mjs와 동일 로직 ──
+function sectorAverages(stocks: { changeRate: number; marketCap: number }[]) {
+  let wSum = 0, capSum = 0, rSum = 0, n = 0;
+  for (const s of stocks) {
+    const r = Number(s.changeRate);
+    if (!Number.isFinite(r)) continue;
+    n++; rSum += r;
+    const cap = Number(s.marketCap);
+    if (Number.isFinite(cap) && cap > 0) { wSum += r * cap; capSum += cap; }
+  }
+  return {
+    avgWeighted: capSum > 0 ? wSum / capSum : 0,
+    avgSimple: n > 0 ? rSum / n : 0,
+    avgCount: n,
+  };
+}
+
 export async function buildUsSectorBoard() {
   const list = await fetchSP500();
   const qmap = await fetchQuotes(list.map((x) => x.yahoo));
@@ -105,7 +122,8 @@ export async function buildUsSectorBoard() {
   const 산업그룹 = [];
   for (const [g, stocks] of byGroup) {
     (stocks as { marketCap: number }[]).sort((a, b) => b.marketCap - a.marketCap);
-    산업그룹.push({ name: g, nameKo: GROUP_KO[g] || g, count: stocks.length, stocks });
+    const { avgWeighted, avgSimple, avgCount } = sectorAverages(stocks as { changeRate: number; marketCap: number }[]);
+    산업그룹.push({ name: g, nameKo: GROUP_KO[g] || g, count: stocks.length, avgWeighted, avgSimple, avgCount, stocks });
   }
   const cap = (s: { stocks: unknown[] }) => (s.stocks as { marketCap: number }[]).reduce((a, x) => a + x.marketCap, 0);
   산업그룹.sort((a, b) => cap(b) - cap(a));

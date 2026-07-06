@@ -89,6 +89,23 @@ async function fetchMarket(market: "KOSPI" | "KOSDAQ"): Promise<Quote[]> {
 type ClassRow = { code: string; name: string; 칸?: string[] };
 type Sectors = { 대분류: { name: string; 소분류: { name: string }[] }[] };
 
+// ── 섹터 평균 등락 (시총가중 + 단순평균). build-sector-board.mjs와 동일 로직 ──
+function sectorAverages(stocks: { changeRate: number; marketCap: number }[]) {
+  let wSum = 0, capSum = 0, rSum = 0, n = 0;
+  for (const s of stocks) {
+    const r = Number(s.changeRate);
+    if (!Number.isFinite(r)) continue;
+    n++; rSum += r;
+    const cap = Number(s.marketCap);
+    if (Number.isFinite(cap) && cap > 0) { wSum += r * cap; capSum += cap; }
+  }
+  return {
+    avgWeighted: capSum > 0 ? wSum / capSum : 0,
+    avgSimple: n > 0 ? rSum / n : 0,
+    avgCount: n,
+  };
+}
+
 export async function buildSectorBoard() {
   const [kospi, kosdaq] = await Promise.all([fetchMarket("KOSPI"), fetchMarket("KOSDAQ")]);
   const quotes = [...kospi, ...kosdaq];
@@ -120,7 +137,8 @@ export async function buildSectorBoard() {
     for (const min of maj.소분류) {
       const list = (cellMap.get(min.name) ?? []).slice().sort((a, b) => b.marketCap - a.marketCap);
       totalEntries += list.length;
-      subs.push({ name: min.name, count: list.length, stocks: list });
+      const { avgWeighted, avgSimple, avgCount } = sectorAverages(list);
+      subs.push({ name: min.name, count: list.length, avgWeighted, avgSimple, avgCount, stocks: list });
     }
     board.push({ name: maj.name, 소분류: subs });
   }

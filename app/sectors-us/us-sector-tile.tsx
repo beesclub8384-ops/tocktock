@@ -13,7 +13,18 @@ export interface UsSector {
   name: string; // GICS 영문
   nameKo: string; // 한글
   count: number;
+  avgWeighted?: number; // 시총가중 등락 %
+  avgSimple?: number; // 단순평균 등락 %
+  avgCount?: number; // 평균 계산에 쓴 종목수
   stocks: UsStock[];
+}
+
+/* 헤더 배경 tint — 시총가중 등락 기준(양수 빨강/음수 파랑), |등락| ±3%에서 최대 진하기 */
+function headerTint(w: number): string {
+  if (!Number.isFinite(w) || w === 0) return "transparent";
+  const mag = Math.min(Math.abs(w) / 3, 1); // 0..1
+  const alpha = (0.05 + mag * 0.25).toFixed(3); // 0.05 ~ 0.30 (텍스트 대비 유지)
+  return w > 0 ? `rgba(220,38,38,${alpha})` : `rgba(37,99,235,${alpha})`;
 }
 
 /* ── 단위 변환 (USD → $B / $M) ── */
@@ -56,11 +67,24 @@ function StockRow({ s }: { s: UsStock }) {
 
 /* 전종목 펼침 타일 — 메이슨리(CSS columns) 안에서 break-inside-avoid로 한 열에 유지 */
 export function UsSectorTile({ sub }: { sub: UsSector }) {
+  const w = sub.avgWeighted ?? 0;
+  const s = sub.avgSimple ?? 0;
   return (
-    <div className="mb-4 break-inside-avoid rounded-lg border border-border bg-card p-4">
-      <div className="mb-2 flex items-baseline justify-between gap-2 border-b border-border pb-2">
-        <h3 className="min-w-0 truncate text-sm font-semibold">{sub.nameKo || sub.name}</h3>
-        <span className="shrink-0 text-xs text-muted-foreground">{sub.count}종목</span>
+    <div className="mb-4 break-inside-avoid overflow-hidden rounded-lg border border-border bg-card p-4">
+      <div
+        className="-mx-4 -mt-4 mb-2 border-b border-border px-4 pb-2 pt-4"
+        style={{ backgroundColor: headerTint(w) }}
+      >
+        <div className="flex items-baseline justify-between gap-2">
+          <h3 className="min-w-0 truncate text-sm font-semibold">{sub.nameKo || sub.name}</h3>
+          <span className="shrink-0 text-xs text-muted-foreground">{sub.count}종목</span>
+        </div>
+        <div className="mt-1 flex items-center gap-1.5 text-xs tabular-nums">
+          <span className="text-muted-foreground">시총</span>
+          <span className={changeClass(w)}>{fmtRate(w)}</span>
+          <span className="text-muted-foreground">· 평균</span>
+          <span className={changeClass(s)}>{fmtRate(s)}</span>
+        </div>
       </div>
       {sub.stocks.length === 0 ? (
         <p className="text-xs text-muted-foreground">종목 없음</p>

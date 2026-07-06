@@ -73,6 +73,25 @@ async function fetchMarket(market) {
   return out;
 }
 
+// ── 섹터 평균 등락 계산 (시총가중 + 단순평균) ──
+// 시총가중 = Σ(changeRate×marketCap)/Σ(marketCap), 시총 없는 종목 제외
+// 단순평균 = Σ(changeRate)/유효종목수, changeRate 없는 종목 제외
+function sectorAverages(stocks) {
+  let wSum = 0, capSum = 0, rSum = 0, n = 0;
+  for (const s of stocks) {
+    const r = Number(s.changeRate);
+    if (!Number.isFinite(r)) continue;
+    n++; rSum += r;
+    const cap = Number(s.marketCap);
+    if (Number.isFinite(cap) && cap > 0) { wSum += r * cap; capSum += cap; }
+  }
+  return {
+    avgWeighted: capSum > 0 ? wSum / capSum : 0,
+    avgSimple: n > 0 ? rSum / n : 0,
+    avgCount: n,
+  };
+}
+
 async function main() {
   console.log("1) 네이버 전종목 시세 수집...");
   const [kospi, kosdaq] = await Promise.all([fetchMarket("KOSPI"), fetchMarket("KOSDAQ")]);
@@ -107,7 +126,8 @@ async function main() {
       const list = cellMap.get(min.name);
       list.sort((a, b) => b.marketCap - a.marketCap);
       totalEntries += list.length;
-      subs.push({ name: min.name, count: list.length, stocks: list });
+      const { avgWeighted, avgSimple, avgCount } = sectorAverages(list);
+      subs.push({ name: min.name, count: list.length, avgWeighted, avgSimple, avgCount, stocks: list });
     }
     board.대분류.push({ name: maj.name, 소분류: subs });
   }
@@ -132,5 +152,14 @@ async function main() {
   const semi = it.소분류.find((s) => s.name === "반도체-메모리");
   console.log("\n검증 — IT>반도체-메모리 시총순 top3:");
   semi.stocks.slice(0, 3).forEach((s) => console.log(`   ${s.name}(${s.code}) 시총 ${(s.marketCap / 1e12).toFixed(1)}조 등락 ${s.changeRate}% 거래대금 ${(s.tradingValue / 1e8).toFixed(0)}억`));
+  console.log(`   → 반도체-메모리 시총가중 ${semi.avgWeighted.toFixed(2)}% / 단순평균 ${semi.avgSimple.toFixed(2)}% (계산종목 ${semi.avgCount})`);
+  // 평균 붙은 섹터 수 + 샘플 몇 개
+  const allSubs = board.대분류.flatMap((m) => m.소분류);
+  const withAvg = allSubs.filter((s) => s.avgCount > 0);
+  console.log(`\n평균 계산된 섹터: ${withAvg.length}/${allSubs.length}`);
+  for (const nm of ["반도체-메모리", "제약-전문의약품", "건설-건축·주택", "의료기기-미용·피부"]) {
+    const s = allSubs.find((x) => x.name === nm);
+    if (s) console.log(`   ${nm}: 시총가중 ${s.avgWeighted.toFixed(2)}% / 단순 ${s.avgSimple.toFixed(2)}% (${s.avgCount}종목)`);
+  }
 }
 main().then(() => process.exit(0)).catch((e) => { console.error("실패:", e); process.exit(1); });

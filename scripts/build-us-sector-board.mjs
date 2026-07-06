@@ -41,7 +41,7 @@ async function fetchSP500() {
   })).text();
   const s = html.indexOf('id="constituents"');
   const tbl = html.slice(s, html.indexOf("</table>", s));
-  const rows = tbl.split("<tr>").slice(2);
+  const rows = tbl.split(/<tr[^>]*>/).slice(2); // 위키가 <tr>→<tr 속성...>로 바뀌어도 대응
   const out = [];
   for (const r of rows) {
     const cells = [...r.matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/g)].map((m) =>
@@ -69,6 +69,23 @@ async function fetchQuotes(yahooTickers) {
     for (const q of arr || []) if (q?.symbol) map.set(q.symbol, q);
   }
   return map;
+}
+
+// ── 섹터 평균 등락 (시총가중 + 단순평균). lib/us-sector-board.ts와 동일 로직 ──
+function sectorAverages(stocks) {
+  let wSum = 0, capSum = 0, rSum = 0, n = 0;
+  for (const s of stocks) {
+    const r = Number(s.changeRate);
+    if (!Number.isFinite(r)) continue;
+    n++; rSum += r;
+    const cap = Number(s.marketCap);
+    if (Number.isFinite(cap) && cap > 0) { wSum += r * cap; capSum += cap; }
+  }
+  return {
+    avgWeighted: capSum > 0 ? wSum / capSum : 0,
+    avgSimple: n > 0 ? rSum / n : 0,
+    avgCount: n,
+  };
 }
 
 async function main() {
@@ -106,7 +123,8 @@ async function main() {
   const 산업그룹 = [];
   for (const [g, stocks] of byGroup) {
     stocks.sort((a, b) => b.marketCap - a.marketCap);
-    산업그룹.push({ name: g, nameKo: GROUP_KO[g] || g, count: stocks.length, stocks });
+    const { avgWeighted, avgSimple, avgCount } = sectorAverages(stocks);
+    산업그룹.push({ name: g, nameKo: GROUP_KO[g] || g, count: stocks.length, avgWeighted, avgSimple, avgCount, stocks });
   }
   산업그룹.sort((a, b) => b.stocks.reduce((s, x) => s + x.marketCap, 0) - a.stocks.reduce((s, x) => s + x.marketCap, 0));
 
@@ -132,5 +150,11 @@ async function main() {
   }
   const brk = flat.find((x) => x.ticker === "BRK.B");
   console.log("  BRK.B 조인:", brk ? `OK → ${brk.g}` : "❌ 없음");
+  const withAvg = 산업그룹.filter((s) => s.avgCount > 0);
+  console.log(`\n평균 계산된 산업그룹: ${withAvg.length}/${산업그룹.length}`);
+  for (const nm of ["Semiconductors & Semiconductor Equipment", "Banks", "Technology Hardware & Equipment"]) {
+    const s = 산업그룹.find((x) => x.name === nm);
+    if (s) console.log(`   ${s.nameKo}(${nm}): 시총가중 ${s.avgWeighted.toFixed(2)}% / 단순 ${s.avgSimple.toFixed(2)}% (${s.avgCount}종목)`);
+  }
 }
 main().then(() => process.exit(0)).catch((e) => { console.error("실패:", e.message); process.exit(1); });
