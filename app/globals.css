@@ -764,3 +764,31 @@
   color: rgba(255, 255, 255, 0.6);
   line-height: 1.8;
 }
+
+/* ── 클릭 가능한 요소: 밝은 붉은색 화살표 커서 ──
+   인라인 SVG(#FF2D2D, 흰 외곽선) data URI. 화살표 촉 끝(4,4)을 hotspot으로 지정 → 실제 클릭 지점.
+   SVG 로드 실패 시 fallback으로 기본 pointer(손가락) 유지. 클릭 불가 영역은 기본 커서 그대로.
+   모바일은 터치라 커서 개념 없음 → 영향 없음. */
+a,
+button,
+[role="button"],
+label,
+select,
+summary,
+input[type="submit"],
+input[type="button"],
+input[type="checkbox"],
+input[type="radio"],
+input[type="reset"],
+.cursor-pointer {
+  cursor: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='32'%20height='32'%20viewBox='0%200%2032%2032'%3E%3Cpath%20d='M4%204%20L4%2026%20L10%2020%20L14%2028%20L17.5%2026.5%20L13.5%2018.5%20L21%2018.5%20Z'%20fill='%23FF2D2D'%20stroke='%23ffffff'%20stroke-width='1.5'%20stroke-linejoin='round'/%3E%3C/svg%3E") 4 4, pointer;
+}
+
+/* 비활성 요소는 붉은 화살표 대신 not-allowed 유지 */
+a[aria-disabled="true"],
+button:disabled,
+[role="button"][aria-disabled="true"],
+input:disabled,
+.cursor-not-allowed {
+  cursor: not-allowed;
+}
