@@ -48,7 +48,7 @@ export default async function SectorsUsPage() {
 
       <SectorTabs active="us" />
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+      <div className="columns-1 gap-4 md:columns-2 lg:columns-3">
         {data.산업그룹.map((g) => (
           <UsSectorTile key={g.name} sub={g} />
         ))}

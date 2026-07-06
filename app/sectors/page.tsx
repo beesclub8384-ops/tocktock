@@ -57,7 +57,7 @@ export default async function SectorsPage() {
         {data.대분류.map((maj) => (
           <section key={maj.name}>
             <h2 className="mb-3 text-lg font-bold">{maj.name}</h2>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div className="columns-1 gap-4 md:columns-2 lg:columns-3">
               {maj.소분류.map((sub) => (
                 <SectorTile key={sub.name} sub={sub} />
               ))}
