@@ -2,10 +2,12 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { InvestmentQuoteBanner } from "@/components/investment-quote-banner";
 
 const navLinks = [
+  { href: "/sectors", label: "섹터별 현황" },
   { href: "/news", label: "뉴스" },
   { href: "/calendar", label: "주요 일정" },
   { href: "/credit", label: "빚투" },
@@ -13,7 +15,6 @@ const navLinks = [
   { href: "/economics", label: "경제공부" },
   { href: "/foreign-ownership", label: "외국인 지분율" },
   { href: "/investor-flow", label: "투자자 동향 추적" },
-  { href: "/sectors", label: "섹터별 현황" },
   { href: "/global-indicators", label: "글로벌 지표" },
   { href: "/liquidity/us", label: "미국 유동성" },
   { href: "/liquidity/global", label: "글로벌 유동성" },
@@ -34,6 +35,7 @@ type NavItem =
   | { type: "dropdown"; label: string; id: string; items: { href: string; label: string }[] };
 
 const pcNavItems: NavItem[] = [
+  { type: "link", href: "/sectors", label: "섹터별 현황" },
   { type: "link", href: "/news", label: "뉴스" },
   { type: "link", href: "/calendar", label: "주요 일정" },
   { type: "link", href: "/credit", label: "빚투" },
@@ -41,7 +43,6 @@ const pcNavItems: NavItem[] = [
   { type: "link", href: "/economics", label: "경제공부" },
   { type: "link", href: "/foreign-ownership", label: "외국인 지분율" },
   { type: "link", href: "/investor-flow", label: "투자자 동향 추적" },
-  { type: "link", href: "/sectors", label: "섹터별 현황" },
   { type: "link", href: "/global-indicators", label: "글로벌 지표" },
   {
     type: "dropdown",
@@ -84,21 +85,35 @@ const pcNavItems: NavItem[] = [
   },
 ];
 
+// 현재 경로가 메뉴 항목과 일치하는지 (섹터별 현황은 한국/미국 탭 둘 다 활성)
+function isActivePath(pathname: string, href: string): boolean {
+  if (href === "/sectors") return pathname === "/sectors" || pathname === "/sectors-us";
+  return pathname === href;
+}
+
+// 활성/비활성 알약 스타일 (데스크탑 가로 메뉴·드롭다운 버튼 공용)
+const ACTIVE_PILL =
+  "rounded-full bg-primary/10 font-semibold text-primary hover:bg-primary/15 hover:text-primary";
+const INACTIVE_PILL = "text-muted-foreground";
+
 function NavDropdown({
   label,
   items,
   openId,
   id,
   onToggle,
+  pathname,
 }: {
   label: string;
   items: { href: string; label: string }[];
   openId: string | null;
   id: string;
   onToggle: (id: string) => void;
+  pathname: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const isOpen = openId === id;
+  const groupActive = items.some((it) => isActivePath(pathname, it.href));
 
   return (
     <div ref={ref} className="relative">
@@ -106,7 +121,7 @@ function NavDropdown({
         variant="ghost"
         size="sm"
         onClick={() => onToggle(id)}
-        className="whitespace-nowrap"
+        className={`whitespace-nowrap ${groupActive ? ACTIVE_PILL : ""}`}
       >
         {label} ▾
       </Button>
@@ -116,7 +131,9 @@ function NavDropdown({
             <Link
               key={href}
               href={href}
-              className="block px-4 py-2 text-sm transition-colors hover:bg-accent whitespace-nowrap"
+              className={`block px-4 py-2 text-sm transition-colors hover:bg-accent whitespace-nowrap ${
+                isActivePath(pathname, href) ? "bg-primary/10 font-semibold text-primary" : ""
+              }`}
               onClick={() => onToggle("")}
             >
               {itemLabel}
@@ -133,6 +150,7 @@ export function Navbar() {
   const [visible, setVisible] = useState(false);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const pcNavRef = useRef<HTMLElement>(null);
+  const pathname = usePathname() ?? "";
 
   const toggleDropdown = useCallback((id: string) => {
     setOpenDropdown((prev) => (prev === id ? null : id));
@@ -180,7 +198,13 @@ export function Navbar() {
           <nav ref={pcNavRef} className="hidden md:flex items-center gap-1 flex-1 min-w-0">
             {pcNavItems.map((item) =>
               item.type === "link" ? (
-                <Button key={item.href} variant="ghost" size="sm" asChild>
+                <Button
+                  key={item.href}
+                  variant="ghost"
+                  size="sm"
+                  asChild
+                  className={isActivePath(pathname, item.href) ? ACTIVE_PILL : INACTIVE_PILL}
+                >
                   <Link href={item.href}>{item.label}</Link>
                 </Button>
               ) : (
@@ -191,6 +215,7 @@ export function Navbar() {
                   items={item.items}
                   openId={openDropdown}
                   onToggle={toggleDropdown}
+                  pathname={pathname}
                 />
               )
             )}
@@ -243,7 +268,11 @@ export function Navbar() {
               <Link
                 key={href}
                 href={href}
-                className="block px-6 py-4 text-base font-medium border-b border-zinc-100 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900 active:text-blue-600 dark:active:text-blue-400 transition-colors"
+                className={`block border-b border-zinc-100 px-6 py-4 text-base transition-colors dark:border-zinc-800 ${
+                  isActivePath(pathname, href)
+                    ? "bg-primary/10 font-semibold text-primary"
+                    : "font-medium hover:bg-zinc-50 active:text-blue-600 dark:hover:bg-zinc-900 dark:active:text-blue-400"
+                }`}
                 onClick={() => setIsOpen(false)}
               >
                 {label}
