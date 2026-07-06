@@ -1,3 +1,5 @@
+import { BizAreaIcon } from "./biz-area";
+
 /* ── 타입 (Redis sector-board:data 구조와 동일) ── */
 export interface SectorStock {
   code: string;
@@ -46,11 +48,11 @@ function fmtRate(rate: number): string {
 function StockRow({ s }: { s: SectorStock }) {
   return (
     <li className="flex items-center gap-2 text-xs">
-      <span
-        className="min-w-0 flex-1 truncate"
-        title={`${s.name} · 시총 ${fmtKRW(s.marketCap)}`}
-      >
-        {s.name}
+      <span className="flex min-w-0 flex-1 items-center gap-1">
+        <span className="truncate" title={`${s.name} · 시총 ${fmtKRW(s.marketCap)}`}>
+          {s.name}
+        </span>
+        <BizAreaIcon code={s.code} name={s.name} />
       </span>
       <span className={`w-16 shrink-0 text-right tabular-nums ${changeClass(s.changeRate)}`}>
         {fmtRate(s.changeRate)}
