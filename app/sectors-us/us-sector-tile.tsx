@@ -79,10 +79,10 @@ export function UsSectorTile({ sub }: { sub: UsSector }) {
           <h3 className="min-w-0 truncate text-sm font-semibold">{sub.nameKo || sub.name}</h3>
           <span className="shrink-0 text-xs text-muted-foreground">{sub.count}종목</span>
         </div>
-        <div className="mt-1 flex items-center gap-1.5 text-xs tabular-nums">
-          <span className="text-muted-foreground">시총</span>
+        <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs tabular-nums">
+          <span className="text-[11px] text-muted-foreground">시총 가중치 적용</span>
           <span className={changeClass(w)}>{fmtRate(w)}</span>
-          <span className="text-muted-foreground">· 평균</span>
+          <span className="text-[11px] text-muted-foreground">· 단순평균</span>
           <span className={changeClass(s)}>{fmtRate(s)}</span>
         </div>
       </div>
