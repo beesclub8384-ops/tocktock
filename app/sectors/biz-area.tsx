@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Layers, X } from "lucide-react";
 
 /* ── 사업영역 데이터 (종목코드 → 부문 목록). 회사 추가는 여기에 한 줄씩 ── */
-type BizDivision = { title: string; body: string };
+type BizDivision = { title: string; body: string; note?: string };
 
 const BIZ_AREAS: Record<string, BizDivision[]> = {
   // 삼성물산(028260)
@@ -189,7 +189,71 @@ const BIZ_AREAS: Record<string, BizDivision[]> = {
       body: "자유단조를 중심으로 한 단조사업이 매출·이익의 핵심 축이고, 그 안에서도 풍력발전·오일&가스·발전·조선향 대형 단조부품 비중이 크며, 제강은 단조용 원소재 내재화 역할이 크고 원전·SMR·우주항공은 아직은 비중이 작지만 고부가 성장축으로 키우는 단계로 보면 된다.",
     },
   ],
+  // KG스틸(016380)
+  "016380": [
+    {
+      title: "열연강판",
+      body: "전기로 기반 열연 공정을 통해 자동차·건설·산업용에 쓰이는 열연코일·판재 등을 생산·판매하며, 스크랩을 원료로 연간 수백만 톤 규모의 열연강판을 공급.",
+      note: "KG스틸(옛 동부제철)은 2009년 당진에 전기로 열연설비를 세웠으나 2014년 가동을 중단했다. 이 설비는 이후 해외 철강사에 매각됐고, 현재 KG스틸은 열연강판을 직접 생산하지 않는다. 지금은 외부에서 열연코일을 사와 냉연·표면처리·컬러강판을 만드는 원료로 사용한다. 위 설명은 과거 생산 이력을 포함한 것이다.",
+    },
+    {
+      title: "냉연강판",
+      body: "자동차 차체, 가전제품 외장, 일반 공업용 등에 사용되는 냉연강판을 생산·판매하며, 당진 공장 중심으로 열연을 냉간압연해 고품질 박판 강재를 공급.",
+    },
+    {
+      title: "표면처리강판(아연도금강판·석도강판 등)",
+      body: "자동차 머플러·건축용 지붕·벽체 등에 쓰이는 아연도금강판, 식음료·식품·오일 캔 등에 쓰이는 석도강판(주석도금강판) 등 부식 방지·가공성이 필요한 표면처리 강판을 제조·판매.",
+    },
+    {
+      title: "컬러강판(X-TONE 등)",
+      body: "건축 내·외장재, 가전(냉장고·세탁기·에어컨 등), 쇼케이스 등에 사용되는 컬러코팅강판(X-TONE 브랜드 등)을 인천 공장 중심으로 생산·판매하며, 프리미엄 디자인·내식성을 앞세운 고부가 제품에 주력.",
+    },
+    {
+      title: "강관·형강 및 기타 철강제품",
+      body: "구조용·배관용 강관, 일부 형강 등 다양한 중소형 철강제품을 생산·판매하며, 건축·토목·산업용 자재 수요에 대응.",
+    },
+    {
+      title: "항만·물류·임대 및 기타 사업",
+      body: "항만하역, 화물 보관관리, 임대·운송 등 항만·물류 서비스와 부대설비 임대, 금속산화물 제조 및 부산물(철스크랩 등) 판매 등 철강주변 기타 사업.",
+    },
+    {
+      title: "매출 비중",
+      body: "열연·냉연·표면처리강판·컬러강판을 포함한 철강본업이 매출의 대부분(90% 이상)을 차지하는 핵심 축이고, 이 중에서도 냉연·표면처리·컬러강판 같은 고부가 판재 비중이 크며, 항만·물류·임대·부산물 매출은 규모는 작지만 수익성 보완용 보조 축으로 보면 된다.",
+    },
+  ],
 };
+
+/* 부문 블록 — note가 있으면 제목 옆 "?" 버튼으로 보조설명을 블록마다 독립 토글 */
+function DivisionBlock({ d }: { d: BizDivision }) {
+  const [noteOpen, setNoteOpen] = useState(false);
+  return (
+    <div>
+      <h3 className="mb-1.5 flex items-center gap-1.5 text-sm font-semibold">
+        {d.title}
+        {d.note && (
+          <button
+            type="button"
+            onClick={() => setNoteOpen((v) => !v)}
+            aria-label="보조설명"
+            aria-expanded={noteOpen}
+            title="보조설명"
+            className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-border text-[10px] font-bold leading-none text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            ?
+          </button>
+        )}
+      </h3>
+      <p className="border-l-2 border-border pl-3 text-xs leading-relaxed text-muted-foreground">
+        {d.body}
+      </p>
+      {d.note && noteOpen && (
+        <p className="ml-3 mt-1.5 rounded border-l-2 border-border bg-muted/50 px-3 py-2 text-[11px] leading-relaxed text-muted-foreground">
+          {d.note}
+        </p>
+      )}
+    </div>
+  );
+}
 
 function BizAreaModal({
   name,
@@ -235,12 +299,7 @@ function BizAreaModal({
         </div>
         <div className="space-y-4 overflow-y-auto px-5 py-4">
           {divisions.map((d) => (
-            <div key={d.title}>
-              <h3 className="mb-1.5 text-sm font-semibold">{d.title}</h3>
-              <p className="border-l-2 border-border pl-3 text-xs leading-relaxed text-muted-foreground">
-                {d.body}
-              </p>
-            </div>
+            <DivisionBlock key={d.title} d={d} />
           ))}
         </div>
       </div>
