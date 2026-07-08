@@ -4,48 +4,38 @@ import { useState, useEffect } from "react";
 import { Layers, X } from "lucide-react";
 
 /* ── 사업영역 데이터 (종목코드 → 부문 목록). 회사 추가는 여기에 한 줄씩 ── */
-type BizDivision = { title: string; items: { label: string; desc: string }[] };
+type BizDivision = { title: string; body: string };
 
 const BIZ_AREAS: Record<string, BizDivision[]> = {
   // 삼성물산(028260)
   "028260": [
     {
-      title: "1. 건설부문",
-      items: [
-        { label: "건축", desc: "초고층 빌딩, 상업시설, 병원, 데이터센터 등" },
-        { label: "토목", desc: "도로, 철도, 항만, 교량 같은 인프라" },
-        { label: "플랜트", desc: "발전소, 석유·가스·석유화학 플랜트, 산업 플랜트 EPC" },
-        { label: "주택", desc: "래미안 브랜드 중심 아파트·주거 개발" },
-      ],
+      title: "건설",
+      body: "건축·주거(래미안 아파트 등), 인프라(도로·철도·항만·교량), 플랜트(발전·석유·가스·석유화학·산업 플랜트), 하이테크 시설(반도체·디스플레이 공장, 데이터센터 등) EPC·개발 사업.",
     },
     {
-      title: "2. 상사부문(무역·자원)",
-      items: [
-        { label: "화학·비료", desc: "비료, 화학소재, 합성수지 등 트레이딩" },
-        { label: "철강·소재", desc: "탄소강, 스테인리스, 비철금속 등 글로벌 트레이딩" },
-        { label: "에너지·자원", desc: "석탄·가스·바이오매스, 팜농장, 바이오연료 등" },
-        {
-          label: "인프라·신사업",
-          desc: "병원·항만·전자정부 등 인프라 프로젝트, 2차전지 원료, 친환경·수소·암모니아 등 신사업",
-        },
-      ],
+      title: "상사(무역)",
+      body: "화학·비료·에너지·철강·비철·소재 등의 글로벌 트레이딩, 자원·인프라 프로젝트 투자, 수소·암모니아·그린에너지·2차전지 원료·태양광·SMR 등 신사업 관련 물량·프로젝트 사업.",
     },
     {
-      title: "3. 패션부문",
-      items: [
-        { label: "의류 브랜드", desc: "빈폴, 갤럭시, 에잇세컨즈, 준지 등 브랜드 보유" },
-        { label: "유통 채널", desc: "오프라인 매장 + 온라인·D2C(직접판매) 강화" },
-      ],
+      title: "패션",
+      body: "빈폴·갤럭시·준지·에잇세컨즈 등 의류·패션 브랜드 기획·제조·유통, 오프라인 매장과 온라인몰·자사몰을 통한 리테일 사업.",
     },
     {
-      title: "4. 리조트·기타",
-      items: [
-        { label: "리조트", desc: "에버랜드, 캐리비안베이, 골프장, 테마파크 운영" },
-        {
-          label: "기타",
-          desc: "정원·전시·웨딩 등 레저 부가사업, 삼성바이오로직스 등 바이오 지분 보유(지주 성격)",
-        },
-      ],
+      title: "리조트",
+      body: "에버랜드·캐리비안베이·골프장 등 테마파크·레저 시설 운영, 정원·전시·동물원, 콘도·리조트 및 웨딩·MICE 등 레저·엔터테인먼트 서비스.",
+    },
+    {
+      title: "급식·식자재 유통",
+      body: "삼성웰스토리 중심 사업장·학교·병원·공공기관 대상 단체급식 운영, 식자재 구매·유통 및 관련 B2B 서비스.",
+    },
+    {
+      title: "바이오",
+      body: "삼성바이오로직스·삼성바이오에피스 지분을 통한 바이오의약품 CMO(위탁생산)와 바이오시밀러 개발·판매에서 발생하는 지분법이익·배당 등 바이오 부문 수익.",
+    },
+    {
+      title: "매출 비중",
+      body: "건설과 상사, 바이오(자회사 실적 반영)가 실적의 핵심 축이고, 패션·리조트·급식은 상대적으로 비중이 작은 라이프스타일/서비스 축으로 보는 편이 이해에 편하다.",
     },
   ],
 };
@@ -96,14 +86,9 @@ function BizAreaModal({
           {divisions.map((d) => (
             <div key={d.title}>
               <h3 className="mb-1.5 text-sm font-semibold">{d.title}</h3>
-              <ul className="space-y-1 border-l-2 border-border pl-3">
-                {d.items.map((it) => (
-                  <li key={it.label} className="text-xs leading-relaxed">
-                    <span className="font-medium">{it.label}</span>
-                    <span className="text-muted-foreground"> · {it.desc}</span>
-                  </li>
-                ))}
-              </ul>
+              <p className="border-l-2 border-border pl-3 text-xs leading-relaxed text-muted-foreground">
+                {d.body}
+              </p>
             </div>
           ))}
         </div>
