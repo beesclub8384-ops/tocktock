@@ -5,7 +5,24 @@ import { DayTradeRecord, StockName, computeMetrics, computeStats, formatHolding 
 const STOCKS: StockName[] = ['삼성전자', '하이닉스'];
 type StockFilter = '전체' | StockName;
 const FILTERS: StockFilter[] = ['전체', '삼성전자', '하이닉스'];
-const emptyForm = { date: '', stock: '삼성전자' as StockName, buyTime: '', buyPrice: '', quantity: '', sellTime: '', sellPrice: '', memo: '' };
+// 브라우저 시간대와 무관하게 항상 한국시간(KST) 기준 날짜/시각 반환
+function kstNow(): { date: string; time: string } {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Seoul',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hour12: false,
+  }).formatToParts(new Date());
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? '';
+  let hour = get('hour');
+  if (hour === '24') hour = '00'; // 일부 환경에서 자정이 '24'로 나오는 경우 보정
+  return { date: `${get('year')}-${get('month')}-${get('day')}`, time: `${hour}:${get('minute')}` };
+}
+
+// 매번 신선한 KST 기본값으로 폼 생성 (종목은 인자로 유지 가능)
+function makeInitialForm(stock: StockName = '삼성전자') {
+  const { date, time } = kstNow();
+  return { date, stock, buyTime: time, buyPrice: '', quantity: '', sellTime: time, sellPrice: '', memo: '' };
+}
 
 // 한국식 색상: 이익=빨강, 손실=파랑, 0=회색 (라이트/다크 모두 대응)
 function pnlColor(n: number): string {
@@ -17,7 +34,7 @@ const MONO = { fontFamily: "'DM Mono', monospace" } as const;
 
 export default function DayTradingPage() {
   const [records, setRecords] = useState<DayTradeRecord[]>([]);
-  const [form, setForm] = useState({ ...emptyForm });
+  const [form, setForm] = useState(() => makeInitialForm());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -44,7 +61,7 @@ export default function DayTradingPage() {
       const d = await res.json();
       if (!res.ok) { setError(d.error ?? '저장 실패'); return; }
       setRecords(d.records ?? []);
-      setForm({ ...emptyForm, date: form.date, stock: form.stock });
+      setForm(makeInitialForm(form.stock));
     } finally { setSaving(false); }
   }
 
