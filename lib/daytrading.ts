@@ -40,3 +40,53 @@ export function formatHolding(mins: number | null): string {
   const h = Math.floor(mins / 60); const m = mins % 60;
   return h === 0 ? m + '분' : h + '시간 ' + m + '분';
 }
+
+export interface AggregateStats {
+  count: number; wins: number; losses: number; draws: number;
+  winRate: number;            // %
+  avgWin: number;             // 원 (이긴 매매 평균 순손익)
+  avgLoss: number;            // 원 (진 매매 평균 순손익, 양수)
+  payoffRatio: number | null; // 손익비 = avgWin / avgLoss
+  avgNetProfit: number;       // 원, 1회당 평균 순손익 (기대값)
+  avgNetReturn: number;       // %, 1회당 평균 순수익률 (기대값)
+  cumulativeNet: number;      // 누적 순손익
+  totalCost: number;          // 누적 비용(수수료+세금)
+  mdd: number;                // 원, 누적손익 고점 대비 최대 낙폭
+  mddPct: number;             // % (고점 대비)
+}
+
+export function computeStats(records: DayTradeRecord[]): AggregateStats {
+  const empty: AggregateStats = { count: 0, wins: 0, losses: 0, draws: 0, winRate: 0, avgWin: 0, avgLoss: 0, payoffRatio: null, avgNetProfit: 0, avgNetReturn: 0, cumulativeNet: 0, totalCost: 0, mdd: 0, mddPct: 0 };
+  if (!records.length) return empty;
+  const sorted = [...records].sort((a, b) => {
+    if (a.date !== b.date) return a.date < b.date ? -1 : 1;
+    if ((a.buyTime || '') !== (b.buyTime || '')) return (a.buyTime || '') < (b.buyTime || '') ? -1 : 1;
+    return a.createdAt - b.createdAt;
+  });
+  let wins = 0, losses = 0, draws = 0, sumWin = 0, sumLoss = 0;
+  let sumNet = 0, sumReturn = 0, totalCost = 0;
+  let equity = 0, peak = 0, mdd = 0, mddPct = 0;
+  for (const r of sorted) {
+    const m = computeMetrics(r);
+    sumNet += m.netProfit; sumReturn += m.netReturn; totalCost += m.totalCost;
+    if (m.netProfit > 0) { wins++; sumWin += m.netProfit; }
+    else if (m.netProfit < 0) { losses++; sumLoss += -m.netProfit; }
+    else draws++;
+    equity += m.netProfit;
+    if (equity > peak) peak = equity;
+    const dd = peak - equity;
+    if (dd > mdd) { mdd = dd; mddPct = peak > 0 ? (dd / peak) * 100 : 0; }
+  }
+  const count = sorted.length;
+  const avgWin = wins ? sumWin / wins : 0;
+  const avgLoss = losses ? sumLoss / losses : 0;
+  return {
+    count, wins, losses, draws,
+    winRate: count ? (wins / count) * 100 : 0,
+    avgWin, avgLoss,
+    payoffRatio: avgLoss > 0 ? avgWin / avgLoss : null,
+    avgNetProfit: count ? sumNet / count : 0,
+    avgNetReturn: count ? sumReturn / count : 0,
+    cumulativeNet: sumNet, totalCost, mdd, mddPct,
+  };
+}

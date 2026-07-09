@@ -1,8 +1,10 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { DayTradeRecord, StockName, computeMetrics, formatHolding } from '@/lib/daytrading';
+import { DayTradeRecord, StockName, computeMetrics, computeStats, formatHolding } from '@/lib/daytrading';
 
 const STOCKS: StockName[] = ['삼성전자', '하이닉스'];
+type StockFilter = '전체' | StockName;
+const FILTERS: StockFilter[] = ['전체', '삼성전자', '하이닉스'];
 const emptyForm = { date: '', stock: '삼성전자' as StockName, buyTime: '', buyPrice: '', quantity: '', sellTime: '', sellPrice: '', memo: '' };
 
 // 한국식 색상: 이익=빨강, 손실=파랑, 0=회색 (라이트/다크 모두 대응)
@@ -19,6 +21,7 @@ export default function DayTradingPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [filter, setFilter] = useState<StockFilter>('전체');
 
   async function fetchRecords() {
     setLoading(true);
@@ -61,8 +64,9 @@ export default function DayTradingPage() {
       })
     : null;
 
-  // 요약 바: 누적 순손익 합계
-  const totalNet = records.reduce((sum, r) => sum + computeMetrics(r).netProfit, 0);
+  // 종목 필터 적용 + 종합 성적표
+  const filtered = filter === '전체' ? records : records.filter((r) => r.stock === filter);
+  const stats = computeStats(filtered);
 
   const inputCls = 'w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-foreground/20';
   const labelCls = 'block text-xs text-muted-foreground mb-1';
@@ -76,20 +80,96 @@ export default function DayTradingPage() {
           <p className="mt-1 text-sm text-muted-foreground">삼성전자 · 하이닉스 당일 매매 기록 (키움 일반 수수료·세금 반영)</p>
         </header>
 
-        {/* 요약 바 */}
+        {/* 종목 필터 탭 + 종합 성적표 */}
         {records.length > 0 && (
-          <div className="flex flex-wrap items-center gap-x-8 gap-y-2 rounded-xl border border-border bg-card px-5 py-4">
-            <div>
-              <div className="text-xs text-muted-foreground">총 기록</div>
-              <div className="text-lg font-bold tabular-nums" style={MONO}>{records.length.toLocaleString()}건</div>
+          <section className="space-y-4">
+            <div className="flex gap-1">
+              {FILTERS.map((f) => (
+                <button
+                  key={f}
+                  type="button"
+                  onClick={() => setFilter(f)}
+                  aria-pressed={filter === f}
+                  className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                    filter === f
+                      ? 'bg-foreground/10 text-foreground border border-foreground/30'
+                      : 'bg-muted text-muted-foreground'
+                  }`}
+                >
+                  {f}
+                </button>
+              ))}
             </div>
-            <div>
-              <div className="text-xs text-muted-foreground">누적 순손익</div>
-              <div className={`text-lg font-bold tabular-nums ${pnlColor(totalNet)}`} style={MONO}>
-                {totalNet > 0 ? '+' : ''}{totalNet.toLocaleString()}원
-              </div>
+
+            <div className="rounded-xl border border-border bg-card p-5">
+              <h2 className="mb-4 text-lg font-bold">종합 성적표</h2>
+              {filtered.length === 0 ? (
+                <p className="text-sm text-muted-foreground">아직 데이터가 없습니다.</p>
+              ) : (
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                  {/* 총 매매 */}
+                  <div className="rounded-lg border border-border bg-background/50 p-3">
+                    <div className="text-xs text-muted-foreground">총 매매</div>
+                    <div className="mt-0.5 text-lg font-bold tabular-nums" style={MONO}>{stats.count.toLocaleString()}건</div>
+                    <div className="mt-0.5 text-xs tabular-nums">
+                      <span className="text-red-500 dark:text-red-400">승 {stats.wins}</span>
+                      <span className="text-muted-foreground"> · </span>
+                      <span className="text-blue-500 dark:text-blue-400">패 {stats.losses}</span>
+                      {stats.draws > 0 && <span className="text-muted-foreground"> · 무 {stats.draws}</span>}
+                    </div>
+                  </div>
+                  {/* 승률 */}
+                  <div className="rounded-lg border border-border bg-background/50 p-3">
+                    <div className="text-xs text-muted-foreground">승률</div>
+                    <div className="mt-0.5 text-lg font-bold tabular-nums" style={MONO}>{stats.winRate.toFixed(1)}%</div>
+                  </div>
+                  {/* 손익비 */}
+                  <div className="rounded-lg border border-border bg-background/50 p-3">
+                    <div className="text-xs text-muted-foreground">손익비</div>
+                    <div className="mt-0.5 text-lg font-bold tabular-nums" style={MONO}>
+                      {stats.payoffRatio === null ? '-' : stats.payoffRatio.toFixed(2)}
+                    </div>
+                  </div>
+                  {/* 기대값 (1회 평균) */}
+                  <div className="rounded-lg border border-border bg-background/50 p-3">
+                    <div className="text-xs text-muted-foreground">기대값 (1회 평균)</div>
+                    <div className={`mt-0.5 text-lg font-bold tabular-nums ${pnlColor(stats.avgNetProfit)}`} style={MONO}>
+                      {stats.avgNetProfit > 0 ? '+' : ''}{Math.round(stats.avgNetProfit).toLocaleString()}원
+                    </div>
+                    <div className={`mt-0.5 text-xs tabular-nums ${pnlColor(stats.avgNetReturn)}`} style={MONO}>
+                      {stats.avgNetReturn > 0 ? '+' : ''}{stats.avgNetReturn.toFixed(2)}%
+                    </div>
+                  </div>
+                  {/* 누적 순손익 */}
+                  <div className="rounded-lg border border-border bg-background/50 p-3">
+                    <div className="text-xs text-muted-foreground">누적 순손익</div>
+                    <div className={`mt-0.5 text-lg font-bold tabular-nums ${pnlColor(stats.cumulativeNet)}`} style={MONO}>
+                      {stats.cumulativeNet > 0 ? '+' : ''}{stats.cumulativeNet.toLocaleString()}원
+                    </div>
+                  </div>
+                  {/* 총 비용 */}
+                  <div className="rounded-lg border border-border bg-background/50 p-3">
+                    <div className="text-xs text-muted-foreground">총 비용 (수수료·세금)</div>
+                    <div className="mt-0.5 text-lg font-bold tabular-nums text-muted-foreground" style={MONO}>
+                      {stats.totalCost.toLocaleString()}원
+                    </div>
+                  </div>
+                  {/* MDD */}
+                  <div className="rounded-lg border border-border bg-background/50 p-3">
+                    <div className="text-xs text-muted-foreground">MDD (최대 낙폭)</div>
+                    <div className={`mt-0.5 text-lg font-bold tabular-nums ${stats.mdd > 0 ? 'text-blue-500 dark:text-blue-400' : 'text-muted-foreground'}`} style={MONO}>
+                      {stats.mdd > 0 ? '-' : ''}{stats.mdd.toLocaleString()}원
+                    </div>
+                    {stats.mdd > 0 && (
+                      <div className="mt-0.5 text-xs tabular-nums text-muted-foreground" style={MONO}>
+                        고점 대비 {stats.mddPct.toFixed(1)}%
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
+          </section>
         )}
 
         {/* 입력 폼 */}
@@ -206,6 +286,8 @@ export default function DayTradingPage() {
           <p className="text-sm text-muted-foreground">불러오는 중...</p>
         ) : records.length === 0 ? (
           <p className="text-sm text-muted-foreground">아직 기록이 없습니다. 첫 매매를 입력해 보세요.</p>
+        ) : filtered.length === 0 ? (
+          <p className="text-sm text-muted-foreground">선택한 종목의 기록이 없습니다.</p>
         ) : (
           <section className="space-y-4">
             {/* PC: 표 */}
@@ -225,7 +307,7 @@ export default function DayTradingPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {records.map((r) => {
+                  {filtered.map((r) => {
                     const m = computeMetrics(r);
                     const cls = pnlColor(m.netProfit);
                     const pos = m.netProfit >= 0;
@@ -268,7 +350,7 @@ export default function DayTradingPage() {
 
             {/* 모바일: 카드 */}
             <div className="space-y-3 md:hidden">
-              {records.map((r) => {
+              {filtered.map((r) => {
                 const m = computeMetrics(r);
                 const cls = pnlColor(m.netProfit);
                 const pos = m.netProfit >= 0;
