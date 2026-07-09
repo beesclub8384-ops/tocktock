@@ -58,7 +58,7 @@ export default function DayTradingPage() {
             <input type="time" value={form.sellTime} onChange={(e) => set('sellTime', e.target.value)} className="border rounded-lg px-2 py-1.5" /></label>
           <label className="flex flex-col text-sm"><span className="mb-1 text-gray-600">매도가</span>
             <input type="number" inputMode="numeric" value={form.sellPrice} onChange={(e) => set('sellPrice', e.target.value)} className="border rounded-lg px-2 py-1.5" placeholder="72500" /></label>
-          <label className="flex flex-col text-sm col-span-2 md:col-span-4"><span className="mb-1 text-gray-600">메모 (선택 — 왜 샀나)</span>
+          <label className="flex flex-col text-sm col-span-2 md:col-span-4"><span className="mb-1 text-gray-600">메모</span>
             <input type="text" value={form.memo} onChange={(e) => set('memo', e.target.value)} className="border rounded-lg px-2 py-1.5" placeholder="예: 장 초반 급등 눌림목" /></label>
         </div>
         {error && <p className="text-sm text-red-500 mt-3">{error}</p>}
