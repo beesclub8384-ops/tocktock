@@ -1,22 +1,10 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { DayTradeRecord, StockName, computeMetrics, computeStats, formatHolding } from '@/lib/daytrading';
+import { DayTradeRecord, StockName, computeMetrics, computeStats, formatHolding, kstNow } from '@/lib/daytrading';
 
 const STOCKS: StockName[] = ['삼성전자', '하이닉스'];
 type StockFilter = '전체' | StockName;
 const FILTERS: StockFilter[] = ['전체', '삼성전자', '하이닉스'];
-// 브라우저 시간대와 무관하게 항상 한국시간(KST) 기준 날짜/시각 반환
-function kstNow(): { date: string; time: string } {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Seoul',
-    year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit', hour12: false,
-  }).formatToParts(new Date());
-  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? '';
-  let hour = get('hour');
-  if (hour === '24') hour = '00'; // 일부 환경에서 자정이 '24'로 나오는 경우 보정
-  return { date: `${get('year')}-${get('month')}-${get('day')}`, time: `${hour}:${get('minute')}` };
-}
 
 // 매번 신선한 KST 기본값으로 폼 생성 (종목은 인자로 유지 가능)
 function makeInitialForm(stock: StockName = '삼성전자') {
@@ -45,7 +33,13 @@ export default function DayTradingPage() {
     try { const res = await fetch('/api/daytrading'); const d = await res.json(); setRecords(d.records ?? []); }
     finally { setLoading(false); }
   }
-  useEffect(() => { fetchRecords(); }, []);
+  useEffect(() => {
+    fetchRecords();
+    // 빠른 입력 팝업 등 다른 곳에서 기록이 추가되면 즉시 갱신
+    const onUpdated = () => fetchRecords();
+    window.addEventListener('daytrading:updated', onUpdated);
+    return () => window.removeEventListener('daytrading:updated', onUpdated);
+  }, []);
 
   const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }) as typeof form);
 

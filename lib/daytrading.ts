@@ -41,6 +41,19 @@ export function formatHolding(mins: number | null): string {
   return h === 0 ? m + '분' : h + '시간 ' + m + '분';
 }
 
+// 브라우저 시간대와 무관하게 항상 한국시간(KST) 기준 날짜/시각 반환
+export function kstNow(): { date: string; time: string } {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Seoul',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hour12: false,
+  }).formatToParts(new Date());
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? '';
+  let hour = get('hour');
+  if (hour === '24') hour = '00'; // 일부 환경에서 자정이 '24'로 나오는 경우 보정
+  return { date: `${get('year')}-${get('month')}-${get('day')}`, time: `${hour}:${get('minute')}` };
+}
+
 export interface AggregateStats {
   count: number; wins: number; losses: number; draws: number;
   winRate: number;            // %

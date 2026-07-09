@@ -6,6 +6,7 @@ import { Sidebar } from "@/components/sidebar";
 import { TradingViewButton } from "@/components/tradingview-button";
 import { SplashScreen } from "@/components/splash-screen";
 import { WeeklyCalendarModal } from "@/components/weekly-calendar-modal";
+import { DayTradeQuickAdd } from "@/components/DayTradeQuickAdd";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -58,6 +59,7 @@ export default function RootLayout({
         <Footer />
         <TradingViewButton />
         <WeeklyCalendarModal />
+        <DayTradeQuickAdd />
       </body>
     </html>
   );
