@@ -27,6 +27,7 @@ const navLinks = [
   { href: "/virtual-trading", label: "자동매매" },
   { href: "/ai-trading", label: "AI 자동매매" },
   { href: "/futures-trading", label: "선물매매 검증" },
+  { href: "/daytrading", label: "실전 단타 기록" },
 ];
 
 // PC 가로 메뉴 순서 (드롭다운 그룹 포함)
@@ -83,6 +84,7 @@ const pcNavItems: NavItem[] = [
       { href: "/futures-trading", label: "선물매매 검증" },
     ],
   },
+  { type: "link", href: "/daytrading", label: "실전 단타 기록" },
 ];
 
 // 현재 경로가 메뉴 항목과 일치하는지 (섹터별 현황은 한국/미국 탭 둘 다 활성)
