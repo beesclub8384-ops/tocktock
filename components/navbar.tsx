@@ -8,6 +8,7 @@ import { InvestmentQuoteBanner } from "@/components/investment-quote-banner";
 
 const navLinks = [
   { href: "/sectors", label: "섹터별 현황" },
+  { href: "/daytrading", label: "실전 단타 기록" },
   { href: "/news", label: "뉴스" },
   { href: "/calendar", label: "주요 일정" },
   { href: "/credit", label: "빚투" },
@@ -27,7 +28,6 @@ const navLinks = [
   { href: "/virtual-trading", label: "자동매매" },
   { href: "/ai-trading", label: "AI 자동매매" },
   { href: "/futures-trading", label: "선물매매 검증" },
-  { href: "/daytrading", label: "실전 단타 기록" },
 ];
 
 // PC 가로 메뉴 순서 (드롭다운 그룹 포함)
@@ -37,6 +37,7 @@ type NavItem =
 
 const pcNavItems: NavItem[] = [
   { type: "link", href: "/sectors", label: "섹터별 현황" },
+  { type: "link", href: "/daytrading", label: "실전 단타 기록" },
   { type: "link", href: "/news", label: "뉴스" },
   { type: "link", href: "/calendar", label: "주요 일정" },
   { type: "link", href: "/credit", label: "빚투" },
@@ -84,7 +85,6 @@ const pcNavItems: NavItem[] = [
       { href: "/futures-trading", label: "선물매매 검증" },
     ],
   },
-  { type: "link", href: "/daytrading", label: "실전 단타 기록" },
 ];
 
 // 현재 경로가 메뉴 항목과 일치하는지 (섹터별 현황은 한국/미국 탭 둘 다 활성)
