@@ -1,3 +1,6 @@
+"use client";
+import { useEffect, useState } from "react";
+
 /* ── 타입 (Redis us-sector-board:data 구조) ── */
 export interface UsStock {
   ticker: string;
@@ -19,7 +22,7 @@ export interface UsSector {
   stocks: UsStock[];
 }
 
-/* 헤더 배경 tint — 시총가중 등락 기준(양수 빨강/음수 파랑), |등락| ±3%에서 최대 진하기 */
+/* 배경 tint — 시총가중 등락 기준(양수 빨강/음수 파랑), |등락| ±3%에서 최대 진하기 */
 function headerTint(w: number): string {
   if (!Number.isFinite(w) || w === 0) return "transparent";
   const mag = Math.min(Math.abs(w) / 3, 1); // 0..1
@@ -65,36 +68,105 @@ function StockRow({ s }: { s: UsStock }) {
   );
 }
 
-/* 전종목 펼침 타일 — 메이슨리(CSS columns) 안에서 break-inside-avoid로 한 열에 유지 */
-export function UsSectorTile({ sub }: { sub: UsSector }) {
+/* 종목 팝업 (모달) */
+function StockPopup({ sub, onClose }: { sub: UsSector; onClose: () => void }) {
   const w = sub.avgWeighted ?? 0;
   const s = sub.avgSimple ?? 0;
+  const title = sub.nameKo || sub.name;
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [onClose]);
+
   return (
-    <div className="mb-4 break-inside-avoid overflow-hidden rounded-lg border border-border bg-card p-4">
+    <div
+      className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-black/60 p-4 sm:items-center"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
       <div
-        className="-mx-4 -mt-4 mb-2 border-b border-border px-4 pb-2 pt-4"
-        style={{ backgroundColor: headerTint(w) }}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`${title} 종목`}
+        className="my-8 w-full max-w-lg overflow-hidden rounded-xl border border-border bg-card shadow-xl"
       >
-        <div className="flex items-baseline justify-between gap-2">
-          <h3 className="min-w-0 truncate text-sm font-semibold">{sub.nameKo || sub.name}</h3>
-          <span className="shrink-0 text-xs text-muted-foreground">{sub.count}종목</span>
+        <div className="border-b border-border px-5 py-3" style={{ backgroundColor: headerTint(w) }}>
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="min-w-0 truncate text-base font-bold">{title}</h3>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="닫기"
+              className="shrink-0 text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <line x1="6" y1="6" x2="18" y2="18" /><line x1="18" y1="6" x2="6" y2="18" />
+              </svg>
+            </button>
+          </div>
+          <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs tabular-nums">
+            <span className="text-[11px] text-muted-foreground">시총 가중치 적용</span>
+            <span className={changeClass(w)}>{fmtRate(w)}</span>
+            <span className="text-[11px] text-muted-foreground">· 단순평균</span>
+            <span className={changeClass(s)}>{fmtRate(s)}</span>
+            <span className="text-[11px] text-muted-foreground">· {sub.count}종목</span>
+          </div>
         </div>
-        <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs tabular-nums">
-          <span className="text-[11px] text-muted-foreground">시총 가중치 적용</span>
-          <span className={changeClass(w)}>{fmtRate(w)}</span>
-          <span className="text-[11px] text-muted-foreground">· 단순평균</span>
-          <span className={changeClass(s)}>{fmtRate(s)}</span>
+        <div className="max-h-[70vh] overflow-y-auto px-5 py-3">
+          {sub.stocks.length === 0 ? (
+            <p className="text-xs text-muted-foreground">종목 없음</p>
+          ) : (
+            <ul className="space-y-1.5">
+              {sub.stocks.map((st) => (
+                <StockRow key={st.ticker} s={st} />
+              ))}
+            </ul>
+          )}
         </div>
       </div>
-      {sub.stocks.length === 0 ? (
-        <p className="text-xs text-muted-foreground">종목 없음</p>
-      ) : (
-        <ul className="space-y-1">
-          {sub.stocks.map((s) => (
-            <StockRow key={s.ticker} s={s} />
-          ))}
-        </ul>
-      )}
     </div>
+  );
+}
+
+/* 바둑판 격자 타일 — 섹터명 + 등락 두 숫자 + 배경색. 클릭/햄버거 시 종목 팝업 */
+export function UsSectorTile({ sub }: { sub: UsSector }) {
+  const [open, setOpen] = useState(false);
+  const w = sub.avgWeighted ?? 0;
+  const s = sub.avgSimple ?? 0;
+  const label = sub.nameKo || sub.name;
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        title={`${label} · ${sub.count}종목`}
+        aria-label={`${label} 종목 보기`}
+        className="flex h-full w-full flex-col justify-between rounded-md border border-border bg-card p-2 text-left transition-shadow hover:shadow-md focus:outline-none focus:ring-2 focus:ring-foreground/20"
+        style={{ backgroundColor: headerTint(w) }}
+      >
+        <div className="flex items-start justify-between gap-1">
+          <h3 className="min-w-0 truncate text-xs font-semibold leading-tight">{label}</h3>
+          <span className="shrink-0 text-muted-foreground" aria-hidden="true">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <line x1="4" y1="7" x2="20" y2="7" /><line x1="4" y1="12" x2="20" y2="12" /><line x1="4" y1="17" x2="20" y2="17" />
+            </svg>
+          </span>
+        </div>
+        <div className="mt-1 flex items-baseline gap-1 tabular-nums">
+          <span className={`text-sm font-bold ${changeClass(w)}`}>{fmtRate(w)}</span>
+          <span className={`text-[10px] ${changeClass(s)}`}>{fmtRate(s)}</span>
+        </div>
+      </button>
+      {open && <StockPopup sub={sub} onClose={() => setOpen(false)} />}
+    </>
   );
 }
