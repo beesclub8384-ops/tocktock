@@ -321,9 +321,9 @@ npm run build
 
 ## 📋 구현된 페이지 및 기능
 
-페이지: /, /news, /fed-rate, /fed-rate/[slug], /economics, /economics/[slug], /indices, /indices/fear-greed, /market-events, /global-indicators, /foreign-ownership, /stock/[symbol], /money-flow, /money-flow/[id], /money-flow/treasury-auction, /liquidity/us, /liquidity/us/backtest, /liquidity/global, /virtual-trading, /ai-trading, /diagrams/new
+페이지: /, /news, /fed-rate, /fed-rate/[slug], /economics, /economics/[slug], /indices, /indices/fear-greed, /market-events, /global-indicators, /foreign-ownership, /stock/[symbol], /money-flow, /money-flow/[id], /money-flow/treasury-auction, /liquidity/us, /liquidity/us/backtest, /liquidity/global, /virtual-trading, /ai-trading
 
-API(31개): /api/stock/[symbol]/quote|chart|trendlines|growth-score|search, /api/usd-krw, /api/oil-prices, /api/credit-balance|overheat|vs-index, /api/money-flow-data|analysis, /api/treasury-auction|bill-history, /api/global-indicators, /api/foreign-ownership, /api/liquidity/us|backtest, /api/market-events, /api/ai-trading, /api/virtual-trading, /api/diagrams/save
+API(31개): /api/stock/[symbol]/quote|chart|trendlines|growth-score|search, /api/usd-krw, /api/oil-prices, /api/credit-balance|overheat|vs-index, /api/money-flow-data|analysis, /api/treasury-auction|bill-history, /api/global-indicators, /api/foreign-ownership, /api/liquidity/us|backtest, /api/market-events, /api/ai-trading, /api/virtual-trading
 
 Cron(8개): refresh-credit(평일 01:00 UTC), virtual-trading-scan(평일 07:00), virtual-trading-trade(평일 00:05), ai-trading-scan(평일 07:00), ai-trading-trade(평일 00:05), update-fomc-dot-plot(분기), market-events 한국장(평일 07:30), 미국장(평일 22:30)
 

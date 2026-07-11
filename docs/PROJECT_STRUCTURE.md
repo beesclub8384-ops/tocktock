@@ -59,7 +59,7 @@ docs/                    # 문서 (본 파일)
 
 ---
 
-## 3. 페이지 라우트 (27개)
+## 3. 페이지 라우트 (26개)
 
 | 경로 | 화면 설명 |
 |---|---|
@@ -68,7 +68,6 @@ docs/                    # 문서 (본 파일)
 | `/calendar` | 한국·미국 실적/경제지표 일정을 시장·종류별 필터로 보는 주간 캘린더 |
 | `/credit` | 신용융자잔고·빚투 과열지수·신용 vs 지수 비교 차트(빚투 지표) |
 | `/daytrading` | 삼성전자·하이닉스 실전 단타 매매 기록 입력 + 종합 성적표 |
-| `/diagrams/new` | 텍스트 붙여넣기 → AI가 허브형/타임라인형 구조 감지해 다이어그램 생성·게시 |
 | `/economics` | 챕터별 경제공부 글 목록 |
 | `/economics/[slug]` | 개별 경제공부 글 본문 상세 |
 | `/foreign-ownership` | 코스피·코스닥 상위 종목 외국인 보유 비율 변화 추적 |
@@ -93,7 +92,7 @@ docs/                    # 문서 (본 파일)
 
 ---
 
-## 4. 일반 API 라우트 (37개, 크론 제외)
+## 4. 일반 API 라우트 (36개, 크론 제외)
 
 | 경로 | 메서드 | 역할 |
 |---|---|---|
@@ -104,7 +103,6 @@ docs/                    # 문서 (본 파일)
 | `/api/credit-vs-index` | GET | 신용융자잔고 vs 지수 비교 |
 | `/api/daytrading` | GET·POST·DELETE | 단타 매매기록 조회·추가·삭제 |
 | `/api/dcf/[symbol]` | GET | 종목 DCF 밸류에이션 분석 |
-| `/api/diagrams/save` | POST | 다이어그램 Redis 저장 + id 반환 |
 | `/api/foreign-ownership` | GET | 종목별 외국인 지분율 조회 |
 | `/api/foreign-ownership/diagnose` | GET | 외국인 지분율(KRX) 수집 상태 진단 |
 | `/api/futures-trading` | GET·POST·PATCH·DELETE | 선물매매 기록 CRUD (비밀번호 인증) |
@@ -205,7 +203,6 @@ docs/                    # 문서 (본 파일)
 | `futures-trading:kis-futures-code` | KIS 선물 종목 코드 |
 | `system:redis-usage-log` | Redis 사용량 점검 로그 |
 | `lock:cron:*` | 크론 동시 실행 방지 락(ai-trading-scan/trade, virtual-trading-scan/trade, investor-flow-collect/universe, superinvestor-scan) |
-| `diagram:{id}` | 저장된 다이어그램 |
 | `foreign:{ticker}` | 외국인 지분율 종목별 캐시 |
 
 ---
