@@ -25,7 +25,7 @@ export default async function SectorsUsPage() {
 
   if (!data || !Array.isArray(data.산업그룹)) {
     return (
-      <div className="max-w-6xl px-4 sm:px-8 py-20">
+      <div className="mx-auto max-w-[1600px] px-4 sm:px-8 py-20">
         <h1 className="text-4xl font-bold tracking-tight">미국 섹터</h1>
         <p className="mt-4 text-sm text-muted-foreground">
           미국 섹터 데이터가 아직 준비되지 않았습니다. 잠시 후 다시 시도해 주세요.
@@ -35,7 +35,7 @@ export default async function SectorsUsPage() {
   }
 
   return (
-    <div className="max-w-6xl px-4 sm:px-8 py-20">
+    <div className="mx-auto max-w-[1600px] px-4 sm:px-8 py-20">
       <header className="mb-8">
         <h1 className="text-4xl font-bold tracking-tight">미국 섹터</h1>
         <p className="mt-2 text-muted-foreground">
@@ -48,7 +48,7 @@ export default async function SectorsUsPage() {
 
       <SectorTabs active="us" />
 
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8">
         {data.산업그룹.map((g) => (
           <UsSectorTile key={g.name} sub={g} />
         ))}

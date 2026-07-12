@@ -40,7 +40,7 @@ export default async function SectorsPage() {
   }
 
   return (
-    <div className="max-w-6xl px-4 sm:px-8 py-20">
+    <div className="mx-auto max-w-[1600px] px-4 sm:px-8 py-20">
       <header className="mb-8">
         <h1 className="text-4xl font-bold tracking-tight">섹터</h1>
         <p className="mt-2 text-muted-foreground">
@@ -53,11 +53,15 @@ export default async function SectorsPage() {
 
       <SectorTabs active="kr" />
 
-      <div className="space-y-12">
+      {/* 대분류 묶음 카드를 메이슨리(columns)로 테트리스 패킹 */}
+      <div className="columns-1 gap-4 md:columns-2 xl:columns-3">
         {data.대분류.map((maj) => (
-          <section key={maj.name}>
-            <h2 className="mb-3 text-lg font-bold">{maj.name}</h2>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+          <section
+            key={maj.name}
+            className="mb-4 break-inside-avoid rounded-lg border border-border bg-muted/30 p-3"
+          >
+            <h2 className="mb-2 text-lg font-bold">{maj.name}</h2>
+            <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
               {maj.소분류.map((sub) => (
                 <SectorTile key={sub.name} sub={sub} />
               ))}
