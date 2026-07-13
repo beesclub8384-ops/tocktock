@@ -12,9 +12,10 @@ export interface SectorHistoryPoint {
 export interface SectorHistory {
   sector: string; // 소분류명 (예: "정유")
   parent: string; // 대분류명 (예: "에너지")
-  method: string; // "simple-average"
+  method: string; // "simple-average" | "simple-average-v2(...)"
   baseDate: string; // YYYY-MM-DD
   updatedAt: string; // ISO
+  constituents?: number; // 지수 구성 보통주 수 (v2). 기존 데이터엔 없음(optional)
   points: SectorHistoryPoint[];
 }
 

@@ -37,8 +37,17 @@ interface Board {
   updatedAt?: string;
   대분류: {
     name: string;
-    소분류: { name: string; avgSimple?: number; stocks?: { tradingValue?: number }[] }[];
+    소분류: {
+      name: string;
+      avgSimple?: number;
+      stocks?: { code?: string; changeRate?: number; tradingValue?: number }[];
+    }[];
   }[];
+}
+
+/* 보통주만: 종목코드 끝자리가 '0' */
+function isCommon(code?: string): boolean {
+  return typeof code === "string" && code.length === 6 && code[5] === "0";
 }
 
 // Vercel Cron은 GET으로 호출 — 반드시 GET (POST면 405)
@@ -85,12 +94,13 @@ export async function GET() {
         todayKST: date,
       });
     }
-    // (C) 휴장일 방어 — 거래대금 지문 대조 ─────────────────────────
-    const stocks = sub.stocks ?? [];
-    const todayFingerprint = stocks.reduce((s, x) => s + (Number(x.tradingValue) || 0), 0);
+    // (C) 휴장일 방어 — 거래대금 지문 대조 (보통주만) ─────────────────
+    // avgSimple은 우선주가 섞여 있어 히스토리 기준과 어긋남 → 보통주만 직접 계산
+    const commonStocks = (sub.stocks ?? []).filter((x) => isCommon(x.code));
+    const todayFingerprint = commonStocks.reduce((s, x) => s + (Number(x.tradingValue) || 0), 0);
 
-    // 안전장치: stocks 비었거나 지문 0 → 데이터 이상, 축적 금지
-    if (stocks.length === 0 || todayFingerprint === 0) {
+    // 안전장치: 보통주 없거나 지문 0 → 데이터 이상, 축적 금지
+    if (commonStocks.length === 0 || todayFingerprint === 0) {
       const reason = "섹터 종목 데이터 이상 (stocks 비었거나 거래대금 지문 0)";
       console.warn(`[sector-history] SKIP: ${reason}`);
       return NextResponse.json({
@@ -121,7 +131,11 @@ export async function GET() {
     // lastPoint에 fingerprint 없으면(기존 백필 데이터) 대조 건너뛰고 통과 (하위호환)
     // ───────────────────────────────────────────────────────────────
 
-    const ret = Number(sub.avgSimple ?? 0);
+    // 섹터 일별 등락률 = 보통주 changeRate 단순평균 (avgSimple 미사용 — 우선주 제외 기준 통일)
+    const rates = commonStocks
+      .map((x) => Number(x.changeRate))
+      .filter((r) => Number.isFinite(r));
+    const ret = rates.length ? rates.reduce((a, b) => a + b, 0) / rates.length : 0;
     const next = await appendSectorHistoryPoint(SECTOR, { date, ret, fingerprint: todayFingerprint });
     if (!next) {
       return NextResponse.json(

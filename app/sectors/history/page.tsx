@@ -28,6 +28,15 @@ export default async function SectorHistoryPage() {
         <p className="mt-2 text-sm text-muted-foreground">
           섹터별 누적 흐름을 지수(기준 100)로 추적하는 파일럿 화면입니다.
         </p>
+        {history?.constituents ? (
+          <p className="mt-1 text-xs text-muted-foreground">
+            보통주 {history.constituents}종목 · 단순평균(동일가중) · 우선주/거래정지/이상치(±30% 초과) 제외
+          </p>
+        ) : (
+          <p className="mt-1 text-xs text-muted-foreground">
+            보통주 · 단순평균(동일가중) · 우선주/거래정지/이상치(±30% 초과) 제외
+          </p>
+        )}
       </header>
 
       {!history || !history.points || history.points.length === 0 ? (
