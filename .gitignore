@@ -49,6 +49,7 @@ data/krx-history/.collect-checkpoint.json
 
 # personal trade exports (private)
 data/live-trades-export.json
+data/slippage-results.json
 
 # typescript
 *.tsbuildinfo
