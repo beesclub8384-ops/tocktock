@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redis } from "@/lib/redis";
 import { SectorTile, type SubSector } from "./sector-tile";
 import { SectorTabs } from "@/components/sector-tabs";
@@ -46,6 +45,15 @@ function fmtUpdatedAt(iso: string): string {
 export default async function SectorsPage() {
   const data = await redis.get<SectorBoard>(CACHE_KEY);
 
+  // 히스토리 보유 소분류 집합 (sector-history:{소분류명}) — 백필된 섹터마다 아이콘 자동 노출
+  let historySet = new Set<string>();
+  try {
+    const keys = await redis.keys("sector-history:*");
+    historySet = new Set((keys ?? []).map((k) => k.replace(/^sector-history:/, "")));
+  } catch {
+    historySet = new Set();
+  }
+
   if (!data || !Array.isArray(data.대분류)) {
     return (
       <div className="max-w-6xl px-4 sm:px-8 py-20">
@@ -67,12 +75,6 @@ export default async function SectorsPage() {
         <p className="mt-1 text-xs text-muted-foreground">
           기준 {fmtUpdatedAt(data.updatedAt)} · 시세 출처 네이버
         </p>
-        <Link
-          href="/sectors/history"
-          className="mt-3 inline-flex items-center gap-1 rounded-md border border-border bg-card px-3 py-1.5 text-sm font-medium transition-colors hover:bg-muted"
-        >
-          📈 섹터 히스토리 지수 (정유 파일럿) →
-        </Link>
       </header>
 
       <SectorTabs active="kr" />
@@ -89,7 +91,7 @@ export default async function SectorsPage() {
             <h2 className={`mb-2 text-lg font-bold ${style.text}`}>{maj.name}</h2>
             <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
               {maj.소분류.map((sub) => (
-                <SectorTile key={sub.name} sub={sub} />
+                <SectorTile key={sub.name} sub={sub} hasHistory={historySet.has(sub.name)} />
               ))}
             </div>
           </section>

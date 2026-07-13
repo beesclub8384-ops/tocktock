@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { BizAreaIcon } from "./biz-area";
 
 /* ── 타입 (Redis sector-board:data 구조와 동일) ── */
@@ -135,18 +136,20 @@ function StockPopup({ sub, onClose }: { sub: SubSector; onClose: () => void }) {
 }
 
 /* 바둑판 격자 타일 — 섹터명 + 등락 두 숫자 + 배경색. 클릭/햄버거 시 종목 팝업 */
-export function SectorTile({ sub }: { sub: SubSector }) {
+export function SectorTile({ sub, hasHistory }: { sub: SubSector; hasHistory?: boolean }) {
   const [open, setOpen] = useState(false);
   const w = sub.avgWeighted ?? 0;
   const s = sub.avgSimple ?? 0;
   return (
-    <>
+    <div className="relative h-full">
       <button
         type="button"
         onClick={() => setOpen(true)}
         title={`${sub.name} · ${sub.count}종목`}
         aria-label={`${sub.name} 종목 보기`}
-        className="flex h-full w-full flex-col justify-between rounded-md border border-border bg-card p-2 text-left transition-shadow hover:shadow-md focus:outline-none focus:ring-2 focus:ring-foreground/20"
+        className={`flex h-full w-full flex-col justify-between rounded-md border border-border bg-card p-2 text-left transition-shadow hover:shadow-md focus:outline-none focus:ring-2 focus:ring-foreground/20 ${
+          hasHistory ? "pr-6" : ""
+        }`}
         style={{ backgroundColor: headerTint(w) }}
       >
         <div className="flex items-start justify-between gap-1">
@@ -162,7 +165,30 @@ export function SectorTile({ sub }: { sub: SubSector }) {
           <span className={`text-[10px] ${changeClass(s)}`}>{fmtRate(s)}</span>
         </div>
       </button>
+      {hasHistory && (
+        <Link
+          href={`/sectors/history/${encodeURIComponent(sub.name)}`}
+          onClick={(e) => e.stopPropagation()}
+          title="히스토리 지수 보기"
+          aria-label={`${sub.name} 히스토리 지수 보기`}
+          className="absolute right-1 top-1 z-10 rounded p-0.5 text-muted-foreground transition-colors hover:bg-background/70 hover:text-foreground"
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <polyline points="3 16 8 11 12 14 21 5" />
+          </svg>
+        </Link>
+      )}
       {open && <StockPopup sub={sub} onClose={() => setOpen(false)} />}
-    </>
+    </div>
   );
 }
