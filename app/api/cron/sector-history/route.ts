@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { redis } from "@/lib/redis";
-import { appendSectorHistoryPoint } from "@/lib/sector-history";
+import { appendSectorHistoryPoint, getSectorHistory } from "@/lib/sector-history";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -35,7 +35,10 @@ function kstHourOf(d: Date): number {
 
 interface Board {
   updatedAt?: string;
-  대분류: { name: string; 소분류: { name: string; avgSimple?: number }[] }[];
+  대분류: {
+    name: string;
+    소분류: { name: string; avgSimple?: number; stocks?: { tradingValue?: number }[] }[];
+  }[];
 }
 
 // Vercel Cron은 GET으로 호출 — 반드시 GET (POST면 405)
@@ -82,10 +85,44 @@ export async function GET() {
         todayKST: date,
       });
     }
+    // (C) 휴장일 방어 — 거래대금 지문 대조 ─────────────────────────
+    const stocks = sub.stocks ?? [];
+    const todayFingerprint = stocks.reduce((s, x) => s + (Number(x.tradingValue) || 0), 0);
+
+    // 안전장치: stocks 비었거나 지문 0 → 데이터 이상, 축적 금지
+    if (stocks.length === 0 || todayFingerprint === 0) {
+      const reason = "섹터 종목 데이터 이상 (stocks 비었거나 거래대금 지문 0)";
+      console.warn(`[sector-history] SKIP: ${reason}`);
+      return NextResponse.json({
+        skipped: true,
+        reason,
+        todayFingerprint,
+        todayKST: date,
+      });
+    }
+
+    // 직전 저장일과 거래대금 지문이 동일하면 휴장일/미갱신으로 판단
+    const hist = await getSectorHistory(SECTOR);
+    const lastPoint = hist?.points?.[hist.points.length - 1];
+    if (
+      lastPoint &&
+      Number.isFinite(lastPoint.fingerprint) &&
+      todayFingerprint === lastPoint.fingerprint
+    ) {
+      const reason = "거래대금 지문이 직전 저장일과 동일 (휴장일 추정)";
+      console.warn(`[sector-history] SKIP: ${reason}`);
+      return NextResponse.json({
+        skipped: true,
+        reason,
+        todayFingerprint,
+        lastPoint: { date: lastPoint.date, fingerprint: lastPoint.fingerprint },
+      });
+    }
+    // lastPoint에 fingerprint 없으면(기존 백필 데이터) 대조 건너뛰고 통과 (하위호환)
     // ───────────────────────────────────────────────────────────────
 
     const ret = Number(sub.avgSimple ?? 0);
-    const next = await appendSectorHistoryPoint(SECTOR, { date, ret });
+    const next = await appendSectorHistoryPoint(SECTOR, { date, ret, fingerprint: todayFingerprint });
     if (!next) {
       return NextResponse.json(
         { error: `sector-history:${SECTOR} 히스토리가 아직 없습니다. 백필 먼저 필요.` },
@@ -99,6 +136,7 @@ export async function GET() {
       date,
       ret: last.ret,
       index: last.index,
+      fingerprint: todayFingerprint,
       totalPoints: next.points.length,
     });
   } catch (err) {

@@ -6,6 +6,7 @@ export interface SectorHistoryPoint {
   date: string; // YYYY-MM-DD
   ret: number; // 그날 섹터 일별 등락률(%)
   index: number; // 누적지수(기준 100)
+  fingerprint?: number; // 그날 섹터 거래대금 합(휴장일 방어용). 기존 백필 점에는 없음(optional)
 }
 
 export interface SectorHistory {
@@ -45,7 +46,7 @@ export async function saveSectorHistory(history: SectorHistory): Promise<void> {
  */
 export async function appendSectorHistoryPoint(
   sector: string,
-  point: { date: string; ret: number }
+  point: { date: string; ret: number; fingerprint?: number }
 ): Promise<SectorHistory | null> {
   const history = await getSectorHistory(sector);
   if (!history) return null;
@@ -55,7 +56,9 @@ export async function appendSectorHistoryPoint(
 
   // 같은 날짜 제거 후 재삽입 (덮어쓰기)
   const points = history.points.filter((p) => p.date !== point.date);
-  points.push({ date: point.date, ret: round4(safeRet), index: 0 });
+  const newPoint: SectorHistoryPoint = { date: point.date, ret: round4(safeRet), index: 0 };
+  if (Number.isFinite(point.fingerprint)) newPoint.fingerprint = point.fingerprint;
+  points.push(newPoint);
   points.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
 
   // 지수 재계산 (첫 포인트 = 100)
