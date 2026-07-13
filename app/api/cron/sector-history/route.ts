@@ -10,15 +10,31 @@ const SECTOR = "정유";
 
 /* 오늘 날짜(KST) YYYY-MM-DD */
 function kstToday(): string {
+  return kstDateOf(new Date());
+}
+/* 임의 Date → KST YYYY-MM-DD */
+function kstDateOf(d: Date): string {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Seoul",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-  }).format(new Date());
+  }).format(d);
+}
+/* 임의 Date → KST 시(hour) 0~23 */
+function kstHourOf(d: Date): number {
+  const h = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Seoul",
+    hour: "2-digit",
+    hour12: false,
+  }).format(d);
+  // "24" (자정) → 0 보정
+  const n = parseInt(h, 10);
+  return n === 24 ? 0 : n;
 }
 
 interface Board {
+  updatedAt?: string;
   대분류: { name: string; 소분류: { name: string; avgSimple?: number }[] }[];
 }
 
@@ -34,8 +50,41 @@ export async function GET() {
         { status: 404 }
       );
     }
-    const ret = Number(sub.avgSimple ?? 0);
     const date = kstToday();
+
+    // ── 신선도 검증(guard): 오염 방지 ──────────────────────────────
+    // sector-board:data 스냅샷이 "오늘 KST 날짜 + 종가 시간대(16시 이후)"일 때만 축적한다.
+    // (한국 장 마감 15:30. 20:00 sector-board cron 이후여야 종가 기준 avgSimple)
+    const snapshotISO = board?.updatedAt;
+    const snap = snapshotISO ? new Date(snapshotISO) : null;
+    const snapDateKST = snap && !isNaN(snap.getTime()) ? kstDateOf(snap) : null;
+    const snapHourKST = snap && !isNaN(snap.getTime()) ? kstHourOf(snap) : null;
+
+    if (snapDateKST !== date) {
+      // (A) 스냅샷이 오늘자가 아님 → 과거/일요일 스냅샷을 오늘로 오염 방지
+      const reason = `스냅샷이 오늘(KST ${date})이 아님 (스냅샷 KST ${snapDateKST ?? "알수없음"})`;
+      console.warn(`[sector-history] SKIP: ${reason}`);
+      return NextResponse.json({
+        skipped: true,
+        reason,
+        snapshotUpdatedAt: snapshotISO ?? null,
+        todayKST: date,
+      });
+    }
+    if (snapHourKST === null || snapHourKST < 16) {
+      // (B) 장중/점심 스냅샷(16시 이전) → 종가 아님, 축적 금지
+      const reason = `스냅샷이 종가 시간대가 아님 (KST ${String(snapHourKST ?? "?")}시 < 16시)`;
+      console.warn(`[sector-history] SKIP: ${reason}`);
+      return NextResponse.json({
+        skipped: true,
+        reason,
+        snapshotUpdatedAt: snapshotISO ?? null,
+        todayKST: date,
+      });
+    }
+    // ───────────────────────────────────────────────────────────────
+
+    const ret = Number(sub.avgSimple ?? 0);
     const next = await appendSectorHistoryPoint(SECTOR, { date, ret });
     if (!next) {
       return NextResponse.json(
@@ -45,6 +94,7 @@ export async function GET() {
     }
     const last = next.points[next.points.length - 1];
     return NextResponse.json({
+      skipped: false,
       sector: SECTOR,
       date,
       ret: last.ret,
