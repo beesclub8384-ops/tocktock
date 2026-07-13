@@ -36,6 +36,9 @@ const yf = new YahooFinance({ suppressNotices: ["yahooSurvey", "ripHistorical"] 
 
 const kstFmt = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit" });
 const kstDate = (d) => kstFmt.format(d);
+const kstTimeFmt = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit", hour12: false });
+const kstHourFmt = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Seoul", hour: "2-digit", hour12: false });
+const kstHour = (d) => { const n = parseInt(kstHourFmt.format(d), 10); return n === 24 ? 0 : n; };
 const round4 = (n) => Math.round(n * 1e4) / 1e4;
 const yahooTicker = (code, market) => `${code}${String(market).toUpperCase().includes("KOSDAQ") ? ".KQ" : ".KS"}`;
 
@@ -54,6 +57,12 @@ async function main() {
   for (const s of preferred) console.log(`  - ${s.code} ${s.name} (사유: 우선주, 끝자리 ${s.code[5]})`);
   console.log(`지수 대상(보통주): ${common.length}개 — ${common.map((s) => s.name).join(", ")}`);
 
+  // 미완성 봉 제외: KST 16:00 이전이면 오늘 봉은 장 마감(15:30) 전이라 미완성 → 제외 (cron 가드 B와 동일 기준)
+  const now = new Date();
+  const todayKST = kstDate(now);
+  const excludeToday = kstHour(now) < 16;
+  console.log(`현재 KST ${kstTimeFmt.format(now)} → 오늘(${todayKST}) 봉 ${excludeToday ? "제외함 (장 마감 전, 미완성)" : "포함함 (종가 확정)"}`);
+
   const period1 = new Date();
   period1.setFullYear(period1.getFullYear() - 5);
 
@@ -71,7 +80,9 @@ async function main() {
         if (!q || !q.date) continue;
         const px = q.adjclose ?? q.close;
         if (!Number.isFinite(px) || px <= 0) continue;
-        byDate.set(kstDate(new Date(q.date)), px);
+        const d = kstDate(new Date(q.date));
+        if (excludeToday && d === todayKST) continue; // 오늘 미완성 봉 제외
+        byDate.set(d, px);
       }
       const dates = [...byDate.keys()].sort();
       if (dates.length < 2) { console.warn(`  ⚠ ${st.code} ${st.name} 봉 부족 — 건너뜀`); continue; }
