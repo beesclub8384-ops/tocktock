@@ -8,6 +8,7 @@ import { InvestmentQuoteBanner } from "@/components/investment-quote-banner";
 
 const navLinks = [
   { href: "/sectors", label: "섹터별 현황" },
+  { href: "/market/tradevalue", label: "거래대금" },
   { href: "/daytrading", label: "실전 단타 기록" },
   { href: "/news", label: "뉴스" },
   { href: "/calendar", label: "주요 일정" },
@@ -37,6 +38,7 @@ type NavItem =
 
 const pcNavItems: NavItem[] = [
   { type: "link", href: "/sectors", label: "섹터별 현황" },
+  { type: "link", href: "/market/tradevalue", label: "거래대금" },
   { type: "link", href: "/daytrading", label: "실전 단타 기록" },
   { type: "link", href: "/news", label: "뉴스" },
   { type: "link", href: "/calendar", label: "주요 일정" },
