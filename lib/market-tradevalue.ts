@@ -30,12 +30,6 @@ export interface IndexTradeValue {
   tradeValue: number; // 거래대금 (원)
 }
 
-/** fetchIndexToday 반환: 전일 확정 거래대금 + 그 기준일 */
-export interface IndexTodayValue {
-  date: string; // YYYY-MM-DD (직전 영업일 = prdy_tr_pbmn 의 기준일)
-  tradeValue: number; // 전일 확정 거래대금 (원)
-}
-
 function requireEnv(name: string): string {
   const v = process.env[name];
   if (!v) throw new Error(`${name} not set`);
@@ -45,28 +39,6 @@ function requireEnv(name: string): string {
 /** "YYYYMMDD" → "YYYY-MM-DD" */
 function toDashDate(yyyymmdd: string): string {
   return `${yyyymmdd.slice(0, 4)}-${yyyymmdd.slice(4, 6)}-${yyyymmdd.slice(6, 8)}`;
-}
-
-/**
- * 오늘(KST) 기준 직전 영업일 "YYYY-MM-DD" (주말 스킵).
- * inquire-index-price 응답에 전일 날짜 필드가 없어 prdy_tr_pbmn 의 기준일로 사용한다.
- * ⚠ 공휴일은 반영 못함 — 공휴일 직후 실행 시 실제 최종 거래일과 하루 어긋날 수 있음.
- */
-function prevBusinessDayKST(): string {
-  const todayKST = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Seoul",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date());
-  const [y, m, d] = todayKST.split("-").map(Number);
-  const dt = new Date(Date.UTC(y, m - 1, d));
-  do {
-    dt.setUTCDate(dt.getUTCDate() - 1);
-  } while (dt.getUTCDay() === 0 || dt.getUTCDay() === 6); // 일(0)·토(6) 스킵
-  return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, "0")}-${String(
-    dt.getUTCDate()
-  ).padStart(2, "0")}`;
 }
 
 /** "YYYYMMDD" 기준 daysBefore 일 전의 "YYYYMMDD" */
@@ -152,45 +124,29 @@ export async function fetchIndexHistory(
   return out;
 }
 
-interface IndexPriceOutput {
-  prdy_tr_pbmn?: string;
-}
-
 /**
- * 국내업종 현재가 조회 → { date, tradeValue } (전일 확정 거래대금, 원).
- * Cron 이 매 영업일 전일 확정 거래대금을 붙일 때 사용. (거래대금 단위: 백만원 → 원)
- * date 는 직전 영업일(prdy_tr_pbmn 의 기준일)로 계산한다. (KIS 응답에 전일 날짜 필드 없음)
+ * 최근 "확정" 거래일 1건을 { date, tradeValue }로 반환.
+ * fetchIndexHistory 가 주는 배열의 date는 stck_bsop_date(실제 거래일)라 공휴일 스큐가 없다.
+ * 배열의 가장 최근 날짜가 오늘(KST)이면 장중 미확정 부분치이므로 제외하고 직전 확정 거래일을 쓴다.
  * @param iscd 업종코드 (KOSPI="0001" | KOSDAQ="1001")
  */
-export async function fetchIndexToday(iscd: string): Promise<IndexTodayValue> {
-  const token = await getKisToken();
-  const params = new URLSearchParams({
-    FID_COND_MRKT_DIV_CODE: "U",
-    FID_INPUT_ISCD: iscd,
-  });
-  const url = `${KIS_BASE}/uapi/domestic-stock/v1/quotations/inquire-index-price?${params.toString()}`;
+export async function fetchLatestConfirmed(iscd: string): Promise<IndexTradeValue> {
+  const todayKST = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+  const todayYmd = todayKST.replace(/-/g, "");
 
-  const res = await fetch(url, {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json; charset=utf-8",
-      authorization: `Bearer ${token}`,
-      appkey: requireEnv("KIS_APP_KEY"),
-      appsecret: requireEnv("KIS_APP_SECRET"),
-      tr_id: "FHPUP02100000",
-      custtype: "P",
-    },
-  });
-  if (!res.ok) {
-    throw new Error(`KIS index price HTTP ${res.status}`);
+  // fetchIndexHistory 는 endDate(=오늘) 이하 최근 약 100거래일을 오름차순으로 반환
+  const rows = await fetchIndexHistory(iscd, todayYmd);
+  // 오늘(미확정 부분치) 제외 → 남은 것 중 가장 최근이 직전 확정 거래일
+  const confirmed = rows.filter((r) => r.date !== todayKST);
+  if (confirmed.length === 0) {
+    throw new Error(`fetchLatestConfirmed(${iscd}): 확정 거래일 데이터 없음`);
   }
-  const j = (await res.json()) as { rt_cd?: string; msg1?: string; output?: IndexPriceOutput };
-  if (j.rt_cd !== "0" || !j.output) {
-    throw new Error(`KIS index price failed: rt_cd=${j.rt_cd} msg=${j.msg1}`);
-  }
-  const pbmn = Number(j.output.prdy_tr_pbmn); // 단위: 백만원 (전일 확정)
-  const tradeValue = Number.isFinite(pbmn) ? pbmn * 1_000_000 : 0; // 백만원 → 원
-  return { date: prevBusinessDayKST(), tradeValue };
+  return confirmed[confirmed.length - 1];
 }
 
 /**
