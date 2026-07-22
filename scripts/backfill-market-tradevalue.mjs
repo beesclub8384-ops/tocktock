@@ -25,7 +25,7 @@ const KIS_BASE = "https://openapi.koreainvestment.com:9443";
 const HISTORY_KEY = "market-tradevalue:history";
 const KOSPI = "0001";
 const KOSDAQ = "1001";
-const DELAY_MS = 250; // KIS rate limit 완충
+const DELAY_MS = 300; // KIS rate limit 완충
 
 // ---- env 로드 (.env.local 우선, 없으면 .env.vercel.local) ----
 function loadEnv(name) {
@@ -50,9 +50,16 @@ const redis = new Redis({
 // ---- 인자 파싱 ----
 const args = process.argv.slice(2);
 const dryRun = args.includes("--dry-run");
+// --since=YYYYMMDD 우선. 있으면 그 날짜를 시작 하한으로. 없으면 --years=N(기본 3)
+const sinceArg = args.find((a) => a.startsWith("--since="));
+const sinceYmd = sinceArg ? sinceArg.split("=")[1].replace(/-/g, "") : null;
+if (sinceYmd && !/^\d{8}$/.test(sinceYmd)) {
+  console.error(`[에러] --since 형식이 올바르지 않음(YYYYMMDD): ${sinceArg}`);
+  process.exit(1);
+}
 const yearsArg = args.find((a) => a.startsWith("--years="));
 const years = yearsArg ? Number(yearsArg.split("=")[1]) : 3;
-if (!Number.isFinite(years) || years <= 0) {
+if (!sinceYmd && (!Number.isFinite(years) || years <= 0)) {
   console.error(`[에러] --years 값이 올바르지 않음: ${yearsArg}`);
   process.exit(1);
 }
@@ -190,15 +197,24 @@ async function main() {
 
   const now = new Date();
   const todayYmd = ymd(now);
-  const startDt = new Date(now);
-  startDt.setFullYear(startDt.getFullYear() - years);
-  const targetStart = `${startDt.getFullYear()}-${String(startDt.getMonth() + 1).padStart(
-    2,
-    "0"
-  )}-${String(startDt.getDate()).padStart(2, "0")}`;
+
+  let targetStart;
+  if (sinceYmd) {
+    // --since 우선: 지정 시작일까지 페이지네이션 (코스닥은 1996-07-01 이전 없어 빈 배열 시 자연 종료)
+    targetStart = toDashDate(sinceYmd);
+  } else {
+    const startDt = new Date(now);
+    startDt.setFullYear(startDt.getFullYear() - years);
+    targetStart = `${startDt.getFullYear()}-${String(startDt.getMonth() + 1).padStart(
+      2,
+      "0"
+    )}-${String(startDt.getDate()).padStart(2, "0")}`;
+  }
 
   console.log(
-    `[백필] years=${years} 목표시작=${targetStart} 오늘=${toDashDate(todayYmd)} dryRun=${dryRun}`
+    `[백필] ${sinceYmd ? `since=${targetStart}` : `years=${years}`} 목표시작=${targetStart} 오늘=${toDashDate(
+      todayYmd
+    )} dryRun=${dryRun}`
   );
 
   const token = await getToken();
@@ -235,6 +251,17 @@ async function main() {
       records[records.length - 1]?.date ?? "-"
     })`
   );
+
+  // 가장 오래된 3일 / 최근 3일 (조원, total 포함) — 옛날 구간 확장 확인용
+  const jo = (n) => `${(n / 1e12).toFixed(2)}조`;
+  const rowJo = (r) =>
+    `  ${r.date} | kospi ${jo(r.kospi).padStart(9)} | kosdaq ${jo(r.kosdaq).padStart(9)} | total ${jo(
+      r.total
+    ).padStart(9)}`;
+  console.log("\n[가장 오래된 3일]");
+  records.slice(0, 3).forEach((r) => console.log(rowJo(r)));
+  console.log("[최근 3일]");
+  records.slice(-3).forEach((r) => console.log(rowJo(r)));
 
   // 최근 5일 검증 표
   const last5 = records.slice(-5);
