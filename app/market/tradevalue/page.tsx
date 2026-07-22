@@ -104,6 +104,7 @@ export default function MarketTradeValuePage() {
   const [data, setData] = useState<Point[] | null>(null);
   const [error, setError] = useState(false);
   const [range, setRange] = useState<Range>("3M");
+  const [rangeBottom, setRangeBottom] = useState<Range>("3M"); // 하단 차트 전용(상단과 독립)
 
   useEffect(() => {
     let alive = true;
@@ -138,6 +139,18 @@ export default function MarketTradeValuePage() {
 
   const periodText =
     filtered.length > 0 ? `${filtered[0].date} ~ ${filtered[filtered.length - 1].date}` : "-";
+
+  // 하단 차트 전용 필터 (상단 filtered 로직과 동일, rangeBottom 기준)
+  const filteredBottom = useMemo(() => {
+    if (points.length === 0) return [];
+    const days = RANGE_DAYS[rangeBottom];
+    if (days === null) return points;
+    const lastDate = new Date(points[points.length - 1].date);
+    const cutoff = new Date(lastDate);
+    cutoff.setDate(cutoff.getDate() - days);
+    const cutoffStr = cutoff.toISOString().slice(0, 10);
+    return points.filter((p) => p.date >= cutoffStr);
+  }, [points, rangeBottom]);
 
   return (
     <div className="mx-auto max-w-4xl px-4 sm:px-8 py-20">
@@ -257,19 +270,37 @@ export default function MarketTradeValuePage() {
         각 시장 하루 거래대금(원)을 조원 단위로 표시합니다. 합계는 코스피 + 코스닥입니다.
       </p>
 
-      {/* 하단: 코스피 지수 + 거래대금 (이중축). 위 차트와 같은 filtered 데이터 공유 → 기간 버튼이 함께 반영됨 */}
+      {/* 하단: 코스피 지수 + 거래대금 (이중축). 전용 rangeBottom 상태로 상단과 독립 동작 */}
       <h2 className="mt-10 mb-2 text-lg font-semibold tracking-tight">코스피 지수 · 거래대금</h2>
+
+      {/* 하단 전용 기간 버튼 (상단과 별개: rangeBottom/setRangeBottom) */}
+      <div className="mb-3 flex flex-wrap gap-1">
+        {(Object.keys(RANGE_LABEL) as Range[]).map((r) => (
+          <button
+            key={r}
+            type="button"
+            onClick={() => setRangeBottom(r)}
+            className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+              rangeBottom === r
+                ? "bg-foreground/10 text-foreground border border-foreground/30"
+                : "bg-muted text-muted-foreground"
+            }`}
+          >
+            {RANGE_LABEL[r]}
+          </button>
+        ))}
+      </div>
 
       <div className="h-[420px] w-full rounded-lg border border-border bg-card p-3">
         {error ? (
           <p className="text-sm text-muted-foreground">데이터를 불러오지 못했습니다.</p>
         ) : data === null ? (
           <p className="text-sm text-muted-foreground">불러오는 중…</p>
-        ) : filtered.length === 0 ? (
+        ) : filteredBottom.length === 0 ? (
           <p className="text-sm text-muted-foreground">데이터가 없습니다.</p>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={filtered} margin={{ top: 8, right: 12, bottom: 8, left: 4 }}>
+            <ComposedChart data={filteredBottom} margin={{ top: 8, right: 12, bottom: 8, left: 4 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" strokeOpacity={0.4} />
               <XAxis
                 dataKey="date"
@@ -312,13 +343,21 @@ export default function MarketTradeValuePage() {
                 dot={false}
                 isAnimationActive={false}
               />
+              {/* 하단 전용 슬라이더 (상단 Brush와 독립) */}
+              <Brush
+                dataKey="date"
+                height={28}
+                stroke="#9ca3af"
+                travellerWidth={10}
+                tickFormatter={(d: string) => (typeof d === "string" ? d.slice(2) : d)}
+              />
             </ComposedChart>
           </ResponsiveContainer>
         )}
       </div>
 
       <p className="mt-2 text-[11px] text-muted-foreground">
-        빨간 선 = 코스피 지수(포인트, 왼쪽 축) · 연파랑 막대 = 코스피 거래대금(조원, 오른쪽 축). 위 기간 버튼이 함께 적용됩니다.
+        빨간 선 = 코스피 지수(포인트, 왼쪽 축) · 연파랑 막대 = 코스피 거래대금(조원, 오른쪽 축). 이 차트의 기간 버튼·슬라이더는 위 차트와 독립적으로 동작합니다.
       </p>
     </div>
   );
