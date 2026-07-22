@@ -8,6 +8,7 @@ import {
   YAxis,
   Tooltip,
   Legend,
+  Brush,
   ResponsiveContainer,
   CartesianGrid,
 } from "recharts";
@@ -200,6 +201,26 @@ export default function MarketTradeValuePage() {
                 dot={false}
                 isAnimationActive={false}
               />
+              {/* 기간 조절 슬라이더: 버튼으로 고른 범위 안에서 마우스로 추가로 좁혀보기 */}
+              <Brush
+                dataKey="date"
+                height={28}
+                stroke="#9ca3af"
+                travellerWidth={10}
+                tickFormatter={(d: string) => (typeof d === "string" ? d.slice(2) : d)}
+              >
+                {/* 미니 프리뷰: 합계(total) 선 하나만 얇게 */}
+                <LineChart>
+                  <Line
+                    type="monotone"
+                    dataKey="total"
+                    stroke={COLOR.total}
+                    strokeWidth={1}
+                    dot={false}
+                    isAnimationActive={false}
+                  />
+                </LineChart>
+              </Brush>
             </LineChart>
           </ResponsiveContainer>
         )}
