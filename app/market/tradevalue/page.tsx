@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import {
   LineChart,
   Line,
+  ComposedChart,
+  Bar,
   XAxis,
   YAxis,
   Tooltip,
@@ -18,6 +20,7 @@ interface Point {
   kospi: number; // 원
   kosdaq: number; // 원
   total: number; // 원
+  kospiIndex?: number; // 코스피 지수 종가(포인트)
 }
 
 type Range = "1M" | "3M" | "1Y" | "5Y" | "10Y" | "ALL";
@@ -68,6 +71,30 @@ function ChartTooltip({ active, payload }: TipProps) {
       </div>
       <div className="tabular-nums" style={{ color: COLOR.total }}>
         합계 {toJo(p.total)}
+      </div>
+    </div>
+  );
+}
+
+// 하단(지수+거래대금) 차트 색상
+const INDEX_LINE = "#dc2626"; // 코스피 지수 (빨강)
+const INDEX_BAR = "#93c5fd"; // 코스피 거래대금 (연한 파랑)
+
+function fmtIndex(n?: number): string {
+  return n == null ? "-" : n.toLocaleString("en-US", { maximumFractionDigits: 2 });
+}
+
+function IndexTooltip({ active, payload }: TipProps) {
+  if (!active || !payload || !payload.length) return null;
+  const p = payload[0].payload;
+  return (
+    <div className="rounded-md border border-border bg-background/95 px-3 py-2 text-xs shadow-lg">
+      <div className="mb-1 font-medium">{p.date}</div>
+      <div className="tabular-nums" style={{ color: INDEX_LINE }}>
+        코스피 지수 {fmtIndex(p.kospiIndex)}
+      </div>
+      <div className="tabular-nums" style={{ color: "#2563eb" }}>
+        코스피 거래대금 {toJo(p.kospi)}
       </div>
     </div>
   );
@@ -228,6 +255,70 @@ export default function MarketTradeValuePage() {
 
       <p className="mt-2 text-[11px] text-muted-foreground">
         각 시장 하루 거래대금(원)을 조원 단위로 표시합니다. 합계는 코스피 + 코스닥입니다.
+      </p>
+
+      {/* 하단: 코스피 지수 + 거래대금 (이중축). 위 차트와 같은 filtered 데이터 공유 → 기간 버튼이 함께 반영됨 */}
+      <h2 className="mt-10 mb-2 text-lg font-semibold tracking-tight">코스피 지수 · 거래대금</h2>
+
+      <div className="h-[420px] w-full rounded-lg border border-border bg-card p-3">
+        {error ? (
+          <p className="text-sm text-muted-foreground">데이터를 불러오지 못했습니다.</p>
+        ) : data === null ? (
+          <p className="text-sm text-muted-foreground">불러오는 중…</p>
+        ) : filtered.length === 0 ? (
+          <p className="text-sm text-muted-foreground">데이터가 없습니다.</p>
+        ) : (
+          <ResponsiveContainer width="100%" height="100%">
+            <ComposedChart data={filtered} margin={{ top: 8, right: 12, bottom: 8, left: 4 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" strokeOpacity={0.4} />
+              <XAxis
+                dataKey="date"
+                tick={{ fontSize: 11, fill: "#9ca3af" }}
+                minTickGap={48}
+                tickFormatter={(d: string) => d.slice(2)}
+              />
+              {/* 왼쪽 축: 코스피 지수(포인트) */}
+              <YAxis
+                yAxisId="left"
+                domain={["auto", "auto"]}
+                tick={{ fontSize: 11, fill: "#9ca3af" }}
+                width={48}
+                tickFormatter={(v: number) => v.toFixed(0)}
+              />
+              {/* 오른쪽 축: 코스피 거래대금(조원) */}
+              <YAxis
+                yAxisId="right"
+                orientation="right"
+                domain={["auto", "auto"]}
+                tick={{ fontSize: 11, fill: "#9ca3af" }}
+                width={48}
+                tickFormatter={(v: number) => `${(v / 1e12).toFixed(0)}조`}
+              />
+              <Tooltip content={<IndexTooltip />} />
+              {/* Bar 먼저(뒤), Line 나중(위) */}
+              <Bar
+                yAxisId="right"
+                dataKey="kospi"
+                fill={INDEX_BAR}
+                fillOpacity={0.6}
+                isAnimationActive={false}
+              />
+              <Line
+                yAxisId="left"
+                type="monotone"
+                dataKey="kospiIndex"
+                stroke={INDEX_LINE}
+                strokeWidth={1.8}
+                dot={false}
+                isAnimationActive={false}
+              />
+            </ComposedChart>
+          </ResponsiveContainer>
+        )}
+      </div>
+
+      <p className="mt-2 text-[11px] text-muted-foreground">
+        빨간 선 = 코스피 지수(포인트, 왼쪽 축) · 연파랑 막대 = 코스피 거래대금(조원, 오른쪽 축). 위 기간 버튼이 함께 적용됩니다.
       </p>
     </div>
   );
