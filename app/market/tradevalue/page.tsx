@@ -35,8 +35,8 @@ const RANGE_DAYS: Record<Range, number | null> = {
 
 // 색상 hex 직접 지정 (CSS 변수 금지)
 const COLOR = {
-  kospi: "#2563eb", // 파랑
-  kosdaq: "#dc2626", // 빨강
+  kospi: "#dc2626", // 빨강
+  kosdaq: "#2563eb", // 파랑
   total: "#111827", // 검정
 };
 
@@ -192,7 +192,7 @@ export default function MarketTradeValuePage() {
                 dataKey="total"
                 name="total"
                 stroke={COLOR.total}
-                strokeWidth={2}
+                strokeWidth={1.8}
                 dot={false}
                 isAnimationActive={false}
               />
