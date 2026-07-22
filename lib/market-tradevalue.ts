@@ -22,12 +22,14 @@ export interface TradeValuePoint {
   kospi: number; // 코스피 거래대금 (원)
   kosdaq: number; // 코스닥 거래대금 (원)
   total: number; // kospi + kosdaq (원)
+  kospiIndex?: number; // 코스피 지수 종가(포인트). 나중에 병합 추가되므로 optional
 }
 
 /** fetchIndexHistory 반환 한 점 */
 export interface IndexTradeValue {
   date: string; // YYYY-MM-DD
   tradeValue: number; // 거래대금 (원)
+  indexValue?: number; // 지수 종가(포인트, bstp_nmix_prpr)
 }
 
 function requireEnv(name: string): string {
@@ -56,6 +58,7 @@ function shiftYmd(yyyymmdd: string, daysBefore: number): string {
 interface DailyChartRow {
   stck_bsop_date?: string;
   acml_tr_pbmn?: string;
+  bstp_nmix_prpr?: string; // 지수 종가(포인트)
 }
 
 /**
@@ -115,9 +118,11 @@ export async function fetchIndexHistory(
     if (!ymd || ymd.length !== 8) continue;
     const pbmn = Number(r.acml_tr_pbmn); // 단위: 백만원
     if (!Number.isFinite(pbmn)) continue;
+    const idx = Number(r.bstp_nmix_prpr); // 지수 종가(포인트)
     out.push({
       date: toDashDate(ymd),
       tradeValue: pbmn * 1_000_000, // 백만원 → 원
+      ...(Number.isFinite(idx) ? { indexValue: idx } : {}),
     });
   }
   out.sort((a, b) => a.date.localeCompare(b.date));
@@ -150,14 +155,18 @@ export async function fetchLatestConfirmed(iscd: string): Promise<IndexTradeValu
 }
 
 /**
- * 거래대금 히스토리 저장. 기존 데이터와 날짜 기준으로 병합(같은 날짜는 덮어쓰기) 후
- * 날짜 오름차순 정렬해 저장한다. (Upstash 자동 직렬화 — JSON.stringify 금지)
+ * 거래대금 히스토리 저장. 기존 데이터와 날짜 기준으로 필드 단위 병합 후
+ * 날짜 오름차순 정렬해 저장한다. 같은 날짜면 기존 레코드에 새 필드를 얹는다
+ * (예: kospiIndex만 추가 시 기존 kospi/kosdaq/total 보존). (Upstash 자동 직렬화 — JSON.stringify 금지)
  */
 export async function saveTradeValueHistory(records: TradeValuePoint[]): Promise<void> {
   const existing = (await redis.get<TradeValuePoint[]>(HISTORY_KEY)) ?? [];
   const byDate = new Map<string, TradeValuePoint>();
   for (const p of existing) byDate.set(p.date, p);
-  for (const p of records) byDate.set(p.date, p); // 새 데이터가 덮어쓰기
+  for (const p of records) {
+    const prev = byDate.get(p.date);
+    byDate.set(p.date, prev ? { ...prev, ...p } : p); // 기존 필드 유지 + 새 필드 얹기
+  }
   const merged = [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
   await redis.set(HISTORY_KEY, merged);
 }
