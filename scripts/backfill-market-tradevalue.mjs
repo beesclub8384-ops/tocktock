@@ -59,6 +59,15 @@ if (!Number.isFinite(years) || years <= 0) {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// 로컬 KST 기준 오늘 "YYYY-MM-DD"
+const kstFmt = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Asia/Seoul",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+const todayKST = kstFmt.format(new Date());
+
 // ---- 날짜 유틸 ----
 function ymd(d) {
   return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(
@@ -211,6 +220,15 @@ async function main() {
     records.push({ date, kospi, kosdaq, total: kospi + kosdaq });
   }
   records.sort((a, b) => a.date.localeCompare(b.date));
+
+  // 오늘(로컬 KST) 미확정 부분치 제외 — 장중이면 당일 누적값이 확정 종가 기준이 아님
+  const beforeCount = records.length;
+  for (let i = records.length - 1; i >= 0; i--) {
+    if (records[i].date === todayKST) records.splice(i, 1);
+  }
+  if (records.length < beforeCount) {
+    console.log(`\n[제외] 오늘(${todayKST}) 미확정 값 ${beforeCount - records.length}건 제외됨`);
+  }
 
   console.log(
     `\n[병합] 총 ${records.length}일 (${records[0]?.date ?? "-"} ~ ${
