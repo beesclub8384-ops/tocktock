@@ -19,17 +19,21 @@ interface Point {
   total: number; // 원
 }
 
-type Range = "1M" | "3M" | "1Y" | "ALL";
+type Range = "1M" | "3M" | "1Y" | "5Y" | "10Y" | "ALL";
 const RANGE_LABEL: Record<Range, string> = {
   "1M": "1개월",
   "3M": "3개월",
   "1Y": "1년",
+  "5Y": "5년",
+  "10Y": "10년",
   ALL: "전체",
 };
 const RANGE_DAYS: Record<Range, number | null> = {
   "1M": 31,
   "3M": 92,
   "1Y": 366,
+  "5Y": 1830,
+  "10Y": 3660,
   ALL: null,
 };
 
