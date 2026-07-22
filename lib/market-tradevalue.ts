@@ -30,6 +30,12 @@ export interface IndexTradeValue {
   tradeValue: number; // 거래대금 (원)
 }
 
+/** fetchIndexToday 반환: 전일 확정 거래대금 + 그 기준일 */
+export interface IndexTodayValue {
+  date: string; // YYYY-MM-DD (직전 영업일 = prdy_tr_pbmn 의 기준일)
+  tradeValue: number; // 전일 확정 거래대금 (원)
+}
+
 function requireEnv(name: string): string {
   const v = process.env[name];
   if (!v) throw new Error(`${name} not set`);
@@ -39,6 +45,28 @@ function requireEnv(name: string): string {
 /** "YYYYMMDD" → "YYYY-MM-DD" */
 function toDashDate(yyyymmdd: string): string {
   return `${yyyymmdd.slice(0, 4)}-${yyyymmdd.slice(4, 6)}-${yyyymmdd.slice(6, 8)}`;
+}
+
+/**
+ * 오늘(KST) 기준 직전 영업일 "YYYY-MM-DD" (주말 스킵).
+ * inquire-index-price 응답에 전일 날짜 필드가 없어 prdy_tr_pbmn 의 기준일로 사용한다.
+ * ⚠ 공휴일은 반영 못함 — 공휴일 직후 실행 시 실제 최종 거래일과 하루 어긋날 수 있음.
+ */
+function prevBusinessDayKST(): string {
+  const todayKST = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+  const [y, m, d] = todayKST.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  do {
+    dt.setUTCDate(dt.getUTCDate() - 1);
+  } while (dt.getUTCDay() === 0 || dt.getUTCDay() === 6); // 일(0)·토(6) 스킵
+  return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, "0")}-${String(
+    dt.getUTCDate()
+  ).padStart(2, "0")}`;
 }
 
 /** "YYYYMMDD" 기준 daysBefore 일 전의 "YYYYMMDD" */
@@ -129,11 +157,12 @@ interface IndexPriceOutput {
 }
 
 /**
- * 국내업종 현재가 조회 → 전일 확정 거래대금(원) 반환.
- * Cron 이 매 영업일 전일 확정 거래대금을 붙일 때 사용할 용도. (단위: 백만원 → 원)
+ * 국내업종 현재가 조회 → { date, tradeValue } (전일 확정 거래대금, 원).
+ * Cron 이 매 영업일 전일 확정 거래대금을 붙일 때 사용. (거래대금 단위: 백만원 → 원)
+ * date 는 직전 영업일(prdy_tr_pbmn 의 기준일)로 계산한다. (KIS 응답에 전일 날짜 필드 없음)
  * @param iscd 업종코드 (KOSPI="0001" | KOSDAQ="1001")
  */
-export async function fetchIndexToday(iscd: string): Promise<number> {
+export async function fetchIndexToday(iscd: string): Promise<IndexTodayValue> {
   const token = await getKisToken();
   const params = new URLSearchParams({
     FID_COND_MRKT_DIV_CODE: "U",
@@ -160,8 +189,8 @@ export async function fetchIndexToday(iscd: string): Promise<number> {
     throw new Error(`KIS index price failed: rt_cd=${j.rt_cd} msg=${j.msg1}`);
   }
   const pbmn = Number(j.output.prdy_tr_pbmn); // 단위: 백만원 (전일 확정)
-  if (!Number.isFinite(pbmn)) return 0;
-  return pbmn * 1_000_000; // 백만원 → 원
+  const tradeValue = Number.isFinite(pbmn) ? pbmn * 1_000_000 : 0; // 백만원 → 원
+  return { date: prevBusinessDayKST(), tradeValue };
 }
 
 /**
