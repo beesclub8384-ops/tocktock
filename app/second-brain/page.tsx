@@ -382,13 +382,15 @@ function ChatView({
     setError(null);
     setSending(true);
     setInput("");
+    // 낙관적으로 먼저 띄우는 말풍선. 응답이 오면 서버가 저장한 ts로 교체한다
+    const pendingTs = Date.now();
     setConv((prev) =>
       prev
         ? {
             ...prev,
             messages: [
               ...prev.messages,
-              { role: "user", content: text, ts: Date.now() },
+              { role: "user", content: text, ts: pendingTs },
             ],
           }
         : prev
@@ -406,6 +408,8 @@ function ChatView({
       const data = (await res.json()) as {
         reply?: string;
         title?: string;
+        userMessage?: SBMessage;
+        assistantMessage?: SBMessage;
         error?: string;
       };
       if (!res.ok || !data.reply) {
@@ -414,19 +418,27 @@ function ChatView({
       }
       const reply = data.reply;
       const title = data.title;
-      setConv((prev) =>
-        prev
-          ? {
-              ...prev,
-              // 첫 질문으로 제목이 자동 생성되면 화면에도 바로 반영
-              title: title ?? prev.title,
-              messages: [
-                ...prev.messages,
-                { role: "assistant", content: reply, ts: Date.now() },
-              ],
-            }
-          : prev
-      );
+      const savedUser = data.userMessage;
+      const savedAssistant: SBMessage = data.assistantMessage ?? {
+        role: "assistant",
+        content: reply,
+        ts: Date.now(),
+      };
+      setConv((prev) => {
+        if (!prev) return prev;
+        // 낙관적 말풍선을 서버가 저장한 메시지로 교체 → 화면의 ts가 서버와 일치
+        const messages = savedUser
+          ? prev.messages.map((m) =>
+              m.role === "user" && m.ts === pendingTs ? savedUser : m
+            )
+          : prev.messages;
+        return {
+          ...prev,
+          // 첫 질문으로 제목이 자동 생성되면 화면에도 바로 반영
+          title: title ?? prev.title,
+          messages: [...messages, savedAssistant],
+        };
+      });
     } catch {
       setError("네트워크 오류로 응답을 가져오지 못했습니다.");
     } finally {

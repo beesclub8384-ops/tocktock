@@ -8,6 +8,7 @@ import {
   updateTreeNodeTitle,
   SB_NEW_BRANCH_TITLE,
   SB_ROOT_ID,
+  type SBMessage,
 } from "@/lib/second-brain";
 
 const ACCESS_KEY = "8384";
@@ -95,7 +96,13 @@ export async function POST(request: NextRequest) {
         : null;
     if (newTitle) conv.title = newTitle;
 
-    conv.messages.push({ role: "user", content: message, ts: Date.now() });
+    // 가지 뻗기가 ts로 메시지를 찾으므로, 저장한 메시지를 그대로 응답에 실어 보낸다
+    const userMessage: SBMessage = {
+      role: "user",
+      content: message,
+      ts: Date.now(),
+    };
+    conv.messages.push(userMessage);
 
     // 해당 대화의 messages만 문맥으로 전달 (가지별 문맥 분리)
     const client = new Anthropic({ apiKey });
@@ -115,12 +122,23 @@ export async function POST(request: NextRequest) {
       .join("\n")
       .trim();
 
-    conv.messages.push({ role: "assistant", content: reply, ts: Date.now() });
+    const assistantMessage: SBMessage = {
+      role: "assistant",
+      content: reply,
+      // user 메시지와 같은 ts가 되면 가지 뻗기가 엉뚱한 메시지를 찾는다
+      ts: Math.max(Date.now(), userMessage.ts + 1),
+    };
+    conv.messages.push(assistantMessage);
     conv.updatedAt = Date.now();
     await saveConversation(conv);
     if (newTitle) await updateTreeNodeTitle(conv.id, newTitle);
 
-    return NextResponse.json({ reply, title: conv.title });
+    return NextResponse.json({
+      reply,
+      title: conv.title,
+      userMessage,
+      assistantMessage,
+    });
   } catch (error) {
     console.error("[second-brain] POST error:", error);
     const detail = error instanceof Error ? error.message : String(error);
