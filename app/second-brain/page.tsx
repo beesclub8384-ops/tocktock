@@ -10,11 +10,15 @@ import {
 
 const PASSWORD = "8384";
 const AUTH_KEY = "sb-auth";
+const ROOT_ID = "root";
+const ROOT_TITLE = "제2의 뇌";
 
 interface SBMessage {
   role: "user" | "assistant";
   content: string;
   ts: number;
+  branchId?: string;
+  branchSummary?: string;
 }
 
 interface SBConversation {
@@ -23,7 +27,21 @@ interface SBConversation {
   messages: SBMessage[];
   createdAt: number;
   updatedAt: number;
+  parentId?: string;
+  parentMessageTs?: number;
+  status: "active" | "done";
 }
+
+interface SBTreeNode {
+  id: string;
+  title: string;
+  status: "active" | "done";
+  children: string[];
+}
+
+type SBTree = Record<string, SBTreeNode>;
+
+const authHeaders = { "x-sb-key": PASSWORD };
 
 // ── localStorage 인증값 구독 (effect 없이 초기값 읽기) ──
 
@@ -66,7 +84,7 @@ function PasswordGate({ onAuth }: { onAuth: () => void }) {
       <div className="mx-auto max-w-4xl px-4 py-24 sm:px-8">
         <section className="flex justify-center">
           <form onSubmit={handleSubmit} className="w-full max-w-xs space-y-4">
-            <h2 className="text-lg font-bold text-center">제2의 뇌</h2>
+            <h2 className="text-lg font-bold text-center">{ROOT_TITLE}</h2>
             <p className="text-sm text-center text-muted-foreground">
               비밀번호를 입력하면 대화 화면으로 이동합니다
             </p>
@@ -99,32 +117,77 @@ function PasswordGate({ onAuth }: { onAuth: () => void }) {
   );
 }
 
-// ── 대화 화면 ──
+// ── 상태 배지 ──
 
-function ChatView() {
-  const [messages, setMessages] = useState<SBMessage[]>([]);
-  const [input, setInput] = useState("");
-  const [sending, setSending] = useState(false);
+function StatusBadge({ status }: { status: "active" | "done" }) {
+  if (status === "done") {
+    return (
+      <span className="shrink-0 text-xs text-emerald-500" aria-label="완료">
+        ✓
+      </span>
+    );
+  }
+  return (
+    <span
+      className="inline-block size-2 shrink-0 rounded-full bg-blue-500"
+      aria-label="진행 중"
+    />
+  );
+}
+
+// ── 트리 뷰 ──
+
+function renderTreeRows(
+  tree: SBTree,
+  id: string,
+  depth: number,
+  visited: Set<string>,
+  onOpen: (id: string) => void
+): React.ReactElement[] {
+  if (visited.has(id)) return [];
+  visited.add(id);
+
+  const node = tree[id];
+  if (!node) return [];
+
+  const rows: React.ReactElement[] = [
+    <button
+      key={node.id}
+      type="button"
+      onClick={() => onOpen(node.id)}
+      style={{ paddingLeft: 16 + depth * 18 }}
+      className="flex w-full items-center gap-2 rounded-lg py-2.5 pr-4 text-left text-sm transition-colors hover:bg-card"
+    >
+      <StatusBadge status={node.status} />
+      <span className="truncate">{node.title}</span>
+    </button>,
+  ];
+
+  for (const childId of node.children) {
+    rows.push(...renderTreeRows(tree, childId, depth + 1, visited, onOpen));
+  }
+  return rows;
+}
+
+function TreeView({ onOpen }: { onOpen: (id: string) => void }) {
+  const [tree, setTree] = useState<SBTree | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const bottomRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  // 마운트 시 기존 대화 로드
   useEffect(() => {
     let cancelled = false;
     void (async () => {
       try {
-        const res = await fetch("/api/second-brain/chat", {
-          headers: { "x-sb-key": PASSWORD },
+        const res = await fetch("/api/second-brain/tree", {
+          headers: authHeaders,
         });
-        if (!res.ok) return;
-        const conv = (await res.json()) as SBConversation | null;
-        if (!cancelled && conv && Array.isArray(conv.messages) && conv.messages.length > 0) {
-          setMessages(conv.messages);
+        if (!res.ok) {
+          if (!cancelled) setError("트리를 불러오지 못했습니다.");
+          return;
         }
+        const data = (await res.json()) as SBTree;
+        if (!cancelled) setTree(data);
       } catch {
-        // 초기 로드 실패는 조용히 무시 (빈 대화로 시작)
+        if (!cancelled) setError("네트워크 오류로 트리를 불러오지 못했습니다.");
       }
     })();
     return () => {
@@ -132,10 +195,151 @@ function ChatView() {
     };
   }, []);
 
+  return (
+    <div className="min-h-screen bg-background">
+      <header className="sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur">
+        <div className="mx-auto flex max-w-3xl items-center px-4 py-3">
+          <h1 className="text-base font-bold">{ROOT_TITLE}</h1>
+        </div>
+      </header>
+
+      <main className="mx-auto w-full max-w-3xl px-4 py-4">
+        {error && <p className="py-8 text-center text-sm text-red-400">{error}</p>}
+        {!tree && !error && (
+          <p className="py-16 text-center text-sm text-muted-foreground">
+            불러오는 중...
+          </p>
+        )}
+        {tree && (
+          <div className="space-y-0.5">
+            {renderTreeRows(tree, ROOT_ID, 0, new Set<string>(), onOpen)}
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
+
+// ── 가지 표시(링크 + 요약 접이식) ──
+
+function BranchMarker({
+  branchId,
+  title,
+  summary,
+  onOpen,
+}: {
+  branchId: string;
+  title: string;
+  summary?: string;
+  onOpen: (id: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="mt-1.5 w-full max-w-[85%] space-y-1">
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => onOpen(branchId)}
+          className="rounded-full border border-border bg-card px-2.5 py-1 text-xs text-foreground transition-colors hover:bg-border/40"
+        >
+          ↳ {title}
+        </button>
+        {summary && (
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            className="text-xs text-muted-foreground underline underline-offset-2"
+          >
+            {open ? "요약 접기" : "요약 펼치기"}
+          </button>
+        )}
+      </div>
+      {summary && open && (
+        <div className="whitespace-pre-wrap break-words rounded-xl border border-border bg-card/60 px-3 py-2 text-xs leading-relaxed text-muted-foreground">
+          {summary}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── 대화 뷰 ──
+
+function ChatView({
+  convId,
+  onBack,
+  onNavigate,
+}: {
+  convId: string;
+  onBack: () => void;
+  onNavigate: (id: string) => void;
+}) {
+  const [conv, setConv] = useState<SBConversation | null>(null);
+  const [tree, setTree] = useState<SBTree>({});
+  const [input, setInput] = useState("");
+  const [sending, setSending] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // 대화 + 트리 로드
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const [convRes, treeRes] = await Promise.all([
+          fetch(`/api/second-brain/chat?convId=${encodeURIComponent(convId)}`, {
+            headers: authHeaders,
+          }),
+          fetch("/api/second-brain/tree", { headers: authHeaders }),
+        ]);
+
+        if (!cancelled && treeRes.ok) {
+          setTree((await treeRes.json()) as SBTree);
+        }
+
+        if (!convRes.ok) {
+          if (!cancelled) setError("대화를 불러오지 못했습니다.");
+          return;
+        }
+        const data = (await convRes.json()) as SBConversation | null;
+        if (cancelled) return;
+
+        if (data) {
+          setConv({
+            ...data,
+            messages: Array.isArray(data.messages) ? data.messages : [],
+          });
+        } else if (convId === ROOT_ID) {
+          // 루트 대화가 아직 저장 전이면 빈 대화로 시작
+          const now = Date.now();
+          setConv({
+            id: ROOT_ID,
+            title: ROOT_TITLE,
+            messages: [],
+            createdAt: now,
+            updatedAt: now,
+            status: "active",
+          });
+        } else {
+          setError("대화를 찾을 수 없습니다.");
+        }
+      } catch {
+        if (!cancelled) setError("네트워크 오류로 대화를 불러오지 못했습니다.");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [convId]);
+
   // 새 메시지가 생기면 자동 스크롤
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, sending]);
+  }, [conv?.messages.length, sending]);
 
   const resizeTextarea = useCallback(() => {
     const el = textareaRef.current;
@@ -151,10 +355,17 @@ function ChatView() {
     setError(null);
     setSending(true);
     setInput("");
-    setMessages((prev) => [
-      ...prev,
-      { role: "user", content: text, ts: Date.now() },
-    ]);
+    setConv((prev) =>
+      prev
+        ? {
+            ...prev,
+            messages: [
+              ...prev.messages,
+              { role: "user", content: text, ts: Date.now() },
+            ],
+          }
+        : prev
+    );
 
     const el = textareaRef.current;
     if (el) el.style.height = "auto";
@@ -162,11 +373,8 @@ function ChatView() {
     try {
       const res = await fetch("/api/second-brain/chat", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-sb-key": PASSWORD,
-        },
-        body: JSON.stringify({ message: text }),
+        headers: { "Content-Type": "application/json", ...authHeaders },
+        body: JSON.stringify({ message: text, convId }),
       });
       const data = (await res.json()) as { reply?: string; error?: string };
       if (!res.ok || !data.reply) {
@@ -174,23 +382,115 @@ function ChatView() {
         return;
       }
       const reply = data.reply;
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: reply, ts: Date.now() },
-      ]);
+      setConv((prev) =>
+        prev
+          ? {
+              ...prev,
+              messages: [
+                ...prev.messages,
+                { role: "assistant", content: reply, ts: Date.now() },
+              ],
+            }
+          : prev
+      );
     } catch {
       setError("네트워크 오류로 응답을 가져오지 못했습니다.");
     } finally {
       setSending(false);
     }
-  }, [input, sending]);
+  }, [convId, input, sending]);
+
+  const handleBranch = useCallback(
+    async (parentMessageTs: number) => {
+      if (busy) return;
+      const title = prompt("가지 이름을 입력하세요")?.trim();
+      if (!title) return;
+
+      setError(null);
+      setBusy(true);
+      try {
+        const res = await fetch("/api/second-brain/branch", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...authHeaders },
+          body: JSON.stringify({ parentId: convId, parentMessageTs, title }),
+        });
+        const data = (await res.json()) as { convId?: string; error?: string };
+        if (!res.ok || !data.convId) {
+          setError(data.error ?? "가지를 만들지 못했습니다.");
+          return;
+        }
+        onNavigate(data.convId);
+      } catch {
+        setError("네트워크 오류로 가지를 만들지 못했습니다.");
+      } finally {
+        setBusy(false);
+      }
+    },
+    [busy, convId, onNavigate]
+  );
+
+  const handleComplete = useCallback(async () => {
+    if (busy || !conv?.parentId) return;
+    if (
+      !confirm(
+        "이 가지를 완료할까요? 대화 내용이 요약되어 부모 대화에 남습니다."
+      )
+    )
+      return;
+
+    const parentId = conv.parentId;
+    setError(null);
+    setBusy(true);
+    try {
+      const res = await fetch("/api/second-brain/complete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders },
+        body: JSON.stringify({ convId }),
+      });
+      const data = (await res.json()) as { summary?: string; error?: string };
+      if (!res.ok || !data.summary) {
+        setError(data.error ?? "가지를 완료하지 못했습니다.");
+        return;
+      }
+      onNavigate(parentId);
+    } catch {
+      setError("네트워크 오류로 가지를 완료하지 못했습니다.");
+    } finally {
+      setBusy(false);
+    }
+  }, [busy, conv?.parentId, convId, onNavigate]);
+
+  const messages = conv?.messages ?? [];
+  const isBranch = Boolean(conv?.parentId);
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
       {/* 상단 고정 헤더 */}
       <header className="sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur">
-        <div className="mx-auto flex max-w-3xl items-center px-4 py-3">
-          <h1 className="text-base font-bold">제2의 뇌</h1>
+        <div className="mx-auto flex max-w-3xl items-center gap-2 px-4 py-3">
+          <button
+            type="button"
+            onClick={onBack}
+            className="shrink-0 rounded-lg border border-border px-2.5 py-1 text-xs transition-colors hover:bg-card"
+          >
+            ← 트리
+          </button>
+          <h1 className="min-w-0 flex-1 truncate text-base font-bold">
+            {conv?.title ?? ROOT_TITLE}
+          </h1>
+          {isBranch && conv?.status === "active" && (
+            <button
+              type="button"
+              onClick={() => void handleComplete()}
+              disabled={busy}
+              className="shrink-0 rounded-lg bg-foreground px-2.5 py-1 text-xs font-medium text-background transition-colors hover:bg-foreground/90 disabled:opacity-40"
+            >
+              {busy ? "처리 중..." : "가지 완료"}
+            </button>
+          )}
+          {isBranch && conv?.status === "done" && (
+            <span className="shrink-0 text-xs text-emerald-500">완료됨</span>
+          )}
         </div>
       </header>
 
@@ -207,7 +507,9 @@ function ChatView() {
             <div
               key={`${m.ts}-${i}`}
               className={
-                m.role === "user" ? "flex justify-end" : "flex justify-start"
+                m.role === "user"
+                  ? "flex flex-col items-end"
+                  : "flex flex-col items-start"
               }
             >
               <div
@@ -219,6 +521,26 @@ function ChatView() {
               >
                 {m.content}
               </div>
+
+              {m.branchId ? (
+                <BranchMarker
+                  branchId={m.branchId}
+                  title={tree[m.branchId]?.title ?? "가지"}
+                  summary={m.branchSummary}
+                  onOpen={onNavigate}
+                />
+              ) : (
+                m.role === "assistant" && (
+                  <button
+                    type="button"
+                    onClick={() => void handleBranch(m.ts)}
+                    disabled={busy}
+                    className="mt-1 text-xs text-muted-foreground underline underline-offset-2 disabled:opacity-40"
+                  >
+                    가지 뻗기
+                  </button>
+                )
+              )}
             </div>
           ))}
 
@@ -274,11 +596,25 @@ export default function SecondBrainPage() {
   // 서버 렌더 시에는 항상 잠금 화면, 클라이언트에서 localStorage 확인
   const stored = useSyncExternalStore(subscribeAuth, readAuth, () => null);
   const [justAuthed, setJustAuthed] = useState(false);
+  // null이면 트리 뷰, 값이 있으면 해당 대화 뷰
+  const [openConvId, setOpenConvId] = useState<string | null>(null);
 
   const authed = justAuthed || stored === PASSWORD;
 
   if (!authed) {
     return <PasswordGate onAuth={() => setJustAuthed(true)} />;
   }
-  return <ChatView />;
+
+  if (!openConvId) {
+    return <TreeView onOpen={setOpenConvId} />;
+  }
+
+  return (
+    <ChatView
+      key={openConvId}
+      convId={openConvId}
+      onBack={() => setOpenConvId(null)}
+      onNavigate={setOpenConvId}
+    />
+  );
 }

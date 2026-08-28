@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import {
+  emptyRootConversation,
   loadConversation,
   saveConversation,
   SB_ROOT_ID,
-  type SBConversation,
 } from "@/lib/second-brain";
 
 const ACCESS_KEY = "8384";
@@ -20,24 +20,22 @@ function checkAuth(request: NextRequest): boolean {
   return request.headers.get("x-sb-key") === ACCESS_KEY;
 }
 
-function emptyConversation(): SBConversation {
-  const now = Date.now();
-  return {
-    id: SB_ROOT_ID,
-    title: "제2의 뇌",
-    messages: [],
-    createdAt: now,
-    updatedAt: now,
-  };
-}
-
 export async function GET(request: NextRequest) {
   if (!checkAuth(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
-    const conv = await loadConversation(SB_ROOT_ID);
+    // convId 없으면 'root' (1차 버전과 호환)
+    const convId =
+      request.nextUrl.searchParams.get("convId")?.trim() || SB_ROOT_ID;
+    const conv = await loadConversation(convId);
+    if (!conv && convId !== SB_ROOT_ID) {
+      return NextResponse.json(
+        { error: "대화를 찾을 수 없습니다." },
+        { status: 404 }
+      );
+    }
     return NextResponse.json(conv);
   } catch (error) {
     console.error("[second-brain] GET error:", error);
@@ -54,7 +52,10 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const body = (await request.json()) as { message?: string };
+    const body = (await request.json()) as {
+      message?: string;
+      convId?: string;
+    };
     const message = body.message?.trim();
     if (!message) {
       return NextResponse.json(
@@ -62,6 +63,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // convId 없으면 'root' (1차 버전과 호환)
+    const convId = body.convId?.trim() || SB_ROOT_ID;
 
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
@@ -71,10 +75,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const conv = (await loadConversation(SB_ROOT_ID)) ?? emptyConversation();
+    const existing = await loadConversation(convId);
+    if (!existing && convId !== SB_ROOT_ID) {
+      return NextResponse.json(
+        { error: "대화를 찾을 수 없습니다." },
+        { status: 404 }
+      );
+    }
+    const conv = existing ?? emptyRootConversation();
     conv.messages.push({ role: "user", content: message, ts: Date.now() });
 
-    // 저장된 전체 대화를 그대로 전달해 문맥 유지
+    // 해당 대화의 messages만 문맥으로 전달 (가지별 문맥 분리)
     const client = new Anthropic({ apiKey });
     const response = await client.messages.create({
       model: MODEL,
