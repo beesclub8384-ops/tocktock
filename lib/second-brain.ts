@@ -1,12 +1,23 @@
 import { redis } from "./redis.ts";
 
+export interface SBBranchRef {
+  /** 이 메시지 지점에서 뻗은 가지 대화 id */
+  branchId: string;
+  /** 가지 완료 시 요약이 이 자리에 끼워짐 */
+  summary?: string;
+}
+
 export interface SBMessage {
   role: "user" | "assistant";
   content: string;
   ts: number;
-  /** 이 메시지 지점에서 뻗은 가지 대화 id */
+  /** 한 메시지에서 여러 가지를 뻗을 수 있다 */
+  branches?: SBBranchRef[];
+}
+
+/** 가지가 메시지당 1개뿐이던 옛 형식 */
+interface LegacySBMessage extends SBMessage {
   branchId?: string;
-  /** 가지 완료 시 요약이 이 자리에 끼워짐 */
   branchSummary?: string;
 }
 
@@ -42,10 +53,30 @@ function convKey(id: string): string {
   return `second-brain:conv:${id}`;
 }
 
+/** 옛 형식(branchId/branchSummary)을 branches 배열로 변환한다. 저장은 새 형식으로만 한다 */
+function normalizeMessage(raw: LegacySBMessage): SBMessage {
+  const branches: SBBranchRef[] = Array.isArray(raw.branches)
+    ? raw.branches.filter((b) => b && b.branchId)
+    : [];
+
+  if (raw.branchId && !branches.some((b) => b.branchId === raw.branchId)) {
+    branches.push({ branchId: raw.branchId, summary: raw.branchSummary });
+  }
+
+  const message: SBMessage = {
+    role: raw.role,
+    content: raw.content,
+    ts: raw.ts,
+  };
+  if (branches.length > 0) message.branches = branches;
+  return message;
+}
+
 function normalizeConversation(data: SBConversation): SBConversation {
+  const rawMessages = Array.isArray(data.messages) ? data.messages : [];
   return {
     ...data,
-    messages: Array.isArray(data.messages) ? data.messages : [],
+    messages: rawMessages.map((m) => normalizeMessage(m as LegacySBMessage)),
     // 1차 버전 데이터에는 status가 없다
     status: data.status === "done" ? "done" : "active",
   };
@@ -144,10 +175,6 @@ export async function createBranch(
   if (!target) {
     throw new Error("가지를 뻗을 메시지를 찾을 수 없습니다.");
   }
-  if (target.branchId) {
-    throw new Error("이미 이 지점에서 뻗은 가지가 있습니다.");
-  }
-
   const now = Date.now();
   const branch: SBConversation = {
     id: crypto.randomUUID(),
@@ -160,7 +187,9 @@ export async function createBranch(
     status: "active",
   };
 
-  target.branchId = branch.id;
+  // 같은 메시지에 가지를 몇 개든 뻗을 수 있다
+  if (!target.branches) target.branches = [];
+  target.branches.push({ branchId: branch.id });
   parent.updatedAt = now;
 
   const tree = await loadTree();
@@ -208,9 +237,11 @@ export async function finishBranch(
   if (conv.parentId) {
     const parent = await loadConversation(conv.parentId);
     if (parent) {
-      const target = parent.messages.find((m) => m.branchId === conv.id);
-      if (target) {
-        target.branchSummary = summary;
+      const ref = parent.messages
+        .flatMap((m) => m.branches ?? [])
+        .find((b) => b.branchId === conv.id);
+      if (ref) {
+        ref.summary = summary;
         parent.updatedAt = now;
         await saveConversation(parent);
       }

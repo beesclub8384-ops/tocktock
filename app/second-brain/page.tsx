@@ -13,12 +13,30 @@ const AUTH_KEY = "sb-auth";
 const ROOT_ID = "root";
 const ROOT_TITLE = "제2의 뇌";
 
+interface SBBranchRef {
+  branchId: string;
+  summary?: string;
+}
+
 interface SBMessage {
   role: "user" | "assistant";
   content: string;
   ts: number;
+  branches?: SBBranchRef[];
+  /** 옛 형식(가지 1개) 대비 */
   branchId?: string;
   branchSummary?: string;
+}
+
+/** 옛 형식 메시지도 branches 배열로 취급한다 */
+function messageBranches(m: SBMessage): SBBranchRef[] {
+  const branches = Array.isArray(m.branches)
+    ? m.branches.filter((b) => b && b.branchId)
+    : [];
+  if (m.branchId && !branches.some((b) => b.branchId === m.branchId)) {
+    return [...branches, { branchId: m.branchId, summary: m.branchSummary }];
+  }
+  return branches;
 }
 
 interface SBConversation {
@@ -236,7 +254,7 @@ function BranchMarker({
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="mt-1.5 w-full max-w-[85%] space-y-1">
+    <div className="space-y-1">
       <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
@@ -503,46 +521,55 @@ function ChatView({
             </p>
           )}
 
-          {messages.map((m, i) => (
-            <div
-              key={`${m.ts}-${i}`}
-              className={
-                m.role === "user"
-                  ? "flex flex-col items-end"
-                  : "flex flex-col items-start"
-              }
-            >
+          {messages.map((m, i) => {
+            const branches = messageBranches(m);
+            return (
               <div
+                key={`${m.ts}-${i}`}
                 className={
                   m.role === "user"
-                    ? "max-w-[85%] whitespace-pre-wrap break-words rounded-2xl rounded-br-sm bg-foreground px-4 py-2.5 text-sm leading-relaxed text-background"
-                    : "max-w-[85%] whitespace-pre-wrap break-words rounded-2xl rounded-bl-sm border border-border bg-card px-4 py-2.5 text-sm leading-relaxed text-foreground"
+                    ? "flex flex-col items-end"
+                    : "flex flex-col items-start"
                 }
               >
-                {m.content}
-              </div>
+                <div
+                  className={
+                    m.role === "user"
+                      ? "max-w-[85%] whitespace-pre-wrap break-words rounded-2xl rounded-br-sm bg-foreground px-4 py-2.5 text-sm leading-relaxed text-background"
+                      : "max-w-[85%] whitespace-pre-wrap break-words rounded-2xl rounded-bl-sm border border-border bg-card px-4 py-2.5 text-sm leading-relaxed text-foreground"
+                  }
+                >
+                  {m.content}
+                </div>
 
-              {m.branchId ? (
-                <BranchMarker
-                  branchId={m.branchId}
-                  title={tree[m.branchId]?.title ?? "가지"}
-                  summary={m.branchSummary}
-                  onOpen={onNavigate}
-                />
-              ) : (
-                m.role === "assistant" && (
-                  <button
-                    type="button"
-                    onClick={() => void handleBranch(m.ts)}
-                    disabled={busy}
-                    className="mt-1 text-xs text-muted-foreground underline underline-offset-2 disabled:opacity-40"
-                  >
-                    가지 뻗기
-                  </button>
-                )
-              )}
-            </div>
-          ))}
+                {(branches.length > 0 || m.role === "assistant") && (
+                  <div className="mt-1.5 w-full max-w-[85%] space-y-1.5">
+                    {branches.map((b) => (
+                      <BranchMarker
+                        key={b.branchId}
+                        branchId={b.branchId}
+                        title={tree[b.branchId]?.title ?? "가지"}
+                        summary={b.summary}
+                        onOpen={onNavigate}
+                      />
+                    ))}
+
+                    {/* 가지가 이미 있어도 추가로 뻗을 수 있다 */}
+                    {m.role === "assistant" && (
+                      <button
+                        type="button"
+                        onClick={() => void handleBranch(m.ts)}
+                        disabled={busy}
+                        className="text-xs text-muted-foreground underline underline-offset-2 disabled:opacity-40"
+                      >
+                        가지 뻗기
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
 
           {sending && (
             <div className="flex justify-start">
