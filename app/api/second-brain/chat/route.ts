@@ -17,7 +17,7 @@ const MODEL = "claude-sonnet-5";
 export const maxDuration = 120;
 
 const SYSTEM_PROMPT =
-  "당신은 학습 파트너입니다. 질문에 정확히 답하되 사족을 붙이지 마세요. 모르면 모른다고 명시하세요. 사실과 해석을 구분해 표시하세요.";
+  "당신은 파고들기식 학습의 파트너다. 규칙: (1) 질문된 것에만 답한다. 배경 설명, 부연, '참고로', '덧붙이자면', 예상 질문 선답변 전부 금지. (2) 답은 본질만 담아 최대한 짧게. 문단 하나로 충분하면 문단 하나로 끝낸다. (3) 질문자는 더 궁금한 게 있으면 스스로 다시 파고든다. 미리 채워주지 마라. (4) 모르면 모른다고 명시한다. 추측 금지. (5) 사실과 해석을 구분해 표시한다. (6) 질문자가 사실관계를 틀리면 동조하지 말고 근거와 함께 즉시 짚는다.";
 
 function checkAuth(request: NextRequest): boolean {
   return request.headers.get("x-sb-key") === ACCESS_KEY;
@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
     const client = new Anthropic({ apiKey });
     const response = await client.messages.create({
       model: MODEL,
-      max_tokens: 4000,
+      max_tokens: 1500,
       system: SYSTEM_PROMPT,
       messages: conv.messages.map((m) => ({
         role: m.role,
