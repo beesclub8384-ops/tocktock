@@ -12,6 +12,8 @@ const PASSWORD = "8384";
 const AUTH_KEY = "sb-auth";
 const ROOT_ID = "root";
 const ROOT_TITLE = "제2의 뇌";
+/** 가지 생성 시 붙는 임시 제목. 첫 질문이 들어가면 서버가 교체한다 */
+const NEW_BRANCH_TITLE = "새 가지";
 
 interface SBBranchRef {
   branchId: string;
@@ -286,12 +288,14 @@ function BranchMarker({
 
 function ChatView({
   convId,
+  autoFocus,
   onBack,
   onNavigate,
 }: {
   convId: string;
+  autoFocus: boolean;
   onBack: () => void;
-  onNavigate: (id: string) => void;
+  onNavigate: (id: string, focusInput?: boolean) => void;
 }) {
   const [conv, setConv] = useState<SBConversation | null>(null);
   const [tree, setTree] = useState<SBTree>({});
@@ -359,6 +363,11 @@ function ChatView({
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [conv?.messages.length, sending]);
 
+  // 방금 만든 가지로 들어온 경우 바로 질문할 수 있게 포커스
+  useEffect(() => {
+    if (autoFocus) textareaRef.current?.focus();
+  }, [autoFocus]);
+
   const resizeTextarea = useCallback(() => {
     const el = textareaRef.current;
     if (!el) return;
@@ -394,16 +403,23 @@ function ChatView({
         headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify({ message: text, convId }),
       });
-      const data = (await res.json()) as { reply?: string; error?: string };
+      const data = (await res.json()) as {
+        reply?: string;
+        title?: string;
+        error?: string;
+      };
       if (!res.ok || !data.reply) {
         setError(data.error ?? "응답을 가져오지 못했습니다.");
         return;
       }
       const reply = data.reply;
+      const title = data.title;
       setConv((prev) =>
         prev
           ? {
               ...prev,
+              // 첫 질문으로 제목이 자동 생성되면 화면에도 바로 반영
+              title: title ?? prev.title,
               messages: [
                 ...prev.messages,
                 { role: "assistant", content: reply, ts: Date.now() },
@@ -421,23 +437,26 @@ function ChatView({
   const handleBranch = useCallback(
     async (parentMessageTs: number) => {
       if (busy) return;
-      const title = prompt("가지 이름을 입력하세요")?.trim();
-      if (!title) return;
 
       setError(null);
       setBusy(true);
       try {
+        // 제목은 임시값. 가지에 첫 질문이 들어가면 서버가 그 질문으로 교체한다
         const res = await fetch("/api/second-brain/branch", {
           method: "POST",
           headers: { "Content-Type": "application/json", ...authHeaders },
-          body: JSON.stringify({ parentId: convId, parentMessageTs, title }),
+          body: JSON.stringify({
+            parentId: convId,
+            parentMessageTs,
+            title: NEW_BRANCH_TITLE,
+          }),
         });
         const data = (await res.json()) as { convId?: string; error?: string };
         if (!res.ok || !data.convId) {
           setError(data.error ?? "가지를 만들지 못했습니다.");
           return;
         }
-        onNavigate(data.convId);
+        onNavigate(data.convId, true);
       } catch {
         setError("네트워크 오류로 가지를 만들지 못했습니다.");
       } finally {
@@ -625,6 +644,17 @@ export default function SecondBrainPage() {
   const [justAuthed, setJustAuthed] = useState(false);
   // null이면 트리 뷰, 값이 있으면 해당 대화 뷰
   const [openConvId, setOpenConvId] = useState<string | null>(null);
+  const [focusInput, setFocusInput] = useState(false);
+
+  const openConv = (id: string, shouldFocus = false) => {
+    setOpenConvId(id);
+    setFocusInput(shouldFocus);
+  };
+
+  const backToTree = () => {
+    setOpenConvId(null);
+    setFocusInput(false);
+  };
 
   const authed = justAuthed || stored === PASSWORD;
 
@@ -633,15 +663,16 @@ export default function SecondBrainPage() {
   }
 
   if (!openConvId) {
-    return <TreeView onOpen={setOpenConvId} />;
+    return <TreeView onOpen={openConv} />;
   }
 
   return (
     <ChatView
       key={openConvId}
       convId={openConvId}
-      onBack={() => setOpenConvId(null)}
-      onNavigate={setOpenConvId}
+      autoFocus={focusInput}
+      onBack={backToTree}
+      onNavigate={openConv}
     />
   );
 }

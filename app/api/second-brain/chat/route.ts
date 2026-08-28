@@ -4,6 +4,9 @@ import {
   emptyRootConversation,
   loadConversation,
   saveConversation,
+  titleFromMessage,
+  updateTreeNodeTitle,
+  SB_NEW_BRANCH_TITLE,
   SB_ROOT_ID,
 } from "@/lib/second-brain";
 
@@ -83,6 +86,15 @@ export async function POST(request: NextRequest) {
       );
     }
     const conv = existing ?? emptyRootConversation();
+
+    // 임시 제목("새 가지")인 가지의 첫 질문이면 그 질문으로 제목을 만든다
+    const isFirstUserMessage = !conv.messages.some((m) => m.role === "user");
+    const newTitle =
+      conv.title === SB_NEW_BRANCH_TITLE && isFirstUserMessage
+        ? titleFromMessage(message)
+        : null;
+    if (newTitle) conv.title = newTitle;
+
     conv.messages.push({ role: "user", content: message, ts: Date.now() });
 
     // 해당 대화의 messages만 문맥으로 전달 (가지별 문맥 분리)
@@ -106,8 +118,9 @@ export async function POST(request: NextRequest) {
     conv.messages.push({ role: "assistant", content: reply, ts: Date.now() });
     conv.updatedAt = Date.now();
     await saveConversation(conv);
+    if (newTitle) await updateTreeNodeTitle(conv.id, newTitle);
 
-    return NextResponse.json({ reply });
+    return NextResponse.json({ reply, title: conv.title });
   } catch (error) {
     console.error("[second-brain] POST error:", error);
     const detail = error instanceof Error ? error.message : String(error);

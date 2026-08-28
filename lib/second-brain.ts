@@ -46,6 +46,10 @@ export type SBTree = Record<string, SBTreeNode>;
 /** 루트 대화 고정 id */
 export const SB_ROOT_ID = "root";
 export const SB_ROOT_TITLE = "제2의 뇌";
+/** 가지를 만들 때 붙는 임시 제목. 첫 질문이 들어오면 교체된다 */
+export const SB_NEW_BRANCH_TITLE = "새 가지";
+/** 자동 생성 제목 최대 길이 */
+const TITLE_MAX_LENGTH = 20;
 
 const TREE_KEY = "second-brain:tree";
 
@@ -155,6 +159,25 @@ export async function loadTree(): Promise<SBTree> {
 
 export async function saveTree(tree: SBTree): Promise<void> {
   await redis.set(TREE_KEY, tree);
+}
+
+/** 트리 인덱스의 노드 제목만 갱신한다. 노드가 없으면 아무것도 하지 않는다 */
+export async function updateTreeNodeTitle(
+  id: string,
+  title: string
+): Promise<void> {
+  const tree = await loadTree();
+  const node = tree[id];
+  if (!node) return;
+  node.title = title;
+  await saveTree(tree);
+}
+
+/** 첫 질문으로 가지 제목을 만든다. 20자 초과 시 "..."을 붙인다 */
+export function titleFromMessage(message: string): string {
+  const text = message.trim();
+  if (text.length <= TITLE_MAX_LENGTH) return text;
+  return `${text.slice(0, TITLE_MAX_LENGTH)}...`;
 }
 
 /**
