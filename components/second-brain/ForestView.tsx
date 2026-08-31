@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { ActionSheet } from "./ActionSheet";
+import type { ActionSheetItem } from "./ActionSheet";
 import { authHeaders, ROOT_TITLE, SHELL_HEIGHT } from "./types";
 import type { SBTree } from "./types";
 
@@ -29,7 +31,8 @@ function renderRows(
   id: string,
   depth: number,
   visited: Set<string>,
-  onOpen: (id: string) => void
+  onOpen: (id: string) => void,
+  onRootMenu: (id: string) => void
 ): React.ReactElement[] {
   if (visited.has(id)) return [];
   visited.add(id);
@@ -38,12 +41,12 @@ function renderRows(
   if (!node) return [];
 
   const rows: React.ReactElement[] = [
-    <div key={node.id} className="flex">
+    <div key={node.id} className="flex items-center">
       <div style={{ width: depth * 16 }} className="shrink-0" />
       <button
         type="button"
         onClick={() => onOpen(node.id)}
-        className={`flex min-h-[52px] flex-1 items-center gap-2.5 rounded-r-xl py-2 pr-3 text-left transition-colors active:bg-card ${
+        className={`flex min-h-[52px] min-w-0 flex-1 items-center gap-2.5 rounded-r-xl py-2 pr-2 text-left transition-colors active:bg-card ${
           depth > 0 ? "border-l border-border pl-3.5" : "pl-1"
         }`}
       >
@@ -52,11 +55,24 @@ function renderRows(
           {node.title}
         </span>
       </button>
+      {/* 가지 삭제는 대화 안에서 한다. 여기서는 주제(뿌리)만 다룬다 */}
+      {depth === 0 && (
+        <button
+          type="button"
+          aria-label="주제 메뉴"
+          onClick={() => onRootMenu(node.id)}
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-[18px] text-muted-foreground transition-colors active:bg-card"
+        >
+          ⋯
+        </button>
+      )}
     </div>,
   ];
 
   for (const childId of node.children) {
-    rows.push(...renderRows(tree, childId, depth + 1, visited, onOpen));
+    rows.push(
+      ...renderRows(tree, childId, depth + 1, visited, onOpen, onRootMenu)
+    );
   }
   return rows;
 }
@@ -74,30 +90,28 @@ export function ForestView({
   const [tree, setTree] = useState<SBTree | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [menuRootId, setMenuRootId] = useState<string | null>(null);
+
+  const loadForest = useCallback(async () => {
+    try {
+      const res = await fetch("/api/second-brain/tree", {
+        headers: authHeaders,
+      });
+      if (!res.ok) {
+        setError("트리를 불러오지 못했습니다.");
+        return;
+      }
+      const data = (await res.json()) as { roots?: string[]; tree?: SBTree };
+      setRoots(Array.isArray(data.roots) ? data.roots : []);
+      setTree(data.tree ?? {});
+    } catch {
+      setError("네트워크 오류로 트리를 불러오지 못했습니다.");
+    }
+  }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      try {
-        const res = await fetch("/api/second-brain/tree", {
-          headers: authHeaders,
-        });
-        if (!res.ok) {
-          if (!cancelled) setError("트리를 불러오지 못했습니다.");
-          return;
-        }
-        const data = (await res.json()) as { roots?: string[]; tree?: SBTree };
-        if (cancelled) return;
-        setRoots(Array.isArray(data.roots) ? data.roots : []);
-        setTree(data.tree ?? {});
-      } catch {
-        if (!cancelled) setError("네트워크 오류로 트리를 불러오지 못했습니다.");
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    void loadForest();
+  }, [loadForest]);
 
   const handleNewRoot = useCallback(async () => {
     if (creating) return;
@@ -124,13 +138,49 @@ export function ForestView({
     }
   }, [creating, onOpen, onToast]);
 
+  const handleDeleteRoot = useCallback(
+    async (rootId: string) => {
+      if (!confirm("이 주제와 모든 가지를 삭제할까요? 되돌릴 수 없습니다."))
+        return;
+
+      setError(null);
+      try {
+        const res = await fetch("/api/second-brain/root", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json", ...authHeaders },
+          body: JSON.stringify({ rootId }),
+        });
+        const data = (await res.json()) as { ok?: boolean; error?: string };
+        if (!res.ok || !data.ok) {
+          setError(data.error ?? "주제를 삭제하지 못했습니다.");
+          return;
+        }
+        await loadForest();
+        onToast("삭제됨");
+      } catch {
+        setError("네트워크 오류로 주제를 삭제하지 못했습니다.");
+      }
+    },
+    [loadForest, onToast]
+  );
+
+  const rootMenuItems: ActionSheetItem[] = menuRootId
+    ? [
+        {
+          label: "주제 삭제",
+          destructive: true,
+          onSelect: () => void handleDeleteRoot(menuRootId),
+        },
+      ]
+    : [];
+
   // 나무끼리 노드가 겹치지 않도록 방문 집합을 숲 전체에서 공유한다
   const visited = new Set<string>();
   const forest = tree
     ? roots
         .map((rootId) => ({
           rootId,
-          rows: renderRows(tree, rootId, 0, visited, onOpen),
+          rows: renderRows(tree, rootId, 0, visited, onOpen, setMenuRootId),
         }))
         .filter((t) => t.rows.length > 0)
     : [];
@@ -203,6 +253,12 @@ export function ForestView({
           </div>
         )}
       </main>
+
+      <ActionSheet
+        open={menuRootId !== null}
+        items={rootMenuItems}
+        onClose={() => setMenuRootId(null)}
+      />
     </div>
   );
 }

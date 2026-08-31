@@ -166,18 +166,19 @@ function normalizeNode(node: SBTreeNode): SBTreeNode {
  */
 export async function loadTree(): Promise<SBTree> {
   const data = await redis.get<SBTree>(TREE_KEY);
-  if (!data || typeof data !== "object" || Object.keys(data).length === 0) {
+
+  // 키 자체가 없을 때만 기본 트리를 만든다.
+  // 비어 있는 트리는 사용자가 전부 지운 상태이므로 되살리지 않는다.
+  if (data === null || data === undefined) {
     const tree = defaultTree();
     await saveTree(tree);
     return tree;
   }
+  if (typeof data !== "object") return {};
 
   const tree: SBTree = {};
   for (const [id, node] of Object.entries(data)) {
     if (node) tree[id] = normalizeNode(node);
-  }
-  if (!tree[SB_ROOT_ID]) {
-    tree[SB_ROOT_ID] = defaultTree()[SB_ROOT_ID];
   }
   return tree;
 }
@@ -195,16 +196,19 @@ export async function saveTree(tree: SBTree): Promise<void> {
  */
 export async function loadRoots(): Promise<string[]> {
   const data = await redis.get<string[]>(ROOTS_KEY);
-  const roots = Array.isArray(data)
-    ? data.filter((id): id is string => typeof id === "string" && id.length > 0)
-    : [];
 
-  if (roots.length === 0) {
+  // 키 자체가 없을 때만 마이그레이션한다.
+  // 빈 배열은 사용자가 주제를 전부 지운 상태이므로 그대로 존중한다.
+  if (data === null || data === undefined) {
     const migrated = [SB_ROOT_ID];
     await saveRoots(migrated);
     return migrated;
   }
+  if (!Array.isArray(data)) return [];
 
+  const roots = data.filter(
+    (id): id is string => typeof id === "string" && id.length > 0
+  );
   // 중복 제거(생성 순서 유지)
   return [...new Set(roots)];
 }
@@ -675,4 +679,18 @@ export async function simplifyForChild(
     console.error("[second-brain] simplifyForChild error:", error);
     return text;
   }
+}
+
+/**
+ * 주제(나무) 하나를 통째로 지운다.
+ * 사용자가 직접 지우는 것이므로 보관본은 만들지 않는다.
+ */
+export async function deleteTree(rootId: string): Promise<void> {
+  const roots = await loadRoots();
+  if (!roots.includes(rootId)) {
+    throw new Error("주제(줄기)만 삭제할 수 있습니다.");
+  }
+
+  // 대화 · 하위 가지 · 트리 노드 · roots 항목까지 한 번에 정리된다
+  await deleteBranchRecursive(rootId);
 }

@@ -444,6 +444,34 @@ export function ChatView({
     }
   }, [applying, convId, onToast, refreshTree, summarizing, summaryText]);
 
+  /** 이 주제(나무)를 통째로 지운다. 숲 뷰로 돌아간다 */
+  const handleDeleteTree = useCallback(async () => {
+    if (busy) return;
+    if (!confirm("이 주제와 모든 가지를 삭제할까요? 되돌릴 수 없습니다."))
+      return;
+
+    setError(null);
+    setBusy(true);
+    try {
+      const res = await fetch("/api/second-brain/root", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json", ...authHeaders },
+        body: JSON.stringify({ rootId: convId }),
+      });
+      const data = (await res.json()) as { ok?: boolean; error?: string };
+      if (!res.ok || !data.ok) {
+        setError(data.error ?? "주제를 삭제하지 못했습니다.");
+        return;
+      }
+      onToast("삭제됨");
+      onBack();
+    } catch {
+      setError("네트워크 오류로 주제를 삭제하지 못했습니다.");
+    } finally {
+      setBusy(false);
+    }
+  }, [busy, convId, onBack, onToast]);
+
   const messages = conv?.messages ?? [];
   const isBranch = Boolean(conv?.parentId);
   const editing = editingTs !== null;
@@ -451,7 +479,9 @@ export function ChatView({
   // 전체 요약은 줄기(뿌리 대화)에서, 내용이 있을 때만
   const canConsolidate = !isBranch && messages.length > 0;
   const canComplete = isBranch && conv?.status === "active";
-  const hasConvMenu = canConsolidate || canComplete;
+  // 주제 삭제는 뿌리 대화에서만
+  const canDeleteTree = !isBranch && conv !== null;
+  const hasConvMenu = canConsolidate || canComplete || canDeleteTree;
 
   const convMenuItems: ActionSheetItem[] = [];
   if (canComplete) {
@@ -462,6 +492,13 @@ export function ChatView({
   }
   if (canConsolidate) {
     convMenuItems.push({ label: "전체 요약", onSelect: openSummary });
+  }
+  if (canDeleteTree) {
+    convMenuItems.push({
+      label: "주제 삭제",
+      destructive: true,
+      onSelect: () => void handleDeleteTree(),
+    });
   }
 
   const messageMenuItems: ActionSheetItem[] = [];

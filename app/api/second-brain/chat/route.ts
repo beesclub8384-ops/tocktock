@@ -3,6 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import {
   emptyRootConversation,
   loadConversation,
+  loadRoots,
   saveConversation,
   titleFromMessage,
   updateTreeNodeTitle,
@@ -25,6 +26,16 @@ function checkAuth(request: NextRequest): boolean {
   return request.headers.get("x-sb-key") === ACCESS_KEY;
 }
 
+/**
+ * 고정 id 'root'는 1차 버전 호환용 빈 대화 폴백을 갖는다.
+ * 다만 사용자가 그 주제를 지웠다면(roots에 없음) 되살리지 않는다.
+ */
+async function isLiveRootFallback(convId: string): Promise<boolean> {
+  if (convId !== SB_ROOT_ID) return false;
+  const roots = await loadRoots();
+  return roots.includes(SB_ROOT_ID);
+}
+
 export async function GET(request: NextRequest) {
   if (!checkAuth(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -35,7 +46,7 @@ export async function GET(request: NextRequest) {
     const convId =
       request.nextUrl.searchParams.get("convId")?.trim() || SB_ROOT_ID;
     const conv = await loadConversation(convId);
-    if (!conv && convId !== SB_ROOT_ID) {
+    if (!conv && !(await isLiveRootFallback(convId))) {
       return NextResponse.json(
         { error: "대화를 찾을 수 없습니다." },
         { status: 404 }
@@ -81,7 +92,7 @@ export async function POST(request: NextRequest) {
     }
 
     const existing = await loadConversation(convId);
-    if (!existing && convId !== SB_ROOT_ID) {
+    if (!existing && !(await isLiveRootFallback(convId))) {
       return NextResponse.json(
         { error: "대화를 찾을 수 없습니다." },
         { status: 404 }
