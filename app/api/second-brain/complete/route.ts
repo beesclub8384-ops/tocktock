@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
-import { finishBranch, loadConversation, SB_ROOT_ID } from "@/lib/second-brain";
+import {
+  finishBranch,
+  loadConversation,
+  SB_ROOT_ID,
+  SB_SUMMARY_RULES,
+} from "@/lib/second-brain";
 
 const ACCESS_KEY = "8384";
 const MODEL = "claude-sonnet-5";
@@ -8,8 +13,13 @@ const MODEL = "claude-sonnet-5";
 // Vercel Hobby: 최대 300초
 export const maxDuration = 120;
 
-const SYSTEM_PROMPT =
-  "다음 학습 문답을 요약하라. 질문자가 이해하게 된 핵심 내용을 완성된 설명문으로 정리하되, 문답 형식은 버리고 지식 자체를 서술하라. 사족 금지.";
+const ROLE_PROMPT =
+  "다음 학습 문답을 요약하라. 질문자가 이해하게 된 핵심 내용을 완성된 설명문으로 정리하되, 문답 형식은 버리고 지식 자체를 서술하라.";
+
+// 규칙 원문은 lib/second-brain.ts 한 곳에만 둔다
+const SYSTEM_PROMPT = `${ROLE_PROMPT}
+
+${SB_SUMMARY_RULES}`;
 
 function checkAuth(request: NextRequest): boolean {
   return request.headers.get("x-sb-key") === ACCESS_KEY;

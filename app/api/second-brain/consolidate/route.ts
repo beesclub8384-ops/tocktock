@@ -4,6 +4,7 @@ import {
   collectTreeText,
   consolidateTree,
   loadRoots,
+  SB_SUMMARY_RULES,
 } from "@/lib/second-brain";
 
 const ACCESS_KEY = "8384";
@@ -12,8 +13,14 @@ const MODEL = "claude-sonnet-5";
 // Vercel Hobby: 최대 300초
 export const maxDuration = 120;
 
-const SYSTEM_PROMPT =
-  "다음은 한 주제를 파고든 학습 기록 전체다(줄기, 가지, 가지 요약, 학습자가 직접 수정한 답변 포함). 이 전체를 학습자가 도달한 이해의 완성본으로 정리하라. 규칙: (1) 문답 형식을 버리고 지식 자체를 서술한다. (2) 가지에서 파고든 내용은 그것이 궁금해졌던 지점에 자연스럽게 녹여 넣는다. (3) 학습자가 수정한 답변은 그 표현을 존중해 우선 반영한다. (4) 사족·부연·반복 금지, 본질만. (5) 논리적 순서로 재배치하되 내용을 새로 추가하거나 추측으로 채우지 않는다.";
+// 옛 (4) '사족 금지'는 공통 규칙 4와 겹쳐서 뺐고, 옛 (5)가 (4)로 당겨졌다
+const ROLE_PROMPT =
+  "다음은 한 주제를 파고든 학습 기록 전체다(줄기, 가지, 가지 요약, 학습자가 직접 수정한 답변 포함). 이 전체를 학습자가 도달한 이해의 완성본으로 정리하라. 규칙: (1) 문답 형식을 버리고 지식 자체를 서술한다. (2) 가지에서 파고든 내용은 그것이 궁금해졌던 지점에 자연스럽게 녹여 넣는다. (3) 학습자가 수정한 답변은 그 표현을 존중해 우선 반영한다. (4) 논리적 순서로 재배치하되 내용을 새로 추가하거나 추측으로 채우지 않는다.";
+
+// 규칙 원문은 lib/second-brain.ts 한 곳에만 둔다
+const SYSTEM_PROMPT = `${ROLE_PROMPT}
+
+${SB_SUMMARY_RULES}`;
 
 function checkAuth(request: NextRequest): boolean {
   return request.headers.get("x-sb-key") === ACCESS_KEY;
