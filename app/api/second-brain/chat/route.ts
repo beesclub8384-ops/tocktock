@@ -7,6 +7,7 @@ import {
   titleFromMessage,
   updateTreeNodeTitle,
   SB_NEW_BRANCH_TITLE,
+  SB_NEW_ROOT_TITLE,
   SB_ROOT_ID,
   type SBMessage,
 } from "@/lib/second-brain";
@@ -88,12 +89,12 @@ export async function POST(request: NextRequest) {
     }
     const conv = existing ?? emptyRootConversation();
 
-    // 임시 제목("새 가지")인 가지의 첫 질문이면 그 질문으로 제목을 만든다
+    // 임시 제목("새 가지"/"새 주제")인 대화의 첫 질문이면 그 질문으로 제목을 만든다
     const isFirstUserMessage = !conv.messages.some((m) => m.role === "user");
+    const hasTempTitle =
+      conv.title === SB_NEW_BRANCH_TITLE || conv.title === SB_NEW_ROOT_TITLE;
     const newTitle =
-      conv.title === SB_NEW_BRANCH_TITLE && isFirstUserMessage
-        ? titleFromMessage(message)
-        : null;
+      hasTempTitle && isFirstUserMessage ? titleFromMessage(message) : null;
     if (newTitle) conv.title = newTitle;
 
     // 가지 뻗기가 ts로 메시지를 찾으므로, 저장한 메시지를 그대로 응답에 실어 보낸다

@@ -48,10 +48,14 @@ export const SB_ROOT_ID = "root";
 export const SB_ROOT_TITLE = "제2의 뇌";
 /** 가지를 만들 때 붙는 임시 제목. 첫 질문이 들어오면 교체된다 */
 export const SB_NEW_BRANCH_TITLE = "새 가지";
+/** 새 뿌리(주제)를 만들 때 붙는 임시 제목. 첫 질문이 들어오면 교체된다 */
+export const SB_NEW_ROOT_TITLE = "새 주제";
 /** 자동 생성 제목 최대 길이 */
 const TITLE_MAX_LENGTH = 20;
 
 const TREE_KEY = "second-brain:tree";
+/** 뿌리 대화 id 목록(생성 순서). 나무 여러 그루를 관리한다 */
+const ROOTS_KEY = "second-brain:roots";
 
 function convKey(id: string): string {
   return `second-brain:conv:${id}`;
@@ -159,6 +163,67 @@ export async function loadTree(): Promise<SBTree> {
 
 export async function saveTree(tree: SBTree): Promise<void> {
   await redis.set(TREE_KEY, tree);
+}
+
+// ── 뿌리 목록(나무 여러 그루) ──
+
+/**
+ * 뿌리 대화 id 목록을 읽는다.
+ * 키가 없으면(나무 한 그루만 있던 상태) ['root']로 만들어 저장한다.
+ * 기존 대화/트리 데이터는 건들지 않는다.
+ */
+export async function loadRoots(): Promise<string[]> {
+  const data = await redis.get<string[]>(ROOTS_KEY);
+  const roots = Array.isArray(data)
+    ? data.filter((id): id is string => typeof id === "string" && id.length > 0)
+    : [];
+
+  if (roots.length === 0) {
+    const migrated = [SB_ROOT_ID];
+    await saveRoots(migrated);
+    return migrated;
+  }
+
+  // 중복 제거(생성 순서 유지)
+  return [...new Set(roots)];
+}
+
+export async function saveRoots(roots: string[]): Promise<void> {
+  // Upstash Redis는 자동 직렬화 → JSON.stringify 금지
+  await redis.set(ROOTS_KEY, roots);
+}
+
+/**
+ * 새 뿌리 대화(새 나무)를 만든다.
+ * 제목은 임시값이고, 첫 질문이 들어오면 chat 라우트가 교체한다.
+ */
+export async function createRoot(): Promise<SBConversation> {
+  const now = Date.now();
+  const conv: SBConversation = {
+    id: crypto.randomUUID(),
+    title: SB_NEW_ROOT_TITLE,
+    messages: [],
+    createdAt: now,
+    updatedAt: now,
+    status: "active",
+  };
+
+  const tree = await loadTree();
+  tree[conv.id] = {
+    id: conv.id,
+    title: conv.title,
+    status: "active",
+    children: [],
+  };
+
+  const roots = await loadRoots();
+  if (!roots.includes(conv.id)) roots.push(conv.id);
+
+  await saveConversation(conv);
+  await saveTree(tree);
+  await saveRoots(roots);
+
+  return conv;
 }
 
 /** 트리 인덱스의 노드 제목만 갱신한다. 노드가 없으면 아무것도 하지 않는다 */

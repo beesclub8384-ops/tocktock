@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { loadTree } from "@/lib/second-brain";
+import { loadRoots, loadTree } from "@/lib/second-brain";
 
 const ACCESS_KEY = "8384";
 
@@ -13,8 +13,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const tree = await loadTree();
-    return NextResponse.json(tree);
+    const [roots, tree] = await Promise.all([loadRoots(), loadTree()]);
+    return NextResponse.json({ roots, tree });
   } catch (error) {
     console.error("[second-brain] tree GET error:", error);
     return NextResponse.json(

@@ -189,9 +189,15 @@ function renderTreeRows(
   return rows;
 }
 
-function TreeView({ onOpen }: { onOpen: (id: string) => void }) {
+function ForestView({
+  onOpen,
+}: {
+  onOpen: (id: string, shouldFocus?: boolean) => void;
+}) {
+  const [roots, setRoots] = useState<string[] | null>(null);
   const [tree, setTree] = useState<SBTree | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -204,8 +210,10 @@ function TreeView({ onOpen }: { onOpen: (id: string) => void }) {
           if (!cancelled) setError("트리를 불러오지 못했습니다.");
           return;
         }
-        const data = (await res.json()) as SBTree;
-        if (!cancelled) setTree(data);
+        const data = (await res.json()) as { roots?: string[]; tree?: SBTree };
+        if (cancelled) return;
+        setRoots(Array.isArray(data.roots) ? data.roots : []);
+        setTree(data.tree ?? {});
       } catch {
         if (!cancelled) setError("네트워크 오류로 트리를 불러오지 못했습니다.");
       }
@@ -215,11 +223,56 @@ function TreeView({ onOpen }: { onOpen: (id: string) => void }) {
     };
   }, []);
 
+  const handleNewRoot = useCallback(async () => {
+    if (creating) return;
+
+    setError(null);
+    setCreating(true);
+    try {
+      // 제목은 임시값. 새 주제에 첫 질문이 들어가면 서버가 그 질문으로 교체한다
+      const res = await fetch("/api/second-brain/root", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders },
+      });
+      const data = (await res.json()) as { convId?: string; error?: string };
+      if (!res.ok || !data.convId) {
+        setError(data.error ?? "새 주제를 만들지 못했습니다.");
+        return;
+      }
+      onOpen(data.convId, true);
+    } catch {
+      setError("네트워크 오류로 새 주제를 만들지 못했습니다.");
+    } finally {
+      setCreating(false);
+    }
+  }, [creating, onOpen]);
+
+  // 나무끼리 노드가 겹치지 않도록 방문 집합을 숲 전체에서 공유한다
+  const visited = new Set<string>();
+  const trees = tree
+    ? (roots ?? [])
+        .map((rootId) => ({
+          rootId,
+          rows: renderTreeRows(tree, rootId, 0, visited, onOpen),
+        }))
+        .filter((t) => t.rows.length > 0)
+    : [];
+
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur">
-        <div className="mx-auto flex max-w-3xl items-center px-4 py-3">
-          <h1 className="text-base font-bold">{ROOT_TITLE}</h1>
+        <div className="mx-auto flex max-w-3xl items-center gap-2 px-4 py-3">
+          <h1 className="min-w-0 flex-1 truncate text-base font-bold">
+            {ROOT_TITLE}
+          </h1>
+          <button
+            type="button"
+            onClick={() => void handleNewRoot()}
+            disabled={creating}
+            className="shrink-0 rounded-lg bg-foreground px-2.5 py-1 text-xs font-medium text-background transition-colors hover:bg-foreground/90 disabled:opacity-40"
+          >
+            {creating ? "만드는 중..." : "+ 새 주제"}
+          </button>
         </div>
       </header>
 
@@ -230,9 +283,25 @@ function TreeView({ onOpen }: { onOpen: (id: string) => void }) {
             불러오는 중...
           </p>
         )}
-        {tree && (
-          <div className="space-y-0.5">
-            {renderTreeRows(tree, ROOT_ID, 0, new Set<string>(), onOpen)}
+        {tree && trees.length === 0 && (
+          <p className="py-16 text-center text-sm text-muted-foreground">
+            첫 주제를 시작하세요
+          </p>
+        )}
+        {trees.length > 0 && (
+          <div className="space-y-4">
+            {trees.map((t, idx) => (
+              <div
+                key={t.rootId}
+                className={
+                  idx === 0
+                    ? "space-y-0.5"
+                    : "space-y-0.5 border-t border-border pt-4"
+                }
+              >
+                {t.rows}
+              </div>
+            ))}
           </div>
         )}
       </main>
@@ -320,7 +389,8 @@ function ChatView({
         ]);
 
         if (!cancelled && treeRes.ok) {
-          setTree((await treeRes.json()) as SBTree);
+          const treeData = (await treeRes.json()) as { tree?: SBTree };
+          setTree(treeData.tree ?? {});
         }
 
         if (!convRes.ok) {
@@ -675,7 +745,7 @@ export default function SecondBrainPage() {
   }
 
   if (!openConvId) {
-    return <TreeView onOpen={openConv} />;
+    return <ForestView onOpen={openConv} />;
   }
 
   return (
