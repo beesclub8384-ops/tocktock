@@ -26,6 +26,8 @@ interface SBMessage {
   ts: number;
   /** 답변을 손으로 고친 시각 */
   editedAt?: number;
+  /** 나무 전체를 정리해 줄기로 놓은 메시지 */
+  consolidated?: boolean;
   branches?: SBBranchRef[];
   /** 옛 형식(가지 1개) 대비 */
   branchId?: string;
@@ -385,6 +387,12 @@ function ChatView({
   const [editingTs, setEditingTs] = useState<number | null>(null);
   const [editText, setEditText] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
+  // 전체 요약 미리보기 패널
+  const [summaryOpen, setSummaryOpen] = useState(false);
+  const [summaryText, setSummaryText] = useState("");
+  const [summarizing, setSummarizing] = useState(false);
+  const [applying, setApplying] = useState(false);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -703,11 +711,95 @@ function ChatView({
     }
   }, [convId, editText, editingTs, savingEdit]);
 
+  /** 정리본 미리보기를 만든다. 저장은 하지 않는다 */
+  const requestSummary = useCallback(async () => {
+    if (summarizing || applying) return;
+
+    setSummaryError(null);
+    setSummarizing(true);
+    setSummaryText("");
+    try {
+      const res = await fetch("/api/second-brain/consolidate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders },
+        body: JSON.stringify({ rootId: convId, action: "preview" }),
+      });
+      const data = (await res.json()) as { summary?: string; error?: string };
+      if (!res.ok || !data.summary) {
+        setSummaryError(data.error ?? "정리본을 만들지 못했습니다.");
+        return;
+      }
+      setSummaryText(data.summary);
+    } catch {
+      setSummaryError("네트워크 오류로 정리본을 만들지 못했습니다.");
+    } finally {
+      setSummarizing(false);
+    }
+  }, [applying, convId, summarizing]);
+
+  const openSummary = useCallback(() => {
+    setSummaryOpen(true);
+    void requestSummary();
+  }, [requestSummary]);
+
+  const closeSummary = useCallback(() => {
+    setSummaryOpen(false);
+    setSummaryText("");
+    setSummaryError(null);
+  }, []);
+
+  /** 정리본을 새 줄기로 놓는다. 지금까지의 대화와 가지는 화면에서 사라진다 */
+  const applySummary = useCallback(async () => {
+    if (applying || summarizing || !summaryText.trim()) return;
+    if (
+      !confirm(
+        "이 정리본을 새 줄기로 놓습니다. 지금까지의 대화와 가지는 화면에서 사라집니다. 진행할까요?"
+      )
+    )
+      return;
+
+    setSummaryError(null);
+    setApplying(true);
+    try {
+      const res = await fetch("/api/second-brain/consolidate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders },
+        body: JSON.stringify({
+          rootId: convId,
+          action: "apply",
+          summary: summaryText,
+        }),
+      });
+      const data = (await res.json()) as {
+        conv?: SBConversation;
+        error?: string;
+      };
+      if (!res.ok || !data.conv) {
+        setSummaryError(data.error ?? "줄기로 놓지 못했습니다.");
+        return;
+      }
+      const updated = data.conv;
+      setConv({
+        ...updated,
+        messages: Array.isArray(updated.messages) ? updated.messages : [],
+      });
+      setSummaryOpen(false);
+      setSummaryText("");
+      await refreshTree();
+    } catch {
+      setSummaryError("네트워크 오류로 줄기로 놓지 못했습니다.");
+    } finally {
+      setApplying(false);
+    }
+  }, [applying, convId, refreshTree, summarizing, summaryText]);
+
   const messages = conv?.messages ?? [];
   const isBranch = Boolean(conv?.parentId);
   // 편집 중에는 전송·가지 뻗기·삭제를 막는다
   const editing = editingTs !== null;
   const actionsDisabled = busy || sending || editing;
+  // 전체 요약은 줄기(뿌리 대화)에서, 내용이 있을 때만
+  const canConsolidate = !isBranch && messages.length > 0;
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -724,6 +816,16 @@ function ChatView({
           <h1 className="min-w-0 flex-1 truncate text-base font-bold">
             {conv?.title ?? ROOT_TITLE}
           </h1>
+          {canConsolidate && (
+            <button
+              type="button"
+              onClick={openSummary}
+              disabled={actionsDisabled || summarizing || applying}
+              className="shrink-0 rounded-lg border border-border px-2.5 py-1 text-xs transition-colors hover:bg-card disabled:opacity-40"
+            >
+              전체 요약
+            </button>
+          )}
           {isBranch && conv?.status === "active" && (
             <button
               type="button"
@@ -753,6 +855,7 @@ function ChatView({
             const branches = messageBranches(m);
             const isUser = m.role === "user";
             const isEditingThis = editingTs === m.ts;
+            const isConsolidated = m.consolidated === true;
             return (
               <div
                 key={`${m.ts}-${i}`}
@@ -791,6 +894,15 @@ function ChatView({
                       >
                         취소
                       </button>
+                    </div>
+                  </div>
+                ) : isConsolidated ? (
+                  <div className="w-full max-w-[85%] rounded-2xl rounded-bl-sm border border-border border-l-4 border-l-emerald-500 bg-card px-4 py-3">
+                    <p className="mb-1.5 text-xs font-medium text-emerald-500">
+                      정리본
+                    </p>
+                    <div className="whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground">
+                      {m.content}
                     </div>
                   </div>
                 ) : (
@@ -853,14 +965,17 @@ function ChatView({
                         </button>
                       )}
 
-                      <button
-                        type="button"
-                        onClick={() => void handleDelete(m.ts)}
-                        disabled={actionsDisabled}
-                        className="text-xs text-red-400 underline underline-offset-2 disabled:opacity-40"
-                      >
-                        삭제
-                      </button>
+                      {/* 정리본은 줄기 그 자체라 문답 단위로 지우지 않는다 */}
+                      {!isConsolidated && (
+                        <button
+                          type="button"
+                          onClick={() => void handleDelete(m.ts)}
+                          disabled={actionsDisabled}
+                          className="text-xs text-red-400 underline underline-offset-2 disabled:opacity-40"
+                        >
+                          삭제
+                        </button>
+                      )}
                     </div>
                   </div>
                 )}
@@ -881,6 +996,68 @@ function ChatView({
           <div ref={bottomRef} />
         </div>
       </main>
+
+      {/* 정리본 미리보기 (전체화면 패널) */}
+      {summaryOpen && (
+        <div className="fixed inset-0 z-20 flex flex-col bg-background">
+          <header className="shrink-0 border-b border-border px-4 py-3">
+            <div className="mx-auto flex max-w-3xl items-center gap-2">
+              <h2 className="min-w-0 flex-1 truncate text-base font-bold">
+                정리본 미리보기
+              </h2>
+            </div>
+          </header>
+
+          <div className="flex-1 overflow-y-auto px-4 py-4">
+            <div className="mx-auto w-full max-w-3xl">
+              {summarizing && (
+                <p className="py-16 text-center text-sm text-muted-foreground">
+                  전체를 정리하는 중입니다...
+                </p>
+              )}
+              {!summarizing && summaryError && (
+                <p className="py-16 text-center text-sm text-red-400">
+                  {summaryError}
+                </p>
+              )}
+              {!summarizing && !summaryError && summaryText && (
+                <div className="whitespace-pre-wrap break-words rounded-2xl border border-border bg-card px-4 py-3 text-sm leading-relaxed text-foreground">
+                  {summaryText}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="shrink-0 border-t border-border px-4 py-3">
+            <div className="mx-auto flex max-w-3xl flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => void applySummary()}
+                disabled={summarizing || applying || !summaryText.trim()}
+                className="rounded-lg bg-foreground px-3 py-2 text-sm font-medium text-background transition-colors hover:bg-foreground/90 disabled:opacity-40"
+              >
+                {applying ? "놓는 중..." : "줄기로 놓기"}
+              </button>
+              <button
+                type="button"
+                onClick={() => void requestSummary()}
+                disabled={summarizing || applying}
+                className="rounded-lg border border-border px-3 py-2 text-sm transition-colors hover:bg-card disabled:opacity-40"
+              >
+                다시 요약
+              </button>
+              <button
+                type="button"
+                onClick={closeSummary}
+                disabled={applying}
+                className="rounded-lg border border-border px-3 py-2 text-sm transition-colors hover:bg-card disabled:opacity-40"
+              >
+                취소
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 하단 고정 입력창 */}
       <div className="fixed inset-x-0 bottom-0 border-t border-border bg-background/95 backdrop-blur">

@@ -13,6 +13,8 @@ export interface SBMessage {
   ts: number;
   /** 답변을 손으로 고친 시각. 있으면 화면에 "수정됨"으로 표시된다 */
   editedAt?: number;
+  /** 나무 전체를 정리해 줄기로 놓은 메시지 */
+  consolidated?: boolean;
   /** 한 메시지에서 여러 가지를 뻗을 수 있다 */
   branches?: SBBranchRef[];
 }
@@ -79,6 +81,7 @@ function normalizeMessage(raw: LegacySBMessage): SBMessage {
     ts: raw.ts,
   };
   if (typeof raw.editedAt === "number") message.editedAt = raw.editedAt;
+  if (raw.consolidated === true) message.consolidated = true;
   if (branches.length > 0) message.branches = branches;
   return message;
 }
@@ -492,4 +495,127 @@ export async function updateMessageContent(
   await saveConversation(conv);
 
   return target;
+}
+
+// ── 나무 전체 요약 → 줄기로 놓기(응고) ──
+
+/** 응고 전 원본을 통째로 담아 두는 보관본. 화면에는 노출하지 않는다 */
+interface SBArchive {
+  rootId: string;
+  archivedAt: number;
+  conversations: SBConversation[];
+  nodes: SBTreeNode[];
+}
+
+function archiveKey(rootId: string, archivedAt: number): string {
+  return `second-brain:archive:${rootId}:${archivedAt}`;
+}
+
+/**
+ * 뿌리부터 모든 하위 가지를 트리 순서(깊이 우선)로 훑어 텍스트 한 덩어리로 만든다.
+ * 손으로 고친 답변은 고친 내용이 그대로 들어가고,
+ * 완료된 가지의 요약은 그 가지가 뻗어 나온 자리에 끼워 넣는다.
+ */
+export async function collectTreeText(rootId: string): Promise<string> {
+  const tree = await loadTree();
+  const visited = new Set<string>();
+  const blocks: string[] = [];
+
+  async function walk(id: string, parentTitle: string | null): Promise<void> {
+    if (visited.has(id)) return;
+    visited.add(id);
+
+    const conv = await loadConversation(id);
+    const node = tree[id];
+    const title = conv?.title ?? node?.title ?? "제목 없음";
+
+    const lines: string[] = [
+      // 가지는 들여쓰기 대신 헤더로 어느 지점에서 뻗었는지 드러낸다
+      parentTitle ? `### (${parentTitle} > ${title})` : `## ${title}`,
+    ];
+
+    for (const m of conv?.messages ?? []) {
+      lines.push(`${m.role === "user" ? "Q" : "A"}: ${m.content}`);
+      for (const ref of m.branches ?? []) {
+        if (ref.summary) lines.push(`[가지 요약: ${ref.summary}]`);
+      }
+    }
+    blocks.push(lines.join("\n"));
+
+    for (const childId of node?.children ?? []) {
+      await walk(childId, title);
+    }
+  }
+
+  await walk(rootId, null);
+  return blocks.join("\n\n");
+}
+
+/**
+ * 정리본을 뿌리 대화의 유일한 줄기로 놓는다.
+ * 원본은 보관본 키에 통째로 남기고, 하위 가지는 전부 삭제한다.
+ */
+export async function consolidateTree(
+  rootId: string,
+  summary: string
+): Promise<SBConversation> {
+  const root = await loadConversation(rootId);
+  if (!root) {
+    throw new Error("대화를 찾을 수 없습니다.");
+  }
+
+  const tree = await loadTree();
+  const ids = new Set<string>();
+  collectSubtreeIds(tree, rootId, ids);
+
+  // 1) 보관본 저장 — 되돌릴 근거를 먼저 남기고 나서 지운다
+  const conversations: SBConversation[] = [];
+  for (const id of ids) {
+    const conv = await loadConversation(id);
+    if (conv) conversations.push(conv);
+  }
+  const nodes = [...ids]
+    .map((id) => tree[id])
+    .filter((node): node is SBTreeNode => Boolean(node));
+
+  const archivedAt = Date.now();
+  const archive: SBArchive = {
+    rootId,
+    archivedAt,
+    conversations,
+    nodes,
+  };
+  // Upstash Redis는 자동 직렬화 → JSON.stringify 금지
+  await redis.set(archiveKey(rootId, archivedAt), archive);
+
+  // 2) 하위 가지 전부 삭제
+  const childIds = [...(tree[rootId]?.children ?? [])];
+  for (const childId of childIds) {
+    await deleteBranchRecursive(childId);
+  }
+
+  // 3) 줄기를 정리본 하나로 교체 (가지 삭제가 부모 대화를 건드리므로 그 뒤에 저장한다)
+  const now = Date.now();
+  root.messages = [
+    {
+      role: "assistant",
+      content: summary,
+      ts: now,
+      consolidated: true,
+    },
+  ];
+  root.status = "active";
+  root.updatedAt = now;
+  await saveConversation(root);
+
+  // 4) 트리 인덱스 정리 (가지 삭제로 이미 비워졌어야 하지만 확실히 맞춘다)
+  const after = await loadTree();
+  const rootNode = after[rootId];
+  if (rootNode && (rootNode.children.length > 0 || rootNode.status !== "active")) {
+    rootNode.children = [];
+    rootNode.status = "active";
+    await saveTree(after);
+  }
+
+  return root;
 }
