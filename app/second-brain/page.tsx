@@ -24,6 +24,8 @@ interface SBMessage {
   role: "user" | "assistant";
   content: string;
   ts: number;
+  /** 답변을 손으로 고친 시각 */
+  editedAt?: number;
   branches?: SBBranchRef[];
   /** 옛 형식(가지 1개) 대비 */
   branchId?: string;
@@ -62,6 +64,13 @@ interface SBTreeNode {
 type SBTree = Record<string, SBTreeNode>;
 
 const authHeaders = { "x-sb-key": PASSWORD };
+
+/** textarea 높이를 내용에 맞춘다. 콜백 ref로도, onChange에서도 쓴다 */
+function autoSizeTextarea(el: HTMLTextAreaElement | null): void {
+  if (!el) return;
+  el.style.height = "auto";
+  el.style.height = `${el.scrollHeight}px`;
+}
 
 // ── localStorage 인증값 구독 (effect 없이 초기값 읽기) ──
 
@@ -372,6 +381,10 @@ function ChatView({
   const [sending, setSending] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // 편집 중인 답변의 ts. null이면 편집 모드가 아니다
+  const [editingTs, setEditingTs] = useState<number | null>(null);
+  const [editText, setEditText] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -447,7 +460,7 @@ function ChatView({
 
   const handleSend = useCallback(async () => {
     const text = input.trim();
-    if (!text || sending) return;
+    if (!text || sending || editingTs !== null) return;
 
     setError(null);
     setSending(true);
@@ -514,11 +527,11 @@ function ChatView({
     } finally {
       setSending(false);
     }
-  }, [convId, input, sending]);
+  }, [convId, editingTs, input, sending]);
 
   const handleBranch = useCallback(
     async (parentMessageTs: number) => {
-      if (busy) return;
+      if (busy || editingTs !== null) return;
 
       setError(null);
       setBusy(true);
@@ -545,7 +558,7 @@ function ChatView({
         setBusy(false);
       }
     },
-    [busy, convId, onNavigate]
+    [busy, convId, editingTs, onNavigate]
   );
 
   const handleComplete = useCallback(async () => {
@@ -579,8 +592,122 @@ function ChatView({
     }
   }, [busy, conv?.parentId, convId, onNavigate]);
 
+  /** 가지가 사라지면 트리 인덱스도 다시 읽는다 */
+  const refreshTree = useCallback(async () => {
+    try {
+      const res = await fetch("/api/second-brain/tree", {
+        headers: authHeaders,
+      });
+      if (!res.ok) return;
+      const data = (await res.json()) as { tree?: SBTree };
+      setTree(data.tree ?? {});
+    } catch {
+      // 트리 갱신 실패는 화면 동작을 막지 않는다
+    }
+  }, []);
+
+  const handleDelete = useCallback(
+    async (messageTs: number) => {
+      if (busy || sending || editingTs !== null) return;
+      if (
+        !confirm("이 문답을 삭제할까요? 여기서 뻗은 가지도 함께 삭제됩니다.")
+      )
+        return;
+
+      setError(null);
+      setBusy(true);
+      try {
+        const res = await fetch("/api/second-brain/message", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json", ...authHeaders },
+          body: JSON.stringify({ convId, messageTs }),
+        });
+        const data = (await res.json()) as {
+          conv?: SBConversation;
+          error?: string;
+        };
+        if (!res.ok || !data.conv) {
+          setError(data.error ?? "문답을 삭제하지 못했습니다.");
+          return;
+        }
+        const updated = data.conv;
+        setConv({
+          ...updated,
+          messages: Array.isArray(updated.messages) ? updated.messages : [],
+        });
+        await refreshTree();
+      } catch {
+        setError("네트워크 오류로 문답을 삭제하지 못했습니다.");
+      } finally {
+        setBusy(false);
+      }
+    },
+    [busy, convId, editingTs, refreshTree, sending]
+  );
+
+  const startEdit = useCallback((m: SBMessage) => {
+    setError(null);
+    setEditingTs(m.ts);
+    setEditText(m.content);
+  }, []);
+
+  const cancelEdit = useCallback(() => {
+    setEditingTs(null);
+    setEditText("");
+  }, []);
+
+  const handleSaveEdit = useCallback(async () => {
+    if (editingTs === null || savingEdit) return;
+    const text = editText.trim();
+    if (!text) {
+      setError("내용이 비어 있습니다.");
+      return;
+    }
+
+    setError(null);
+    setSavingEdit(true);
+    try {
+      const res = await fetch("/api/second-brain/message", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...authHeaders },
+        body: JSON.stringify({ convId, messageTs: editingTs, content: text }),
+      });
+      const data = (await res.json()) as {
+        message?: SBMessage;
+        error?: string;
+      };
+      if (!res.ok || !data.message) {
+        setError(data.error ?? "답변을 수정하지 못했습니다.");
+        return;
+      }
+      const saved = data.message;
+      setConv((prev) =>
+        prev
+          ? {
+              ...prev,
+              messages: prev.messages.map((m) =>
+                // 가지 정보는 화면에 있는 값을 그대로 둔다
+                m.ts === saved.ts
+                  ? { ...m, content: saved.content, editedAt: saved.editedAt }
+                  : m
+              ),
+            }
+          : prev
+      );
+      setEditingTs(null);
+      setEditText("");
+    } catch {
+      setError("네트워크 오류로 답변을 수정하지 못했습니다.");
+    } finally {
+      setSavingEdit(false);
+    }
+  }, [convId, editText, editingTs, savingEdit]);
+
   const messages = conv?.messages ?? [];
   const isBranch = Boolean(conv?.parentId);
+  // 편집 중에는 전송·가지 뻗기·삭제를 막는다
+  const editing = editingTs !== null;
+  const actionsDisabled = busy || sending || editing;
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -624,26 +751,61 @@ function ChatView({
 
           {messages.map((m, i) => {
             const branches = messageBranches(m);
+            const isUser = m.role === "user";
+            const isEditingThis = editingTs === m.ts;
             return (
               <div
                 key={`${m.ts}-${i}`}
                 className={
-                  m.role === "user"
+                  isUser
                     ? "flex flex-col items-end"
                     : "flex flex-col items-start"
                 }
               >
-                <div
-                  className={
-                    m.role === "user"
-                      ? "max-w-[85%] whitespace-pre-wrap break-words rounded-2xl rounded-br-sm bg-foreground px-4 py-2.5 text-sm leading-relaxed text-background"
-                      : "max-w-[85%] whitespace-pre-wrap break-words rounded-2xl rounded-bl-sm border border-border bg-card px-4 py-2.5 text-sm leading-relaxed text-foreground"
-                  }
-                >
-                  {m.content}
-                </div>
+                {isEditingThis ? (
+                  <div className="w-full max-w-[85%] space-y-2 rounded-2xl rounded-bl-sm border border-border bg-card px-3 py-3">
+                    <textarea
+                      ref={autoSizeTextarea}
+                      value={editText}
+                      onChange={(e) => {
+                        setEditText(e.target.value);
+                        autoSizeTextarea(e.currentTarget);
+                      }}
+                      className="w-full resize-none rounded-xl border border-border bg-background px-3 py-2 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-foreground/20"
+                      autoFocus
+                    />
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => void handleSaveEdit()}
+                        disabled={savingEdit || !editText.trim()}
+                        className="rounded-lg bg-foreground px-2.5 py-1 text-xs font-medium text-background transition-colors hover:bg-foreground/90 disabled:opacity-40"
+                      >
+                        {savingEdit ? "저장 중..." : "저장"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={cancelEdit}
+                        disabled={savingEdit}
+                        className="rounded-lg border border-border px-2.5 py-1 text-xs transition-colors hover:bg-border/40 disabled:opacity-40"
+                      >
+                        취소
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    className={
+                      isUser
+                        ? "max-w-[85%] whitespace-pre-wrap break-words rounded-2xl rounded-br-sm bg-foreground px-4 py-2.5 text-sm leading-relaxed text-background"
+                        : "max-w-[85%] whitespace-pre-wrap break-words rounded-2xl rounded-bl-sm border border-border bg-card px-4 py-2.5 text-sm leading-relaxed text-foreground"
+                    }
+                  >
+                    {m.content}
+                  </div>
+                )}
 
-                {(branches.length > 0 || m.role === "assistant") && (
+                {!isEditingThis && (
                   <div className="mt-1.5 w-full max-w-[85%] space-y-1.5">
                     {branches.map((b) => (
                       <BranchMarker
@@ -655,17 +817,51 @@ function ChatView({
                       />
                     ))}
 
-                    {/* 가지가 이미 있어도 추가로 뻗을 수 있다 */}
-                    {m.role === "assistant" && (
+                    <div
+                      className={
+                        isUser
+                          ? "flex flex-wrap items-center justify-end gap-3"
+                          : "flex flex-wrap items-center gap-3"
+                      }
+                    >
+                      {m.editedAt != null && (
+                        <span className="text-xs text-muted-foreground">
+                          수정됨
+                        </span>
+                      )}
+
+                      {/* 가지가 이미 있어도 추가로 뻗을 수 있다 */}
+                      {!isUser && (
+                        <button
+                          type="button"
+                          onClick={() => void handleBranch(m.ts)}
+                          disabled={actionsDisabled}
+                          className="text-xs text-muted-foreground underline underline-offset-2 disabled:opacity-40"
+                        >
+                          가지 뻗기
+                        </button>
+                      )}
+
+                      {!isUser && (
+                        <button
+                          type="button"
+                          onClick={() => startEdit(m)}
+                          disabled={actionsDisabled}
+                          className="text-xs text-muted-foreground underline underline-offset-2 disabled:opacity-40"
+                        >
+                          수정
+                        </button>
+                      )}
+
                       <button
                         type="button"
-                        onClick={() => void handleBranch(m.ts)}
-                        disabled={busy}
-                        className="text-xs text-muted-foreground underline underline-offset-2 disabled:opacity-40"
+                        onClick={() => void handleDelete(m.ts)}
+                        disabled={actionsDisabled}
+                        className="text-xs text-red-400 underline underline-offset-2 disabled:opacity-40"
                       >
-                        가지 뻗기
+                        삭제
                       </button>
-                    )}
+                    </div>
                   </div>
                 )}
               </div>
@@ -703,13 +899,16 @@ function ChatView({
                 void handleSend();
               }
             }}
-            placeholder="메시지를 입력하세요"
-            className="max-h-40 min-h-[44px] flex-1 resize-none rounded-2xl border border-border bg-card px-4 py-2.5 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-foreground/20"
+            disabled={editing}
+            placeholder={
+              editing ? "답변을 수정하는 중입니다" : "메시지를 입력하세요"
+            }
+            className="max-h-40 min-h-[44px] flex-1 resize-none rounded-2xl border border-border bg-card px-4 py-2.5 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-foreground/20 disabled:opacity-40"
           />
           <button
             type="button"
             onClick={() => void handleSend()}
-            disabled={sending || !input.trim()}
+            disabled={editing || sending || !input.trim()}
             className="h-[44px] shrink-0 rounded-2xl bg-foreground px-5 text-sm font-medium text-background transition-colors hover:bg-foreground/90 disabled:opacity-40"
           >
             전송

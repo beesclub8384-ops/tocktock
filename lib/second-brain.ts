@@ -11,6 +11,8 @@ export interface SBMessage {
   role: "user" | "assistant";
   content: string;
   ts: number;
+  /** 답변을 손으로 고친 시각. 있으면 화면에 "수정됨"으로 표시된다 */
+  editedAt?: number;
   /** 한 메시지에서 여러 가지를 뻗을 수 있다 */
   branches?: SBBranchRef[];
 }
@@ -76,6 +78,7 @@ function normalizeMessage(raw: LegacySBMessage): SBMessage {
     content: raw.content,
     ts: raw.ts,
   };
+  if (typeof raw.editedAt === "number") message.editedAt = raw.editedAt;
   if (branches.length > 0) message.branches = branches;
   return message;
 }
@@ -352,4 +355,141 @@ export async function finishBranch(
 
   await saveConversation(conv);
   await saveTree(tree);
+}
+
+// ── 문답 삭제 / 답변 수정 ──
+
+/** id와 그 하위 가지 id를 전부 모은다 */
+function collectSubtreeIds(tree: SBTree, id: string, acc: Set<string>): void {
+  if (acc.has(id)) return;
+  acc.add(id);
+  const node = tree[id];
+  if (!node) return;
+  for (const childId of node.children) {
+    collectSubtreeIds(tree, childId, acc);
+  }
+}
+
+/**
+ * 가지 하나와 그 아래 모든 가지를 통째로 삭제한다.
+ * 대화 키 삭제 + 트리 인덱스에서 노드 제거 + 남은 노드의 children 정리 + roots 정리.
+ */
+export async function deleteBranchRecursive(id: string): Promise<void> {
+  const tree = await loadTree();
+  const ids = new Set<string>();
+  collectSubtreeIds(tree, id, ids);
+
+  // 삭제 대상이 아닌 부모 대화에 가리키는 참조가 남아 있으면 먼저 떼어낸다
+  const conv = await loadConversation(id);
+  if (conv?.parentId && !ids.has(conv.parentId)) {
+    const parent = await loadConversation(conv.parentId);
+    if (parent) {
+      let touched = false;
+      for (const message of parent.messages) {
+        if (!message.branches) continue;
+        const kept = message.branches.filter((b) => b.branchId !== id);
+        if (kept.length !== message.branches.length) {
+          touched = true;
+          if (kept.length > 0) message.branches = kept;
+          else delete message.branches;
+        }
+      }
+      if (touched) {
+        parent.updatedAt = Date.now();
+        await saveConversation(parent);
+      }
+    }
+  }
+
+  for (const target of ids) delete tree[target];
+  for (const node of Object.values(tree)) {
+    node.children = node.children.filter((childId) => !ids.has(childId));
+  }
+  await saveTree(tree);
+
+  const roots = await loadRoots();
+  const nextRoots = roots.filter((rootId) => !ids.has(rootId));
+  if (nextRoots.length !== roots.length) await saveRoots(nextRoots);
+
+  for (const target of ids) {
+    await redis.del(convKey(target));
+  }
+}
+
+/**
+ * 문답 한 쌍(질문 + 바로 뒤 답변)을 지운다.
+ * user 메시지를 지목하면 바로 다음 assistant 답변까지,
+ * assistant 메시지를 지목하면 바로 앞 user 질문까지 함께 지운다.
+ * 지워지는 답변에서 뻗은 가지는 하위까지 전부 삭제된다.
+ */
+export async function deleteExchange(
+  convId: string,
+  messageTs: number
+): Promise<SBConversation> {
+  const conv = await loadConversation(convId);
+  if (!conv) {
+    throw new Error("대화를 찾을 수 없습니다.");
+  }
+
+  const index = conv.messages.findIndex((m) => m.ts === messageTs);
+  if (index === -1) {
+    throw new Error("삭제할 문답을 찾을 수 없습니다.");
+  }
+
+  let start = index;
+  let end = index;
+  if (conv.messages[index].role === "user") {
+    if (conv.messages[index + 1]?.role === "assistant") end = index + 1;
+  } else if (index > 0 && conv.messages[index - 1]?.role === "user") {
+    start = index - 1;
+  }
+
+  const removed = conv.messages.slice(start, end + 1);
+  conv.messages = [
+    ...conv.messages.slice(0, start),
+    ...conv.messages.slice(end + 1),
+  ];
+  conv.updatedAt = Date.now();
+
+  // 가지를 지우기 전에 저장한다. 참조가 먼저 사라져야 뒷정리가 꼬이지 않는다
+  await saveConversation(conv);
+
+  for (const message of removed) {
+    for (const ref of message.branches ?? []) {
+      await deleteBranchRecursive(ref.branchId);
+    }
+  }
+
+  return conv;
+}
+
+/**
+ * 답변 내용을 손으로 고친다.
+ * 고친 내용은 그대로 저장되므로 이후 대화의 문맥으로도 그대로 쓰인다.
+ */
+export async function updateMessageContent(
+  convId: string,
+  messageTs: number,
+  content: string
+): Promise<SBMessage> {
+  const conv = await loadConversation(convId);
+  if (!conv) {
+    throw new Error("대화를 찾을 수 없습니다.");
+  }
+
+  const target = conv.messages.find((m) => m.ts === messageTs);
+  if (!target) {
+    throw new Error("수정할 답변을 찾을 수 없습니다.");
+  }
+  if (target.role !== "assistant") {
+    throw new Error("답변만 수정할 수 있습니다.");
+  }
+
+  const now = Date.now();
+  target.content = content;
+  target.editedAt = now;
+  conv.updatedAt = now;
+  await saveConversation(conv);
+
+  return target;
 }
