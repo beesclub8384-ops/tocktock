@@ -63,9 +63,11 @@ function renderRows(
 
 export function ForestView({
   onOpen,
+  onOpenNotes,
   onToast,
 }: {
   onOpen: (id: string, shouldFocus?: boolean) => void;
+  onOpenNotes: () => void;
   onToast: (message: string) => void;
 }) {
   const [roots, setRoots] = useState<string[]>([]);
@@ -145,9 +147,16 @@ export function ForestView({
           </h1>
           <button
             type="button"
+            onClick={onOpenNotes}
+            className="h-11 shrink-0 rounded-xl border border-border bg-card px-3.5 text-[15px] text-foreground transition-colors active:bg-border/40"
+          >
+            노트
+          </button>
+          <button
+            type="button"
             onClick={() => void handleNewRoot()}
             disabled={creating}
-            className="h-11 shrink-0 rounded-xl bg-foreground px-4 text-[15px] font-medium text-background transition-colors active:opacity-80 disabled:opacity-40"
+            className="h-11 shrink-0 rounded-xl bg-foreground px-3.5 text-[15px] font-medium text-background transition-colors active:opacity-80 disabled:opacity-40"
           >
             {creating ? "만드는 중…" : "+ 새 주제"}
           </button>
