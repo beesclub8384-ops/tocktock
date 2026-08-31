@@ -4,14 +4,15 @@ import {
   collectTreeText,
   consolidateTree,
   loadRoots,
+  simplifyForChild,
   SB_SUMMARY_RULES,
 } from "@/lib/second-brain";
 
 const ACCESS_KEY = "8384";
 const MODEL = "claude-sonnet-5";
 
-// Vercel Hobby: 최대 300초
-export const maxDuration = 120;
+// Vercel Hobby: 최대 300초. 정리본 생성 + 9살 검사로 클로드를 두 번 부른다
+export const maxDuration = 180;
 
 // 옛 (4) '사족 금지'는 공통 규칙 4와 겹쳐서 뺐고, 옛 (5)가 (4)로 당겨졌다
 const ROLE_PROMPT =
@@ -112,7 +113,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ summary });
+    // 2단계: 9살 아이 눈으로 한 번 더 훑는다. 실패하면 1단계 정리본이 그대로 쓰인다
+    const simplified = await simplifyForChild(client, summary);
+
+    return NextResponse.json({ summary: simplified });
   } catch (error) {
     console.error("[second-brain] consolidate POST error:", error);
     const detail = error instanceof Error ? error.message : String(error);

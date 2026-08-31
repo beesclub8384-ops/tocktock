@@ -1,3 +1,4 @@
+import type Anthropic from "@anthropic-ai/sdk";
 import { redis } from "./redis.ts";
 
 export interface SBBranchRef {
@@ -59,10 +60,14 @@ export const SB_NEW_ROOT_TITLE = "새 주제";
  * 가지 완료 요약과 전체 정리본이 이 상수 하나를 함께 쓴다(단일 원천).
  */
 export const SB_SUMMARY_RULES = `[요약 규칙 — 모든 요약에 반드시 적용]
-1. 9살 아이가 읽어도 이해할 수 있는 문장으로 쓴다. 긴 문장은 쪼갠다.
-2. 전문용어는 쉬운 말로 바꿔 쓰되, 바꾼 자리마다 원래 전문용어를 괄호로 반드시 붙인다. 예: '돈이 너무 많아져서 돈 하나의 힘이 약해지는 것(인플레이션)'. 전문용어를 빼먹은 채 쉬운 말만 쓰는 것은 금지.
-3. 겉으로 나타나는 현상이 아니라 그것이 근본적으로 무엇인지(본질)를 설명한다. '무슨 일이 생기는가'가 아니라 '그게 원래 무엇인가'. 예: '물가가 오른다'(현상)가 아니라 '돈의 양이 늘어서 돈 하나의 가치가 떨어진다'(본질).
-4. 사족·부연·반복 금지. 본질만.`;
+1. 읽는 사람은 9살 아이다. 아이가 모르는 말은 한 글자도 쓰지 않는다.
+2. 한 문장은 25자를 넘지 않는다. 한 문장에는 생각 하나만 담는다. 긴 문장은 반드시 쪼갠다.
+3. 한자어 대신 우리말을 쓴다. '증가한다'→'늘어난다', '감소한다'→'줄어든다', '발생한다'→'생긴다', '유지한다'→'그대로 둔다', '영향을 미친다'→'바꾼다'. 어른 말투(~에 기인한다, ~를 통해, ~에 있어서) 금지.
+4. 새로운 개념이 나올 때마다 아이 일상에서 비유를 하나 든다. 용돈, 학교, 친구, 간식, 놀이터, 게임 같은 것. 비유 없이 개념만 던지는 것은 금지.
+5. 전문용어는 쉬운 말로 풀어 쓰고, 바로 뒤에 괄호로 원래 전문용어를 반드시 붙인다. 예: '돈이 너무 많아져서 돈 하나의 힘이 약해지는 것(인플레이션)'. 괄호 용어를 빼먹으면 안 된다.
+6. 겉으로 보이는 일(현상)이 아니라 그게 원래 무엇인지(본질)를 말한다. '물가가 오른다'(현상)가 아니라 '돈이 많아져서 돈 하나의 값이 떨어진다'(본질).
+7. 사족·부연·반복 금지. 본질만.
+8. 다 쓴 뒤 스스로 검사한다: 25자 넘는 문장이 있는가? 비유 없는 개념이 있는가? 괄호 없는 전문용어가 있는가? 하나라도 있으면 고친다.`;
 
 /** 자동 생성 제목 최대 길이 */
 const TITLE_MAX_LENGTH = 20;
@@ -628,4 +633,46 @@ export async function consolidateTree(
   }
 
   return root;
+}
+
+// ── 2단계: 9살 아이 검사 ──
+
+const SIMPLIFY_MODEL = "claude-sonnet-5";
+/** 검사 출력이 원문보다 길어질 수 있어 넉넉히 잡되, 모델 상한을 넘지 않게 막는다 */
+const SIMPLIFY_MIN_TOKENS = 1500;
+const SIMPLIFY_MAX_TOKENS = 8000;
+
+const SIMPLIFY_SYSTEM =
+  "당신은 9살 아이다. 아래 글을 읽고, 이해가 안 되는 문장이나 낱말을 찾아라. 그런 부분은 9살인 네가 이해할 수 있게 다시 써라. 이해되는 부분은 그대로 둔다. 괄호 안 전문용어는 절대 지우지 않는다. 내용을 새로 더하거나 빼지 않는다. 규칙: 한 문장 25자 이내, 한 문장에 생각 하나, 한자어 대신 우리말, 어려운 개념엔 네 일상(용돈·학교·친구·간식) 비유 하나. 고친 글 전체만 출력한다. 설명이나 머리말 금지.";
+
+/**
+ * 만들어진 요약을 9살 아이 눈으로 한 번 더 훑어 어려운 곳을 고쳐 쓴다.
+ * 이 단계가 실패해도 요약 자체는 살려야 하므로 원문을 그대로 돌려준다.
+ */
+export async function simplifyForChild(
+  client: Anthropic,
+  text: string
+): Promise<string> {
+  try {
+    const response = await client.messages.create({
+      model: SIMPLIFY_MODEL,
+      max_tokens: Math.min(
+        SIMPLIFY_MAX_TOKENS,
+        Math.max(SIMPLIFY_MIN_TOKENS, Math.ceil(text.length * 1.5))
+      ),
+      system: SIMPLIFY_SYSTEM,
+      messages: [{ role: "user", content: text }],
+    });
+
+    const simplified = response.content
+      .filter((block) => block.type === "text")
+      .map((block) => block.text)
+      .join("\n")
+      .trim();
+
+    return simplified || text;
+  } catch (error) {
+    console.error("[second-brain] simplifyForChild error:", error);
+    return text;
+  }
 }

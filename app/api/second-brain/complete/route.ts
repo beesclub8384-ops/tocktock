@@ -3,6 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import {
   finishBranch,
   loadConversation,
+  simplifyForChild,
   SB_ROOT_ID,
   SB_SUMMARY_RULES,
 } from "@/lib/second-brain";
@@ -10,8 +11,8 @@ import {
 const ACCESS_KEY = "8384";
 const MODEL = "claude-sonnet-5";
 
-// Vercel Hobby: 최대 300초
-export const maxDuration = 120;
+// Vercel Hobby: 최대 300초. 요약 생성 + 9살 검사로 클로드를 두 번 부른다
+export const maxDuration = 180;
 
 const ROLE_PROMPT =
   "다음 학습 문답을 요약하라. 질문자가 이해하게 된 핵심 내용을 완성된 설명문으로 정리하되, 문답 형식은 버리고 지식 자체를 서술하라.";
@@ -99,9 +100,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    await finishBranch(conv, summary);
+    // 2단계: 9살 아이 눈으로 한 번 더 훑는다. 실패하면 1단계 요약이 그대로 쓰인다
+    const simplified = await simplifyForChild(client, summary);
 
-    return NextResponse.json({ summary });
+    await finishBranch(conv, simplified);
+
+    return NextResponse.json({ summary: simplified });
   } catch (error) {
     console.error("[second-brain] complete POST error:", error);
     const detail = error instanceof Error ? error.message : String(error);
