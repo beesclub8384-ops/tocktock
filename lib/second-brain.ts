@@ -18,6 +18,8 @@ export interface SBMessage {
   consolidated?: boolean;
   /** 한 메시지에서 여러 가지를 뻗을 수 있다 */
   branches?: SBBranchRef[];
+  /** 한 줄 요약. 있으면 화면에 원문 대신 표시된다. content는 그대로 보존 */
+  oneLine?: string;
 }
 
 /** 가지가 메시지당 1개뿐이던 옛 형식 */
@@ -98,6 +100,7 @@ function normalizeMessage(raw: LegacySBMessage): SBMessage {
   if (typeof raw.editedAt === "number") message.editedAt = raw.editedAt;
   if (raw.consolidated === true) message.consolidated = true;
   if (branches.length > 0) message.branches = branches;
+  if (raw.oneLine) message.oneLine = raw.oneLine;
   return message;
 }
 

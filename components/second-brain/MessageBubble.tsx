@@ -22,6 +22,7 @@ export function MessageBubble({
   onBranch,
   onOpenMenu,
   onOpenBranch,
+  onOpenSource,
 }: {
   message: SBMessage;
   tree: SBTree;
@@ -35,10 +36,13 @@ export function MessageBubble({
   onBranch: (ts: number) => void;
   onOpenMenu: (message: SBMessage) => void;
   onOpenBranch: (id: string) => void;
+  onOpenSource: (ts: number) => void;
 }) {
   const isUser = message.role === "user";
   const isConsolidated = message.consolidated === true;
   const branches = messageBranches(message);
+  // 한 줄 요약이 붙은 답변은 요약을 대신 보여준다. 원문(content)은 그대로 남아 있다
+  const oneLine = !isUser && !isConsolidated ? message.oneLine : undefined;
 
   if (editing) {
     return (
@@ -93,10 +97,13 @@ export function MessageBubble({
           className={
             isUser
               ? "max-w-[85%] whitespace-pre-wrap break-words rounded-2xl rounded-br-sm bg-foreground px-4 py-3 text-[16px] leading-[1.6] text-background"
-              : "max-w-[92%] whitespace-pre-wrap break-words rounded-2xl rounded-bl-sm border border-border bg-card px-4 py-3 text-[16px] leading-[1.6] text-foreground"
+              : oneLine
+                ? // 요약이 붙은 답변은 점선 테두리로 원문과 구분한다
+                  "max-w-[92%] whitespace-pre-wrap break-words rounded-2xl rounded-bl-sm border border-dashed border-border bg-card px-4 py-3 text-[16px] leading-[1.6] text-muted-foreground"
+                : "max-w-[92%] whitespace-pre-wrap break-words rounded-2xl rounded-bl-sm border border-border bg-card px-4 py-3 text-[16px] leading-[1.6] text-foreground"
           }
         >
-          {message.content}
+          {oneLine ?? message.content}
         </div>
       )}
 
@@ -125,6 +132,15 @@ export function MessageBubble({
               >
                 가지 뻗기
               </button>
+              {oneLine && (
+                <button
+                  type="button"
+                  onClick={() => onOpenSource(message.ts)}
+                  className="h-9 rounded-full border border-border bg-transparent px-3.5 text-[14px] text-muted-foreground transition-colors active:bg-card"
+                >
+                  원문
+                </button>
+              )}
               {message.editedAt != null && (
                 <span className="text-[13px] text-muted-foreground">수정됨</span>
               )}

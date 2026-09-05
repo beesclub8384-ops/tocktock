@@ -32,6 +32,8 @@ export interface SBMessage {
   /** 나무 전체를 정리해 줄기로 놓은 메시지 */
   consolidated?: boolean;
   branches?: SBBranchRef[];
+  /** 한 줄 요약. 있으면 원문 대신 표시된다. content는 그대로 보존 */
+  oneLine?: string;
   /** 옛 형식(가지 1개) 대비 */
   branchId?: string;
   branchSummary?: string;

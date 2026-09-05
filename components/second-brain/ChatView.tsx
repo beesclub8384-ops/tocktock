@@ -5,6 +5,7 @@ import { ActionSheet } from "./ActionSheet";
 import type { ActionSheetItem } from "./ActionSheet";
 import { ConsolidatePanel } from "./ConsolidatePanel";
 import { MessageBubble } from "./MessageBubble";
+import { SourceModal } from "./SourceModal";
 import {
   authHeaders,
   autoSizeTextarea,
@@ -44,6 +45,10 @@ export function ChatView({
 
   const [convMenuOpen, setConvMenuOpen] = useState(false);
   const [menuMessage, setMenuMessage] = useState<SBMessage | null>(null);
+
+  // 한 줄 요약: 요약 요청 중인 답변 ts / 원문 팝업을 띄운 답변 ts (팝업은 한 번에 하나)
+  const [oneLineTs, setOneLineTs] = useState<number | null>(null);
+  const [sourceTs, setSourceTs] = useState<number | null>(null);
 
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [summaryText, setSummaryText] = useState("");
@@ -234,6 +239,46 @@ export function ChatView({
       }
     },
     [busy, convId, editingTs, onNavigate]
+  );
+
+  /** 답변 하나를 한 줄로 요약한다. 원문(content)은 그대로 두고 oneLine만 붙는다 */
+  const handleOneLine = useCallback(
+    async (messageTs: number) => {
+      if (oneLineTs !== null) return;
+
+      setError(null);
+      setOneLineTs(messageTs);
+      try {
+        const res = await fetch("/api/second-brain/summarize", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...authHeaders },
+          body: JSON.stringify({ convId, messageTs }),
+        });
+        const data = (await res.json()) as { oneLine?: string; error?: string };
+        if (!res.ok || !data.oneLine) {
+          setError(data.error ?? "요약하지 못했습니다.");
+          return;
+        }
+        const oneLine = data.oneLine;
+        setConv((prev) =>
+          prev
+            ? {
+                ...prev,
+                messages: prev.messages.map((m) =>
+                  m.role === "assistant" && m.ts === messageTs
+                    ? { ...m, oneLine }
+                    : m
+                ),
+              }
+            : prev
+        );
+      } catch {
+        setError("네트워크 오류로 요약하지 못했습니다.");
+      } finally {
+        setOneLineTs(null);
+      }
+    },
+    [convId, oneLineTs]
   );
 
   const handleComplete = useCallback(async () => {
@@ -475,6 +520,9 @@ export function ChatView({
   const messages = conv?.messages ?? [];
   const isBranch = Boolean(conv?.parentId);
   const editing = editingTs !== null;
+  // 원문 팝업에 띄울 답변. 요약이 지워지거나 대화가 바뀌면 자연히 사라진다
+  const sourceMessage =
+    sourceTs === null ? null : messages.find((m) => m.ts === sourceTs);
   const actionsDisabled = busy || sending || editing;
   // 전체 요약은 줄기(뿌리 대화)에서, 내용이 있을 때만
   const canConsolidate = !isBranch && messages.length > 0;
@@ -509,6 +557,13 @@ export function ChatView({
         label: "수정",
         onSelect: () => startEdit(target),
       });
+      // 정리본은 이미 요약이라 한 줄 요약 대상이 아니다
+      if (target.consolidated !== true) {
+        messageMenuItems.push({
+          label: target.oneLine ? "다시 한 줄 요약" : "한 줄 요약",
+          onSelect: () => void handleOneLine(target.ts),
+        });
+      }
     }
     // 정리본은 줄기 그 자체라 문답 단위로 지우지 않는다
     if (menuMessage.consolidated !== true) {
@@ -577,6 +632,7 @@ export function ChatView({
               onBranch={(ts) => void handleBranch(ts)}
               onOpenMenu={setMenuMessage}
               onOpenBranch={onNavigate}
+              onOpenSource={setSourceTs}
             />
           ))}
 
@@ -584,6 +640,14 @@ export function ChatView({
             <div className="flex justify-start">
               <div className="rounded-2xl rounded-bl-sm border border-border bg-card px-4 py-3 text-[16px] leading-[1.6] text-muted-foreground">
                 생각 중…
+              </div>
+            </div>
+          )}
+
+          {oneLineTs !== null && (
+            <div className="flex justify-start">
+              <div className="rounded-2xl rounded-bl-sm border border-dashed border-border bg-card px-4 py-3 text-[16px] leading-[1.6] text-muted-foreground">
+                한 줄로 줄이는 중…
               </div>
             </div>
           )}
@@ -657,6 +721,12 @@ export function ChatView({
         onRegenerate={() => void requestSummary()}
         onClose={closeSummary}
       />
+      {sourceMessage && (
+        <SourceModal
+          content={sourceMessage.content}
+          onClose={() => setSourceTs(null)}
+        />
+      )}
     </div>
   );
 }
