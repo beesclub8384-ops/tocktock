@@ -4,6 +4,7 @@ import {
   saveTradeValueHistory,
   KOSPI,
   KOSDAQ,
+  type TradeValuePoint,
 } from "@/lib/market-tradevalue";
 
 export const dynamic = "force-dynamic";
@@ -45,11 +46,20 @@ export async function GET(request: Request) {
       );
     }
 
-    const record = {
+    // 지수 종가(bstp_nmix_prpr)는 거래대금과 같은 KIS 응답에 들어 있다.
+    // 이 필드를 빠뜨리면 거래대금만 최신이고 지수만 옛날에 멈추는 무음 실패가 된다.
+    if (!Number.isFinite(kospi.indexValue)) {
+      console.warn(
+        `[market-tradevalue] ${date} 코스피 지수 종가 없음 — 거래대금만 저장됨`
+      );
+    }
+
+    const record: TradeValuePoint = {
       date,
       kospi: kospi.tradeValue,
       kosdaq: kosdaq.tradeValue,
       total: kospi.tradeValue + kosdaq.tradeValue,
+      ...(Number.isFinite(kospi.indexValue) ? { kospiIndex: kospi.indexValue } : {}),
     };
     await saveTradeValueHistory([record]); // 같은 날짜면 덮어쓰기 병합
 
