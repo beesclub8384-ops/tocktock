@@ -10,6 +10,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import type { SrfPoint } from "@/lib/observatory-constants";
+import { formatUsage } from "./format";
 
 interface Props {
   series: SrfPoint[];
@@ -33,14 +34,6 @@ const COLORS = {
 function formatDate(dateStr: string): string {
   const d = new Date(`${dateStr}T00:00:00Z`);
   return `${d.getUTCFullYear()}년 ${d.getUTCMonth() + 1}월 ${d.getUTCDate()}일`;
-}
-
-/** 십억 달러 → 읽기 쉬운 문자열. 소액 구간은 자릿수를 더 보여준다 */
-export function formatUsage(v: number): string {
-  if (v === 0) return "0";
-  if (v < 0.01) return `${(v * 1000).toFixed(1)}백만 달러`;
-  if (v < 1) return `${v.toFixed(3)}십억 달러`;
-  return `${v.toFixed(2)}십억 달러`;
 }
 
 interface TooltipPayloadEntry {

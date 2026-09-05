@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import SrfChart, { formatUsage } from "./SrfChart";
+import SrfChart from "./SrfChart";
+import { formatUsage } from "./format";
 import type { SrfResponse } from "@/app/api/observatory/srf/route";
 import type { ObservatoryStatus } from "@/lib/observatory-constants";
 
