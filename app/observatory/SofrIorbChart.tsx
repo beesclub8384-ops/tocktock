@@ -124,11 +124,11 @@ export default function SofrIorbChart({ series, spikeThresholdBp }: Props) {
 
       {/* 메인 차트 — 스프레드 (bp) */}
       <ResponsiveContainer width="100%" height={340}>
-        <LineChart data={filtered} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+        <LineChart data={filtered} margin={{ top: 10, right: 12, left: 0, bottom: 0 }}>
           <XAxis
             dataKey="date"
             tickFormatter={dateTickFormatter}
-            minTickGap={40}
+            minTickGap={50}
             tick={{ fontSize: 11, fill: COLORS.tick }}
             stroke={COLORS.axis}
           />
@@ -136,19 +136,21 @@ export default function SofrIorbChart({ series, spikeThresholdBp }: Props) {
             tickFormatter={(v: number) => `${v}bp`}
             tick={{ fontSize: 11, fill: COLORS.tick }}
             stroke={COLORS.axis}
-            width={55}
+            width={44}
           />
           <Tooltip content={<ChartTooltip unit="bp" digits={1} />} />
-          {/* y=0 기준선 — 이 위로 올라오면 레포 금리가 연준 이자율을 넘어선 것 */}
+          {/* y=0 기준선 — 이 위로 올라오면 레포 금리가 연준 이자율을 넘어선 것.
+              라벨은 선 아래쪽 안쪽에 둔다 (최근 구간 데이터가 0 위에 붙어 있어 위쪽은 겹친다) */}
           <ReferenceLine
             y={0}
             stroke={COLORS.zero}
             strokeWidth={1.5}
             label={{
               value: "0bp",
-              position: "right",
+              position: "insideBottomRight",
               fill: COLORS.zero,
-              fontSize: 11,
+              fontSize: 12,
+              fontWeight: 600,
             }}
           />
           <ReferenceLine
@@ -157,9 +159,10 @@ export default function SofrIorbChart({ series, spikeThresholdBp }: Props) {
             strokeDasharray="4 4"
             label={{
               value: `급등 기준 +${spikeThresholdBp}bp`,
-              position: "right",
+              position: "insideTopRight",
               fill: COLORS.spike,
-              fontSize: 11,
+              fontSize: 12,
+              fontWeight: 600,
             }}
           />
           <Line
@@ -181,11 +184,11 @@ export default function SofrIorbChart({ series, spikeThresholdBp }: Props) {
           원계열: SOFR vs IORB
         </h3>
         <ResponsiveContainer width="100%" height={260}>
-          <LineChart data={filtered} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+          <LineChart data={filtered} margin={{ top: 10, right: 12, left: 0, bottom: 0 }}>
             <XAxis
               dataKey="date"
               tickFormatter={dateTickFormatter}
-              minTickGap={40}
+              minTickGap={50}
               tick={{ fontSize: 11, fill: COLORS.tick }}
               stroke={COLORS.axis}
             />
@@ -193,11 +196,16 @@ export default function SofrIorbChart({ series, spikeThresholdBp }: Props) {
               tickFormatter={(v: number) => `${v.toFixed(2)}%`}
               tick={{ fontSize: 11, fill: COLORS.tick }}
               stroke={COLORS.axis}
-              width={55}
+              width={48}
               domain={["auto", "auto"]}
             />
             <Tooltip content={<ChartTooltip unit="%" digits={2} />} />
-            <Legend verticalAlign="top" height={28} wrapperStyle={{ fontSize: 12 }} />
+            {/* 좁은 화면에서 범례가 두 줄로 접혀도 잘리지 않도록 높이 여유를 둔다 */}
+            <Legend
+              verticalAlign="top"
+              height={36}
+              wrapperStyle={{ fontSize: 11, lineHeight: "16px" }}
+            />
             <Line
               type="monotone"
               dataKey="sofr"
