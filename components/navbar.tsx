@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { InvestmentQuoteBanner } from "@/components/investment-quote-banner";
 
 const navLinks = [
+  { href: "/observatory", label: "관측소" },
   { href: "/sectors", label: "섹터별 현황" },
   { href: "/market/tradevalue", label: "거래대금" },
   { href: "/daytrading", label: "실전 단타 기록" },
@@ -28,7 +29,6 @@ const navLinks = [
   { href: "/virtual-trading", label: "자동매매" },
   { href: "/ai-trading", label: "AI 자동매매" },
   { href: "/futures-trading", label: "선물매매 검증" },
-  { href: "/observatory", label: "관측소" },
   { href: "/second-brain", label: "제2의 뇌" },
 ];
 
@@ -38,6 +38,14 @@ type NavItem =
   | { type: "dropdown"; label: string; id: string; items: { href: string; label: string }[] };
 
 const pcNavItems: NavItem[] = [
+  {
+    type: "dropdown",
+    label: "관측소",
+    id: "observatory",
+    items: [
+      { href: "/observatory", label: "SOFR−IORB 스프레드" },
+    ],
+  },
   { type: "link", href: "/sectors", label: "섹터별 현황" },
   { type: "link", href: "/market/tradevalue", label: "거래대금" },
   { type: "link", href: "/daytrading", label: "실전 단타 기록" },
@@ -85,14 +93,6 @@ const pcNavItems: NavItem[] = [
       { href: "/virtual-trading", label: "자동매매" },
       { href: "/ai-trading", label: "AI 자동매매" },
       { href: "/futures-trading", label: "선물매매 검증" },
-    ],
-  },
-  {
-    type: "dropdown",
-    label: "관측소",
-    id: "observatory",
-    items: [
-      { href: "/observatory", label: "SOFR−IORB 스프레드" },
     ],
   },
   { type: "link", href: "/second-brain", label: "제2의 뇌" },
