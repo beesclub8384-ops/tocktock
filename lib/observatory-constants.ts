@@ -102,3 +102,64 @@ export function evaluateSofrIorb(series: SofrIorbPoint[]): SofrIorbVerdict {
 
   return { status, window, positiveDays, spikeDates, latest };
 }
+
+/* ────────────────────────────────────────────────────────────
+ * SRF(상설 레포 창구) 사용량
+ * ──────────────────────────────────────────────────────────── */
+
+/** SRF 판정에 사용할 최근 영업일 수 */
+export const SRF_LOOKBACK_DAYS = 10;
+
+/** 최근 창 안에서 사용액이 0보다 큰 날이 이 값 이상이면 "주의" */
+export const SRF_WARN_DAYS = 1;
+
+/** 최근 창 안에서 사용액이 0보다 큰 날이 이 값 이상이면 "경고" */
+export const SRF_ALERT_DAYS = 3;
+
+export interface SrfPoint {
+  /** YYYY-MM-DD */
+  date: string;
+  /** 하루 사용액, 십억 달러 단위 (FRED 원단위 그대로) */
+  usageBillions: number;
+}
+
+export interface SrfVerdict {
+  status: ObservatoryStatus;
+  /** 판정에 쓴 최근 구간 (오래된 → 최신) */
+  window: SrfPoint[];
+  /** 최근 구간에서 사용액이 0보다 큰 날 수 */
+  usedDays: number;
+  /** 최근 구간에서 가장 큰 하루 사용액 (십억 달러) */
+  maxUsage: number;
+  /** 최신 관측치 (데이터 없으면 null) */
+  latest: SrfPoint | null;
+}
+
+/**
+ * SRF 사용량 시계열로 현재 상태를 판정한다.
+ *
+ * 평소에는 아무도 쓰지 않아 0이다. 0에서 벗어나 며칠씩 이어지면
+ * 시장에서 돈을 못 구하는 기관이 생겼다는 뜻이므로 단계를 올린다.
+ *
+ * - 경고: 최근 구간에서 사용일이 SRF_ALERT_DAYS 이상
+ * - 주의: 최근 구간에서 사용일이 SRF_WARN_DAYS 이상
+ * - 정상: 최근 구간 내내 0
+ *
+ * @param series 날짜 오름차순으로 정렬된 사용량 시계열
+ */
+export function evaluateSrf(series: SrfPoint[]): SrfVerdict {
+  const window = series.slice(-SRF_LOOKBACK_DAYS);
+  const latest = series.length > 0 ? series[series.length - 1] : null;
+
+  const usedDays = window.filter((p) => p.usageBillions > 0).length;
+  const maxUsage = window.reduce((mx, p) => Math.max(mx, p.usageBillions), 0);
+
+  let status: ObservatoryStatus = "normal";
+  if (usedDays >= SRF_ALERT_DAYS) {
+    status = "warning";
+  } else if (usedDays >= SRF_WARN_DAYS) {
+    status = "caution";
+  }
+
+  return { status, window, usedDays, maxUsage, latest };
+}
