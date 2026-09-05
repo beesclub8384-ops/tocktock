@@ -116,6 +116,9 @@ export const SRF_WARN_DAYS = 1;
 /** 최근 창 안에서 사용액이 0보다 큰 날이 이 값 이상이면 "경고" */
 export const SRF_ALERT_DAYS = 3;
 
+/** 이 값(십억 달러) 미만은 창구 점검성 소액으로 보고 사용으로 세지 않는다 */
+export const SRF_MIN_USAGE_BILLIONS = 1.0;
+
 export interface SrfPoint {
   /** YYYY-MM-DD */
   date: string;
@@ -127,7 +130,7 @@ export interface SrfVerdict {
   status: ObservatoryStatus;
   /** 판정에 쓴 최근 구간 (오래된 → 최신) */
   window: SrfPoint[];
-  /** 최근 구간에서 사용액이 0보다 큰 날 수 */
+  /** 최근 구간에서 사용액이 SRF_MIN_USAGE_BILLIONS 이상인 날 수 */
   usedDays: number;
   /** 최근 구간에서 가장 큰 하루 사용액 (십억 달러) */
   maxUsage: number;
@@ -141,9 +144,13 @@ export interface SrfVerdict {
  * 평소에는 아무도 쓰지 않아 0이다. 0에서 벗어나 며칠씩 이어지면
  * 시장에서 돈을 못 구하는 기관이 생겼다는 뜻이므로 단계를 올린다.
  *
- * - 경고: 최근 구간에서 사용일이 SRF_ALERT_DAYS 이상
- * - 주의: 최근 구간에서 사용일이 SRF_WARN_DAYS 이상
- * - 정상: 최근 구간 내내 0
+ * 다만 몇백만 달러짜리 창구 점검성 거래가 상시 찍히기 때문에,
+ * SRF_MIN_USAGE_BILLIONS 미만은 사용으로 세지 않는다.
+ * (이 걸러내기가 없으면 지표가 상시 경고로 붙박여 진짜 사건과 구분되지 않는다)
+ *
+ * - 경고: 최근 구간에서 유의미한 사용일이 SRF_ALERT_DAYS 이상
+ * - 주의: 최근 구간에서 유의미한 사용일이 SRF_WARN_DAYS 이상
+ * - 정상: 그 밖 (소액 거래만 있거나 내내 0)
  *
  * @param series 날짜 오름차순으로 정렬된 사용량 시계열
  */
@@ -151,7 +158,9 @@ export function evaluateSrf(series: SrfPoint[]): SrfVerdict {
   const window = series.slice(-SRF_LOOKBACK_DAYS);
   const latest = series.length > 0 ? series[series.length - 1] : null;
 
-  const usedDays = window.filter((p) => p.usageBillions > 0).length;
+  const usedDays = window.filter(
+    (p) => p.usageBillions >= SRF_MIN_USAGE_BILLIONS
+  ).length;
   const maxUsage = window.reduce((mx, p) => Math.max(mx, p.usageBillions), 0);
 
   let status: ObservatoryStatus = "normal";

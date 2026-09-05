@@ -139,7 +139,8 @@ export default async function SrfPage() {
         </div>
 
         <div className="mt-4 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
-          최근 {thresholds.lookbackDays}영업일 중 창구가 쓰인 날은{" "}
+          최근 {thresholds.lookbackDays}영업일 중 창구가 의미 있게 쓰인 날(
+          {thresholds.minUsageBillions * 10}억 달러 이상)은{" "}
           <strong className="text-zinc-900 dark:text-zinc-100">
             {data.usedDays}일
           </strong>
@@ -182,6 +183,16 @@ export default async function SrfPage() {
             , 시장에서 돈을 못 구하는 기관이 나타났다는 신호로 읽습니다. 한 번
             튀는 것보다, 계속 쓰이기 시작하는 흐름이 중요합니다.
           </p>
+          <p>
+            다만 창구가 제대로 열려 있는지 확인하는 몇백만 달러짜리 거래가 거의
+            매일 찍힙니다.{" "}
+            <strong className="text-zinc-900 dark:text-zinc-100">
+              {thresholds.minUsageBillions * 10}억 달러 미만의 소액은 창구
+              점검성 거래로 보고 세지 않습니다.
+            </strong>{" "}
+            이걸 걸러내지 않으면 지표가 늘 빨간불이라, 정작 진짜 사건이 났을 때
+            구분이 안 됩니다.
+          </p>
 
           <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-4">
             <div className="font-semibold text-zinc-900 dark:text-zinc-100 mb-2">
@@ -208,7 +219,7 @@ export default async function SrfPage() {
                 정상
               </div>
               <div className="text-xs text-emerald-800 dark:text-emerald-200 mt-0.5">
-                최근 {thresholds.lookbackDays}영업일 내내 0
+                소액 거래만 있거나 내내 0
               </div>
             </div>
             <div className="rounded-lg border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950 px-3 py-2">
@@ -216,7 +227,8 @@ export default async function SrfPage() {
                 주의
               </div>
               <div className="text-xs text-amber-800 dark:text-amber-200 mt-0.5">
-                쓰인 날 {thresholds.warnDays}일 이상
+                {thresholds.minUsageBillions * 10}억 달러 이상 쓰인 날
+                {thresholds.warnDays}일 이상
               </div>
             </div>
             <div className="rounded-lg border border-rose-200 dark:border-rose-900 bg-rose-50 dark:bg-rose-950 px-3 py-2">
@@ -224,7 +236,8 @@ export default async function SrfPage() {
                 경고
               </div>
               <div className="text-xs text-rose-800 dark:text-rose-200 mt-0.5">
-                쓰인 날 {thresholds.alertDays}일 이상
+                {thresholds.minUsageBillions * 10}억 달러 이상 쓰인 날
+                {thresholds.alertDays}일 이상
               </div>
             </div>
           </div>

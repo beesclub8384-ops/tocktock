@@ -4,6 +4,7 @@ import {
   evaluateSrf,
   SRF_ALERT_DAYS,
   SRF_LOOKBACK_DAYS,
+  SRF_MIN_USAGE_BILLIONS,
   SRF_WARN_DAYS,
   type ObservatoryStatus,
   type SrfPoint,
@@ -23,6 +24,8 @@ export interface SrfResponse {
     lookbackDays: number;
     warnDays: number;
     alertDays: number;
+    /** 이 값(십억 달러) 미만은 사용으로 세지 않는다 */
+    minUsageBillions: number;
   };
   lastUpdated: string;
 }
@@ -55,6 +58,7 @@ export async function GET() {
         lookbackDays: SRF_LOOKBACK_DAYS,
         warnDays: SRF_WARN_DAYS,
         alertDays: SRF_ALERT_DAYS,
+        minUsageBillions: SRF_MIN_USAGE_BILLIONS,
       },
       lastUpdated: new Date().toISOString(),
     };
