@@ -29,6 +29,7 @@ const navLinks = [
   { href: "/virtual-trading", label: "자동매매" },
   { href: "/ai-trading", label: "AI 자동매매" },
   { href: "/futures-trading", label: "선물매매 검증" },
+  { href: "/observatory", label: "관측소" },
   { href: "/second-brain", label: "제2의 뇌" },
 ];
 
@@ -86,6 +87,14 @@ const pcNavItems: NavItem[] = [
       { href: "/virtual-trading", label: "자동매매" },
       { href: "/ai-trading", label: "AI 자동매매" },
       { href: "/futures-trading", label: "선물매매 검증" },
+    ],
+  },
+  {
+    type: "dropdown",
+    label: "관측소",
+    id: "observatory",
+    items: [
+      { href: "/observatory", label: "SOFR−IORB 스프레드" },
     ],
   },
   { type: "link", href: "/second-brain", label: "제2의 뇌" },

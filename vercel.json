@@ -79,6 +79,10 @@
     {
       "path": "/api/cron/market-tradevalue",
       "schedule": "0 23 * * 0-4"
+    },
+    {
+      "path": "/api/cron/observatory-sofr-iorb",
+      "schedule": "0 13 * * 1-5"
     }
   ]
 }
