@@ -9,6 +9,7 @@ import { InvestmentQuoteBanner } from "@/components/investment-quote-banner";
 const navLinks = [
   { href: "/observatory", label: "관측소" },
   { href: "/observatory/srf", label: "관측소 · SRF 사용량" },
+  { href: "/observatory/discount-window", label: "관측소 · 재할인 창구 대출 잔액" },
   { href: "/sectors", label: "섹터별 현황" },
   { href: "/market/tradevalue", label: "거래대금" },
   { href: "/daytrading", label: "실전 단타 기록" },
@@ -46,6 +47,7 @@ const pcNavItems: NavItem[] = [
     items: [
       { href: "/observatory", label: "SOFR−IORB 스프레드" },
       { href: "/observatory/srf", label: "SRF 사용량" },
+      { href: "/observatory/discount-window", label: "재할인 창구 대출 잔액" },
     ],
   },
   { type: "link", href: "/sectors", label: "섹터별 현황" },

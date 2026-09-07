@@ -172,3 +172,131 @@ export function evaluateSrf(series: SrfPoint[]): SrfVerdict {
 
   return { status, window, usedDays, maxUsage, latest };
 }
+
+/* ────────────────────────────────────────────────────────────
+ * 재할인 창구 대출 잔액 (Discount Window Primary Credit)
+ * ──────────────────────────────────────────────────────────── */
+
+/** 이 값(십억 달러) 이상이면 "주의". 미만이면 평시로 본다 */
+export const DW_CAUTION_BILLIONS = 10;
+
+/** 이 값(십억 달러)을 넘으면 "경보" */
+export const DW_ALERT_BILLIONS = 50;
+
+/** 전주 대비 이 배수 이상 늘면 잔액이 적어도 "주의" */
+export const DW_SURGE_MULTIPLE = 2;
+
+/**
+ * 급증 룰을 적용할 최소 전주 잔액 (십억 달러).
+ *
+ * 분모가 작으면 2배가 아무 의미도 없다. 실제로 2010년 이후 165주가
+ * 0.001 → 0.057십억(=100만 → 5700만 달러) 같은 잡음으로 급증 판정에
+ * 걸린다. 이 지표의 값어치는 "가짜 양성이 없는 경보"라는 데 있으므로,
+ * 전주 잔액이 이 값 미만이면 배수는 계산만 하고 판정에는 쓰지 않는다.
+ *
+ * 하한을 최신값이 아니라 **전주(분모)** 에 거는 이유: 잡음의 원인이
+ * 작은 분모이기 때문이다. 최신값에 걸면 0.9 → 1.9 같은 잡음이 그대로
+ * 통과한다. (SRF 의 SRF_MIN_USAGE_BILLIONS 와 같은 성격의 잡음 바닥)
+ */
+export const DW_SURGE_MIN_BILLIONS = 1.0;
+
+/**
+ * 최신 기준일이 이 일수보다 오래됐으면 "데이터 지연"으로 표시한다.
+ *
+ * 주간(수요일 기준) 시리즈라 평시에도 최신값이 최대 7일 전이다.
+ * 14일은 발표를 한 번 통째로 놓쳤다는 뜻이므로 그때만 지연으로 본다.
+ * (7일로 잡으면 목요일 발표 직전마다 매번 지연으로 뜬다)
+ */
+export const DW_STALE_DAYS = 14;
+
+/** 2023년 3월 은행 사태 때의 피크. 차트 참고선 눈금으로 쓴다 (십억 달러) */
+export const DW_PEAK_2023_BILLIONS = 152.85;
+
+/** 위 피크가 찍힌 기준일 */
+export const DW_PEAK_2023_DATE = "2023-03-15";
+
+export interface DiscountWindowPoint {
+  /** YYYY-MM-DD — 수요일 기준일 */
+  date: string;
+  /**
+   * 잔액, 십억 달러 단위.
+   * FRED 원본(WLCFLPCL)은 백만 달러라 수집 단계에서 이미 ÷1000 한 값이다.
+   * 조회·차트에서 다시 변환하지 말 것.
+   */
+  balanceBillions: number;
+}
+
+export interface DiscountWindowVerdict {
+  status: ObservatoryStatus;
+  /** 최신 관측치 (데이터 없으면 null) */
+  latest: DiscountWindowPoint | null;
+  /** 직전 주 관측치 (데이터 부족하면 null) */
+  previous: DiscountWindowPoint | null;
+  /** 전주 대비 배수. 전주가 0이거나 데이터가 부족하면 null */
+  weekOverWeekMultiple: number | null;
+  /**
+   * 급증으로 판정했는지.
+   * 전주 잔액이 DW_SURGE_MIN_BILLIONS 이상이면서 DW_SURGE_MULTIPLE 배 이상 늘었을 때만 true.
+   * (배수 자체는 weekOverWeekMultiple 에 그대로 담기므로 화면에는 계속 표시된다)
+   */
+  surged: boolean;
+}
+
+/**
+ * 기준일이 오늘로부터 며칠 전인지 (UTC 날짜 기준).
+ * 날짜를 못 읽으면 무한대를 반환해 "지연"으로 판정되게 한다.
+ */
+export function daysSinceObservation(dateStr: string, now: Date = new Date()): number {
+  const d = new Date(`${dateStr}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) return Number.POSITIVE_INFINITY;
+  const todayUtc = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  return Math.floor((todayUtc - d.getTime()) / 86_400_000);
+}
+
+/**
+ * 재할인 창구 잔액 시계열로 현재 상태를 판정한다.
+ *
+ * 이 창구는 "낙인(stigma)" 때문에 평시엔 은행들이 쓰기를 꺼린다.
+ * 그래서 잔액이 뛰었다는 건 낙인을 감수할 만큼 급했다는 뜻이고,
+ * 가짜 양성이 거의 없는 신호다.
+ *
+ * - 경보: 최신 잔액 > DW_ALERT_BILLIONS
+ * - 주의: 최신 잔액 >= DW_CAUTION_BILLIONS, 또는 전주 대비 DW_SURGE_MULTIPLE 배 이상 급증
+ *         (급증 룰은 전주 잔액이 DW_SURGE_MIN_BILLIONS 이상일 때만 적용)
+ * - 정상: 그 밖
+ *
+ * 주간 데이터라 SOFR·SRF 처럼 "최근 N영업일 중 며칠" 식으로 세지 않는다.
+ * 최근 창을 10주로 잡으면 두 달 반 전 사건이 지금 상태로 남아버린다.
+ * 대신 최신값과 직전 주 한 쌍만 본다.
+ *
+ * @param series 날짜 오름차순으로 정렬된 잔액 시계열
+ */
+export function evaluateDiscountWindow(
+  series: DiscountWindowPoint[]
+): DiscountWindowVerdict {
+  const latest = series.length > 0 ? series[series.length - 1] : null;
+  const previous = series.length > 1 ? series[series.length - 2] : null;
+
+  // 전주가 0이면 배수가 무한대가 되므로 급증 판정에서 뺀다
+  const weekOverWeekMultiple =
+    latest && previous && previous.balanceBillions > 0
+      ? latest.balanceBillions / previous.balanceBillions
+      : null;
+
+  // 잡음 바닥: 전주 잔액이 너무 작으면 배수는 계산해도 판정에는 쓰지 않는다
+  const surged =
+    weekOverWeekMultiple !== null &&
+    weekOverWeekMultiple >= DW_SURGE_MULTIPLE &&
+    (previous?.balanceBillions ?? 0) >= DW_SURGE_MIN_BILLIONS;
+
+  let status: ObservatoryStatus = "normal";
+  if (latest) {
+    if (latest.balanceBillions > DW_ALERT_BILLIONS) {
+      status = "warning";
+    } else if (latest.balanceBillions >= DW_CAUTION_BILLIONS || surged) {
+      status = "caution";
+    }
+  }
+
+  return { status, latest, previous, weekOverWeekMultiple, surged };
+}
