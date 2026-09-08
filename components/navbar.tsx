@@ -7,11 +7,9 @@ import { Button } from "@/components/ui/button";
 import { InvestmentQuoteBanner } from "@/components/investment-quote-banner";
 
 const navLinks = [
+  // 관측소는 지표가 계속 늘어난다. 모바일은 평면 세로 목록이라 지표를 다
+  // 나열하면 목록이 무너지므로, 인덱스 한 줄로 보내고 거기서 고르게 한다.
   { href: "/observatory", label: "관측소" },
-  { href: "/observatory/srf", label: "관측소 · SRF 사용량" },
-  { href: "/observatory/discount-window", label: "관측소 · 재할인 창구 대출 잔액" },
-  { href: "/observatory/rrp", label: "관측소 · 역레포(RRP) 잔액" },
-  { href: "/observatory/reserves", label: "관측소 · 지급준비금 총량" },
   { href: "/sectors", label: "섹터별 현황" },
   { href: "/market/tradevalue", label: "거래대금" },
   { href: "/daytrading", label: "실전 단타 기록" },
@@ -47,11 +45,13 @@ const pcNavItems: NavItem[] = [
     label: "관측소",
     id: "observatory",
     items: [
-      { href: "/observatory", label: "SOFR−IORB 스프레드" },
-      { href: "/observatory/srf", label: "SRF 사용량" },
-      { href: "/observatory/discount-window", label: "재할인 창구 대출 잔액" },
+      { href: "/observatory", label: "전체 보기" },
+      // 경보 사슬 순서대로 (인덱스 카드 배열과 같은 순서)
       { href: "/observatory/rrp", label: "역레포(RRP) 잔액" },
       { href: "/observatory/reserves", label: "지급준비금 총량" },
+      { href: "/observatory/sofr-iorb", label: "SOFR−IORB 스프레드" },
+      { href: "/observatory/srf", label: "SRF 사용량" },
+      { href: "/observatory/discount-window", label: "재할인 창구 대출 잔액" },
     ],
   },
   { type: "link", href: "/sectors", label: "섹터별 현황" },
@@ -110,6 +110,17 @@ const pcNavItems: NavItem[] = [
 function isActivePath(pathname: string, href: string): boolean {
   if (href === "/sectors") return pathname === "/sectors" || pathname === "/sectors-us";
   return pathname === href;
+}
+
+/**
+ * 모바일 목록처럼 그룹을 링크 하나로 접어둔 항목의 활성 판정.
+ *
+ * 하위 경로에 있어도 부모가 활성으로 보여야 한다 (/observatory/rrp → "관측소").
+ * 데스크탑 드롭다운은 이걸 쓰지 않는다 — 거기서는 "전체 보기" 항목이
+ * 하위 페이지에 있을 때까지 활성으로 보이면 어느 지표를 보고 있는지 흐려진다.
+ */
+function isActiveSection(pathname: string, href: string): boolean {
+  return isActivePath(pathname, href) || pathname.startsWith(`${href}/`);
 }
 
 // 활성/비활성 알약 스타일 (데스크탑 가로 메뉴·드롭다운 버튼 공용)
@@ -290,7 +301,7 @@ export function Navbar() {
                 key={href}
                 href={href}
                 className={`block border-b border-zinc-100 px-6 py-4 text-base transition-colors dark:border-zinc-800 ${
-                  isActivePath(pathname, href)
+                  isActiveSection(pathname, href)
                     ? "bg-primary/10 font-semibold text-primary"
                     : "font-medium hover:bg-zinc-50 active:text-blue-600 dark:hover:bg-zinc-900 dark:active:text-blue-400"
                 }`}
