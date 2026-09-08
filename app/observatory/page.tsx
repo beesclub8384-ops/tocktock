@@ -19,12 +19,10 @@ import { loadSrf } from "@/lib/observatory-srf";
 import { loadDiscountWindow } from "@/lib/observatory-discount-window";
 import { loadRrp } from "@/lib/observatory-rrp";
 import { loadReserves } from "@/lib/observatory-reserves";
-// 표시 형식은 상세 페이지의 포맷터를 그대로 재사용한다.
-// (인덱스에서 따로 만들면 같은 숫자가 두 화면에서 다르게 보이기 시작한다)
-import { formatUsage } from "./srf/format";
-import { formatBalance } from "./discount-window/format";
-import { formatRrp } from "./rrp/format";
-import { formatReserves } from "./reserves/format";
+// 카드 표기는 다섯 지표를 나란히 놓고 읽는 화면이라 단위를 십억 달러로
+// 통일한다 (상세 페이지 포맷터는 지표별로 단위를 바꿔서 카드에는 안 맞는다).
+// 자세한 이유는 card-format.ts 상단 주석 참고.
+import { formatCardBillions, formatCardBp, type CardValue } from "./card-format";
 
 export const metadata: Metadata = {
   title: "관측소 | TockTock",
@@ -37,13 +35,13 @@ export const dynamic = "force-dynamic";
 /** 카드 한 장에 필요한 실측 정보 */
 interface IndicatorSnapshot {
   status: ObservatoryStatus | null;
-  /** 현재값 표시 문자열. 데이터 없으면 null */
-  valueText: string | null;
+  /** 현재값 표시. 데이터 없으면 null */
+  value: CardValue | null;
   /** 기준일 YYYY-MM-DD. 데이터 없으면 null */
   asOf: string | null;
 }
 
-const EMPTY: IndicatorSnapshot = { status: null, valueText: null, asOf: null };
+const EMPTY: IndicatorSnapshot = { status: null, value: null, asOf: null };
 
 /**
  * 다섯 지표의 현재 상태를 Redis 에서 직접 읽는다.
@@ -72,36 +70,35 @@ async function loadSnapshots(): Promise<Record<ObservatoryIndicatorKey, Indicato
     "sofr-iorb": sofrVerdict.latest
       ? {
           status: sofrVerdict.status,
-          // 상세 페이지와 같은 표기 (+ 부호 유지)
-          valueText: `${sofrVerdict.latest.spreadBp > 0 ? "+" : ""}${sofrVerdict.latest.spreadBp.toFixed(1)}bp`,
+          value: formatCardBp(sofrVerdict.latest.spreadBp),
           asOf: sofrVerdict.latest.date,
         }
       : EMPTY,
     srf: srfVerdict.latest
       ? {
           status: srfVerdict.status,
-          valueText: formatUsage(srfVerdict.latest.usageBillions),
+          value: formatCardBillions(srfVerdict.latest.usageBillions),
           asOf: srfVerdict.latest.date,
         }
       : EMPTY,
     "discount-window": dwVerdict.latest
       ? {
           status: dwVerdict.status,
-          valueText: formatBalance(dwVerdict.latest.balanceBillions),
+          value: formatCardBillions(dwVerdict.latest.balanceBillions),
           asOf: dwVerdict.latest.date,
         }
       : EMPTY,
     rrp: rrpVerdict.latest
       ? {
           status: rrpVerdict.status,
-          valueText: formatRrp(rrpVerdict.latest.balanceBillions),
+          value: formatCardBillions(rrpVerdict.latest.balanceBillions),
           asOf: rrpVerdict.latest.date,
         }
       : EMPTY,
     reserves: reservesVerdict.latest
       ? {
           status: reservesVerdict.status,
-          valueText: formatReserves(reservesVerdict.latest.balanceBillions),
+          value: formatCardBillions(reservesVerdict.latest.balanceBillions),
           asOf: reservesVerdict.latest.date,
         }
       : EMPTY,
@@ -225,8 +222,11 @@ export default async function ObservatoryIndexPage() {
 
                     <div className="mt-3 flex items-baseline gap-2 flex-wrap">
                       <div className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 tabular-nums">
-                        {snap.valueText ?? "—"}
+                        {snap.value?.main ?? "—"}
                       </div>
+                      {snap.value?.note && (
+                        <div className="text-xs text-zinc-500">({snap.value.note})</div>
+                      )}
                       {snap.asOf && (
                         <div className="text-xs text-zinc-500">
                           {formatDate(snap.asOf)} 기준
