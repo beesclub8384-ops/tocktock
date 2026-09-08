@@ -300,3 +300,178 @@ export function evaluateDiscountWindow(
 
   return { status, latest, previous, weekOverWeekMultiple, surged };
 }
+
+/* ────────────────────────────────────────────────────────────
+ * 역레포(RRP) 잔액 — Overnight Reverse Repo
+ *
+ * ⚠ 방향이 반대인 지표다. 다른 관측소 지표는 "값이 크면 위험" 이지만
+ *   RRP 는 시스템의 여유 현금 쿠션이라 **값이 작을수록 위험**하다.
+ *   임계값 비교 부등호를 다른 지표에서 복사해 오면 조용히 뒤집힌다.
+ * ──────────────────────────────────────────────────────────── */
+
+/** 이 값(십억 달러)을 넘으면 쿠션이 넉넉하다고 본다 */
+export const RRP_NORMAL_BILLIONS = 100;
+
+/** 이 값(십억 달러) 밑으로 내려가면 쿠션이 사실상 소진된 것으로 본다 */
+export const RRP_ALERT_BILLIONS = 10;
+
+/** 2022년 말 정점 (십억 달러). 차트에서 지금 수준을 견주는 눈금 */
+export const RRP_PEAK_2022_BILLIONS = 2553.7;
+
+/** 위 정점이 찍힌 날 */
+export const RRP_PEAK_2022_DATE = "2022-12-30";
+
+/**
+ * 일간 시리즈라 주말·공휴일을 넘겨도 5일이면 새 값이 있어야 한다.
+ * 그보다 오래되면 FRED 갱신이 막힌 것으로 보고 "데이터 지연" 을 표시한다.
+ */
+export const RRP_STALE_DAYS = 5;
+
+export interface RrpPoint {
+  /** YYYY-MM-DD */
+  date: string;
+  /** 잔액, 십억 달러 (FRED 원단위 그대로 — RRPONTSYD 는 billions 로 온다) */
+  balanceBillions: number;
+}
+
+export interface RrpVerdict {
+  status: ObservatoryStatus;
+  /** 최신 관측치 (데이터 없으면 null) */
+  latest: RrpPoint | null;
+  /** 직전 영업일 관측치 (데이터 부족하면 null) */
+  previous: RrpPoint | null;
+  /** 최신값이 2022년 정점 대비 몇 %인지 (데이터 없으면 null) */
+  pctOfPeak: number | null;
+}
+
+/**
+ * RRP 잔액으로 현재 상태를 판정한다.
+ *
+ * MMF(머니마켓펀드)가 굴릴 데 없는 돈을 연준에 하룻밤 맡겨두는 곳이다.
+ * 여기 돈이 쌓여 있다는 건 시스템에 남는 현금이 있다는 뜻이고,
+ * 이 잔액이 마르면 다음에 빠지는 건 은행 지급준비금 본체다.
+ *
+ * - 정상: 잔액 > RRP_NORMAL_BILLIONS
+ * - 주의: RRP_ALERT_BILLIONS ~ RRP_NORMAL_BILLIONS
+ * - 경보: 잔액 < RRP_ALERT_BILLIONS (쿠션 사실상 소진)
+ *
+ * ⚠ 2026년 현재 이 지표는 경보가 정상 상태다. 2023~2024년에 걸쳐 쿠션이
+ *   다 빠졌고 그 뒤로 0 부근에 붙어 있다. 첫 화면부터 빨간불인 건 버그가 아니다.
+ *
+ * @param series 날짜 오름차순으로 정렬된 잔액 시계열
+ */
+export function evaluateRrp(series: RrpPoint[]): RrpVerdict {
+  const latest = series.length > 0 ? series[series.length - 1] : null;
+  const previous = series.length > 1 ? series[series.length - 2] : null;
+
+  let status: ObservatoryStatus = "normal";
+  if (latest) {
+    // 부등호 방향 주의 — 작을수록 위험하다
+    if (latest.balanceBillions < RRP_ALERT_BILLIONS) {
+      status = "warning";
+    } else if (latest.balanceBillions <= RRP_NORMAL_BILLIONS) {
+      status = "caution";
+    }
+  }
+
+  const pctOfPeak = latest
+    ? (latest.balanceBillions / RRP_PEAK_2022_BILLIONS) * 100
+    : null;
+
+  return { status, latest, previous, pctOfPeak };
+}
+
+/* ────────────────────────────────────────────────────────────
+ * 지급준비금 총량 — Reserve Balances
+ *
+ * RRP 와 같이 값이 작을수록 위험한 방향의 지표다.
+ * ──────────────────────────────────────────────────────────── */
+
+/** 이 값(십억 달러)을 넘으면 연료가 넉넉하다고 본다 */
+export const RESERVES_NORMAL_BILLIONS = 2800;
+
+/** 이 값(십억 달러) 밑으로 내려가면 경보 */
+export const RESERVES_ALERT_BILLIONS = 2300;
+
+/**
+ * 2019년 9월 레포 발작 당시 지급준비금 수준 (십억 달러).
+ *
+ * 실측 저점은 2019-09-18 주의 1,394.1십억이다. 차트 참고선은 읽기 쉽게 1,400 으로 둔다.
+ * "충분(ample)" 의 정확한 바닥은 아무도 모른다 — 그때 저 수준에서 터졌다는
+ * 사실만 알 뿐이고, 경제 규모가 커진 지금은 그 바닥도 올라와 있다.
+ */
+export const RESERVES_2019_CRISIS_BILLIONS = 1400;
+
+/** 위 수준이 관측된 주 (2019년 레포 발작 직전 저점) */
+export const RESERVES_2019_CRISIS_DATE = "2019-09-18";
+
+/**
+ * 주간(수요일 기준) 시리즈다. 재할인 창구와 같은 주기라 같은 지연 기준을 쓴다.
+ * 평시에도 최신값이 최대 7일 전이므로, 14일이 넘어야 발표를 놓친 것으로 본다.
+ */
+export const RESERVES_STALE_DAYS = 14;
+
+export interface ReservesPoint {
+  /** YYYY-MM-DD — 수요일 기준일 */
+  date: string;
+  /**
+   * 총량, 십억 달러 단위.
+   * FRED 원본(WRESBAL)은 백만 달러라 수집 단계에서 이미 ÷1000 한 값이다.
+   * 조회·차트에서 다시 변환하지 말 것.
+   */
+  balanceBillions: number;
+}
+
+export interface ReservesVerdict {
+  status: ObservatoryStatus;
+  /** 최신 관측치 (데이터 없으면 null) */
+  latest: ReservesPoint | null;
+  /** 직전 주 관측치 (데이터 부족하면 null) */
+  previous: ReservesPoint | null;
+  /** 전주 대비 증감 (십억 달러). 데이터 부족하면 null */
+  weekOverWeekChange: number | null;
+  /** 2019년 발작 수준 대비 배수 (데이터 없으면 null) */
+  multipleOf2019: number | null;
+}
+
+/**
+ * 지급준비금 총량으로 현재 상태를 판정한다.
+ *
+ * 미국 은행 전체가 연준 계좌에 가진 돈의 총합이다. 시스템이 굴러가는
+ * 연료의 총량이고, RRP 쿠션이 소진된 지금 시장이 가장 긴장하며 보는 숫자다.
+ *
+ * - 정상: 총량 > RESERVES_NORMAL_BILLIONS
+ * - 주의: RESERVES_ALERT_BILLIONS ~ RESERVES_NORMAL_BILLIONS
+ * - 경보: 총량 < RESERVES_ALERT_BILLIONS
+ *
+ * ⚠ 임계값은 보수적 추정치다. "충분(ample)" 의 정확한 바닥은 아무도 모른다.
+ *   2019년엔 1,400십억에서 발작이 터졌지만, 경제 규모가 커진 지금은 그 바닥도
+ *   올라와 있다. 이 숫자를 정답으로 읽지 말 것.
+ *
+ * @param series 날짜 오름차순으로 정렬된 총량 시계열
+ */
+export function evaluateReserves(series: ReservesPoint[]): ReservesVerdict {
+  const latest = series.length > 0 ? series[series.length - 1] : null;
+  const previous = series.length > 1 ? series[series.length - 2] : null;
+
+  let status: ObservatoryStatus = "normal";
+  if (latest) {
+    // 부등호 방향 주의 — 작을수록 위험하다
+    if (latest.balanceBillions < RESERVES_ALERT_BILLIONS) {
+      status = "warning";
+    } else if (latest.balanceBillions <= RESERVES_NORMAL_BILLIONS) {
+      status = "caution";
+    }
+  }
+
+  const weekOverWeekChange =
+    latest && previous
+      ? Math.round((latest.balanceBillions - previous.balanceBillions) * 10) / 10
+      : null;
+
+  const multipleOf2019 = latest
+    ? latest.balanceBillions / RESERVES_2019_CRISIS_BILLIONS
+    : null;
+
+  return { status, latest, previous, weekOverWeekChange, multipleOf2019 };
+}

@@ -2,12 +2,15 @@ import { NextResponse } from "next/server";
 import { collectSofrIorb } from "@/lib/observatory-sofr-iorb";
 import { collectSrf } from "@/lib/observatory-srf";
 import { collectDiscountWindow } from "@/lib/observatory-discount-window";
+import { collectRrp } from "@/lib/observatory-rrp";
+import { collectReserves } from "@/lib/observatory-reserves";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 /**
- * 관측소 전체 지표 수집 (SOFR−IORB 스프레드 + SRF 사용량 + 재할인 창구 잔액).
+ * 관측소 전체 지표 수집 (SOFR−IORB 스프레드 + SRF 사용량 + 재할인 창구 잔액
+ *                        + 역레포(RRP) 잔액 + 지급준비금 총량).
  *
  * ⚠ 경로 이름이 sofr-iorb 로 남아 있지만 관측소 지표를 모두 여기서 모은다.
  *   경로를 바꾸면 vercel.json 의 cron path 도 같이 바꿔야 하고, 한쪽만 고치면
@@ -54,6 +57,24 @@ export async function GET(request: Request) {
     const detail = error instanceof Error ? error.message : String(error);
     console.error("[observatory] discount-window 수집 실패:", error);
     errors.discountWindow = detail;
+  }
+
+  // RRP 는 일간, 지급준비금은 주간(수요일 기준)이다. 주간 쪽은 매일 돌려도
+  // 새 값이 주 1회만 들어온다 — 재할인 창구와 같다.
+  try {
+    results.rrp = await collectRrp();
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    console.error("[observatory] rrp 수집 실패:", error);
+    errors.rrp = detail;
+  }
+
+  try {
+    results.reserves = await collectReserves();
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    console.error("[observatory] reserves 수집 실패:", error);
+    errors.reserves = detail;
   }
 
   const failed = Object.keys(errors);
