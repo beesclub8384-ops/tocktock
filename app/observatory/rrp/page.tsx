@@ -3,6 +3,9 @@ import { headers } from "next/headers";
 import RrpChart from "./RrpChart";
 import { formatRrp, formatTrillion } from "./format";
 import type { RrpResponse } from "@/app/api/observatory/rrp/route";
+// 오버레이용 주가지수는 "지표" 가 아니라 참고 데이터라 RRP API 응답에 섞지 않는다.
+// 서버 컴포넌트에서 Redis 를 직접 읽어 차트에만 넘긴다.
+import { loadMarketIndex } from "@/lib/observatory-market-index";
 import type { ObservatoryStatus } from "@/lib/observatory-constants";
 
 export const metadata: Metadata = {
@@ -71,7 +74,11 @@ function formatKstDate(iso: string): string {
 }
 
 export default async function RrpPage() {
-  const data = await getData();
+  const [data, indices] = await Promise.all([
+    getData(),
+    // 지수 수집이 아직이거나 실패해도 RRP 페이지는 그대로 떠야 한다
+    loadMarketIndex().catch(() => []),
+  ]);
 
   if (!data || data.series.length === 0) {
     return (
@@ -194,6 +201,7 @@ export default async function RrpPage() {
           peakDate={thresholds.peakDate}
           normalBillions={thresholds.normalBillions}
           alertBillions={thresholds.alertBillions}
+          indices={indices}
         />
       </section>
 
