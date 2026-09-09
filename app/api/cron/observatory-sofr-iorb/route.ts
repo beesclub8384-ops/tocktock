@@ -4,6 +4,7 @@ import { collectSrf } from "@/lib/observatory-srf";
 import { collectDiscountWindow } from "@/lib/observatory-discount-window";
 import { collectRrp } from "@/lib/observatory-rrp";
 import { collectReserves } from "@/lib/observatory-reserves";
+import { collectMarketIndex } from "@/lib/observatory-market-index";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -75,6 +76,16 @@ export async function GET(request: Request) {
     const detail = error instanceof Error ? error.message : String(error);
     console.error("[observatory] reserves 수집 실패:", error);
     errors.reserves = detail;
+  }
+
+  // 주가지수는 관측소 "지표" 가 아니라 SRF 차트에 겹쳐 그리는 참고 데이터다.
+  // 판정도 카드도 없지만 갱신 주기가 같아 여기서 같이 모은다.
+  try {
+    results.marketIndex = await collectMarketIndex();
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    console.error("[observatory] market-index 수집 실패:", error);
+    errors.marketIndex = detail;
   }
 
   const failed = Object.keys(errors);
