@@ -234,6 +234,41 @@ export default async function RrpPage() {
             합니다.
           </p>
 
+          <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-4">
+            <div className="font-semibold text-zinc-900 dark:text-zinc-100 mb-2">
+              차트가 보여주는 것 &mdash; 쌓일 때 내리고, 빠질 때 올랐습니다
+            </div>
+            <p>
+              위 차트에 주가지수를 겹쳐 보면 방향이 눈에 들어옵니다. RRP 잔액이
+              쌓이던 <strong>2021~2022년에 주가는 내렸고</strong>, 잔액이 빠지던{" "}
+              <strong>2023~2026년에 주가는 올랐습니다.</strong>
+            </p>
+            <p className="mt-2">
+              그러니 RRP가 쌓인다는 걸 &ldquo;돈이 넘친다&rdquo;는 신호로 읽으면
+              곤란합니다.{" "}
+              <strong className="text-zinc-900 dark:text-zinc-100">
+                갈 곳을 못 찾은 돈이 위험을 피해 연준에 숨는다는 신호에
+                가깝습니다.
+              </strong>
+            </p>
+            <p className="mt-2">
+              반대로 잔액이 빠지는 건 그 돈이 다시 일하러 나가거나, 시스템에서
+              빠져나가는 자금을 대신 메워주는 국면입니다. 완충재가 제 역할을 하고
+              있다는 뜻이죠.
+            </p>
+            <p className="mt-2">
+              그래서 이렇게 읽으시면 됩니다.{" "}
+              <strong className="text-zinc-900 dark:text-zinc-100">
+                잔액이 높다고 강세를 기대하면 안 됩니다. 그리고 잔액이 0에 가까운
+                지금은, 그 완충재가 사라졌다는 뜻입니다.
+              </strong>
+            </p>
+            <p className="mt-2 text-xs text-zinc-500">
+              다만 이건 한 번의 사이클에서 나타난 흐름입니다. 앞으로도 같은 순서로
+              움직인다고 단정할 수는 없습니다.
+            </p>
+          </div>
+
           <div className="rounded-lg border border-rose-200 dark:border-rose-900 bg-rose-50 dark:bg-rose-950 p-4">
             <div className="font-semibold text-rose-800 dark:text-rose-200 mb-2">
               지금 빨간불인 건 버그가 아닙니다
