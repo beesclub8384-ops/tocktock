@@ -26,7 +26,8 @@ export type ObservatoryIndicatorKey =
   | "reserves"
   | "sofr-iorb"
   | "srf"
-  | "discount-window";
+  | "discount-window"
+  | "unrealized-losses";
 
 export interface ObservatoryIndicatorMeta {
   key: ObservatoryIndicatorKey;
@@ -120,6 +121,26 @@ export const OBSERVATORY_SECTIONS: ObservatorySectionMeta[] = [
         name: "재할인 창구 대출 잔액",
         oneLiner:
           "은행들의 최후 비상구. 낙인 때문에 평시엔 아무도 안 쓰는 창구라, 잔액 급증은 가짜 양성이 없는 경보다.",
+      },
+    ],
+  },
+  {
+    id: "banks",
+    number: 2,
+    name: "가맹점들: 은행의 금고 엑스레이",
+    shortName: "가맹점들",
+    subtitle:
+      "개별 은행이 아니라 은행업 전체의 체질을 본다. SVB의 재림 후보를 찾는 곳.",
+    chainNote:
+      "관측소 1이 시스템 전체의 현금을 잰다면, 여기는 그 돈을 굴리는 은행들의 몸 상태를 본다",
+    indicators: [
+      {
+        key: "unrealized-losses",
+        order: 1,
+        href: "/observatory/unrealized-losses",
+        name: "채권 미실현손실 비율",
+        oneLiner:
+          "은행이 아직 팔지 않은 채권에 숨어 있는 손실을 자기자본으로 나눈 값. 뱅크런이 오면 이 유령이 실물이 되어 자본을 갉아먹는다.",
       },
     ],
   },

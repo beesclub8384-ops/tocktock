@@ -11,11 +11,24 @@
  *   (등록을 안 해도 화면은 깨지지 않는다 — 요약 줄만 안 나온다)
  */
 import type {
+  ObservatoryIndicatorKey,
   ObservatoryStatusMap,
   ObservatorySummary,
 } from "@/lib/observatory-catalog";
 import { worstStatus } from "@/lib/observatory-catalog";
 import type { ObservatoryStatus } from "@/lib/observatory-constants";
+
+/**
+ * 지표별 원시 수치. 요약 문장이 숫자를 품어야 할 때 쓴다.
+ *
+ * ⚠ 재편 당시 요약 계약은 status 만 넘겼다. 관측소 1은 상태만으로 문장이
+ *   완성됐기 때문인데, 관측소 2의 문장에는 비율 값이 들어간다("자기자본의
+ *   12.4%"). 그래서 계약을 한 번 넓혔다. 섹션마다 다른 필드를 만들지 않고
+ *   지표 key 로 찾는 맵을 쓰므로, 다음 섹션이 늘 때는 다시 안 넓혀도 된다.
+ */
+export type ObservatoryRawMap = Partial<
+  Record<ObservatoryIndicatorKey, number | null>
+>;
 
 /* ────────────────────────────────────────────────────────────
  * 관측소 1 — 배관
@@ -91,15 +104,55 @@ export function summarizeSection1(statuses: ObservatoryStatusMap): ObservatorySu
 }
 
 /* ────────────────────────────────────────────────────────────
+ * 관측소 2 — 은행
+ *
+ * 지표가 하나뿐이라 묶을 것이 없다. 그 지표의 상태를 그대로 문장으로 만든다.
+ * 지표가 늘면 관측소 1처럼 덩어리를 나눠 다시 쓴다.
+ * ──────────────────────────────────────────────────────────── */
+
+const BANKS_TEXT: Record<ObservatoryStatus, string> = {
+  normal: "여유 있음",
+  caution: "주의",
+  warning: "위험 구간",
+};
+
+/**
+ * 관측소 2 요약. 비율 값을 같이 넣어 한 줄로 상태가 잡히게 한다.
+ *
+ * 예) "유령 손실은 자기자본의 12.4% — 주의"
+ *
+ * ⚠ 비율 숫자는 요약을 부르는 쪽이 넘겨준다. 이 파일은 판정 상태만 알고
+ *   실제 값은 모르기 때문에, 값이 없으면 상태만으로 문장을 만든다.
+ */
+export function summarizeBanks(
+  statuses: ObservatoryStatusMap,
+  raw?: ObservatoryRawMap
+): ObservatorySummary {
+  const ratioPct = raw?.["unrealized-losses"];
+  const status = statuses["unrealized-losses"] ?? null;
+
+  if (status === null) {
+    return { text: "현재 상태를 확인할 수 없습니다 (수집 대기)", status: null };
+  }
+
+  const label = BANKS_TEXT[status];
+  const value =
+    typeof ratioPct === "number" ? `자기자본의 ${ratioPct.toFixed(1)}%` : "집계 중";
+
+  return { text: `유령 손실은 ${value} — ${label}`, status };
+}
+
+/* ────────────────────────────────────────────────────────────
  * 레지스트리
  * ──────────────────────────────────────────────────────────── */
 
 /** 섹션 id → 그 섹션의 요약 함수 */
 const SECTION_SUMMARIZERS: Record<
   string,
-  (statuses: ObservatoryStatusMap) => ObservatorySummary
+  (statuses: ObservatoryStatusMap, raw?: ObservatoryRawMap) => ObservatorySummary
 > = {
   plumbing: summarizeSection1,
+  banks: summarizeBanks,
 };
 
 /**
@@ -109,8 +162,9 @@ const SECTION_SUMMARIZERS: Record<
  */
 export function summarizeSection(
   sectionId: string,
-  statuses: ObservatoryStatusMap
+  statuses: ObservatoryStatusMap,
+  raw?: ObservatoryRawMap
 ): ObservatorySummary | null {
   const fn = SECTION_SUMMARIZERS[sectionId];
-  return fn ? fn(statuses) : null;
+  return fn ? fn(statuses, raw) : null;
 }

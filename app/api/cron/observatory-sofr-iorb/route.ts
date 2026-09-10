@@ -5,6 +5,8 @@ import { collectDiscountWindow } from "@/lib/observatory-discount-window";
 import { collectRrp } from "@/lib/observatory-rrp";
 import { collectReserves } from "@/lib/observatory-reserves";
 import { collectMarketIndex } from "@/lib/observatory-market-index";
+// 관측소 2 — FDIC 분기 보고서 (FRED 아님)
+import { collectUnrealizedLosses } from "@/lib/observatory-banks";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -76,6 +78,17 @@ export async function GET(request: Request) {
     const detail = error instanceof Error ? error.message : String(error);
     console.error("[observatory] reserves 수집 실패:", error);
     errors.reserves = detail;
+  }
+
+  // 관측소 2 — 채권 미실현손실. 유일하게 분기 지표라 매일 받을 이유가 없다.
+  // collectUnrealizedLosses 가 저장된 분기를 보고 스스로 건너뛴다 (HTTP 무발생).
+  // 새 분기가 나올 때만 실제로 2.6MB 워크북을 받는다.
+  try {
+    results.unrealizedLosses = await collectUnrealizedLosses();
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    console.error("[observatory] unrealized-losses 수집 실패:", error);
+    errors.unrealizedLosses = detail;
   }
 
   // 주가지수는 관측소 "지표" 가 아니라 SRF 차트에 겹쳐 그리는 참고 데이터다.

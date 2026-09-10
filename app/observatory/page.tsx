@@ -7,7 +7,7 @@ import {
   worstStatus,
   type ObservatoryStatusMap,
 } from "@/lib/observatory-catalog";
-import { summarizeSection } from "./summaries";
+import { summarizeSection, type ObservatoryRawMap } from "./summaries";
 import { loadSnapshots } from "./snapshots";
 import {
   NEUTRAL_SUMMARY_CLASS,
@@ -54,7 +54,11 @@ export default async function ObservatoryIndexPage() {
           const statusMap: ObservatoryStatusMap = Object.fromEntries(
             section.indicators.map((ind) => [ind.key, snapshots[ind.key]?.status ?? null])
           );
-          const summary = summarizeSection(section.id, statusMap);
+          // 요약 문장이 숫자를 품는 섹션이 있어 원시 수치도 같이 넘긴다
+          const rawMap: ObservatoryRawMap = Object.fromEntries(
+            section.indicators.map((ind) => [ind.key, snapshots[ind.key]?.raw ?? null])
+          );
+          const summary = summarizeSection(section.id, statusMap, rawMap);
           // 배지는 요약 함수가 없는 섹션에서도 떠야 하므로 지표 상태에서 직접 뽑는다
           const worst = worstStatus(Object.values(statusMap));
           const meta = worst ? STATUS_META[worst] : null;

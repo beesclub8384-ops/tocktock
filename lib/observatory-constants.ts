@@ -475,3 +475,110 @@ export function evaluateReserves(series: ReservesPoint[]): ReservesVerdict {
 
   return { status, latest, previous, weekOverWeekChange, multipleOf2019 };
 }
+
+/* ────────────────────────────────────────────────────────────
+ * 채권 미실현손실 비율 (관측소 2 — 은행)
+ *
+ * 은행이 보유한 채권 중 아직 팔지 않아 장부에 손실로 잡히지 않은 부분
+ * ("유령 손실")을 자기자본으로 나눈 값이다.
+ *
+ * ⚠ 앞의 다섯 지표와 성격이 다르다.
+ *   - 출처가 FRED 가 아니라 FDIC 분기 은행실적보고서(QBP)다
+ *   - 일간/주간이 아니라 **분기** 데이터이고 발표 시차가 약 2개월이다
+ *   그래서 "며칠째 이어지는가" 같은 판정을 쓰지 않고 최신 분기 값 하나로 본다.
+ * ──────────────────────────────────────────────────────────── */
+
+/** 이 비율(%) 미만이면 정상 */
+export const UL_CAUTION_PCT = 10;
+
+/** 이 비율(%)을 넘으면 경보 */
+export const UL_ALERT_PCT = 20;
+
+/**
+ * 실측 정점 — 2022년 3분기 (%).
+ *
+ * ⚠ SVB 파산은 2023년 1분기(2023-03)인데 유령 손실의 정점은 그보다 **두 분기
+ *   앞선** 2022Q3 이었다. 은행이 먼저 곪고 나서 사건이 터졌다는 뜻이라,
+ *   이 지표가 선행지표라는 근거가 된다. 차트에 둘 다 표시한다.
+ */
+export const UL_PEAK_PCT = 31.8;
+
+/** 위 정점이 찍힌 분기 */
+export const UL_PEAK_QUARTER = "2022Q3";
+
+/** SVB 파산이 일어난 분기 (사건 마커) */
+export const UL_SVB_QUARTER = "2023Q1";
+
+export interface UnrealizedLossPoint {
+  /** "2026Q2" 형식 */
+  quarter: string;
+  /** 분기 말일 YYYY-MM-DD (차트 정렬·표시용) */
+  quarterEnd: string;
+  /** AFS 미실현손익, 십억 달러 (손실이면 음수 — 원본 부호 그대로) */
+  afsBillions: number;
+  /** HTM 미실현손익, 십억 달러 (손실이면 음수 — 원본 부호 그대로) */
+  htmBillions: number;
+  /** 유령 손실 총액, 십억 달러 (손실분만 절댓값으로 합산 — 항상 0 이상) */
+  ghostBillions: number;
+  /** 자기자본(Total equity capital), 십억 달러 */
+  equityBillions: number;
+  /** 유령 손실 ÷ 자기자본 × 100 (%) */
+  ratioPct: number;
+}
+
+export interface UnrealizedLossVerdict {
+  status: ObservatoryStatus;
+  /** 최신 분기 (데이터 없으면 null) */
+  latest: UnrealizedLossPoint | null;
+  /** 직전 분기 (데이터 부족하면 null) */
+  previous: UnrealizedLossPoint | null;
+  /** 최신값이 2022Q3 정점 대비 몇 %인지 (데이터 없으면 null) */
+  pctOfPeak: number | null;
+}
+
+/**
+ * 유령 손실 총액을 구한다 — 손실인 쪽만 절댓값으로 합산한다.
+ *
+ * AFS 나 HTM 이 **이익**(양수)이면 0으로 처리한다. 이익을 손실에서 빼면
+ * "한쪽이 이익이라 괜찮다"는 그림이 되는데, 뱅크런 상황에서 실제로 문제가 되는
+ * 건 손실 쪽 자산을 팔아야 한다는 사실이라 상계가 성립하지 않는다.
+ *
+ * @param afsBillions AFS 미실현손익 (십억 달러, 손실이면 음수)
+ * @param htmBillions HTM 미실현손익 (십억 달러, 손실이면 음수)
+ * @returns 유령 손실 총액 (십억 달러, 항상 0 이상)
+ */
+export function ghostLossBillions(afsBillions: number, htmBillions: number): number {
+  return Math.abs(Math.min(afsBillions, 0)) + Math.abs(Math.min(htmBillions, 0));
+}
+
+/**
+ * 채권 미실현손실 비율로 현재 상태를 판정한다.
+ *
+ * - 정상: 비율 < UL_CAUTION_PCT
+ * - 주의: UL_CAUTION_PCT ~ UL_ALERT_PCT
+ * - 경보: 비율 > UL_ALERT_PCT
+ *
+ * ⚠ 2026년 현재 값은 12% 대라 **주의(노랑)가 정상 상태**다. 첫 화면부터
+ *   노란불인 건 버그가 아니다. 2022~2023년의 30% 대에서 내려온 자리다.
+ *
+ * @param series 분기 오름차순으로 정렬된 시계열
+ */
+export function evaluateUnrealizedLosses(
+  series: UnrealizedLossPoint[]
+): UnrealizedLossVerdict {
+  const latest = series.length > 0 ? series[series.length - 1] : null;
+  const previous = series.length > 1 ? series[series.length - 2] : null;
+
+  let status: ObservatoryStatus = "normal";
+  if (latest) {
+    if (latest.ratioPct > UL_ALERT_PCT) {
+      status = "warning";
+    } else if (latest.ratioPct >= UL_CAUTION_PCT) {
+      status = "caution";
+    }
+  }
+
+  const pctOfPeak = latest ? (latest.ratioPct / UL_PEAK_PCT) * 100 : null;
+
+  return { status, latest, previous, pctOfPeak };
+}

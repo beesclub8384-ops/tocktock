@@ -50,3 +50,13 @@ export function formatCardBillions(v: number): CardValue {
 export function formatCardBp(spreadBp: number): CardValue {
   return { main: `${spreadBp > 0 ? "+" : ""}${spreadBp.toFixed(1)}bp` };
 }
+
+/**
+ * 비율(%) 카드 표기. 분기 지표라 어느 분기 값인지 옆에 붙인다.
+ *
+ * 금액 지표들과 달리 단위를 십억 달러로 통일할 수 없는 값이라
+ * (비율은 비율이다) 소수 한 자리로 고정한다.
+ */
+export function formatCardPercent(pct: number, quarter: string): CardValue {
+  return { main: `${pct.toFixed(1)}%`, note: `${quarter} 기준` };
+}

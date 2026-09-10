@@ -6,7 +6,7 @@ import {
   sectionTitle,
   type ObservatoryStatusMap,
 } from "@/lib/observatory-catalog";
-import { summarizeSection } from "../summaries";
+import { summarizeSection, type ObservatoryRawMap } from "../summaries";
 import { EMPTY_SNAPSHOT, loadSnapshots } from "../snapshots";
 import {
   CIRCLED,
@@ -62,8 +62,12 @@ export default async function ObservatorySectionPage({
   const statusMap: ObservatoryStatusMap = Object.fromEntries(
     section.indicators.map((ind) => [ind.key, snapshots[ind.key]?.status ?? null])
   );
+  // 요약 문장이 숫자를 품는 섹션이 있어 원시 수치도 같이 넘긴다
+  const rawMap: ObservatoryRawMap = Object.fromEntries(
+    section.indicators.map((ind) => [ind.key, snapshots[ind.key]?.raw ?? null])
+  );
   // 1층 카드와 같은 함수를 부른다 — 두 화면의 문장이 어긋날 수 없게
-  const summary = summarizeSection(section.id, statusMap);
+  const summary = summarizeSection(section.id, statusMap, rawMap);
 
   return (
     <div className="container mx-auto max-w-5xl px-4 sm:px-6 py-6 sm:py-8">

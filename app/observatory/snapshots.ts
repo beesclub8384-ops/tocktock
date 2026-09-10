@@ -25,6 +25,7 @@ import {
   evaluateRrp,
   evaluateSofrIorb,
   evaluateSrf,
+  evaluateUnrealizedLosses,
   type ObservatoryStatus,
 } from "@/lib/observatory-constants";
 import { loadSofrIorb } from "@/lib/observatory-sofr-iorb";
@@ -32,10 +33,33 @@ import { loadSrf } from "@/lib/observatory-srf";
 import { loadDiscountWindow } from "@/lib/observatory-discount-window";
 import { loadRrp } from "@/lib/observatory-rrp";
 import { loadReserves } from "@/lib/observatory-reserves";
+// 관측소 2 — FRED 가 아니라 FDIC 분기 보고서에서 온다
+import { loadUnrealizedLosses } from "@/lib/observatory-banks";
 // 카드 표기는 지표들을 나란히 놓고 읽는 화면이라 단위를 십억 달러로
 // 통일한다 (상세 페이지 포맷터는 지표별로 단위를 바꿔서 카드에는 안 맞는다).
 // 자세한 이유는 card-format.ts 상단 주석 참고.
-import { formatCardBillions, formatCardBp, type CardValue } from "./card-format";
+import {
+  formatCardBillions,
+  formatCardBp,
+  formatCardPercent,
+  type CardValue,
+} from "./card-format";
+
+/**
+ * 로드 실패를 조용히 삼키지 않기 위한 껍데기.
+ *
+ * 한 지표가 실패해도 화면 전체는 떠야 하므로 폴백은 그대로 두되, 무엇이
+ * 실패했는지는 반드시 로그에 남긴다. 로그가 없으면 카드가 "수집 대기" 로
+ * 보이는 게 첫 수집 전인지 장애인지 구분되지 않는다 — 전형적인 무음 실패다.
+ */
+async function orLog<T>(key: string, p: Promise<T>, fallback: T): Promise<T> {
+  try {
+    return await p;
+  } catch (e) {
+    console.error(`[observatory/snapshots] ${key} 로드 실패:`, e);
+    return fallback;
+  }
+}
 
 /** 카드 한 장에 필요한 실측 정보 */
 export interface IndicatorSnapshot {
@@ -44,6 +68,13 @@ export interface IndicatorSnapshot {
   value: CardValue | null;
   /** 기준일 YYYY-MM-DD. 데이터 없으면 null */
   asOf: string | null;
+  /**
+   * 화면 표기가 아닌 **원시 수치**. 요약 문장이 숫자를 품어야 할 때 쓴다.
+   *
+   * value.main 은 "12.4%" 같은 완성된 문자열이라 문장에 다시 끼워 넣기 어렵다.
+   * 필요한 지표만 채우고, 안 채우면 undefined 다.
+   */
+  raw?: number | null;
 }
 
 export const EMPTY_SNAPSHOT: IndicatorSnapshot = {
@@ -59,7 +90,7 @@ export const EMPTY_SNAPSHOT: IndicatorSnapshot = {
  */
 const LOADERS: Record<ObservatoryIndicatorKey, () => Promise<IndicatorSnapshot>> = {
   rrp: async () => {
-    const v = evaluateRrp(await loadRrp().catch(() => []));
+    const v = evaluateRrp(await orLog("rrp", loadRrp(), []));
     return v.latest
       ? {
           status: v.status,
@@ -69,7 +100,7 @@ const LOADERS: Record<ObservatoryIndicatorKey, () => Promise<IndicatorSnapshot>>
       : EMPTY_SNAPSHOT;
   },
   reserves: async () => {
-    const v = evaluateReserves(await loadReserves().catch(() => []));
+    const v = evaluateReserves(await orLog("reserves", loadReserves(), []));
     return v.latest
       ? {
           status: v.status,
@@ -79,7 +110,7 @@ const LOADERS: Record<ObservatoryIndicatorKey, () => Promise<IndicatorSnapshot>>
       : EMPTY_SNAPSHOT;
   },
   "sofr-iorb": async () => {
-    const v = evaluateSofrIorb(await loadSofrIorb().catch(() => []));
+    const v = evaluateSofrIorb(await orLog("sofr-iorb", loadSofrIorb(), []));
     return v.latest
       ? {
           status: v.status,
@@ -89,7 +120,7 @@ const LOADERS: Record<ObservatoryIndicatorKey, () => Promise<IndicatorSnapshot>>
       : EMPTY_SNAPSHOT;
   },
   srf: async () => {
-    const v = evaluateSrf(await loadSrf().catch(() => []));
+    const v = evaluateSrf(await orLog("srf", loadSrf(), []));
     return v.latest
       ? {
           status: v.status,
@@ -99,12 +130,31 @@ const LOADERS: Record<ObservatoryIndicatorKey, () => Promise<IndicatorSnapshot>>
       : EMPTY_SNAPSHOT;
   },
   "discount-window": async () => {
-    const v = evaluateDiscountWindow(await loadDiscountWindow().catch(() => []));
+    const v = evaluateDiscountWindow(
+      await orLog("discount-window", loadDiscountWindow(), [])
+    );
     return v.latest
       ? {
           status: v.status,
           value: formatCardBillions(v.latest.balanceBillions),
           asOf: v.latest.date,
+        }
+      : EMPTY_SNAPSHOT;
+  },
+  // ⚠ 분기 지표라 asOf 가 날짜가 아니라 분기 말일이다. 카드에는 "2026.06.30
+  //   기준" 대신 분기를 보여주는 편이 정확해서 note 에 분기를 넣는다.
+  "unrealized-losses": async () => {
+    const store = await orLog("unrealized-losses", loadUnrealizedLosses(), {
+      series: [],
+      meta: null,
+    });
+    const v = evaluateUnrealizedLosses(store.series);
+    return v.latest
+      ? {
+          status: v.status,
+          value: formatCardPercent(v.latest.ratioPct, v.latest.quarter),
+          asOf: v.latest.quarterEnd,
+          raw: v.latest.ratioPct,
         }
       : EMPTY_SNAPSHOT;
   },
