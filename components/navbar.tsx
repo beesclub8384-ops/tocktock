@@ -5,10 +5,16 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { InvestmentQuoteBanner } from "@/components/investment-quote-banner";
+import {
+  OBSERVATORY_SECTIONS,
+  sectionHref,
+  sectionTitle,
+} from "@/lib/observatory-catalog";
 
 const navLinks = [
-  // 관측소는 지표가 계속 늘어난다. 모바일은 평면 세로 목록이라 지표를 다
-  // 나열하면 목록이 무너지므로, 인덱스 한 줄로 보내고 거기서 고르게 한다.
+  // 관측소는 관측소도 지표도 계속 늘어난다. 모바일은 평면 세로 목록이라 다
+  // 나열하면 목록이 무너지므로, 목록 페이지 한 줄로 보내고 거기서 관측소를
+  // 고르게 한다 (3층 구조: 목록 → 관측소 → 지표).
   { href: "/observatory", label: "관측소" },
   { href: "/sectors", label: "섹터별 현황" },
   { href: "/market/tradevalue", label: "거래대금" },
@@ -35,24 +41,52 @@ const navLinks = [
 ];
 
 // PC 가로 메뉴 순서 (드롭다운 그룹 포함)
+type DropdownItem = {
+  href: string;
+  label: string;
+  /** 1이면 한 단계 들여쓴다 (관측소 아래 지표들) */
+  depth?: number;
+};
+
 type NavItem =
   | { type: "link"; href: string; label: string }
-  | { type: "dropdown"; label: string; id: string; items: { href: string; label: string }[] };
+  | { type: "dropdown"; label: string; id: string; items: DropdownItem[] };
+
+/**
+ * 관측소 드롭다운 항목을 카탈로그에서 만든다.
+ *
+ * 관측소가 늘어도 여기를 고칠 일이 없다 — 카탈로그에 섹션을 추가하면
+ * 드롭다운도 같이 늘어난다.
+ *
+ * ⚠ 관측소가 세 곳 이상이 되면 지표를 접고 섹션 링크만 남긴다.
+ *   관측소 6곳 × 지표 5개면 30줄이 넘어 드롭다운이 화면 밖으로 나간다.
+ *   접힌 뒤에도 지표는 각 섹션 페이지에서 고르면 된다.
+ *   "전체 보기"는 접히든 말든 **항상 첫 줄**에 남는다 — 목록으로 돌아가는
+ *   길이 사라지면 안 된다.
+ */
+const OBSERVATORY_COLLAPSE_AT = 3;
+
+function buildObservatoryItems(): DropdownItem[] {
+  const items: DropdownItem[] = [{ href: "/observatory", label: "전체 보기" }];
+  const collapsed = OBSERVATORY_SECTIONS.length >= OBSERVATORY_COLLAPSE_AT;
+
+  for (const section of OBSERVATORY_SECTIONS) {
+    items.push({ href: sectionHref(section), label: sectionTitle(section) });
+    if (collapsed) continue;
+    // 경보 사슬 순서대로 (섹션 페이지 카드 배열과 같은 순서)
+    for (const ind of section.indicators) {
+      items.push({ href: ind.href, label: ind.name, depth: 1 });
+    }
+  }
+  return items;
+}
 
 const pcNavItems: NavItem[] = [
   {
     type: "dropdown",
     label: "관측소",
     id: "observatory",
-    items: [
-      { href: "/observatory", label: "전체 보기" },
-      // 경보 사슬 순서대로 (인덱스 카드 배열과 같은 순서)
-      { href: "/observatory/rrp", label: "역레포(RRP) 잔액" },
-      { href: "/observatory/reserves", label: "지급준비금 총량" },
-      { href: "/observatory/sofr-iorb", label: "SOFR−IORB 스프레드" },
-      { href: "/observatory/srf", label: "SRF 사용량" },
-      { href: "/observatory/discount-window", label: "재할인 창구 대출 잔액" },
-    ],
+    items: buildObservatoryItems(),
   },
   { type: "link", href: "/sectors", label: "섹터별 현황" },
   { type: "link", href: "/market/tradevalue", label: "거래대금" },
@@ -137,7 +171,7 @@ function NavDropdown({
   pathname,
 }: {
   label: string;
-  items: { href: string; label: string }[];
+  items: DropdownItem[];
   openId: string | null;
   id: string;
   onToggle: (id: string) => void;
@@ -159,11 +193,14 @@ function NavDropdown({
       </Button>
       {isOpen && (
         <div className="absolute left-0 top-full mt-1 min-w-max rounded-md border border-border bg-background shadow-lg z-50">
-          {items.map(({ href, label: itemLabel }) => (
+          {items.map(({ href, label: itemLabel, depth }) => (
             <Link
               key={href}
               href={href}
-              className={`block px-4 py-2 text-sm transition-colors hover:bg-accent whitespace-nowrap ${
+              // 들여쓴 항목은 상위 항목보다 한 단계 약하게 보이게 한다
+              className={`block py-2 pr-4 text-sm transition-colors hover:bg-accent whitespace-nowrap ${
+                depth ? "pl-8 text-muted-foreground" : "pl-4"
+              } ${
                 isActivePath(pathname, href) ? "bg-primary/10 font-semibold text-primary" : ""
               }`}
               onClick={() => onToggle("")}

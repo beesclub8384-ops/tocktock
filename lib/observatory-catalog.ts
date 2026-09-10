@@ -1,17 +1,26 @@
 /**
- * 관측소 카탈로그 — 인덱스 페이지가 읽는 섹션·지표 목록
+ * 관측소 카탈로그 — 3층 구조가 읽는 섹션·지표 목록
  *
- * 관측소를 늘릴 때는 OBSERVATORY_SECTIONS 에 섹션을 하나 더 넣으면 된다.
- * 인덱스 페이지는 이 배열을 순회할 뿐이라 페이지 코드를 고칠 일이 없다.
+ *   1층 /observatory            목록: 섹션 카드들
+ *   2층 /observatory/{id}       섹션: 그 섹션의 지표 카드들
+ *   3층 /observatory/{지표}     지표 상세
+ *
+ * 관측소를 늘릴 때는 OBSERVATORY_SECTIONS 에 섹션을 하나 더 넣으면
+ * 1층·2층·네비게이션이 전부 자동으로 늘어난다 (페이지 코드는 손대지 않는다).
+ * 새 지표의 값을 읽는 방법은 app/observatory/snapshots.ts 에,
+ * 새 섹션의 요약 문장은 app/observatory/summaries.ts 에 등록한다.
  *
  * ⚠ 여기에는 **표시용 메타데이터만** 둔다. 수집·판정 로직은
  *   lib/observatory-constants.ts 와 lib/observatory-*.ts 에 그대로 있고,
  *   이 파일은 그것들을 알지 못한다. (한 줄 설명이 상세 페이지 헤더와
  *   어긋나지 않도록, 문구는 각 상세 페이지 헤더에서 그대로 가져왔다)
+ *
+ * ⚠ 이 파일은 navbar("use client")도 import 한다. Redis 접근이나 서버 전용
+ *   모듈을 여기에 섞으면 클라이언트 번들이 깨진다. 순수 데이터만 둘 것.
  */
 import type { ObservatoryStatus } from "@/lib/observatory-constants";
 
-/** 지표 식별자 — 인덱스 페이지가 값 조회 함수를 고르는 데 쓴다 */
+/** 지표 식별자 — 값 조회 함수를 고르는 데 쓴다 */
 export type ObservatoryIndicatorKey =
   | "rrp"
   | "reserves"
@@ -23,6 +32,13 @@ export interface ObservatoryIndicatorMeta {
   key: ObservatoryIndicatorKey;
   /** 경보 사슬에서의 순서 (1부터) */
   order: number;
+  /**
+   * 지표 상세 URL.
+   *
+   * 섹션 아래(/observatory/plumbing/rrp)가 아니라 평면(/observatory/rrp)이다.
+   * 관측소 번호는 나중에 순서가 바뀔 수 있는 표시용 값이라 URL 에 넣지 않고,
+   * 이미 밖에 나가 있는 주소를 깨뜨리지 않기 위해서다.
+   */
   href: string;
   name: string;
   /** 카드에 한 줄로 들어가는 의미 설명 */
@@ -32,9 +48,19 @@ export interface ObservatoryIndicatorMeta {
 }
 
 export interface ObservatorySectionMeta {
+  /**
+   * 슬러그 겸 식별자 → /observatory/{id}
+   *
+   * ⚠ 관측소 번호(1, 2 …)를 쓰지 않는다. 번호는 표시 순서라 나중에 바뀔 수
+   *   있는데, URL 이 그때마다 따라 바뀌면 안 된다.
+   */
   id: string;
-  /** 섹션 제목 */
-  title: string;
+  /** 화면 표시용 번호. URL 에는 절대 쓰지 않는다 */
+  number: number;
+  /** 번호 뒤에 붙는 이름 — "관측소 1 — {name}" */
+  name: string;
+  /** 브레드크럼처럼 좁은 자리에 쓰는 짧은 이름 */
+  shortName: string;
   /** 섹션 한 줄 설명 */
   subtitle: string;
   /** 섹션 하단 사슬 설명 */
@@ -46,7 +72,9 @@ export interface ObservatorySectionMeta {
 export const OBSERVATORY_SECTIONS: ObservatorySectionMeta[] = [
   {
     id: "plumbing",
-    title: "관측소 1 — 배관: 자금시장의 수압계",
+    number: 1,
+    name: "배관: 자금시장의 수압계",
+    shortName: "배관",
     subtitle:
       "시스템 전체의 현금 사정을 재는 곳. 여기가 흔들리면 어디가 아픈지와 무관하게 모두가 아파진다.",
     chainNote: "①→⑤는 시스템의 현금이 마를 때 경보가 켜지는 순서다",
@@ -98,16 +126,112 @@ export const OBSERVATORY_SECTIONS: ObservatorySectionMeta[] = [
 ];
 
 /* ────────────────────────────────────────────────────────────
- * 관측소 1 요약 문장
+ * 슬러그 충돌 검사
  *
- * 카드를 다 읽지 않아도 첫 줄에서 시스템 상태가 잡히게 한다.
- * 관측소 1의 다섯 지표를 성격별로 세 덩어리로 묶어 읽는다.
- *   쿠션 = RRP (①)
- *   본체 = 지급준비금 (②)
- *   배관 = SOFR−IORB · SRF · 재할인 창구 (③④⑤) — 셋 중 가장 나쁜 상태로 대표
+ * 섹션 URL(/observatory/plumbing)과 지표 URL(/observatory/rrp)이 같은
+ * 네임스페이스를 쓴다. Next.js 는 정적 세그먼트를 동적([section])보다 먼저
+ * 매칭하므로, 섹션 id 를 지표 슬러그와 같게 지으면 **그 섹션 페이지가 영원히
+ * 안 뜨는데 에러도 안 난다** — 전형적인 무음 실패다.
+ * 그래서 모듈이 로드되는 순간 터뜨린다 (빌드/dev 첫 요청에서 바로 잡힌다).
+ * ──────────────────────────────────────────────────────────── */
+function assertCatalogIsSane(sections: ObservatorySectionMeta[]): void {
+  const indicatorSlugs = new Map<string, string>(); // 슬러그 → 지표 key
+  const indicatorKeys = new Set<string>();
+  const sectionIds = new Set<string>();
+
+  for (const section of sections) {
+    if (sectionIds.has(section.id)) {
+      throw new Error(`[observatory-catalog] 섹션 id 중복: "${section.id}"`);
+    }
+    sectionIds.add(section.id);
+
+    for (const ind of section.indicators) {
+      if (indicatorKeys.has(ind.key)) {
+        throw new Error(`[observatory-catalog] 지표 key 중복: "${ind.key}"`);
+      }
+      indicatorKeys.add(ind.key);
+
+      const slug = ind.href.replace(/^\/observatory\//, "");
+      const dup = indicatorSlugs.get(slug);
+      if (dup) {
+        throw new Error(
+          `[observatory-catalog] 지표 URL 중복: "${ind.href}" (${dup} / ${ind.key})`
+        );
+      }
+      indicatorSlugs.set(slug, ind.key);
+    }
+  }
+
+  for (const id of sectionIds) {
+    const clash = indicatorSlugs.get(id);
+    if (clash) {
+      throw new Error(
+        `[observatory-catalog] 섹션 id "${id}" 가 지표 "${clash}" 의 URL 과 겹칩니다. ` +
+          `Next.js 가 정적 경로를 먼저 매칭해 /observatory/${id} 섹션 페이지가 뜨지 않습니다. ` +
+          `섹션 id 를 다른 이름으로 바꾸세요.`
+      );
+    }
+  }
+}
+
+/*
+ * ⚠ 이 호출을 `if (process.env.NODE_ENV !== "production")` 로 감싸지 말 것.
+ *   `next build` 는 NODE_ENV=production 으로 돌기 때문에, 그렇게 감싸면 정작
+ *   빌드에서 검사가 꺼진다 — 충돌을 빌드에서 잡는다는 목적이 통째로 사라진다.
+ *   지금처럼 최상위에서 부르면 레이아웃(navbar)이 이 모듈을 쓰는 덕에 빌드가
+ *   실패하고, 잘못된 슬러그가 배포까지 가지 못한다.
  *
- * ⚠ 이 함수는 관측소 1 전용이다. 관측소 2·4가 붙으면 그 섹션은 그 섹션대로
- *   요약 함수를 따로 만든다 (덩어리 구분이 섹션마다 다르므로 일반화하지 않는다).
+ *   대가는 클라이언트 번들에 검사 함수가 같이 실리는 것뿐이다. 섹션 1개 ·
+ *   지표 5개를 훑는 루프라 실행 비용은 사실상 0이고, 조용히 안 뜨는 페이지를
+ *   막는 값으로는 싸다.
+ */
+assertCatalogIsSane(OBSERVATORY_SECTIONS);
+
+/* ────────────────────────────────────────────────────────────
+ * 조회 헬퍼 — 번호·URL 조립을 한 곳에 모은다
+ * ──────────────────────────────────────────────────────────── */
+
+/** 섹션 URL. 번호가 아니라 슬러그를 쓴다 */
+export function sectionHref(section: ObservatorySectionMeta): string {
+  return `/observatory/${section.id}`;
+}
+
+/** 전체 제목 — "관측소 1 — 배관: 자금시장의 수압계" */
+export function sectionTitle(section: ObservatorySectionMeta): string {
+  return `관측소 ${section.number} — ${section.name}`;
+}
+
+/** 짧은 제목 — "관측소 1 — 배관" (브레드크럼 등 좁은 자리) */
+export function sectionShortTitle(section: ObservatorySectionMeta): string {
+  return `관측소 ${section.number} — ${section.shortName}`;
+}
+
+export function findSection(id: string): ObservatorySectionMeta | undefined {
+  return OBSERVATORY_SECTIONS.find((s) => s.id === id);
+}
+
+/** 지표가 어느 섹션 소속인지 되찾는다 (브레드크럼이 쓴다) */
+export function findIndicator(
+  key: ObservatoryIndicatorKey
+): { section: ObservatorySectionMeta; indicator: ObservatoryIndicatorMeta } | undefined {
+  for (const section of OBSERVATORY_SECTIONS) {
+    const indicator = section.indicators.find((i) => i.key === key);
+    if (indicator) return { section, indicator };
+  }
+  return undefined;
+}
+
+/** 카탈로그에 등록된 모든 지표 key */
+export function allIndicatorKeys(): ObservatoryIndicatorKey[] {
+  return OBSERVATORY_SECTIONS.flatMap((s) => s.indicators.map((i) => i.key));
+}
+
+/* ────────────────────────────────────────────────────────────
+ * 상태 요약 공용 타입
+ *
+ * 섹션별 요약 **문장**은 성격이 달라 일반화하지 않는다
+ * (app/observatory/summaries.ts 의 레지스트리 참고).
+ * 여기에는 어느 섹션에서나 같은 뜻인 "가장 나쁜 상태" 만 둔다.
  * ──────────────────────────────────────────────────────────── */
 
 /** 지표별 판정 상태. 아직 데이터가 없으면 null */
@@ -120,24 +244,6 @@ const SEVERITY: Record<ObservatoryStatus, number> = {
   normal: 0,
   caution: 1,
   warning: 2,
-};
-
-const CUSHION_TEXT: Record<ObservatoryStatus, string> = {
-  normal: "여유 있음",
-  caution: "얇아지는 중",
-  warning: "소진",
-};
-
-const CORE_TEXT: Record<ObservatoryStatus, string> = {
-  normal: "정상",
-  caution: "빠듯",
-  warning: "위험 구간",
-};
-
-const PLUMBING_TEXT: Record<ObservatoryStatus, string> = {
-  normal: "정상",
-  caution: "삐걱이는 중",
-  warning: "경보",
 };
 
 /** 여러 상태 중 가장 나쁜 것. 전부 null 이면 null */
@@ -157,49 +263,4 @@ export interface ObservatorySummary {
   text: string;
   /** 문장 전체의 심각도 (색을 고르는 데 쓴다). 데이터가 없으면 null */
   status: ObservatoryStatus | null;
-}
-
-/**
- * 관측소 1의 다섯 신호등을 한 문장으로 요약한다.
- *
- * 예) "현재: 쿠션(RRP)은 소진, 본체와 배관은 정상"
- *
- * 본체와 배관의 표현이 같으면 "본체와 배관은 X" 로 묶어 문장을 짧게 만든다.
- * 셋 다 정상이면 아예 한 덩어리로 묶는다.
- */
-export function summarizeSection1(statuses: ObservatoryStatusMap): ObservatorySummary {
-  const cushion = statuses.rrp ?? null;
-  const core = statuses.reserves ?? null;
-  const plumbing = worstStatus([
-    statuses["sofr-iorb"],
-    statuses.srf,
-    statuses["discount-window"],
-  ]);
-
-  const overall = worstStatus([cushion, core, plumbing]);
-
-  // 아직 아무 데이터도 없으면 상태를 지어내지 않는다
-  if (cushion === null && core === null && plumbing === null) {
-    return { text: "현재 상태를 확인할 수 없습니다 (수집 대기)", status: null };
-  }
-
-  // 셋 다 정상이면 나열할 이유가 없다
-  if (cushion === "normal" && core === "normal" && plumbing === "normal") {
-    return { text: "현재: 쿠션·본체·배관 모두 정상", status: "normal" };
-  }
-
-  const cushionText = cushion ? CUSHION_TEXT[cushion] : "확인 불가";
-  const coreText = core ? CORE_TEXT[core] : "확인 불가";
-  const plumbingText = plumbing ? PLUMBING_TEXT[plumbing] : "확인 불가";
-
-  const parts = [`쿠션(RRP)은 ${cushionText}`];
-  if (coreText === plumbingText) {
-    // 예: "본체와 배관은 정상"
-    parts.push(`본체와 배관은 ${coreText}`);
-  } else {
-    parts.push(`본체(지급준비금)는 ${coreText}`);
-    parts.push(`배관은 ${plumbingText}`);
-  }
-
-  return { text: `현재: ${parts.join(", ")}`, status: overall };
 }

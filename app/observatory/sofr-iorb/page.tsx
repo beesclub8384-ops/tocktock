@@ -1,3 +1,4 @@
+import { ObservatoryBreadcrumb } from "../breadcrumb";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import SofrIorbChart from "./SofrIorbChart";
@@ -89,9 +90,9 @@ export default async function ObservatoryPage() {
 
   return (
     <div className="container mx-auto max-w-5xl px-4 sm:px-6 py-6 sm:py-8">
+      <ObservatoryBreadcrumb indicator="sofr-iorb" />
       {/* 헤더 */}
       <header className="mb-6">
-        <div className="text-xs font-semibold text-zinc-500 mb-1">관측소</div>
         <h1 className="text-2xl sm:text-3xl font-bold text-zinc-900 dark:text-zinc-100">
           SOFR − IORB 스프레드
         </h1>

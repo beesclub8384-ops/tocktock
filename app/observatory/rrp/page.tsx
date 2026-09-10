@@ -1,3 +1,4 @@
+import { ObservatoryBreadcrumb } from "../breadcrumb";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import RrpChart from "./RrpChart";
@@ -97,9 +98,9 @@ export default async function RrpPage() {
 
   return (
     <div className="container mx-auto max-w-5xl px-4 sm:px-6 py-6 sm:py-8">
+      <ObservatoryBreadcrumb indicator="rrp" />
       {/* 헤더 */}
       <header className="mb-6">
-        <div className="text-xs font-semibold text-zinc-500 mb-1">관측소</div>
         <h1 className="text-2xl sm:text-3xl font-bold text-zinc-900 dark:text-zinc-100">
           역레포(RRP) 잔액
         </h1>
