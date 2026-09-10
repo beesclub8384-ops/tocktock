@@ -237,8 +237,7 @@ docs/                    # 문서 (본 파일)
 |---|---|
 | `UPSTASH_REDIS_REST_URL` | Redis 연결 URL |
 | `UPSTASH_REDIS_REST_TOKEN` | Redis 인증 토큰 |
-| `ANTHROPIC_API_KEY` | 서버 사이드 Claude 호출 |
-| `NEXT_PUBLIC_ANTHROPIC_API_KEY` | 클라이언트 사이드 Claude 호출 |
+| `ANTHROPIC_API_KEY` | Claude 호출 (서버·로컬 스크립트 전용) |
 | `FRED_API_KEY` | FRED(미국 연준 경제데이터) API |
 | `KIS_APP_KEY` | 한국투자증권 KIS OpenAPI 앱 키 |
 | `KIS_APP_SECRET` | 한국투자증권 KIS OpenAPI 시크릿 |

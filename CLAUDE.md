@@ -303,10 +303,14 @@ npm run build
 
 | 변수명 | 용도 |
 |---|---|
-| `ANTHROPIC_API_KEY` | 서버 사이드 AI 호출 |
-| `NEXT_PUBLIC_ANTHROPIC_API_KEY` | 클라이언트 사이드 AI 호출 |
+| `ANTHROPIC_API_KEY` | AI 호출 (서버·로컬 스크립트 전용) |
 | `UPSTASH_REDIS_REST_URL` | Redis 연결 URL |
 | `UPSTASH_REDIS_REST_TOKEN` | Redis 인증 토큰 |
+
+⚠ **API 키에 `NEXT_PUBLIC_` 접두사를 붙이지 말 것.** 그 접두사가 붙은 변수는
+Next.js 가 브라우저 번들에 값을 그대로 심는다 — 사이트를 여는 누구나 읽을 수 있다.
+예전에 있던 `NEXT_PUBLIC_ANTHROPIC_API_KEY` 는 폐기했다. AI 호출은 서버 라우트나
+로컬 스크립트에서 `ANTHROPIC_API_KEY` 로만 한다.
 
 ---
 
