@@ -35,7 +35,10 @@ function loadEnvFile(fileName) {
 loadEnvFile(".env.vercel.local");
 loadEnvFile(".env.local");
 
-const API_KEY = process.env.NEXT_PUBLIC_ANTHROPIC_API_KEY;
+// 형제 스크립트(plan/eval/monitor-agent)와 같은 폴백 순서.
+// 이 줄만 NEXT_PUBLIC_ 키를 단독으로 봐서, 그 키가 만료되자 401 로 죽었다.
+const API_KEY =
+  process.env.ANTHROPIC_API_KEY || process.env.NEXT_PUBLIC_ANTHROPIC_API_KEY;
 if (!API_KEY) {
   console.error("ANTHROPIC_API_KEY가 설정되지 않았습니다.");
   process.exit(1);
