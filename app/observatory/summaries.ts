@@ -106,40 +106,62 @@ export function summarizeSection1(statuses: ObservatoryStatusMap): ObservatorySu
 /* ────────────────────────────────────────────────────────────
  * 관측소 2 — 은행
  *
- * 지표가 하나뿐이라 묶을 것이 없다. 그 지표의 상태를 그대로 문장으로 만든다.
- * 지표가 늘면 관측소 1처럼 덩어리를 나눠 다시 쓴다.
+ * 두 지표를 성격별로 읽는다.
+ *   장부 = 채권 미실현손실 비율 — 이미 난 손실이 자본을 얼마나 갉아먹는가
+ *   자금줄 = FHLB 차입 잔액 — 지금 돈을 구하러 다니기 시작했는가
+ *
+ * 앞은 쌓인 상처, 뒤는 지금의 갈증이라 한 덩어리로 묶지 않는다.
  * ──────────────────────────────────────────────────────────── */
 
-const BANKS_TEXT: Record<ObservatoryStatus, string> = {
+/** FHLB 는 증가율로 읽는 지표라 "얼마"가 아니라 "움직임"으로 말한다 */
+const FHLB_TEXT: Record<ObservatoryStatus, string> = {
+  normal: "잠잠",
+  caution: "늘고 있음",
+  warning: "급증",
+};
+
+const BANKS_OVERALL: Record<ObservatoryStatus, string> = {
   normal: "여유 있음",
   caution: "주의",
   warning: "위험 구간",
 };
 
 /**
- * 관측소 2 요약. 비율 값을 같이 넣어 한 줄로 상태가 잡히게 한다.
+ * 관측소 2 요약.
  *
- * 예) "유령 손실은 자기자본의 12.4% — 주의"
+ * 예) "장부에 유령 손실 12.4%, 자금줄은 잠잠 — 주의"
  *
- * ⚠ 비율 숫자는 요약을 부르는 쪽이 넘겨준다. 이 파일은 판정 상태만 알고
- *   실제 값은 모르기 때문에, 값이 없으면 상태만으로 문장을 만든다.
+ * ⚠ 비율·증가율 숫자는 요약을 부르는 쪽이 raw 로 넘겨준다. 이 파일은 판정
+ *   상태만 알고 실제 값은 모른다.
  */
 export function summarizeBanks(
   statuses: ObservatoryStatusMap,
   raw?: ObservatoryRawMap
 ): ObservatorySummary {
-  const ratioPct = raw?.["unrealized-losses"];
-  const status = statuses["unrealized-losses"] ?? null;
+  const ul = statuses["unrealized-losses"] ?? null;
+  const fhlb = statuses["fhlb"] ?? null;
+  const overall = worstStatus([ul, fhlb]);
 
-  if (status === null) {
+  // 아직 아무 데이터도 없으면 상태를 지어내지 않는다
+  if (overall === null) {
     return { text: "현재 상태를 확인할 수 없습니다 (수집 대기)", status: null };
   }
 
-  const label = BANKS_TEXT[status];
-  const value =
-    typeof ratioPct === "number" ? `자기자본의 ${ratioPct.toFixed(1)}%` : "집계 중";
+  const ratioPct = raw?.["unrealized-losses"];
+  const ulText =
+    ul === null
+      ? "장부는 확인 불가"
+      : typeof ratioPct === "number"
+        ? `장부에 유령 손실 ${ratioPct.toFixed(1)}%`
+        : "장부는 집계 중";
 
-  return { text: `유령 손실은 ${value} — ${label}`, status };
+  const fhlbText =
+    fhlb === null ? "자금줄은 확인 불가" : `자금줄은 ${FHLB_TEXT[fhlb]}`;
+
+  return {
+    text: `${ulText}, ${fhlbText} — ${BANKS_OVERALL[overall]}`,
+    status: overall,
+  };
 }
 
 /* ────────────────────────────────────────────────────────────

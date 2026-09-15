@@ -26,6 +26,7 @@ import {
   evaluateSofrIorb,
   evaluateSrf,
   evaluateUnrealizedLosses,
+  evaluateFhlb,
   type ObservatoryStatus,
 } from "@/lib/observatory-constants";
 import { loadSofrIorb } from "@/lib/observatory-sofr-iorb";
@@ -35,6 +36,7 @@ import { loadRrp } from "@/lib/observatory-rrp";
 import { loadReserves } from "@/lib/observatory-reserves";
 // 관측소 2 — FRED 가 아니라 FDIC 분기 보고서에서 온다
 import { loadUnrealizedLosses } from "@/lib/observatory-banks";
+import { loadFhlb } from "@/lib/observatory-fhlb";
 // 카드 표기는 지표들을 나란히 놓고 읽는 화면이라 단위를 십억 달러로
 // 통일한다 (상세 페이지 포맷터는 지표별로 단위를 바꿔서 카드에는 안 맞는다).
 // 자세한 이유는 card-format.ts 상단 주석 참고.
@@ -42,6 +44,7 @@ import {
   formatCardBillions,
   formatCardBp,
   formatCardPercent,
+  formatCardQoq,
   type CardValue,
 } from "./card-format";
 
@@ -155,6 +158,19 @@ const LOADERS: Record<ObservatoryIndicatorKey, () => Promise<IndicatorSnapshot>>
           value: formatCardPercent(v.latest.ratioPct, v.latest.quarter),
           asOf: v.latest.quarterEnd,
           raw: v.latest.ratioPct,
+        }
+      : EMPTY_SNAPSHOT;
+  },
+  // 분기 지표. 레벨이 아니라 전분기 대비 증가율로 판정하므로 카드에도
+  // 잔액과 증가율을 함께 보여준다 (잔액만 보면 왜 주의인지 알 수 없다).
+  "fhlb": async () => {
+    const v = evaluateFhlb(await orLog("fhlb", loadFhlb(), []));
+    return v.latest
+      ? {
+          status: v.status,
+          value: formatCardQoq(v.latest.advancesBillions, v.latest.qoqChangePct),
+          asOf: null,
+          raw: v.latest.qoqChangePct,
         }
       : EMPTY_SNAPSHOT;
   },

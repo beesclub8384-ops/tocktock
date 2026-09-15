@@ -7,6 +7,7 @@ import { collectReserves } from "@/lib/observatory-reserves";
 import { collectMarketIndex } from "@/lib/observatory-market-index";
 // 관측소 2 — FDIC 분기 보고서 (FRED 아님)
 import { collectUnrealizedLosses } from "@/lib/observatory-banks";
+import { collectFhlb } from "@/lib/observatory-fhlb";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -89,6 +90,16 @@ export async function GET(request: Request) {
     const detail = error instanceof Error ? error.message : String(error);
     console.error("[observatory] unrealized-losses 수집 실패:", error);
     errors.unrealizedLosses = detail;
+  }
+
+  // 관측소 2 — FHLB 차입 잔액. 분기 지표지만 FRED 라 응답이 가볍다
+  // (관측치 323건). 매일 받아도 부담이 없어 따로 건너뛰기를 두지 않는다.
+  try {
+    results.fhlb = await collectFhlb();
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    console.error("[observatory] fhlb 수집 실패:", error);
+    errors.fhlb = detail;
   }
 
   // 주가지수는 관측소 "지표" 가 아니라 SRF 차트에 겹쳐 그리는 참고 데이터다.

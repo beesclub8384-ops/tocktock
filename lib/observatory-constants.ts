@@ -582,3 +582,76 @@ export function evaluateUnrealizedLosses(
 
   return { status, latest, previous, pctOfPeak };
 }
+
+/* ────────────────────────────────────────────────────────────
+ * FHLB(연방주택대출은행) 차입 잔액 (관측소 2 — 은행)
+ *
+ * 은행들이 연준 창구보다 먼저, 낙인 없이 조용히 쓰는 자금줄이다.
+ * 재할인 창구는 "저기가 급하다"는 소문이 나서 평시엔 아무도 안 쓰지만,
+ * FHLB 는 평상시에도 쓰는 곳이라 급할 때 먼저 손이 간다.
+ * 그래서 연준 창구(관측소 1 ⑤)보다 **앞서** 움직인다.
+ *
+ * ⚠ 채권 미실현손실과 같은 분기 지표다. 레벨 자체는 은행 자산 규모를 따라
+ *   추세적으로 커지므로, 절대 금액이 아니라 **전분기 대비 증가율**로 본다.
+ * ──────────────────────────────────────────────────────────── */
+
+/** 전분기 대비 이 증가율(%) 이상이면 "주의" */
+export const FHLB_WARN_QOQ_PCT = 15;
+
+/** 전분기 대비 이 증가율(%) 이상이면 "경보" */
+export const FHLB_ALERT_QOQ_PCT = 30;
+
+export interface FhlbPoint {
+  /** "2023Q1" 형식 */
+  quarter: string;
+  /** FHLB 차입(Advances) 잔액, 십억 달러 (FRED 원단위는 백만이라 1000으로 나눈 값) */
+  advancesBillions: number;
+  /**
+   * 전분기 대비 증가율 (%).
+   *
+   * ⚠ 직전 관측치가 **바로 앞 분기가 아닐 때는 null** 이다.
+   *   1946~1951 구간은 연간 집계만 있어 Q1~Q3 가 비어 있는데, 그 구멍을 건너뛴
+   *   채로 증가율을 내면 1년치 변화가 "전분기 대비" 로 둔갑한다.
+   */
+  qoqChangePct: number | null;
+}
+
+export interface FhlbVerdict {
+  status: ObservatoryStatus;
+  /** 최신 분기 (데이터 없으면 null) */
+  latest: FhlbPoint | null;
+  /** 직전 분기 (데이터 부족하면 null) */
+  previous: FhlbPoint | null;
+}
+
+/**
+ * FHLB 차입 잔액의 전분기 대비 증가율로 현재 상태를 판정한다.
+ *
+ * - 정상: 증가율 < FHLB_WARN_QOQ_PCT
+ * - 주의: FHLB_WARN_QOQ_PCT ~ FHLB_ALERT_QOQ_PCT
+ * - 경보: FHLB_ALERT_QOQ_PCT 이상
+ *
+ * 증가율이 null(구멍 뒤 첫 분기)이면 판정하지 않고 정상으로 둔다 — 값을
+ * 모른다고 경보를 켜면 1950년대 구간이 통째로 빨간불이 된다.
+ *
+ * ⚠ **줄어드는 쪽은 보지 않는다.** 잔액이 급감하는 건 위기가 지나가고 은행이
+ *   빌린 돈을 갚았다는 뜻이라(2020Q2 −31%, 2023Q2 −18%) 경보 대상이 아니다.
+ *
+ * @param series 분기 오름차순으로 정렬된 시계열
+ */
+export function evaluateFhlb(series: FhlbPoint[]): FhlbVerdict {
+  const latest = series.length > 0 ? series[series.length - 1] : null;
+  const previous = series.length > 1 ? series[series.length - 2] : null;
+
+  let status: ObservatoryStatus = "normal";
+  const qoq = latest?.qoqChangePct;
+  if (typeof qoq === "number") {
+    if (qoq >= FHLB_ALERT_QOQ_PCT) {
+      status = "warning";
+    } else if (qoq >= FHLB_WARN_QOQ_PCT) {
+      status = "caution";
+    }
+  }
+
+  return { status, latest, previous };
+}

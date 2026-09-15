@@ -27,7 +27,8 @@ export type ObservatoryIndicatorKey =
   | "sofr-iorb"
   | "srf"
   | "discount-window"
-  | "unrealized-losses";
+  | "unrealized-losses"
+  | "fhlb";
 
 export interface ObservatoryIndicatorMeta {
   key: ObservatoryIndicatorKey;
@@ -141,6 +142,14 @@ export const OBSERVATORY_SECTIONS: ObservatorySectionMeta[] = [
         name: "채권 미실현손실 비율",
         oneLiner:
           "은행이 아직 팔지 않은 채권에 숨어 있는 손실을 자기자본으로 나눈 값. 뱅크런이 오면 이 유령이 실물이 되어 자본을 갉아먹는다.",
+      },
+      {
+        key: "fhlb",
+        order: 2,
+        href: "/observatory/fhlb",
+        name: "FHLB 차입 잔액",
+        oneLiner:
+          "은행이 연준 창구보다 먼저, 낙인 없이 조용히 쓰는 자금줄. 차입이 갑자기 늘면 목이 마르기 시작했다는 뜻이다.",
       },
     ],
   },

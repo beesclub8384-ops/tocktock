@@ -60,3 +60,16 @@ export function formatCardBp(spreadBp: number): CardValue {
 export function formatCardPercent(pct: number, quarter: string): CardValue {
   return { main: `${pct.toFixed(1)}%`, note: `${quarter} 기준` };
 }
+
+/**
+ * 잔액(십억 달러) + 전분기 대비 증가율 카드 표기.
+ *
+ * 판정이 증가율로 이뤄지는 지표라, 잔액만 크게 띄우면 카드의 신호등 색과
+ * 숫자가 따로 논다. 잔액을 본값으로 두고 증가율을 옆에 붙인다.
+ */
+export function formatCardQoq(billions: number, qoqPct: number | null): CardValue {
+  const main = `${Math.round(billions).toLocaleString("en-US")}십억 달러`;
+  if (qoqPct === null) return { main, note: "전분기 대비 미상" };
+  const sign = qoqPct >= 0 ? "+" : "";
+  return { main, note: `전분기 대비 ${sign}${qoqPct.toFixed(1)}%` };
+}
