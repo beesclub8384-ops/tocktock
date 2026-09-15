@@ -73,3 +73,19 @@ export function formatCardQoq(billions: number, qoqPct: number | null): CardValu
   const sign = qoqPct >= 0 ? "+" : "";
   return { main, note: `전분기 대비 ${sign}${qoqPct.toFixed(1)}%` };
 }
+
+/**
+ * 예금 유출 카드 표기 — 성격이 다른 두 값을 한 장에 담는다.
+ *
+ * 본값은 분기 지표(무보험 비중)로 둔다. 주간 변화는 평소 0 근처라 본값으로
+ * 쓰면 카드가 늘 "0.0"만 보여주게 된다. 주간 쪽은 옆에 붙인다.
+ */
+export function formatCardDepositFlight(
+  uninsuredPct: number | null,
+  weeklyChangePp: number | null
+): CardValue {
+  const main = uninsuredPct === null ? "—" : `무보험 ${uninsuredPct.toFixed(1)}%`;
+  if (weeklyChangePp === null) return { main };
+  const sign = weeklyChangePp >= 0 ? "+" : "";
+  return { main, note: `소형 이동 ${sign}${weeklyChangePp.toFixed(2)}%p/주` };
+}

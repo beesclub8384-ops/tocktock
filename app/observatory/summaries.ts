@@ -106,11 +106,12 @@ export function summarizeSection1(statuses: ObservatoryStatusMap): ObservatorySu
 /* ────────────────────────────────────────────────────────────
  * 관측소 2 — 은행
  *
- * 두 지표를 성격별로 읽는다.
- *   장부 = 채권 미실현손실 비율 — 이미 난 손실이 자본을 얼마나 갉아먹는가
- *   자금줄 = FHLB 차입 잔액 — 지금 돈을 구하러 다니기 시작했는가
+ * 세 지표를 성격별로 읽는다.
+ *   장부   = 채권 미실현손실 비율 — 이미 난 손실이 자본을 얼마나 갉아먹는가
+ *   자금줄 = FHLB 차입 잔액 — 돈을 구하러 다니기 시작했는가
+ *   예금   = 예금 유출 — 돈이 실제로 빠져나가고 있는가
  *
- * 앞은 쌓인 상처, 뒤는 지금의 갈증이라 한 덩어리로 묶지 않는다.
+ * 쌓인 상처 · 지금의 갈증 · 실제 이탈이라 한 덩어리로 묶지 않는다.
  * ──────────────────────────────────────────────────────────── */
 
 /** FHLB 는 증가율로 읽는 지표라 "얼마"가 아니라 "움직임"으로 말한다 */
@@ -118,6 +119,13 @@ const FHLB_TEXT: Record<ObservatoryStatus, string> = {
   normal: "잠잠",
   caution: "늘고 있음",
   warning: "급증",
+};
+
+/** 예금은 빠져나가는 정도로 말한다 */
+const DEPOSIT_TEXT: Record<ObservatoryStatus, string> = {
+  normal: "제자리",
+  caution: "빠지는 중",
+  warning: "이탈",
 };
 
 const BANKS_OVERALL: Record<ObservatoryStatus, string> = {
@@ -129,10 +137,10 @@ const BANKS_OVERALL: Record<ObservatoryStatus, string> = {
 /**
  * 관측소 2 요약.
  *
- * 예) "장부에 유령 손실 12.4%, 자금줄은 잠잠 — 주의"
+ * 예) "장부에 유령 손실 12.4%, 자금줄은 잠잠, 예금은 제자리 — 주의"
  *
- * ⚠ 비율·증가율 숫자는 요약을 부르는 쪽이 raw 로 넘겨준다. 이 파일은 판정
- *   상태만 알고 실제 값은 모른다.
+ * ⚠ 비율 숫자는 요약을 부르는 쪽이 raw 로 넘겨준다. 이 파일은 판정 상태만
+ *   알고 실제 값은 모른다.
  */
 export function summarizeBanks(
   statuses: ObservatoryStatusMap,
@@ -140,7 +148,8 @@ export function summarizeBanks(
 ): ObservatorySummary {
   const ul = statuses["unrealized-losses"] ?? null;
   const fhlb = statuses["fhlb"] ?? null;
-  const overall = worstStatus([ul, fhlb]);
+  const deposit = statuses["deposit-flight"] ?? null;
+  const overall = worstStatus([ul, fhlb, deposit]);
 
   // 아직 아무 데이터도 없으면 상태를 지어내지 않는다
   if (overall === null) {
@@ -158,8 +167,11 @@ export function summarizeBanks(
   const fhlbText =
     fhlb === null ? "자금줄은 확인 불가" : `자금줄은 ${FHLB_TEXT[fhlb]}`;
 
+  const depositText =
+    deposit === null ? "예금은 확인 불가" : `예금은 ${DEPOSIT_TEXT[deposit]}`;
+
   return {
-    text: `${ulText}, ${fhlbText} — ${BANKS_OVERALL[overall]}`,
+    text: `${ulText}, ${fhlbText}, ${depositText} — ${BANKS_OVERALL[overall]}`,
     status: overall,
   };
 }

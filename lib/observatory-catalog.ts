@@ -28,7 +28,8 @@ export type ObservatoryIndicatorKey =
   | "srf"
   | "discount-window"
   | "unrealized-losses"
-  | "fhlb";
+  | "fhlb"
+  | "deposit-flight";
 
 export interface ObservatoryIndicatorMeta {
   key: ObservatoryIndicatorKey;
@@ -150,6 +151,14 @@ export const OBSERVATORY_SECTIONS: ObservatorySectionMeta[] = [
         name: "FHLB 차입 잔액",
         oneLiner:
           "은행이 연준 창구보다 먼저, 낙인 없이 조용히 쓰는 자금줄. 차입이 갑자기 늘면 목이 마르기 시작했다는 뜻이다.",
+      },
+      {
+        key: "deposit-flight",
+        order: 3,
+        href: "/observatory/deposit-flight",
+        name: "예금 유출",
+        oneLiner:
+          "예금이 소형 은행에서 대형으로 옮겨가는 흐름과, 그 예금 중 보험 밖에 있는 돈의 비중을 함께 본다.",
       },
     ],
   },

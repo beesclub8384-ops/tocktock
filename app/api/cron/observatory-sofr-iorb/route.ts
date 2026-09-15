@@ -8,6 +8,10 @@ import { collectMarketIndex } from "@/lib/observatory-market-index";
 // 관측소 2 — FDIC 분기 보고서 (FRED 아님)
 import { collectUnrealizedLosses } from "@/lib/observatory-banks";
 import { collectFhlb } from "@/lib/observatory-fhlb";
+import {
+  collectDepositFlightQuarterly,
+  collectDepositFlightWeekly,
+} from "@/lib/observatory-deposit-flight";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -100,6 +104,26 @@ export async function GET(request: Request) {
     const detail = error instanceof Error ? error.message : String(error);
     console.error("[observatory] fhlb 수집 실패:", error);
     errors.fhlb = detail;
+  }
+
+  // 관측소 2 — 예금 유출. 주간 파트와 분기 파트가 출처도 주기도 달라
+  // 따로 잡는다. 주간(FRED)이 실패해도 분기(FDIC)는 저장되고 그 반대도 같다.
+  try {
+    results.depositFlightWeekly = await collectDepositFlightWeekly();
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    console.error("[observatory] deposit-flight 주간 수집 실패:", error);
+    errors.depositFlightWeekly = detail;
+  }
+
+  // 분기 파트는 채권 미실현손실과 같은 워크북을 보지만, 저장된 분기가
+  // 최신이면 스스로 건너뛴다 (HTTP 무발생).
+  try {
+    results.depositFlightQuarterly = await collectDepositFlightQuarterly();
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    console.error("[observatory] deposit-flight 분기 수집 실패:", error);
+    errors.depositFlightQuarterly = detail;
   }
 
   // 주가지수는 관측소 "지표" 가 아니라 SRF 차트에 겹쳐 그리는 참고 데이터다.

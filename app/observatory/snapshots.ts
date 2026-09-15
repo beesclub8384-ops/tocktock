@@ -27,6 +27,7 @@ import {
   evaluateSrf,
   evaluateUnrealizedLosses,
   evaluateFhlb,
+  evaluateDepositFlight,
   type ObservatoryStatus,
 } from "@/lib/observatory-constants";
 import { loadSofrIorb } from "@/lib/observatory-sofr-iorb";
@@ -37,6 +38,10 @@ import { loadReserves } from "@/lib/observatory-reserves";
 // 관측소 2 — FRED 가 아니라 FDIC 분기 보고서에서 온다
 import { loadUnrealizedLosses } from "@/lib/observatory-banks";
 import { loadFhlb } from "@/lib/observatory-fhlb";
+import {
+  loadDepositFlightQuarterly,
+  loadDepositFlightWeekly,
+} from "@/lib/observatory-deposit-flight";
 // 카드 표기는 지표들을 나란히 놓고 읽는 화면이라 단위를 십억 달러로
 // 통일한다 (상세 페이지 포맷터는 지표별로 단위를 바꿔서 카드에는 안 맞는다).
 // 자세한 이유는 card-format.ts 상단 주석 참고.
@@ -45,6 +50,7 @@ import {
   formatCardBp,
   formatCardPercent,
   formatCardQoq,
+  formatCardDepositFlight,
   type CardValue,
 } from "./card-format";
 
@@ -173,6 +179,24 @@ const LOADERS: Record<ObservatoryIndicatorKey, () => Promise<IndicatorSnapshot>>
           raw: v.latest.qoqChangePct,
         }
       : EMPTY_SNAPSHOT;
+  },
+  // 주간·분기 두 파트를 합쳐 더 나쁜 쪽으로 판정한다. 카드에는 둘 다 보인다.
+  "deposit-flight": async () => {
+    const [weekly, quarterly] = await Promise.all([
+      orLog("deposit-flight(주간)", loadDepositFlightWeekly(), []),
+      orLog("deposit-flight(분기)", loadDepositFlightQuarterly(), []),
+    ]);
+    const v = evaluateDepositFlight(weekly, quarterly);
+    if (!v.latestWeekly && !v.latestQuarterly) return EMPTY_SNAPSHOT;
+    return {
+      status: v.status,
+      value: formatCardDepositFlight(
+        v.latestQuarterly?.uninsuredSharePct ?? null,
+        v.latestWeekly?.weeklyChangePp ?? null
+      ),
+      asOf: v.latestWeekly?.date ?? null,
+      raw: v.latestQuarterly?.uninsuredSharePct ?? null,
+    };
   },
 };
 

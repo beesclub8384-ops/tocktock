@@ -655,3 +655,141 @@ export function evaluateFhlb(series: FhlbPoint[]): FhlbVerdict {
 
   return { status, latest, previous };
 }
+
+/* ────────────────────────────────────────────────────────────
+ * 예금 유출 (관측소 2 — 은행)
+ *
+ * 두 가지를 같이 본다. 성격이 달라 한 숫자로 합치지 않는다.
+ *   주간: 소형 은행 예금이 대형으로 옮겨가는 흐름 (매주 갱신)
+ *   분기: 예금 중 보험으로 보호되지 않는 돈의 비중 (분기에 한 번)
+ *
+ * 예금이 "어디서 빠져 어디로 가는가"와 "그 돈이 얼마나 도망가기 쉬운가"는
+ * 다른 질문이다. 앞은 지금 벌어지는 일이고, 뒤는 터졌을 때의 화력이다.
+ * ──────────────────────────────────────────────────────────── */
+
+/**
+ * 주간 — 소형 은행 예금 비중의 **1주 변화**(%p)가 이 값 이하면 "주의".
+ *
+ * 부호 주의: 비중이 **줄어드는** 쪽이 위험이라 음수다.
+ */
+export const DF_WARN_WEEKLY_PP = -0.4;
+
+/** 주간 — 1주 변화(%p)가 이 값 이하면 "경보" */
+export const DF_ALERT_WEEKLY_PP = -0.7;
+
+/**
+ * 분기 — 무보험 예금 비중(%)이 이 값 이상이면 "주의".
+ *
+ * 이쪽은 높을수록 위험이라 양수다 (주간과 부호 방향이 반대다).
+ */
+export const DF_WARN_UNINSURED_PCT = 43;
+
+/** 분기 — 무보험 예금 비중(%)이 이 값 이상이면 "경보" */
+export const DF_ALERT_UNINSURED_PCT = 45;
+
+export interface DepositFlightWeeklyPoint {
+  /** 관측 주의 수요일 YYYY-MM-DD */
+  date: string;
+  /** 소형 국내 상업은행 예금, 십억 달러 */
+  smallBillions: number;
+  /** 대형 국내 상업은행 예금, 십억 달러 */
+  largeBillions: number;
+  /** 소형 은행이 차지하는 비중 (%) = 소형 / (소형 + 대형) */
+  smallSharePct: number;
+  /**
+   * 직전 주 대비 비중 변화 (%p). 음수면 소형에서 대형으로 옮겨간 것이다.
+   *
+   * ⚠ 직전 관측이 **바로 앞 주가 아닐 때는 null**. 주간 시리즈라 구멍이
+   *   거의 없지만, 구멍을 건너뛴 채 계산하면 여러 주의 변화가 "1주 변화" 로
+   *   둔갑한다 (FHLB 분기 구멍과 같은 함정).
+   */
+  weeklyChangePp: number | null;
+}
+
+export interface DepositFlightQuarterlyPoint {
+  /** "2026Q2" 형식 */
+  quarter: string;
+  /** 국내 사무소 예금(Domestic office deposits), 십억 달러 */
+  domesticDepositsBillions: number;
+  /** 추정 보험예금(Estimated insured deposits), 십억 달러 */
+  insuredDepositsBillions: number;
+  /** 무보험 예금 비중 (%) = (1 − 보험예금 / 국내예금) × 100 */
+  uninsuredSharePct: number;
+}
+
+export interface DepositFlightVerdict {
+  /** 둘 중 더 나쁜 쪽 */
+  status: ObservatoryStatus;
+  /** 주간 파트 판정 */
+  weeklyStatus: ObservatoryStatus;
+  /** 분기 파트 판정 */
+  quarterlyStatus: ObservatoryStatus;
+  latestWeekly: DepositFlightWeeklyPoint | null;
+  latestQuarterly: DepositFlightQuarterlyPoint | null;
+}
+
+/**
+ * 주간 파트 판정 — 소형 은행 예금 비중이 얼마나 빠르게 빠지는가.
+ *
+ * ⚠ 방향이 한쪽이다. 비중이 **늘어나는** 것은 경보 대상이 아니다
+ *   (대형에서 소형으로 돌아오는 것은 진정 국면이다).
+ * 변화가 null(구멍 뒤 첫 주)이면 판정하지 않고 정상으로 둔다.
+ */
+export function evaluateDepositFlightWeekly(
+  series: DepositFlightWeeklyPoint[]
+): ObservatoryStatus {
+  const latest = series.length > 0 ? series[series.length - 1] : null;
+  const change = latest?.weeklyChangePp;
+  if (typeof change !== "number") return "normal";
+  // 부등호 방향 주의 — 더 음수일수록 나쁘다
+  if (change <= DF_ALERT_WEEKLY_PP) return "warning";
+  if (change <= DF_WARN_WEEKLY_PP) return "caution";
+  return "normal";
+}
+
+/**
+ * 분기 파트 판정 — 예금 중 보험 밖에 있는 돈이 얼마나 되는가.
+ *
+ * 보험 한도 밖의 예금은 사고가 나면 가장 먼저 빠져나간다. 비중이 높을수록
+ * 뱅크런이 터졌을 때의 화력이 크다는 뜻이라, 높은 쪽이 위험이다.
+ */
+export function evaluateDepositFlightQuarterly(
+  series: DepositFlightQuarterlyPoint[]
+): ObservatoryStatus {
+  const latest = series.length > 0 ? series[series.length - 1] : null;
+  if (!latest) return "normal";
+  if (latest.uninsuredSharePct >= DF_ALERT_UNINSURED_PCT) return "warning";
+  if (latest.uninsuredSharePct >= DF_WARN_UNINSURED_PCT) return "caution";
+  return "normal";
+}
+
+/**
+ * 예금 유출 종합 판정 — 주간·분기 중 더 나쁜 쪽을 따른다.
+ *
+ * 둘은 서로 다른 것을 재므로 평균 내지 않는다. 한쪽만 켜져도 볼 이유가 있다.
+ */
+export function evaluateDepositFlight(
+  weekly: DepositFlightWeeklyPoint[],
+  quarterly: DepositFlightQuarterlyPoint[]
+): DepositFlightVerdict {
+  const weeklyStatus = evaluateDepositFlightWeekly(weekly);
+  const quarterlyStatus = evaluateDepositFlightQuarterly(quarterly);
+
+  const severity: Record<ObservatoryStatus, number> = {
+    normal: 0,
+    caution: 1,
+    warning: 2,
+  };
+  const status =
+    severity[weeklyStatus] >= severity[quarterlyStatus]
+      ? weeklyStatus
+      : quarterlyStatus;
+
+  return {
+    status,
+    weeklyStatus,
+    quarterlyStatus,
+    latestWeekly: weekly.length > 0 ? weekly[weekly.length - 1] : null,
+    latestQuarterly: quarterly.length > 0 ? quarterly[quarterly.length - 1] : null,
+  };
+}
