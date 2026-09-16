@@ -793,3 +793,173 @@ export function evaluateDepositFlight(
     latestQuarterly: quarterly.length > 0 ? quarterly[quarterly.length - 1] : null,
   };
 }
+
+/* ────────────────────────────────────────────────────────────
+ * CRE(상업용 부동산) 익스포저 (관측소 2 — 은행)
+ *
+ * 조사에서 확인된 그림이 통념과 다르다. 두 가지를 갈라서 본다.
+ *   아픈 정도 = 임대용 비주거 CRE 연체율 — 대형은행이 더 높다
+ *   물린 양   = 자산 규모별 CRE 집중도 — 지역은행이 압도적으로 높다
+ *
+ * ⚠ 오피스만 뗀 공개 통계는 없다. 콜리포트가 물건 유형(오피스/리테일/산업)
+ *   으로 나누지 않기 때문이다. 대신 비주거 상업용을 **자가사용 / 임대용**
+ *   으로 가른 분류를 쓴다. 임대용(Other, non-owner-occupied)이 투자 목적
+ *   부동산이라 오피스에 가장 가까운 공개 대용치다.
+ *
+ * ⚠ "2026~27 만기 벽" 도 쓰지 않는다. MBA 연례 설문과 Trepp 이 출처인데
+ *   시계열로 공개되지 않는다. 만기 벽의 예상 대신 그 **결과**인 연체율
+ *   추이를 본다.
+ * ──────────────────────────────────────────────────────────── */
+
+/** 임대용 CRE 연체율(%)이 이 값 이상이면 "주의" */
+export const CRE_WARN_DELINQ_PCT = 1.5;
+
+/** 임대용 CRE 연체율(%)이 이 값 이상이면 "경보" */
+export const CRE_ALERT_DELINQ_PCT = 2.5;
+
+/**
+ * 전년 동기 대비 연체율 상승폭(%p)이 이 값 이상이면 "주의".
+ *
+ * 수준만 보면 늦는다. 2024년 초 지역은행 CRE 충격 때 수준은 1.3~1.5% 로
+ * 주의선 밑이었지만 **상승 속도**는 역대 최대였다 (2023Q4 +0.91%p,
+ * 2010Q3 의 +0.82%p 를 넘었다). 그래서 수준과 속도를 함께 본다.
+ */
+export const CRE_WARN_DELINQ_YOY_PP = 0.5;
+
+/** 전년 동기 대비 상승폭(%p)이 이 값 이상이면 "경보" */
+export const CRE_ALERT_DELINQ_YOY_PP = 0.75;
+
+/** 지역은행($1B~$10B) CRE 집중도(총자산 대비 %)가 이 값 이상이면 "주의" */
+export const CRE_WARN_CONCENTRATION_PCT = 30;
+
+/**
+ * 지역은행 CRE 집중도(%)가 이 값 이상이면 "경보".
+ *
+ * ⚠ 2026년 현재 이 값(34.4%)은 **역대 최고 부근**이라 경보가 켜져 있는 것이
+ *   정상 상태다. 버그가 아니다. 1984년 이후 범위가 11.4~34.6% 이고
+ *   2006년 이후 평균이 30.3% 다.
+ */
+export const CRE_ALERT_CONCENTRATION_PCT = 34;
+
+/** 지역은행으로 보는 자산 규모 구간 (FDIC 워크북 라벨과 짝을 이룬다) */
+export const CRE_REGIONAL_BUCKET = "Assets $1 Billion - $10 Billion";
+
+export interface CreDelinquencyPoint {
+  /** "2026Q2" 형식 */
+  quarter: string;
+  /** 임대용 비주거 CRE 연체율 (%). 워크북 R203 */
+  investorNoncurrentPct: number;
+  /** 자가사용 비주거 CRE 연체율 (%). 워크북 R188 — 대조용 */
+  ownerOccupiedNoncurrentPct: number | null;
+  /**
+   * 전년 동기 대비 상승폭 (%p).
+   *
+   * ⚠ 4분기 전 값이 없으면 null. 구멍을 건너뛴 채 계산하면 다른 기간의
+   *   변화가 "전년 대비" 로 둔갑한다.
+   */
+  yoyChangePp: number | null;
+}
+
+export interface CreSizeSplitPoint {
+  /** "2026Q2" 형식 */
+  quarter: string;
+  /** 상위 100대 은행 CRE 연체율 (%) — FRED DRCRELEXFT100S */
+  top100Pct: number | null;
+  /** 100대 밖 은행 CRE 연체율 (%) — FRED DRCRELEXFOBS */
+  otherPct: number | null;
+  /** 전체 상업은행 CRE 연체율 (%) — FRED DRCRELEXFACBS */
+  allBanksPct: number | null;
+  /** 상위100대 − 100대 밖 (%p). 한쪽이라도 없으면 null */
+  gapPp: number | null;
+}
+
+export interface CreConcentrationPoint {
+  /** "2026Q2" 형식 */
+  quarter: string;
+  /** 자산 규모 구간별 CRE 대출 / 총자산 (%). 라벨 → 값 */
+  byBucket: Record<string, number>;
+}
+
+export interface CreVerdict {
+  /** 셋 중 가장 나쁜 것 */
+  status: ObservatoryStatus;
+  /** 임대용 연체율 수준 판정 */
+  delinquencyStatus: ObservatoryStatus;
+  /** 임대용 연체율 상승 속도 판정 */
+  momentumStatus: ObservatoryStatus;
+  /** 지역은행 집중도 판정 */
+  concentrationStatus: ObservatoryStatus;
+  latestDelinquency: CreDelinquencyPoint | null;
+  latestSizeSplit: CreSizeSplitPoint | null;
+  latestConcentration: CreConcentrationPoint | null;
+  /** 지역은행 집중도 최신값 (%) */
+  regionalConcentrationPct: number | null;
+}
+
+/**
+ * CRE 익스포저 판정.
+ *
+ * ⚠ 대형·지역 **격차는 판정에 쓰지 않는다.** 격차가 좁혀지는 데는 두 가지
+ *   정반대 이유가 있다 — 대형이 회복 중이거나, 지역이 나빠지는 중이거나.
+ *   격차 하나로는 둘을 구분할 수 없어 경보 근거가 되지 못한다.
+ *   (지금은 실제로 둘 다 일어나는 중이다: 대형 1.97%→1.70%, 지역 0.50%→1.27%)
+ *   그래서 격차는 화면에 보여만 주고, 판정은 수준·속도·집중도로 한다.
+ */
+export function evaluateCre(
+  delinquency: CreDelinquencyPoint[],
+  sizeSplit: CreSizeSplitPoint[],
+  concentration: CreConcentrationPoint[]
+): CreVerdict {
+  const latestDelinquency =
+    delinquency.length > 0 ? delinquency[delinquency.length - 1] : null;
+  const latestSizeSplit =
+    sizeSplit.length > 0 ? sizeSplit[sizeSplit.length - 1] : null;
+  const latestConcentration =
+    concentration.length > 0 ? concentration[concentration.length - 1] : null;
+
+  let delinquencyStatus: ObservatoryStatus = "normal";
+  if (latestDelinquency) {
+    const v = latestDelinquency.investorNoncurrentPct;
+    if (v >= CRE_ALERT_DELINQ_PCT) delinquencyStatus = "warning";
+    else if (v >= CRE_WARN_DELINQ_PCT) delinquencyStatus = "caution";
+  }
+
+  let momentumStatus: ObservatoryStatus = "normal";
+  const yoy = latestDelinquency?.yoyChangePp;
+  if (typeof yoy === "number") {
+    if (yoy >= CRE_ALERT_DELINQ_YOY_PP) momentumStatus = "warning";
+    else if (yoy >= CRE_WARN_DELINQ_YOY_PP) momentumStatus = "caution";
+  }
+
+  const regionalConcentrationPct =
+    latestConcentration?.byBucket[CRE_REGIONAL_BUCKET] ?? null;
+
+  let concentrationStatus: ObservatoryStatus = "normal";
+  if (typeof regionalConcentrationPct === "number") {
+    if (regionalConcentrationPct >= CRE_ALERT_CONCENTRATION_PCT)
+      concentrationStatus = "warning";
+    else if (regionalConcentrationPct >= CRE_WARN_CONCENTRATION_PCT)
+      concentrationStatus = "caution";
+  }
+
+  const severity: Record<ObservatoryStatus, number> = {
+    normal: 0,
+    caution: 1,
+    warning: 2,
+  };
+  const status = [delinquencyStatus, momentumStatus, concentrationStatus].reduce(
+    (worst, s) => (severity[s] > severity[worst] ? s : worst),
+    "normal" as ObservatoryStatus
+  );
+
+  return {
+    status,
+    delinquencyStatus,
+    momentumStatus,
+    concentrationStatus,
+    latestDelinquency,
+    latestSizeSplit,
+    latestConcentration,
+    regionalConcentrationPct,
+  };
+}

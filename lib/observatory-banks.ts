@@ -252,6 +252,38 @@ export function parseWorkbook(buf: ArrayBuffer): UnrealizedLossPoint[] {
  * 수집
  * ──────────────────────────────────────────────────────────── */
 
+/**
+ * 최신 워크북을 내려받아 바이트로 준다.
+ *
+ * ⚠ 관측소 2 의 지표 셋(채권 미실현손실 · 예금 유출 분기 파트 · CRE)이
+ *   **같은 2.6MB 파일**을 본다. 각자 받으면 cron 한 번에 세 번 받는다.
+ *   cron 은 이 함수를 한 번만 호출해 결과를 셋에 나눠 준다
+ *   (WorkbookProvider 타입으로 넘긴다).
+ */
+export async function fetchLatestWorkbook(): Promise<{
+  buf: ArrayBuffer;
+  sourceUrl: string;
+}> {
+  const sourceUrl = await findLatestWorkbookUrl();
+  const res = await fetch(sourceUrl, {
+    cache: "no-store",
+    // 2.6MB 파일이라 넉넉히 준다
+    signal: AbortSignal.timeout(60000),
+    headers: { "User-Agent": "TockTock/1.0 (observatory data collector)" },
+  });
+  if (!res.ok) throw new Error(`FDIC xlsx: ${res.status}`);
+  return { buf: await res.arrayBuffer(), sourceUrl };
+}
+
+/**
+ * 워크북을 건네주는 함수. 호출한 쪽이 한 번만 받아 여러 수집기에 나눠 줄 때
+ * 쓴다. 안 넘기면 각 수집기가 알아서 받는다 (단독 실행·최초 수집 경로).
+ */
+export type WorkbookProvider = () => Promise<{
+  buf: ArrayBuffer;
+  sourceUrl: string;
+}>;
+
 export interface UnrealizedLossCollectResult {
   /** HTTP 를 아예 걸지 않고 건너뛰었는지 */
   skipped: boolean;
@@ -274,7 +306,8 @@ export interface UnrealizedLossCollectResult {
  * @param force 분기 판단을 무시하고 무조건 받아온다 (수동 점검용)
  */
 export async function collectUnrealizedLosses(
-  force = false
+  force = false,
+  getWorkbook: WorkbookProvider = fetchLatestWorkbook
 ): Promise<UnrealizedLossCollectResult> {
   const existing = await loadUnrealizedLosses();
   const storedPoint =
@@ -299,16 +332,8 @@ export async function collectUnrealizedLosses(
     };
   }
 
-  const sourceUrl = await findLatestWorkbookUrl();
-  const res = await fetch(sourceUrl, {
-    cache: "no-store",
-    // 2.6MB 파일이라 넉넉히 준다
-    signal: AbortSignal.timeout(60000),
-    headers: { "User-Agent": "TockTock/1.0 (observatory data collector)" },
-  });
-  if (!res.ok) throw new Error(`FDIC xlsx: ${res.status}`);
-
-  const series = parseWorkbook(await res.arrayBuffer());
+  const { buf, sourceUrl } = await getWorkbook();
+  const series = parseWorkbook(buf);
 
   // 파싱 결과가 비면 기존 데이터를 지우지 않는다.
   // 지난 분기 파일 URL 이 전부 404 라 한 번 날리면 되받을 곳이 없다.

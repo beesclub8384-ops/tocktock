@@ -28,6 +28,7 @@ import {
   evaluateUnrealizedLosses,
   evaluateFhlb,
   evaluateDepositFlight,
+  evaluateCre,
   type ObservatoryStatus,
 } from "@/lib/observatory-constants";
 import { loadSofrIorb } from "@/lib/observatory-sofr-iorb";
@@ -42,6 +43,7 @@ import {
   loadDepositFlightQuarterly,
   loadDepositFlightWeekly,
 } from "@/lib/observatory-deposit-flight";
+import { loadCreConcentration, loadCreSizeSplit } from "@/lib/observatory-cre";
 // 카드 표기는 지표들을 나란히 놓고 읽는 화면이라 단위를 십억 달러로
 // 통일한다 (상세 페이지 포맷터는 지표별로 단위를 바꿔서 카드에는 안 맞는다).
 // 자세한 이유는 card-format.ts 상단 주석 참고.
@@ -51,6 +53,7 @@ import {
   formatCardPercent,
   formatCardQoq,
   formatCardDepositFlight,
+  formatCardCre,
   type CardValue,
 } from "./card-format";
 
@@ -196,6 +199,29 @@ const LOADERS: Record<ObservatoryIndicatorKey, () => Promise<IndicatorSnapshot>>
       ),
       asOf: v.latestWeekly?.date ?? null,
       raw: v.latestQuarterly?.uninsuredSharePct ?? null,
+    };
+  },
+  // 연체율(FRED 규모별 + 워크북 임대용)과 집중도(워크북)를 합쳐 판정한다.
+  // raw 는 지역은행 집중도 — 요약 문장이 그 숫자를 쓴다.
+  cre: async () => {
+    const [sizeSplit, store] = await Promise.all([
+      orLog("cre(연체율)", loadCreSizeSplit(), []),
+      orLog("cre(집중도)", loadCreConcentration(), {
+        delinquency: [],
+        concentration: [],
+        buckets: [],
+      }),
+    ]);
+    const v = evaluateCre(store.delinquency, sizeSplit, store.concentration);
+    if (!v.latestDelinquency && !v.latestConcentration) return EMPTY_SNAPSHOT;
+    return {
+      status: v.status,
+      value: formatCardCre(
+        v.latestDelinquency?.investorNoncurrentPct ?? null,
+        v.regionalConcentrationPct
+      ),
+      asOf: null,
+      raw: v.regionalConcentrationPct,
     };
   },
 };

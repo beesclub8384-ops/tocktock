@@ -6,12 +6,19 @@ import { collectRrp } from "@/lib/observatory-rrp";
 import { collectReserves } from "@/lib/observatory-reserves";
 import { collectMarketIndex } from "@/lib/observatory-market-index";
 // 관측소 2 — FDIC 분기 보고서 (FRED 아님)
-import { collectUnrealizedLosses } from "@/lib/observatory-banks";
+import {
+  collectUnrealizedLosses,
+  fetchLatestWorkbook,
+} from "@/lib/observatory-banks";
 import { collectFhlb } from "@/lib/observatory-fhlb";
 import {
   collectDepositFlightQuarterly,
   collectDepositFlightWeekly,
 } from "@/lib/observatory-deposit-flight";
+import {
+  collectCreConcentration,
+  collectCreSizeSplit,
+} from "@/lib/observatory-cre";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -39,6 +46,13 @@ export async function GET(request: Request) {
   // 지표마다 따로 잡는다. 한쪽이 실패해도 다른 쪽은 저장된다
   const results: Record<string, unknown> = {};
   const errors: Record<string, string> = {};
+
+  // ⚠ 관측소 2 의 분기 지표 셋(채권 미실현손실 · 예금 유출 · CRE)이 **같은
+  //   2.6MB 워크북**을 본다. 각자 받으면 이 cron 한 번에 세 번 받는다.
+  //   여기서 한 번만 받아 셋에 나눠 준다. 셋 다 분기 판단으로 건너뛰면
+  //   이 함수는 호출되지 않아 HTTP 도 발생하지 않는다 (지연 평가).
+  let workbookOnce: ReturnType<typeof fetchLatestWorkbook> | null = null;
+  const getWorkbook = () => (workbookOnce ??= fetchLatestWorkbook());
 
   try {
     results.sofrIorb = await collectSofrIorb();
@@ -89,7 +103,7 @@ export async function GET(request: Request) {
   // collectUnrealizedLosses 가 저장된 분기를 보고 스스로 건너뛴다 (HTTP 무발생).
   // 새 분기가 나올 때만 실제로 2.6MB 워크북을 받는다.
   try {
-    results.unrealizedLosses = await collectUnrealizedLosses();
+    results.unrealizedLosses = await collectUnrealizedLosses(false, getWorkbook);
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
     console.error("[observatory] unrealized-losses 수집 실패:", error);
@@ -119,11 +133,32 @@ export async function GET(request: Request) {
   // 분기 파트는 채권 미실현손실과 같은 워크북을 보지만, 저장된 분기가
   // 최신이면 스스로 건너뛴다 (HTTP 무발생).
   try {
-    results.depositFlightQuarterly = await collectDepositFlightQuarterly();
+    results.depositFlightQuarterly = await collectDepositFlightQuarterly(
+      false,
+      getWorkbook
+    );
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
     console.error("[observatory] deposit-flight 분기 수집 실패:", error);
     errors.depositFlightQuarterly = detail;
+  }
+
+  // 관측소 2 — CRE 익스포저. FRED(규모별 연체율)와 워크북(임대용 연체율 +
+  // 규모별 집중도)이 출처가 달라 따로 잡는다.
+  try {
+    results.creSizeSplit = await collectCreSizeSplit();
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    console.error("[observatory] cre 규모별 연체율 수집 실패:", error);
+    errors.creSizeSplit = detail;
+  }
+
+  try {
+    results.creConcentration = await collectCreConcentration(false, getWorkbook);
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    console.error("[observatory] cre 집중도 수집 실패:", error);
+    errors.creConcentration = detail;
   }
 
   // 주가지수는 관측소 "지표" 가 아니라 SRF 차트에 겹쳐 그리는 참고 데이터다.

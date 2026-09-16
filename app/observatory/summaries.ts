@@ -16,7 +16,10 @@ import type {
   ObservatorySummary,
 } from "@/lib/observatory-catalog";
 import { worstStatus } from "@/lib/observatory-catalog";
-import type { ObservatoryStatus } from "@/lib/observatory-constants";
+import {
+  CRE_ALERT_CONCENTRATION_PCT,
+  type ObservatoryStatus,
+} from "@/lib/observatory-constants";
 
 /**
  * 지표별 원시 수치. 요약 문장이 숫자를 품어야 할 때 쓴다.
@@ -106,12 +109,14 @@ export function summarizeSection1(statuses: ObservatoryStatusMap): ObservatorySu
 /* ────────────────────────────────────────────────────────────
  * 관측소 2 — 은행
  *
- * 세 지표를 성격별로 읽는다.
- *   장부   = 채권 미실현손실 비율 — 이미 난 손실이 자본을 얼마나 갉아먹는가
- *   자금줄 = FHLB 차입 잔액 — 돈을 구하러 다니기 시작했는가
+ * 네 지표를 성격별로 읽는다.
+ *   장부   = 채권 미실현손실 — 이미 난 손실이 자본을 얼마나 갉아먹는가
+ *   자금줄 = FHLB 차입 — 돈을 구하러 다니기 시작했는가
  *   예금   = 예금 유출 — 돈이 실제로 빠져나가고 있는가
+ *   부동산 = CRE 익스포저 — 상업용 부동산에 얼마나 물렸는가
  *
- * 쌓인 상처 · 지금의 갈증 · 실제 이탈이라 한 덩어리로 묶지 않는다.
+ * 한 덩어리로 묶지 않는다. 쌓인 상처 · 지금의 갈증 · 실제 이탈 · 물린 양은
+ * 서로 다른 질문이다.
  * ──────────────────────────────────────────────────────────── */
 
 /** FHLB 는 증가율로 읽는 지표라 "얼마"가 아니라 "움직임"으로 말한다 */
@@ -128,6 +133,13 @@ const DEPOSIT_TEXT: Record<ObservatoryStatus, string> = {
   warning: "이탈",
 };
 
+/** CRE 는 집중도가 경보를 켤 때와 연체가 켤 때 할 말이 다르다 (아래 참고) */
+const CRE_TEXT: Record<ObservatoryStatus, string> = {
+  normal: "잠잠",
+  caution: "달아오르는 중",
+  warning: "연체가 번지는 중",
+};
+
 const BANKS_OVERALL: Record<ObservatoryStatus, string> = {
   normal: "여유 있음",
   caution: "주의",
@@ -137,10 +149,13 @@ const BANKS_OVERALL: Record<ObservatoryStatus, string> = {
 /**
  * 관측소 2 요약.
  *
- * 예) "장부에 유령 손실 12.4%, 자금줄은 잠잠, 예금은 제자리 — 주의"
+ * 예) "장부에 유령 손실 12.4%, 자금줄은 잠잠, 예금은 제자리,
+ *      부동산은 지역은행이 34% 물렸다 — 위험 구간"
  *
- * ⚠ 비율 숫자는 요약을 부르는 쪽이 raw 로 넘겨준다. 이 파일은 판정 상태만
- *   알고 실제 값은 모른다.
+ * ⚠ 부동산 문구는 **무엇이 경보를 켰는지**에 따라 갈린다. 지역은행 집중도가
+ *   임계를 넘어서 켜진 것이면 "물렸다" 고 말해야 정확하다 — 연체가 번지는
+ *   것과는 다른 이야기이기 때문이다. 조사에서 확인된 그림이 그렇다:
+ *   연체율은 대형은행이 높고(아픔), 집중도는 지역은행이 높다(물림).
  */
 export function summarizeBanks(
   statuses: ObservatoryStatusMap,
@@ -149,7 +164,8 @@ export function summarizeBanks(
   const ul = statuses["unrealized-losses"] ?? null;
   const fhlb = statuses["fhlb"] ?? null;
   const deposit = statuses["deposit-flight"] ?? null;
-  const overall = worstStatus([ul, fhlb, deposit]);
+  const cre = statuses["cre"] ?? null;
+  const overall = worstStatus([ul, fhlb, deposit, cre]);
 
   // 아직 아무 데이터도 없으면 상태를 지어내지 않는다
   if (overall === null) {
@@ -170,8 +186,19 @@ export function summarizeBanks(
   const depositText =
     deposit === null ? "예금은 확인 불가" : `예금은 ${DEPOSIT_TEXT[deposit]}`;
 
+  const regionalPct = raw?.["cre"];
+  const concentrationDrove =
+    typeof regionalPct === "number" &&
+    regionalPct >= CRE_ALERT_CONCENTRATION_PCT;
+  const creText =
+    cre === null
+      ? "부동산은 확인 불가"
+      : cre === "warning" && concentrationDrove
+        ? `부동산은 지역은행이 ${regionalPct.toFixed(0)}% 물렸다`
+        : `부동산은 ${CRE_TEXT[cre]}`;
+
   return {
-    text: `${ulText}, ${fhlbText}, ${depositText} — ${BANKS_OVERALL[overall]}`,
+    text: `${ulText}, ${fhlbText}, ${depositText}, ${creText} — ${BANKS_OVERALL[overall]}`,
     status: overall,
   };
 }

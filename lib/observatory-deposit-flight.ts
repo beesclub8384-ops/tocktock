@@ -21,8 +21,9 @@ import * as XLSX from "xlsx";
 import { redis } from "@/lib/redis";
 import {
   expectedLatestQuarter,
-  findLatestWorkbookUrl,
+  fetchLatestWorkbook,
   quarterOrder,
+  type WorkbookProvider,
 } from "@/lib/observatory-banks";
 import type {
   DepositFlightQuarterlyPoint,
@@ -326,7 +327,8 @@ export interface DepositFlightQuarterlyResult {
  * @param force 분기 판단을 무시하고 무조건 받아온다 (수동 점검용)
  */
 export async function collectDepositFlightQuarterly(
-  force = false
+  force = false,
+  getWorkbook: WorkbookProvider = fetchLatestWorkbook
 ): Promise<DepositFlightQuarterlyResult> {
   const existing = await loadDepositFlightQuarterly();
   const storedPoint =
@@ -348,16 +350,8 @@ export async function collectDepositFlightQuarterly(
     };
   }
 
-  const sourceUrl = await findLatestWorkbookUrl();
-  const res = await fetch(sourceUrl, {
-    cache: "no-store",
-    // 2.6MB 파일이라 넉넉히 준다
-    signal: AbortSignal.timeout(60000),
-    headers: { "User-Agent": "TockTock/1.0 (observatory data collector)" },
-  });
-  if (!res.ok) throw new Error(`FDIC xlsx: ${res.status}`);
-
-  const series = parseQuarterlyWorkbook(await res.arrayBuffer());
+  const { buf, sourceUrl } = await getWorkbook();
+  const series = parseQuarterlyWorkbook(buf);
 
   // 파싱 결과가 비면 기존 데이터를 지우지 않는다.
   // 지난 분기 파일 URL 은 전부 404 라 한 번 날리면 되받을 곳이 없다.

@@ -29,7 +29,8 @@ export type ObservatoryIndicatorKey =
   | "discount-window"
   | "unrealized-losses"
   | "fhlb"
-  | "deposit-flight";
+  | "deposit-flight"
+  | "cre";
 
 export interface ObservatoryIndicatorMeta {
   key: ObservatoryIndicatorKey;
@@ -159,6 +160,14 @@ export const OBSERVATORY_SECTIONS: ObservatorySectionMeta[] = [
         name: "예금 유출",
         oneLiner:
           "예금이 소형 은행에서 대형으로 옮겨가는 흐름과, 그 예금 중 보험 밖에 있는 돈의 비중을 함께 본다.",
+      },
+      {
+        key: "cre",
+        order: 4,
+        href: "/observatory/cre",
+        name: "상업용 부동산 익스포저",
+        oneLiner:
+          "연체율은 대형은행이 높고 집중도는 지역은행이 훨씬 높다. 아픈 곳과 물린 곳이 다르다.",
       },
     ],
   },

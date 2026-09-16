@@ -89,3 +89,18 @@ export function formatCardDepositFlight(
   const sign = weeklyChangePp >= 0 ? "+" : "";
   return { main, note: `소형 이동 ${sign}${weeklyChangePp.toFixed(2)}%p/주` };
 }
+
+/**
+ * CRE 카드 표기 — 연체율(아픈 정도)을 본값, 지역은행 집중도(물린 양)를 옆에.
+ *
+ * 판정이 둘 중 나쁜 쪽을 따르므로 한 숫자만 보여주면 신호등 색과 어긋난다.
+ */
+export function formatCardCre(
+  investorDelinqPct: number | null,
+  regionalConcentrationPct: number | null
+): CardValue {
+  const main =
+    investorDelinqPct === null ? "—" : `연체 ${investorDelinqPct.toFixed(2)}%`;
+  if (regionalConcentrationPct === null) return { main };
+  return { main, note: `지역은행 집중 ${regionalConcentrationPct.toFixed(1)}%` };
+}
