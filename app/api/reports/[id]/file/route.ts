@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 /**
  * 원문 내려받기 — private Blob 은 브라우저에서 바로 못 열어 서버를 거친다.
- * 인증은 proxy.ts 의 HTTP Basic 인증이 맡는다 (/api/reports/*).
+ * 인증은 proxy.ts 의 비밀번호 쿠키 확인이 맡는다 (/api/reports/*).
  * ⚠ 이 경로로 나가는 바이트가 Blob 전송 한도(Hobby 월 10GB)에 잡힌다.
  */
 export async function GET(

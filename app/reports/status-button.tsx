@@ -41,6 +41,11 @@ export function StatusButton({ id, status }: { id: string; status: ReportStatus 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: meta.next }),
       });
+      if (res.status === 401) {
+        // 쿠키(30일)가 만료됐거나 비밀번호가 바뀌었다 — 다시 입력하러 보낸다
+        router.push("/reports/login");
+        return;
+      }
       if (!res.ok) throw new Error(String(res.status));
       router.refresh();
     } catch {

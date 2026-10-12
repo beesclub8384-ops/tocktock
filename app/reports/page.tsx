@@ -10,7 +10,7 @@ import {
 import { StatusButton } from "./status-button";
 
 export const metadata: Metadata = {
-  title: "보고서 | TockTock",
+  title: "보고서 자동 수집 | TockTock",
   description: "월가가 보는 보고서가 새로 나오면 원문을 모아 두는 곳입니다.",
   robots: { index: false, follow: false },
 };
@@ -35,7 +35,7 @@ function formatKst(iso: string): string {
 }
 
 /**
- * 보고서 원문 보관함 — HTTP Basic 인증(proxy.ts) 뒤에 있다. 메뉴에는 없다.
+ * 보고서 자동 수집 — 비밀번호 쿠키 인증(proxy.ts) 뒤에 있다. 메뉴는 "경제공부" 옆.
  * 요약·해석은 하지 않는다. 원문을 받아 두고 상태만 표시한다.
  */
 export default async function ReportsPage() {
@@ -59,7 +59,7 @@ export default async function ReportsPage() {
   return (
     <div className="container mx-auto max-w-5xl px-4 sm:px-6 py-6 sm:py-8">
       <header className="mb-6">
-        <h1 className="text-2xl sm:text-3xl font-bold text-zinc-900 dark:text-zinc-100">보고서</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-zinc-900 dark:text-zinc-100">보고서 자동 수집</h1>
         <p className="text-sm text-zinc-500 mt-2">
           월가가 보는 보고서가 새로 나오면 하루 한 번 알아채서 원문을 모아 둡니다. 요약은 하지 않습니다.
           출처: 연준, BLS, FRED, 오크트리캐피털.

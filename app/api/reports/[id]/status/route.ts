@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 /**
  * 보고서 상태 변경 (new → studying → done)
- * 인증은 proxy.ts 의 HTTP Basic 인증이 맡는다 (/api/reports/*).
+ * 인증은 proxy.ts 의 비밀번호 쿠키 확인이 맡는다 (/api/reports/*).
  */
 export async function POST(
   request: Request,

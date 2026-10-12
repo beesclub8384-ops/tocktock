@@ -23,6 +23,7 @@ const navLinks = [
   { href: "/calendar", label: "주요 일정" },
   { href: "/credit", label: "빚투" },
   { href: "/economics", label: "경제공부" },
+  { href: "/reports", label: "보고서 자동 수집" },
   { href: "/foreign-ownership", label: "외국인 지분율" },
   { href: "/investor-flow", label: "투자자 동향 추적" },
   { href: "/global-indicators", label: "글로벌 지표" },
@@ -95,6 +96,8 @@ const pcNavItems: NavItem[] = [
   { type: "link", href: "/calendar", label: "주요 일정" },
   { type: "link", href: "/credit", label: "빚투" },
   { type: "link", href: "/economics", label: "경제공부" },
+  // 비밀번호로 잠긴 개인용 페이지 — 메뉴는 보이고, 들어가면 /reports/login 으로 간다
+  { type: "link", href: "/reports", label: "보고서 자동 수집" },
   { type: "link", href: "/foreign-ownership", label: "외국인 지분율" },
   { type: "link", href: "/investor-flow", label: "투자자 동향 추적" },
   { type: "link", href: "/global-indicators", label: "글로벌 지표" },
