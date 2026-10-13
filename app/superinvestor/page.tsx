@@ -119,7 +119,7 @@ function SuperinvestorGuideModal({ onClose }: { onClose: () => void }) {
               전설적 투자자들의 장바구니를 들여다봅니다
             </h3>
             <p className="text-sm leading-relaxed text-muted-foreground">
-              워런 버핏, 빌 애크먼처럼 수십 년간 시장을 이긴 투자자 80여 명이
+              워런 버핏, 빌 애크먼처럼 널리 알려진 투자자 80여 명이
               최근 공시된 분기에 무엇을 샀는지, 팔았는지, 더 담았는지를 보여줍니다.
             </p>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
@@ -159,8 +159,7 @@ function SuperinvestorGuideModal({ onClose }: { onClose: () => void }) {
                 <strong className="text-foreground">Buy</strong> = 해당 분기에 처음 매수 (새로 관심 가짐)
               </li>
               <li>
-                <strong className="text-foreground">Add</strong> = 원래 갖고 있었는데 더 담음 (확신이 커짐).
-                보유 수량을 1% 이상 늘린 경우만 Add로 셉니다
+                <strong className="text-foreground">Add</strong> = 원래 갖고 있던 종목의 보유 수량을 1% 이상 늘림
               </li>
             </ul>
           </section>
@@ -173,7 +172,7 @@ function SuperinvestorGuideModal({ onClose }: { onClose: () => void }) {
               섹션 2 — 지금 할인 중인 거물 종목
             </h3>
             <p className="mb-2 text-xs text-muted-foreground/70">
-              거물이 비싸게 샀는데, 지금은 더 싸다
+              분기말 가격보다 지금 주가가 낮다
             </p>
             <p className="text-sm leading-relaxed text-muted-foreground">
               슈퍼투자자가 포트폴리오의 3% 이상을 크게 베팅한 종목 중에서,
@@ -181,7 +180,7 @@ function SuperinvestorGuideModal({ onClose }: { onClose: () => void }) {
             </p>
             <blockquote className="mt-2 border-l-2 border-border pl-4 text-sm italic text-muted-foreground">
               &ldquo;버핏이 크게 들고 있던 종목의 분기말 종가가 150달러였는데 지금 120달러라면?
-              그 기준보다 싸게 살 수 있는 상황입니다.&rdquo;
+              그 기준보다 낮은 가격에 거래되고 있는 상황입니다.&rdquo;
             </blockquote>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
               할인율 숫자가 클수록 더 많이 내려온 상태예요.
@@ -212,7 +211,7 @@ function SuperinvestorGuideModal({ onClose }: { onClose: () => void }) {
               둘이 같은 방향 &rarr; <strong className="text-foreground">함께 살펴볼 만한 신호</strong>
             </blockquote>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              내부자 매수 건수가 많을수록 임원들의 확신이 강한 거예요.
+              내부자 매수 건수와 함께 매수 금액도 같이 보세요. 소액 매수가 여러 건일 수도 있어요.
             </p>
           </section>
 
