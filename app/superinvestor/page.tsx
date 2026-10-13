@@ -120,7 +120,7 @@ function SuperinvestorGuideModal({ onClose }: { onClose: () => void }) {
             </h3>
             <p className="text-sm leading-relaxed text-muted-foreground">
               워런 버핏, 빌 애크먼처럼 수십 년간 시장을 이긴 투자자 80여 명이
-              이번 분기에 무엇을 샀는지, 팔았는지, 더 담았는지를 보여줍니다.
+              최근 공시된 분기에 무엇을 샀는지, 팔았는지, 더 담았는지를 보여줍니다.
             </p>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
               미국 법상 1억 달러 이상 굴리는 펀드는 분기마다
@@ -138,25 +138,25 @@ function SuperinvestorGuideModal({ onClose }: { onClose: () => void }) {
           {/* 2부: 섹션 1 */}
           <section className="mb-6">
             <h3 className="mb-1 text-base font-semibold">
-              섹션 1 — 이번 분기 거물들의 선택
+              섹션 1 — 최근 공시 분기 거물들의 선택
             </h3>
             <p className="mb-2 text-xs text-muted-foreground/70">
               혼자 산 게 아니라, 여럿이 같은 종목을 샀다
             </p>
             <p className="text-sm leading-relaxed text-muted-foreground">
-              이번 분기에 2명 이상의 슈퍼투자자가 서로 상의도 없이
+              최근 공시된 분기에 2명 이상의 슈퍼투자자가 서로 상의도 없이
               같은 종목을 담은 경우만 보여줍니다.
             </p>
             <blockquote className="mt-2 border-l-2 border-border pl-4 text-sm italic text-muted-foreground">
               &ldquo;버핏도 사고, 애크먼도 사고, 파브라이도 샀다면?
-              우연이라고 보기 어렵습니다.&rdquo;
+              한 번쯤 살펴볼 이유가 됩니다.&rdquo;
             </blockquote>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
               숫자가 클수록 더 많은 거물이 주목한 종목이에요.
             </p>
             <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
               <li>
-                <strong className="text-foreground">Buy</strong> = 이번 분기 처음 매수 (새로 관심 가짐)
+                <strong className="text-foreground">Buy</strong> = 해당 분기에 처음 매수 (새로 관심 가짐)
               </li>
               <li>
                 <strong className="text-foreground">Add</strong> = 원래 갖고 있었는데 더 담음 (확신이 커짐).
@@ -209,7 +209,7 @@ function SuperinvestorGuideModal({ onClose }: { onClose: () => void }) {
             <blockquote className="mt-2 border-l-2 border-border pl-4 text-sm italic text-muted-foreground">
               외부의 전설적 투자자 &rarr; &ldquo;이 회사 좋아 보인다&rdquo;<br />
               내부 임원 &rarr; &ldquo;우리 회사 잘 될 거 알아, 내 돈 넣는다&rdquo;<br />
-              둘이 같은 방향 &rarr; <strong className="text-foreground">가장 강한 매수 시그널</strong>
+              둘이 같은 방향 &rarr; <strong className="text-foreground">함께 살펴볼 만한 신호</strong>
             </blockquote>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
               내부자 매수 건수가 많을수록 임원들의 확신이 강한 거예요.
@@ -235,10 +235,10 @@ function SuperinvestorGuideModal({ onClose }: { onClose: () => void }) {
                 <strong className="text-foreground">비중(%)</strong> = 전체 포트폴리오에서 이 종목에 얼마나 베팅했는지
               </li>
               <li>
-                <span className="text-emerald-400 font-medium">Add</span> = 이번 분기 더 담음
+                <span className="text-emerald-400 font-medium">Add</span> = 해당 분기에 더 담음
               </li>
               <li>
-                <span className="text-red-400 font-medium">Reduce</span> = 이번 분기 일부 팜
+                <span className="text-red-400 font-medium">Reduce</span> = 해당 분기에 일부 팜
               </li>
               <li>
                 <span className="text-muted-foreground">Hold</span> = 변화 없음
@@ -373,7 +373,7 @@ function SectionLoading() {
 // ── 섹션 1: 동시 매수 ──
 
 function ConsensusSection({ stocks }: { stocks: ConsensusStock[] }) {
-  if (stocks.length === 0) return <SectionEmpty text="이번 분기 동시 매수 종목이 없습니다." />;
+  if (stocks.length === 0) return <SectionEmpty text="해당 분기 동시 매수 종목이 없습니다." />;
 
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -718,7 +718,7 @@ export default function SuperinvestorPage() {
             <section>
               <SectionHeader
                 icon={<Users size={20} />}
-                title="이번 분기 거물들의 선택"
+                title={quarter ? `${quarter} 거물들의 선택` : "최근 공시 분기 거물들의 선택"}
                 desc="2명 이상의 슈퍼투자자가 동시에 매수(Buy/Add)한 종목. 보유 수량을 1% 이상 늘린 경우만 Add로 셉니다"
                 count={consensus.length}
               />
@@ -745,7 +745,7 @@ export default function SuperinvestorPage() {
               <SectionHeader
                 icon={<UserCheck size={20} />}
                 title="거물 + 내부자 동시 매수"
-                desc="슈퍼투자자와 기업 내부자가 함께 매수한 종목 (가장 강한 시그널)"
+                desc="슈퍼투자자가 매수했고, 최근 6개월 안에 기업 내부자 매수도 있었던 종목"
                 count={insiderStocks.length}
               />
               <InsiderSection stocks={insiderStocks} />
