@@ -20,16 +20,28 @@ const yahooFinance = new YahooFinance();
 const DATAROMA_UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
 
-const FETCH_OPTS: RequestInit = {
-  headers: { "User-Agent": DATAROMA_UA },
-  signal: AbortSignal.timeout(15000),
-};
+// 요청마다 새로 만든다. AbortSignal.timeout 은 만든 순간부터 시간이 흐르므로,
+// 모듈 상수로 두면 로드 15초 뒤부터 모든 fetch 가 0ms 만에 TimeoutError 로 실패한다.
+function fetchOpts(): RequestInit {
+  return {
+    headers: { "User-Agent": DATAROMA_UA },
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  };
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+// "Add 1,234.50%" → 1234.5 (부호는 버림), 숫자가 없으면 0
+function parsePercent(text: string): number {
+  const m = text.replace(/,/g, "").match(/([\d.]+)%/);
+  return m ? parseFloat(m[1]) || 0 : 0;
+}
 
 // ─── 1. allact.php 파싱: 전체 매매 활동 ───
 
 export async function fetchAllActivity(): Promise<ActivityRecord[]> {
   const url = "https://www.dataroma.com/m/allact.php?typ=a";
-  const res = await fetch(url, FETCH_OPTS);
+  const res = await fetch(url, fetchOpts());
   if (!res.ok) throw new Error(`AllAct fetch failed: ${res.status}`);
 
   const html = await res.text();
@@ -76,26 +88,22 @@ export async function fetchAllActivity(): Promise<ActivityRecord[]> {
 
       const companyName = lines[0] || ticker;
       const activityText = lines[1] || "";
-      let activityType: ActivityRecord["activityType"] = "Buy";
-      let changePercent = 0;
 
-      if (activityText.startsWith("Add")) {
-        activityType = "Add";
-        const m = activityText.match(/([\d.]+)%/);
-        if (m) changePercent = parseFloat(m[1]);
-      } else if (activityText.startsWith("Reduce")) {
-        activityType = "Reduce";
-        const m = activityText.match(/([\d.]+)%/);
-        if (m) changePercent = parseFloat(m[1]);
-      } else if (activityText.startsWith("Sell")) {
-        activityType = "Sell";
-        const m = activityText.match(/([\d.]+)%/);
-        if (m) changePercent = parseFloat(m[1]);
+      // 모르는 문구를 Buy 로 치면 동시 매수에 잘못 잡힌다 → 건너뛰고 원문을 남긴다
+      const activityType = (["Buy", "Add", "Reduce", "Sell"] as const).find(
+        (t) => activityText.startsWith(t)
+      );
+      if (!activityType) {
+        console.warn(
+          `[superinvestor] 알 수 없는 활동 문구 건너뜀: ${investor} | ${ticker} | ${JSON.stringify(activityText)}`
+        );
+        return;
       }
 
-      let portfolioWeight = 0;
-      const wm = (lines[2] || "").match(/([\d.]+)%/);
-      if (wm) portfolioWeight = parseFloat(wm[1]);
+      // 변화율(보유 주식 수 %)·비중(%)은 쉼표를 빼고 읽는다 ("1,234%" → 1234)
+      const changePercent =
+        activityType === "Buy" ? 0 : parsePercent(activityText);
+      const portfolioWeight = parsePercent(lines[2] || "");
 
       records.push({
         ticker,
@@ -112,64 +120,113 @@ export async function fetchAllActivity(): Promise<ActivityRecord[]> {
   return records;
 }
 
-// ─��─ 2. stock.php 파싱: 보유자 + 인사이더 + Hold Price ───
+// ─── 2. stock.php 파싱: 보유자 + 인사이더 + Hold Price ───
+
+// 실패 시 최대 2번 재시도 (2초 → 4초 대기). 상태코드/에러는 warn 으로 남겨 429 여부를 볼 수 있게 한다.
+const STOCK_RETRY_DELAYS_MS = [2000, 4000];
+const STOCK_BATCH_SIZE = 5;
+const STOCK_BATCH_DELAY_MS = 1000;
+const FETCH_TIMEOUT_MS = 15000;
+
+// collectAll 전체 시간 예산. Vercel maxDuration(300초)에 걸려 저장 전에 강제 종료되면
+// 이전 데이터가 그대로 남는 무음 실패가 되므로, 예산을 넘기면 재시도·남은 요청을 포기하고 저장한다.
+const COLLECT_BUDGET_MS = 240_000;
+
+class StockFetchError extends Error {
+  constructor(message: string, readonly retryable: boolean) {
+    super(message);
+  }
+}
 
 export async function fetchStockDetail(
-  ticker: string
+  ticker: string,
+  deadline = Infinity // Date.now() 기준. 이 시각을 넘길 재시도는 하지 않는다
 ): Promise<StockDetail | null> {
-  const url = `https://www.dataroma.com/m/stock.php?sym=${encodeURIComponent(ticker)}`;
-  try {
-    const res = await fetch(url, FETCH_OPTS);
-    if (!res.ok) return null;
-
-    const html = await res.text();
-    const $ = cheerio.load(html);
-
-    // Hold Price: td#price
-    const priceText = $("td#price").text().trim().replace(/[$,]/g, "");
-    const holdPrice = parseFloat(priceText) || 0;
-
-    // 보유자 목록: table#grid
-    // th: History | Portfolio Manager | % of portfolio | Recent activity | Shares | Value
-    const holders: StockDetail["holders"] = [];
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    $("table#grid tbody tr").each((_: any, row: any) => {
-      const cells = $(row).find("td");
-      if (cells.length < 4) return;
-      const name = $(cells[1]).text().trim();
-      const weight = parseFloat($(cells[2]).text().trim()) || 0;
-      const activity = $(cells[3]).text().trim();
-      if (name) holders.push({ name, weight, activity });
-    });
-
-    // 인사이더: table#ins_sum
-    let insiderBuyCount = 0;
-    let insiderBuyAmount = 0;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    $("table#ins_sum tr").each((_: any, row: any) => {
-      const $row = $(row);
-      if ($row.hasClass("buys")) {
-        const cells = $row.find("td");
-        if (cells.length >= 3) {
-          insiderBuyCount =
-            parseInt($(cells[1]).text().trim().replace(/,/g, "")) || 0;
-          insiderBuyAmount =
-            parseFloat($(cells[2]).text().trim().replace(/[$,]/g, "")) || 0;
-        }
-      }
-    });
-
-    return { ticker, holdPrice, holders, insiderBuyCount, insiderBuyAmount };
-  } catch {
-    return null;
+  for (let attempt = 0; attempt <= STOCK_RETRY_DELAYS_MS.length; attempt++) {
+    try {
+      return await fetchStockDetailOnce(ticker);
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      // 429·5xx·네트워크/타임아웃만 재시도. 404 같은 4xx 는 다시 해도 같다.
+      const retryable = !(error instanceof StockFetchError) || error.retryable;
+      const delay = STOCK_RETRY_DELAYS_MS[attempt];
+      const willRetry =
+        retryable &&
+        delay !== undefined &&
+        Date.now() + delay + FETCH_TIMEOUT_MS < deadline;
+      console.warn(
+        `[superinvestor] stock.php ${ticker} 실패 (${attempt + 1}/${STOCK_RETRY_DELAYS_MS.length + 1}회): ${reason}` +
+          (willRetry
+            ? ` → ${delay / 1000}초 후 재시도`
+            : retryable && delay !== undefined
+              ? " → 시간 예산 부족으로 재시도 안 함"
+              : "")
+      );
+      if (!willRetry) return null;
+      await sleep(delay);
+    }
   }
+  return null;
+}
+
+async function fetchStockDetailOnce(ticker: string): Promise<StockDetail> {
+  const url = `https://www.dataroma.com/m/stock.php?sym=${encodeURIComponent(ticker)}`;
+  const res = await fetch(url, fetchOpts());
+  if (!res.ok) {
+    const retryable = res.status === 429 || res.status >= 500;
+    throw new StockFetchError(`HTTP ${res.status}`, retryable);
+  }
+
+  const html = await res.text();
+  const $ = cheerio.load(html);
+
+  // Hold Price: td#price
+  const priceText = $("td#price").text().trim().replace(/[$,]/g, "");
+  const holdPrice = parseFloat(priceText) || 0;
+
+  // 보유자 목록: table#grid
+  // th: History | Portfolio Manager | % of portfolio | Recent activity | Shares | Value
+  const holders: StockDetail["holders"] = [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  $("table#grid tbody tr").each((_: any, row: any) => {
+    const cells = $(row).find("td");
+    if (cells.length < 4) return;
+    const name = $(cells[1]).text().trim();
+    const weight = parseFloat($(cells[2]).text().trim()) || 0;
+    const activity = $(cells[3]).text().trim();
+    if (name) holders.push({ name, weight, activity });
+  });
+
+  // 인사이더: table#ins_sum
+  let insiderBuyCount = 0;
+  let insiderBuyAmount = 0;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  $("table#ins_sum tr").each((_: any, row: any) => {
+    const $row = $(row);
+    if ($row.hasClass("buys")) {
+      const cells = $row.find("td");
+      if (cells.length >= 3) {
+        insiderBuyCount =
+          parseInt($(cells[1]).text().trim().replace(/,/g, "")) || 0;
+        insiderBuyAmount =
+          parseFloat($(cells[2]).text().trim().replace(/[$,]/g, "")) || 0;
+      }
+    }
+  });
+
+  // 200 이지만 내용이 비어 있으면(차단 페이지 등) 성공으로 치지 않는다
+  if (holdPrice === 0 && holders.length === 0) {
+    throw new StockFetchError("빈 응답 (Hold Price·보유자 없음)", true);
+  }
+
+  return { ticker, holdPrice, holders, insiderBuyCount, insiderBuyAmount };
 }
 
 // ─── 3. managers.php 파싱: 투자자 목록 ───
 
 export async function fetchManagers(): Promise<Manager[]> {
   const url = "https://www.dataroma.com/m/managers.php";
-  const res = await fetch(url, FETCH_OPTS);
+  const res = await fetch(url, fetchOpts());
   if (!res.ok) throw new Error(`Managers fetch failed: ${res.status}`);
 
   const html = await res.text();
@@ -192,7 +249,7 @@ export async function fetchManagers(): Promise<Manager[]> {
 
 export async function fetchHoldings(managerCode: string): Promise<Holding[]> {
   const url = `https://www.dataroma.com/m/holdings.php?m=${encodeURIComponent(managerCode)}`;
-  const res = await fetch(url, FETCH_OPTS);
+  const res = await fetch(url, fetchOpts());
   if (!res.ok) throw new Error(`Holdings fetch failed: ${res.status}`);
 
   const html = await res.text();
@@ -276,11 +333,14 @@ async function fetchCurrentPrices(
   return prices;
 }
 
-// ─── Redis 저장/��회 ───
+// ─── Redis 저장/조회 ───
 
 export async function loadData(): Promise<SuperinvestorStore | null> {
   try {
-    return (await redis.get<SuperinvestorStore>(REDIS_KEYS.DATA)) ?? null;
+    const data = await redis.get<SuperinvestorStore>(REDIS_KEYS.DATA);
+    if (!data) return null;
+    // 이전 버전 데이터엔 quarter·failedTickers 가 없다 → 기본값을 채워 타입과 맞춘다
+    return { ...data, quarter: data.quarter ?? "", failedTickers: data.failedTickers ?? [] };
   } catch {
     return null;
   }
@@ -327,6 +387,7 @@ export async function collectAll(
   options: { save?: boolean } = {}
 ): Promise<SuperinvestorStore> {
   const { save = true } = options;
+  const deadline = Date.now() + COLLECT_BUDGET_MS;
   console.log("[superinvestor] 수집 시작");
 
   // 1. 매매 활동 + 투자자 목록 동시 수집
@@ -412,19 +473,41 @@ export async function collectAll(
   consensus.sort((a, b) => b.buyerCount - a.buyerCount);
   console.log(`[superinvestor] 동시 매수 2명↑: ${consensus.length}개`);
 
-  // 3. 동시 매수 종목들만 stock.php 호출 (배치 5개, 1초 대기)
+  // 3. 동시 매수 종목들만 stock.php 호출 (배치 STOCK_BATCH_SIZE개, 배치 간 STOCK_BATCH_DELAY_MS 대기)
   const stockDetails = new Map<string, StockDetail>();
-  for (let i = 0; i < consensusTickers.length; i += 5) {
-    const batch = consensusTickers.slice(i, i + 5);
-    const results = await Promise.all(batch.map((t) => fetchStockDetail(t)));
-    for (let j = 0; j < batch.length; j++) {
-      if (results[j]) stockDetails.set(batch[j], results[j]!);
+  const failedTickers: string[] = [];
+  for (let i = 0; i < consensusTickers.length; i += STOCK_BATCH_SIZE) {
+    const batch = consensusTickers.slice(i, i + STOCK_BATCH_SIZE);
+    // 남은 시간이 요청 1회분도 안 되면 나머지는 실패로 넘기고 저장까지 간다
+    if (Date.now() + FETCH_TIMEOUT_MS >= deadline) {
+      const skipped = consensusTickers.slice(i);
+      console.warn(
+        `[superinvestor] 시간 예산 초과 → stock.php ${skipped.length}개 건너뜀: ${skipped.join(", ")}`
+      );
+      failedTickers.push(...skipped);
+      break;
     }
-    if (i + 5 < consensusTickers.length) {
-      await new Promise((r) => setTimeout(r, 1000));
+    const results = await Promise.all(
+      batch.map((t) => fetchStockDetail(t, deadline))
+    );
+    for (let j = 0; j < batch.length; j++) {
+      const detail = results[j];
+      if (detail) stockDetails.set(batch[j], detail);
+      else failedTickers.push(batch[j]);
+    }
+    if (i + STOCK_BATCH_SIZE < consensusTickers.length) {
+      await sleep(STOCK_BATCH_DELAY_MS);
     }
   }
-  console.log(`[superinvestor] stock.php: ${stockDetails.size}개 수집`);
+  console.log(
+    `[superinvestor] stock.php: ${stockDetails.size}/${consensusTickers.length}개 수집`
+  );
+  // 실패 종목은 할인·내부자 섹션에서 빠지므로 조용히 넘어가지 않게 남긴다
+  if (failedTickers.length > 0) {
+    console.warn(
+      `[superinvestor] stock.php 최종 실패 ${failedTickers.length}개: ${failedTickers.join(", ")}`
+    );
+  }
 
   // 4. Yahoo Finance 현재가 조회
   const currentPrices = await fetchCurrentPrices(consensusTickers);
@@ -440,7 +523,7 @@ export async function collectAll(
     const highWeightHolders = detail.holders.filter((h) => h.weight >= 3);
     if (highWeightHolders.length === 0) continue;
 
-    // 현재가 < Hold Price (할인 ��)
+    // 현재가 < Hold Price (할인 중)
     if (currentPrice >= detail.holdPrice) continue;
 
     const discountPct =
@@ -486,6 +569,7 @@ export async function collectAll(
     insider,
     managers,
     quarter,
+    failedTickers,
     lastUpdated: new Date().toISOString(),
   };
 

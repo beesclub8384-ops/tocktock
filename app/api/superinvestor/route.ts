@@ -6,7 +6,7 @@ import {
 } from "@/lib/superinvestor-store";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 export async function GET(request: NextRequest) {
   const section = request.nextUrl.searchParams.get("section");
@@ -43,6 +43,7 @@ export async function GET(request: NextRequest) {
       insider: data.insider,
       managers: data.managers,
       quarter: data.quarter ?? "", // 이전 버전 Redis 데이터엔 없음
+      failedTickers: data.failedTickers ?? [], // 이전 버전 Redis 데이터엔 없음
       lastUpdated: data.lastUpdated,
     });
   } catch (error) {

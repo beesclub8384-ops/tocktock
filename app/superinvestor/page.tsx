@@ -14,7 +14,7 @@ import {
 import { useDraggable } from "@/hooks/useDraggable";
 import { useResizable } from "@/hooks/useResizable";
 
-// ── 타입 (서버 타입과 동일) ���─
+// ── 타입 (서버 타입과 동일) ──
 
 interface ConsensusStock {
   ticker: string;
@@ -373,7 +373,7 @@ function SectionLoading() {
 // ── 섹션 1: 동시 매수 ──
 
 function ConsensusSection({ stocks }: { stocks: ConsensusStock[] }) {
-  if (stocks.length === 0) return <SectionEmpty text="이번 분기 동시 매수 종목이 ��습니다." />;
+  if (stocks.length === 0) return <SectionEmpty text="이번 분기 동시 매수 종목이 없습니다." />;
 
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -705,7 +705,7 @@ export default function SuperinvestorPage() {
             <div className="text-center">
               <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-muted-foreground/30 border-t-foreground" />
               <p className="mt-4 text-sm text-muted-foreground">
-                ���퍼투자자 데이터를 분석하는 중...
+                슈퍼투자자 데이터를 분석하는 중...
               </p>
               <p className="mt-1 text-xs text-muted-foreground/50">
                 최초 로딩 시 Dataroma 데이터 수집으로 시간이 걸릴 수 있습니다
@@ -727,7 +727,7 @@ export default function SuperinvestorPage() {
 
             <hr className="border-border" />
 
-            {/* 섹��� 2 */}
+            {/* 섹션 2 */}
             <section>
               <SectionHeader
                 icon={<TrendingDown size={20} />}
@@ -758,7 +758,7 @@ export default function SuperinvestorPage() {
               <SectionHeader
                 icon={<Users size={20} />}
                 title="투자자별 포트폴리오"
-                desc="개별 슈퍼투자��의 전체 보유 종목과 비중"
+                desc="개별 슈퍼투자자의 전체 보유 종목과 비중"
               />
               <PortfolioSection managers={managers} />
             </section>

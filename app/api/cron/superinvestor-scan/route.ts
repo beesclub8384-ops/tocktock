@@ -4,7 +4,7 @@ import { collectAll } from "@/lib/superinvestor-store";
 import { REDIS_KEYS } from "@/lib/types/superinvestor";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 /**
  * 슈퍼투자자 종목 스캔 Cron
@@ -35,6 +35,7 @@ export async function GET(request: Request) {
       insider: data.insider.length,
       managers: data.managers.length,
       quarter: data.quarter,
+      failedTickers: data.failedTickers,
       timestamp: data.lastUpdated,
     });
   } catch (error) {

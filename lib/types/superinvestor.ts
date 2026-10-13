@@ -72,6 +72,7 @@ export interface SuperinvestorStore {
   insider: InsiderStock[];
   managers: Manager[];
   quarter: string; // 집계 기준 분기 (예: "Q2 2026"), Period 열을 못 읽으면 ""
+  failedTickers: string[]; // stock.php 를 재시도 후에도 못 가져온 티커 (할인·내부자 섹션에서 빠짐)
   lastUpdated: string;
 }
 
