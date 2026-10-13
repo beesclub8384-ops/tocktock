@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { DiscountStock } from "@/lib/types/superinvestor";
 import { cleanText, formatPrice, formatSignedPct, MONO } from "../_lib/format";
-import { josa, shortName } from "../_lib/names";
+import { hasBatchim, josa, shortName } from "../_lib/names";
 import type { QuarterInfo } from "../_lib/quarter";
 import { ACCENT, CardShell, FooterButton } from "./CardShell";
 import { FullListSheet, SheetRow } from "./FullListSheet";
@@ -50,8 +50,18 @@ export function DiscountCard({ stocks, quarter }: { stocks: DiscountStock[]; qua
               <span style={MONO}>{formatPrice(first.currentPrice)}</span>
             </p>
             <p className="text-sm text-muted-foreground">
-              {josa(shortName(first.topHolder), "이", "가")} 포트폴리오의{" "}
-              <span style={MONO}>{first.topHolderWeight}%</span>를 넣은 종목
+              {/* 영문 이름은 조사를 정할 수 없어서 "의" 로 잇는 문장을 쓴다 */}
+              {hasBatchim(shortName(first.topHolder)) === null ? (
+                <>
+                  {shortName(first.topHolder)}의 포트폴리오에서 <span style={MONO}>{first.topHolderWeight}%</span>를
+                  차지하는 종목
+                </>
+              ) : (
+                <>
+                  {josa(shortName(first.topHolder), "이", "가")} 포트폴리오의{" "}
+                  <span style={MONO}>{first.topHolderWeight}%</span>를 넣은 종목
+                </>
+              )}
             </p>
           </div>
 

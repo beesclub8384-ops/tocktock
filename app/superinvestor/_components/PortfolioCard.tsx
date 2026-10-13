@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Holding, Manager } from "@/lib/types/superinvestor";
 import { cleanText, formatSignedPct, formatUSD, MONO } from "../_lib/format";
-import { josa, personPart, shortName } from "../_lib/names";
+import { hasBatchim, josa, personPart, shortName } from "../_lib/names";
 import { ACCENT, CardShell, FooterButton } from "./CardShell";
 import { FullListSheet, SheetRow } from "./FullListSheet";
 import { RankBar } from "./RankBar";
@@ -78,7 +78,13 @@ export function PortfolioCard({ managers }: { managers: Manager[] }) {
       tag="한 사람의 장바구니"
       accent="portfolio"
       headlineClassName={name.length > 10 ? "text-[22px]" : "text-[28px]"}
-      headline={selected ? `${josa(name, "은", "는")} 지금 뭘 들고 있을까요` : "투자자 목록을 불러오지 못했어요"}
+      headline={
+        !selected
+          ? "투자자 목록을 불러오지 못했어요"
+          : hasBatchim(name) === null
+            ? `${name}, 지금 뭘 들고 있을까요` // 영문 이름은 조사를 정할 수 없음
+            : `${josa(name, "은", "는")} 지금 뭘 들고 있을까요`
+      }
       why={{
         summary: "비중(%) = 그 사람 전체 돈 중 이 종목에 넣은 몫",
         detail: "Add는 해당 분기에 더 담은 것, Reduce는 일부 판 것, 표시가 없으면 그대로 들고 있는 거예요.",

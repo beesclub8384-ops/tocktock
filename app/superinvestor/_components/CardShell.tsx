@@ -56,7 +56,7 @@ export function CardShell({
     >
       <div className="mx-auto flex w-full max-w-[600px] flex-col gap-4 break-keep px-5 pt-5 pb-[128px] lg:my-auto lg:gap-5 lg:rounded-2xl lg:border lg:border-border lg:bg-card lg:p-8">
         <div className="flex items-center justify-between gap-3">
-          <span className={`text-xs font-semibold ${ACCENT[accent].text}`}>{tag}</span>
+          <span className={`text-xs font-bold ${ACCENT[accent].text}`}>{tag}</span>
           <span className="text-xs text-muted-foreground tabular-nums" style={MONO}>
             {index + 1} / {CARD_COUNT}
           </span>

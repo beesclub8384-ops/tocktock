@@ -46,7 +46,8 @@ const EN_BATCHIM = new Set(["L", "M", "N", "R"]);
 // 숫자를 읽을 때 받침이 있는 것 (영·일·삼·육·칠·팔·십)
 const DIGIT_BATCHIM = new Set(["0", "1", "3", "6", "7", "8"]);
 
-function hasBatchim(word: string): boolean | null {
+/** 받침 여부. 판단할 수 없으면(일반 영문 단어 등) null */
+export function hasBatchim(word: string): boolean | null {
   const last = word.trim().slice(-1);
   if (!last) return null;
   const code = last.charCodeAt(0);
