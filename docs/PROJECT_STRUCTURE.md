@@ -40,7 +40,7 @@ app/                     # Next.js App Router (페이지 + API)
     stock/[symbol]/      # 종목별 quote·chart·trendlines·growth-score
     futures-trading/     # 선물매매 하위 API (records·qa·reply·messages 등)
     ...                  # 그 외 도메인별 route.ts
-  (각 페이지 폴더)         # sectors, credit, daytrading, liquidity 등
+  (각 페이지 폴더)         # sectors, credit, daytrading, ken-fisher, liquidity 등
 lib/                     # 서버 로직 · 데이터 페칭 · 스토어
   data/                  # 정적 데이터 로딩 헬퍼
   types/                 # 공용 타입 정의
@@ -55,7 +55,7 @@ scripts/                 # 백테스트·수집 스크립트 (untracked, .mjs �
 docs/                    # 문서 (본 파일)
 ```
 
-`lib/` 주요 파일: `redis.ts`(공유 클라이언트), `daytrading.ts`·`daytrading-store.ts`, `ai-trading-store.ts`, `virtual-trading-store.ts`, `futures-trading-store.ts`, `sector-board.ts`·`us-sector-board.ts`, `fetch-fred.ts`·`fetch-credit-balance.ts`·`fetch-market-index.ts`, `kis-client.ts`, `naver-investor-scraper.ts`, `investor-flow-engine.ts`·`investor-flow-archive.ts`, `stock-universe.ts`, `stock-score.ts`, `superinvestor-store.ts`·`superinvestor-score.ts`, `weekly-calendar.ts`·`weekly-calendar-cron.ts`, `news-collector.ts`·`news-rss.ts`, `trendline.ts`, `accumulation-scan.ts`, `posts.ts`, `article-writer.ts`, `money-flow-guides.ts`, `utils.ts`.
+`lib/` 주요 파일: `redis.ts`(공유 클라이언트), `daytrading.ts`·`daytrading-store.ts`, `ai-trading-store.ts`, `virtual-trading-store.ts`, `futures-trading-store.ts`, `sector-board.ts`·`us-sector-board.ts`, `fetch-fred.ts`·`fetch-credit-balance.ts`·`fetch-market-index.ts`, `kis-client.ts`, `naver-investor-scraper.ts`, `investor-flow-engine.ts`·`investor-flow-archive.ts`, `stock-universe.ts`, `stock-score.ts`, `dcf-engine.ts`, `korea-market-engine.ts`, `superinvestor-store.ts`·`superinvestor-score.ts`, `weekly-calendar.ts`·`weekly-calendar-cron.ts`, `news-collector.ts`·`news-rss.ts`, `trendline.ts`, `accumulation-scan.ts`, `posts.ts`, `article-writer.ts`, `money-flow-guides.ts`, `utils.ts`.
 
 ---
 
@@ -75,6 +75,10 @@ docs/                    # 문서 (본 파일)
 | `/global-indicators` | 금리·환율·심리·신용리스크·원자재·밸류에이션 등 글로벌 매크로 지표 타일 대시보드 |
 | `/inflation` | 미국 Headline/Core CPI, Core PCE 전년비 추이 |
 | `/investor-flow` | 종목코드·시작일 입력 시 외국인·기관·개인 일별/누적 매매동향 추적 |
+| `/ken-fisher` | S&P 500 × Nasdaq 100 지수와 PER 비교 차트 |
+| `/ken-fisher/dcf-calculator` | 미래 FCF 할인 내재가치 추정 DCF 계산기(참고용) |
+| `/ken-fisher/earnings-yield-vs-bond` | 주식 이익수익률 vs 10년물 국채금리 비교 |
+| `/ken-fisher/korea-market` | 한국 종목/시장 매력도 분석·스크리닝(매력/중립/비매력, 참고용) |
 | `/liquidity/global` | 글로벌 유동성 — 현재 "준비 중" 안내만 |
 | `/liquidity/us` | 미국 유동성 지표를 매크로/시장 점수 + 레짐(회복·확장·둔화·수축)으로 종합 |
 | `/liquidity/us/backtest` | 미국 유동성 점수 대비 QQQ 1~6개월 후 수익률 버킷 집계 백테스트 |
@@ -98,6 +102,7 @@ docs/                    # 문서 (본 파일)
 | `/api/credit-overheat` | GET | 신용융자 기반 과열지수 계산·조회 |
 | `/api/credit-vs-index` | GET | 신용융자잔고 vs 지수 비교 |
 | `/api/daytrading` | GET·POST·DELETE | 단타 매매기록 조회·추가·삭제 |
+| `/api/dcf/[symbol]` | GET | 종목 DCF 밸류에이션 분석 |
 | `/api/foreign-ownership` | GET | 종목별 외국인 지분율 조회 |
 | `/api/foreign-ownership/diagnose` | GET | 외국인 지분율(KRX) 수집 상태 진단 |
 | `/api/futures-trading` | GET·POST·PATCH·DELETE | 선물매매 기록 CRUD (비밀번호 인증) |
@@ -112,6 +117,7 @@ docs/                    # 문서 (본 파일)
 | `/api/global-indicators` | GET | FRED·야후 기반 글로벌 실시간 경제지표 |
 | `/api/inflation/data` | GET | FRED 인플레이션 데이터(Redis 캐시) |
 | `/api/investor-flow` | GET | 투자자별 매매동향(수급) 조회 |
+| `/api/korea-market` | GET | 한국 시장 매력도 분석·상위 종목 스크리닝 |
 | `/api/liquidity/us` | GET | 미국 유동성 지표(FRED·야후, Redis 캐시) |
 | `/api/liquidity/us/backtest` | GET | 미국 유동성 기반 백테스트 결과 |
 | `/api/news` | GET | RSS 기반 통합 뉴스 목록 |
@@ -250,12 +256,12 @@ docs/                    # 문서 (본 파일)
 
 | 외부 소스 | 호출 위치 | 가져오는 데이터 |
 |---|---|---|
-| Yahoo Finance (`yahoo-finance2`) | `lib/stock-score.ts`·`futures-market-data.ts`·`us-sector-board.ts`·`weekly-calendar.ts`·`superinvestor-store.ts`, `app/api/stock/*`·`usd-krw`·`oil-prices`·`global-indicators`·`liquidity/us(+backtest)`·`credit-*`·`treasury-market-reaction` | 주가/차트 OHLC, 시세·PER/EPS, 지수·환율·유가·선물, 실적 캘린더 |
-| FRED (`api.stlouisfed.org`) | `lib/fetch-fred.ts`·`news-collector.ts`·`weekly-calendar.ts`, `app/api/liquidity/us(+backtest)`·`inflation/data`·`treasury-market-reaction` | 기준금리(DFF)·국채금리(DGS10/DGS2)·유동성·물가 시계열, 지표 발표일 |
+| Yahoo Finance (`yahoo-finance2`) | `lib/dcf-engine.ts`·`stock-score.ts`·`futures-market-data.ts`·`us-sector-board.ts`·`weekly-calendar.ts`·`korea-market-engine.ts`·`superinvestor-store.ts`, `app/api/stock/*`·`usd-krw`·`oil-prices`·`global-indicators`·`liquidity/us(+backtest)`·`credit-*`·`treasury-market-reaction` | 주가/차트 OHLC, 시세·PER/EPS, 지수·환율·유가·선물, 실적 캘린더 |
+| FRED (`api.stlouisfed.org`) | `lib/fetch-fred.ts`·`news-collector.ts`·`korea-market-engine.ts`·`weekly-calendar.ts`, `app/api/liquidity/us(+backtest)`·`inflation/data`·`treasury-market-reaction` | 기준금리(DFF)·국채금리(DGS10/DGS2)·유동성·물가 시계열, 한국 10년물, 지표 발표일 |
 | 네이버 금융 모바일 (`m.stock.naver.com`) | `lib/stock-universe.ts`·`sector-board.ts`, `app/api/cron/{ai,virtual}-trading-{scan,trade}` | 시총 순위 종목 리스트, 종목 현재가 |
 | 네이버 금융 시세 API (`api.finance.naver.com/siseJson`) | `lib/stock-universe.ts`, `app/api/foreign-ownership`, `app/api/cron/{ai,virtual}-trading-scan` | 한국 종목 일봉 OHLC(외국인 지분 포함) |
 | 네이버 금융 웹 (`finance.naver.com/item/frgn`) | `lib/naver-investor-scraper.ts` | 종목별 외국인·기관 순매매(HTML 스크래핑) |
-| 한국투자증권 KIS (`openapi.koreainvestment.com:9443`) | `lib/kis-client.ts`(사용: `futures-market-data.ts`·`investor-flow-engine.ts`·`investor-flow-archive.ts`) | OAuth 토큰, 현재가·PER/EPS/PBR, 투자자별 매매동향, KOSPI200 선물 1분봉·마스터 |
+| 한국투자증권 KIS (`openapi.koreainvestment.com:9443`) | `lib/kis-client.ts`(사용: `futures-market-data.ts`·`investor-flow-engine.ts`·`investor-flow-archive.ts`·`korea-market-engine.ts`) | OAuth 토큰, 현재가·PER/EPS/PBR, 투자자별 매매동향, KOSPI200 선물 1분봉·마스터 |
 | 공공데이터포털 (`apis.data.go.kr`) | `lib/fetch-market-index.ts`·`fetch-credit-balance.ts` | KOSPI/KOSDAQ 상장시가총액, 신용융자잔고 |
 | KRX (`data.krx.co.kr`) | `app/api/foreign-ownership/diagnose` | 외국인 보유 진단용 JSON/CSV(OTP 발급 후 다운로드) |
 | Google News RSS (`news.google.com/rss`) | `lib/news-rss.ts` | AP·Reuters·Bloomberg 등 미국 증시/정치 헤드라인 |
