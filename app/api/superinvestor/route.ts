@@ -42,6 +42,7 @@ export async function GET(request: NextRequest) {
       discount: data.discount,
       insider: data.insider,
       managers: data.managers,
+      quarter: data.quarter ?? "", // 이전 버전 Redis 데이터엔 없음
       lastUpdated: data.lastUpdated,
     });
   } catch (error) {

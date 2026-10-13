@@ -53,6 +53,7 @@ export interface ActivityRecord {
   activityType: "Buy" | "Add" | "Reduce" | "Sell";
   changePercent: number;
   portfolioWeight: number;
+  period: string; // allact.php Period 열 (예: "Q2 2026"), 못 읽으면 ""
 }
 
 // ── stock.php 파싱 결과 ──
@@ -70,6 +71,7 @@ export interface SuperinvestorStore {
   discount: DiscountStock[];
   insider: InsiderStock[];
   managers: Manager[];
+  quarter: string; // 집계 기준 분기 (예: "Q2 2026"), Period 열을 못 읽으면 ""
   lastUpdated: string;
 }
 
@@ -80,3 +82,7 @@ export const REDIS_KEYS = {
 } as const;
 
 export const SUPERINVESTOR_TTL = 604800; // 7일
+
+// Add 를 동시 매수로 인정하는 최소 변화율 (단위: 보유 주식 수 변화율 %)
+// 예: "Add 0.22%" 는 사실상 비중 유지라 제외
+export const MIN_ADD_PERCENT = 1;

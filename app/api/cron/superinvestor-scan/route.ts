@@ -34,6 +34,7 @@ export async function GET(request: Request) {
       discount: data.discount.length,
       insider: data.insider.length,
       managers: data.managers.length,
+      quarter: data.quarter,
       timestamp: data.lastUpdated,
     });
   } catch (error) {

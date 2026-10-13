@@ -119,7 +119,7 @@ function SuperinvestorGuideModal({ onClose }: { onClose: () => void }) {
               전설적 투자자들의 장바구니를 들여다봅니다
             </h3>
             <p className="text-sm leading-relaxed text-muted-foreground">
-              워런 버핏, 빌 애크먼처럼 수십 년간 시장을 이긴 투자자 82명이
+              워런 버핏, 빌 애크먼처럼 수십 년간 시장을 이긴 투자자 80여 명이
               이번 분기에 무엇을 샀는지, 팔았는지, 더 담았는지를 보여줍니다.
             </p>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
@@ -128,7 +128,7 @@ function SuperinvestorGuideModal({ onClose }: { onClose: () => void }) {
               이걸 <strong className="text-foreground">13F 공시</strong>라고 해요.
             </p>
             <blockquote className="mt-3 border-l-2 border-border pl-4 text-sm italic text-muted-foreground">
-              &ldquo;세상에서 가장 요리를 잘하는 셰프 82명이 이번 달 장을 어디서 봤는지
+              &ldquo;세상에서 가장 요리를 잘하는 셰프 80여 명이 이번 달 장을 어디서 봤는지
               영수증을 공개하는 거예요. 우리는 그 영수증을 모아서 보여주는 겁니다.&rdquo;
             </blockquote>
           </section>
@@ -159,7 +159,8 @@ function SuperinvestorGuideModal({ onClose }: { onClose: () => void }) {
                 <strong className="text-foreground">Buy</strong> = 이번 분기 처음 매수 (새로 관심 가짐)
               </li>
               <li>
-                <strong className="text-foreground">Add</strong> = 원래 갖고 있었는데 더 담음 (확신이 커짐)
+                <strong className="text-foreground">Add</strong> = 원래 갖고 있었는데 더 담음 (확신이 커짐).
+                보유 수량을 1% 이상 늘린 경우만 Add로 셉니다
               </li>
             </ul>
           </section>
@@ -176,11 +177,11 @@ function SuperinvestorGuideModal({ onClose }: { onClose: () => void }) {
             </p>
             <p className="text-sm leading-relaxed text-muted-foreground">
               슈퍼투자자가 포트폴리오의 3% 이상을 크게 베팅한 종목 중에서,
-              현재 주가가 그들이 샀을 때보다 낮은 종목만 추렸어요.
+              현재 주가가 분기 마지막 날 종가(Hold Price)보다 낮은 종목만 추렸어요.
             </p>
             <blockquote className="mt-2 border-l-2 border-border pl-4 text-sm italic text-muted-foreground">
-              &ldquo;버핏이 150달러에 크게 샀는데 지금 주가가 120달러라면?
-              버핏보다 싸게 살 수 있는 상황입니다.&rdquo;
+              &ldquo;버핏이 크게 들고 있던 종목의 분기말 종가가 150달러였는데 지금 120달러라면?
+              그 기준보다 싸게 살 수 있는 상황입니다.&rdquo;
             </blockquote>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
               할인율 숫자가 클수록 더 많이 내려온 상태예요.
@@ -625,6 +626,7 @@ export default function SuperinvestorPage() {
   const [insiderStocks, setInsiderStocks] = useState<InsiderStock[]>([]);
   const [managers, setManagers] = useState<Manager[]>([]);
   const [lastUpdated, setLastUpdated] = useState("");
+  const [quarter, setQuarter] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [guideOpen, setGuideOpen] = useState(false);
@@ -642,6 +644,7 @@ export default function SuperinvestorPage() {
         setInsiderStocks(data.insider ?? []);
         setManagers(data.managers ?? []);
         setLastUpdated(data.lastUpdated ?? "");
+        setQuarter(data.quarter ?? "");
       })
       .catch(() => setError("데이터를 불러올 수 없습니다."))
       .finally(() => setLoading(false));
@@ -672,7 +675,7 @@ export default function SuperinvestorPage() {
             슈퍼투자자 포트폴리오
           </h1>
           <p className="text-sm text-muted-foreground">
-            82명의 슈퍼투자자 SEC 13F 공시 기반 분석 · Dataroma 제공
+            {managers.length > 0 ? `${managers.length}명의 ` : ""}슈퍼투자자 SEC 13F 공시 기반 분석 · Dataroma 제공
           </p>
           {lastUpdated && (
             <p className="mt-1 text-xs text-muted-foreground/60">
@@ -685,6 +688,7 @@ export default function SuperinvestorPage() {
                 hour: "2-digit",
                 minute: "2-digit",
               })}
+              {quarter && ` · 기준 분기: ${quarter}`}
             </p>
           )}
           <button
@@ -715,7 +719,7 @@ export default function SuperinvestorPage() {
               <SectionHeader
                 icon={<Users size={20} />}
                 title="이번 분기 거물들의 선택"
-                desc="2명 이상의 슈퍼투자자가 동시에 매수(Buy/Add)한 종목"
+                desc="2명 이상의 슈퍼투자자가 동시에 매수(Buy/Add)한 종목. 보유 수량을 1% 이상 늘린 경우만 Add로 셉니다"
                 count={consensus.length}
               />
               <ConsensusSection stocks={consensus} />
@@ -728,7 +732,7 @@ export default function SuperinvestorPage() {
               <SectionHeader
                 icon={<TrendingDown size={20} />}
                 title="지금 할인 중인 거물 종목"
-                desc="Hold Price(분기말 매수가) 대비 현재가가 낮고, 비중 3% 이상 보유자가 있는 종목"
+                desc="Hold Price(분기 마지막 날 종가) 대비 현재가가 낮고, 비중 3% 이상 보유자가 있는 종목"
                 count={discountStocks.length}
               />
               <DiscountSection stocks={discountStocks} />

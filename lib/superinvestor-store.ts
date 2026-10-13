@@ -12,6 +12,7 @@ import {
   type SuperinvestorStore,
   REDIS_KEYS,
   SUPERINVESTOR_TTL,
+  MIN_ADD_PERCENT,
 } from "@/lib/types/superinvestor";
 
 const yahooFinance = new YahooFinance();
@@ -35,6 +36,19 @@ export async function fetchAllActivity(): Promise<ActivityRecord[]> {
   const $ = cheerio.load(html);
   const records: ActivityRecord[] = [];
 
+  // Period 열 위치는 헤더 텍스트로 찾는다 (열 번호 고정 X). colspan 도 반영.
+  // 헤더 칸이 <th> 가 아니라 <td> 다: Portfolio Manager - Firm | Period | Top 10 Buys/Sells(colspan=10)
+  let periodIdx = -1;
+  let colPos = 0;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  $("table#grid thead tr").first().children("th, td").each((_: any, th: any) => {
+    const $th = $(th);
+    if (periodIdx < 0 && $th.text().trim().toLowerCase() === "period") {
+      periodIdx = colPos;
+    }
+    colPos += parseInt($th.attr("colspan") || "1", 10) || 1;
+  });
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   $("table#grid tbody tr").each((_: any, row: any) => {
     const cells = $(row).find("td");
@@ -42,6 +56,11 @@ export async function fetchAllActivity(): Promise<ActivityRecord[]> {
 
     const investor = $(cells[0]).find("a").text().trim();
     if (!investor) return;
+
+    const period =
+      periodIdx >= 0 && periodIdx < cells.length
+        ? $(cells[periodIdx]).text().replace(/\s+/g, " ").trim()
+        : "";
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     $(row).find("td.sym").each((_2: any, symCell: any) => {
@@ -85,6 +104,7 @@ export async function fetchAllActivity(): Promise<ActivityRecord[]> {
         activityType,
         changePercent,
         portfolioWeight,
+        period,
       });
     });
   });
@@ -217,6 +237,12 @@ export async function fetchHoldings(managerCode: string): Promise<Holding[]> {
 
 // ─── Yahoo Finance 현재가 일괄 조회 ───
 
+// Dataroma 는 클래스주를 "BRK.B" 로, Yahoo 는 "BRK-B" 로 쓴다.
+// 변환은 Yahoo 조회에만 쓰고, 결과 Map 키는 Dataroma 티커 그대로 둔다.
+function toYahooTicker(ticker: string): string {
+  return ticker.replace(/\./g, "-");
+}
+
 async function fetchCurrentPrices(
   tickers: string[]
 ): Promise<Map<string, number>> {
@@ -225,9 +251,9 @@ async function fetchCurrentPrices(
     const batch = tickers.slice(i, i + 10);
     const results = await Promise.allSettled(
       batch.map(async (t) => {
-        const q = await yahooFinance.quote(t);
-        const quote = q as unknown as { regularMarketPrice?: number };
-        return { ticker: t, price: quote.regularMarketPrice ?? 0 };
+        const q = await yahooFinance.quote(toYahooTicker(t));
+        const quote = q as unknown as { regularMarketPrice?: number } | undefined;
+        return { ticker: t, price: quote?.regularMarketPrice ?? 0 };
       })
     );
     for (const r of results) {
@@ -238,6 +264,14 @@ async function fetchCurrentPrices(
     if (i + 10 < tickers.length) {
       await new Promise((r) => setTimeout(r, 500));
     }
+  }
+
+  // 조용히 빠지지 않게: 가격을 못 가져온 티커는 경고로 남긴다 (예: WBD-OLD)
+  const missing = tickers.filter((t) => !prices.has(t));
+  if (missing.length > 0) {
+    console.warn(
+      `[superinvestor] 현재가 조회 실패 ${missing.length}개: ${missing.join(", ")}`
+    );
   }
   return prices;
 }
@@ -258,21 +292,84 @@ async function saveData(data: SuperinvestorStore): Promise<void> {
 
 // ─── 전체 수집 파이프라인 ───
 
-export async function collectAll(): Promise<SuperinvestorStore> {
+// 투자자 수 기준으로 가장 많은 기간을 "기준 분기"로 고른다.
+// 제출이 늦거나 끊긴 투자자(예: 지난 분기 기간이 남아 있는 경우)를 이번 분기 집계에서 뺀다.
+function pickQuarter(activities: ActivityRecord[]): string {
+  const investorPeriod = new Map<string, string>();
+  for (const a of activities) {
+    if (a.period && !investorPeriod.has(a.investor)) {
+      investorPeriod.set(a.investor, a.period);
+    }
+  }
+  const counts = new Map<string, number>();
+  for (const p of investorPeriod.values()) {
+    counts.set(p, (counts.get(p) ?? 0) + 1);
+  }
+  let quarter = "";
+  let best = 0;
+  for (const [p, n] of counts) {
+    // 동점이면 더 최신 분기를 고른다 (공시 시즌에 신·구 분기 인원이 비슷할 수 있음)
+    if (n > best || (n === best && quarterRank(p) > quarterRank(quarter))) {
+      quarter = p;
+      best = n;
+    }
+  }
+  return quarter;
+}
+
+// "Q2 2026" → 20262. 형식이 다르면 -1
+function quarterRank(period: string): number {
+  const m = period.match(/^Q([1-4])\s+(\d{4})$/);
+  return m ? parseInt(m[2], 10) * 10 + parseInt(m[1], 10) : -1;
+}
+
+export async function collectAll(
+  options: { save?: boolean } = {}
+): Promise<SuperinvestorStore> {
+  const { save = true } = options;
   console.log("[superinvestor] 수집 시작");
 
   // 1. 매매 활동 + 투자자 목록 동시 수집
-  const [activities, managers] = await Promise.all([
+  const [allActivities, managers] = await Promise.all([
     fetchAllActivity(),
     fetchManagers(),
   ]);
   console.log(
-    `[superinvestor] 활동 ${activities.length}건, 투자자 ${managers.length}명`
+    `[superinvestor] 활동 ${allActivities.length}건, 투자자 ${managers.length}명`
   );
 
-  // 2. Buy/Add만 필터 → 동시 매수 2명↑ 종목 추출
+  // 2. 기준 분기 활동만 남긴다. Period 를 못 읽으면 필터 없이 진행.
+  const quarter = pickQuarter(allActivities);
+  let activities = allActivities;
+  if (!quarter) {
+    console.warn(
+      "[superinvestor] Period 열을 못 찾았거나 값이 비어 있음 → 분기 필터 없이 진행"
+    );
+  } else {
+    const excluded = new Map<string, string>();
+    for (const a of allActivities) {
+      if (a.period !== quarter) excluded.set(a.investor, a.period || "(기간 없음)");
+    }
+    activities = allActivities.filter((a) => a.period === quarter);
+    console.log(
+      `[superinvestor] 기준 분기 ${quarter}, 제외 투자자 ${excluded.size}명` +
+        (excluded.size > 0
+          ? `: ${Array.from(excluded, ([inv, p]) => `${inv} (${p})`).join(", ")}`
+          : "")
+    );
+  }
+
+  // 3. Buy 는 그대로, Add 는 MIN_ADD_PERCENT 이상만 인정 → 동시 매수 2명↑ 종목 추출
+  const smallAdds = activities.filter(
+    (a) => a.activityType === "Add" && a.changePercent < MIN_ADD_PERCENT
+  );
+  console.log(
+    `[superinvestor] Add ${MIN_ADD_PERCENT}% 미만 제외: ${smallAdds.length}건`
+  );
   const buyActivities = activities.filter(
-    (a) => a.activityType === "Buy" || a.activityType === "Add"
+    (a) =>
+      a.activityType === "Buy" ||
+      (a.activityType === "Add" && a.changePercent >= MIN_ADD_PERCENT)
   );
 
   const tickerMap = new Map<
@@ -388,11 +485,14 @@ export async function collectAll(): Promise<SuperinvestorStore> {
     discount,
     insider,
     managers,
+    quarter,
     lastUpdated: new Date().toISOString(),
   };
 
-  await saveData(store);
-  console.log("[superinvestor] 저장 완료");
+  if (save) {
+    await saveData(store);
+    console.log("[superinvestor] 저장 완료");
+  }
 
   return store;
 }
