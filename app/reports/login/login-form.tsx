@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 /**
- * 비밀번호 칸 하나짜리 입력 화면 (제2의 뇌 PasswordGate 와 같은 모양).
+ * 비밀번호 칸 하나짜리 입력 화면.
  * 확인은 서버(/api/reports/login)가 하고, 맞으면 httpOnly 쿠키가 30일간 남는다.
  */
 export function LoginForm() {
