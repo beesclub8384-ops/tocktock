@@ -2,7 +2,7 @@
 
 > 이 문서는 사이트 공개 전에 사람이 검수할 때 보는 **유일한 입구**입니다.
 > 무엇을 왜 그렇게 정했는지, 무엇을 확인했고 무엇을 확인하지 못했는지를 한곳에 모았습니다.
-> 마지막 갱신: 2026-10-18 (미션 4: FRED 약관 정정 · 저작권 시리즈 제거 · 필수 고지)
+> 마지막 갱신: 2026-10-19 (미션 5: 관측소의 FRED 의존 제거 · 지수 수집 중단 · 문서 정리)
 > 공개 전 검수 자료는 `docs/pre-launch-review.md`에 있습니다.
 > 작업 규칙은 `docs/observatory-mission-rules.md`, 진행 상태는 `docs/observatory-progress.md`에 있습니다.
 
@@ -354,15 +354,16 @@
 10. **스테이블코인 지표(관측소 6-B)에 DefiLlama 자료를 쓸지**: 이용약관 8조가 "허락 없이 어떤 형태로든 데이터 재게시 금지"라 싣지 않았습니다. 쓰려면 DefiLlama의 허락을 받을지 사람이 정해야 합니다. 초안 코드와 회귀 결과(발행 잔액 발동 3.2%, 디페그 13.6%, 2023-03-11 USDC 경보)는 세션 임시 폴더에만 있어, 쓰기로 하면 다시 만들어야 합니다.
 11. **SEC 요청의 연락처**: SEC는 User-Agent에 연락처(이메일)를 넣으라고 권합니다. 개인 이메일을 저장소 코드에 넣지 않으려고 사이트 주소만 넣었습니다(2026-10-18 정상 응답). SEC가 막으면 연락처를 환경변수로 넣을지 사람이 정해야 합니다.
 12. **FRED 약관과 공개 사이트**(미션 3, 미션 4에서 원문 재확인 — 16-1): /legal 의 전체 이용 약관에 사전 서면 허락 없는 인터넷 재게시·저장(캐시) 금지 조항이 있고, API 약관도 /legal 을 포함하므로 API 사용에도 적용됩니다. 관측소 지표 상당수가 FRED에서 받아 Redis에 저장한 값입니다. 원출처로 옮길지, 허락을 구할지, 그대로 둘지 사람이 정해야 합니다(15장).
-13. ~~S&P 500·나스닥 지수 겹쳐 그리기~~ → 미션 4에서 화면에서 뺐습니다(16-3). 다시 싣으려면 S&P·나스닥의 사전 승인이 필요합니다. 수집(cron)은 계속 돌아 Redis 에 저장되고 있어, 승인 전에 수집도 멈출지 사람이 정해야 합니다.
+13. ~~S&P 500·나스닥 지수 겹쳐 그리기~~ → 미션 4에서 화면에서 빼고, 미션 5에서 수집을 껐습니다. Redis 키는 배포 뒤 지웁니다(17-5·17-8). 다시 싣으려면 S&P·나스닥의 사전 승인이 필요합니다.
 14. **tocktock.kr 도메인 DNS 상태**(미션 3 지시): 이 PC에서 tocktock.kr 조회가 실패합니다(tocktock.vercel.app은 정상). 확인이 필요합니다.
 15. **lib/reports/fetcher.ts의 개인 이메일**(미션 3 지시): 관측소 밖 코드의 User-Agent에 개인 이메일이 들어 있습니다. 이번에는 고치지 않았습니다.
 16. **저장소 공개 여부**(미션 3 지시): 7번(커밋 기록의 도구 표기)과 함께 정해야 합니다.
 17. **관측소 밖 문구**(미션 3): 평서체·"AI 자동매매" 등 목록은 `docs/pre-launch-review.md` 5장. 수정 여부는 사람이 정합니다.
-18. **FRED 약관을 이 사이트가 어떻게 지키는지**(미션 4): /legal 의 재게시·저장 금지(일반 조항, (p), (l))가 공개 사이트에서 FRED 값을 Redis 에 저장해 보여 주는 지금 방식에 걸릴 수 있습니다. 세인트루이스 연은에 서면 허락을 구할지, 원출처(연준 이사회·뉴욕 연은)에서 직접 받도록 바꿀지 정해야 합니다. 법적 판단입니다.
+18. **FRED 약관을 이 사이트가 어떻게 지키는지**(미션 4, 미션 5에서 범위 축소): 미션 5에서 관측소 시리즈 14개를 원출처로 바꿔, 관측소가 FRED 에서 받는 값은 역레포(RRPONTSYD)·레포(RPONTTLD) 둘만 남았습니다. 이 둘에 대해 세인트루이스 연은에 서면 허락을 구할지, FRED 의 합산 방식과 다른 원출처 합산(뉴욕 연은 API)으로 바꾸며 판정 기록이 달라지는 것을 받아들일지 정해야 합니다(17-3). 관측소 밖 화면의 FRED 사용은 20번.
 19. **사이트 이용 약관 페이지**(미션 4): FRED API 약관은 "앱의 이용 약관에 사용자가 FRED API 약관에 동의한다는 내용을 명시하라"고 합니다. 이 사이트에는 이용 약관 페이지가 없습니다. 만들지, 무엇을 담을지는 법적 문서라 사람이 정합니다.
-20. **관측소 밖 FRED 사용 화면의 고지**(미션 4): `/global-indicators`, `/liquidity/us`, `/inflation` 등도 FRED API를 씁니다. 사이트 전체(공통 푸터)에 FRED 고지를 둘지 정해야 합니다. 이번에는 관측소 밖 파일을 고치지 않았습니다.
-21. **뉴욕 연은 저작권 시리즈 3개(RRPONTSYD·SOFR·RPONTTLD)**(미션 4): FRED 등급 "Copyrighted: Citation required" — 원출처와 FRED 경유를 표기하면 쓸 수 있다고 되어 있어 표기를 맞췄지만, 판정에 쓰는 시리즈라 계속 쓸지는 사람이 확인해야 합니다(뉴욕 연은 약관은 출처 표기 조건으로 사용을 허락함 — 15-4).
+20. **관측소 밖 FRED 사용 화면**(미션 4·5): `/global-indicators`, `/liquidity/us`, `/liquidity/us/backtest`, `/inflation` 등도 FRED API 를 씁니다(코드 기준 FRED 호출 파일: app/api/inflation, app/api/treasury-market-reaction, app/api/liquidity/us(+backtest), app/global-indicators, lib/fetch-fred, lib/weekly-calendar, lib/korea-market-engine, lib/news-collector, lib/reports/detectors/fredRelease). 원출처로 바꿀지, 서면 허락을 구할지, 고지를 둘지 정해야 합니다. 관측소 밖이라 이번에도 고치지 않았습니다.
+21. **뉴욕 연은 시리즈**(미션 4·5): SOFR 은 미션 5에서 뉴욕 연은에서 직접 받도록 바꿨고(출처 표기·고지문 유지), RRPONTSYD·RPONTTLD 는 FRED 그대로입니다(18번).
+22. **연준 데이터 다운로드 프로그램(DDP) 폐지 대비**(미션 5): 원출처 전환한 연준 이사회 시리즈 13개가 DDP 의 발표별 묶음 주소를 씁니다. 연준이 DDP 폐지를 예고했으므로, 폐지 일정이 나오면 새 주소로 바꾸거나 FRED 로 되돌릴지 정해야 합니다(되돌리기는 환경변수 하나).
 
 ## 9. 공개 전 점검 체크리스트
 
@@ -379,7 +380,7 @@
 - [x] ~~상시 경보 위험 지표 AI 설비투자 공개 여부~~ → 미션 3 최소 표본 규칙으로 판정 보류
 - [ ] 상시 경보 위험 지표 헤지펀드 조달 조건(27.3%, 판정 22분기뿐) 공개 여부 결정
 - [ ] FRED 약관·S&P 지수 겹쳐 그리기 결정(8장 12·13번) — 공개 전 필수
-- [ ] cron 실행 시간 확인: 관측소 6 추가 뒤 로컬 10.3초(SEC 5회 동시 요청). 배포에서 30초를 넘기 시작하면 라우트를 나눌 것
+- [ ] cron 실행 시간 확인: 미션 5 원출처 전환 뒤 로컬 20.7초(연준 발표 zip 6개·뉴욕 연은·SEC 등). 배포에서 40초를 넘기 시작하면 라우트를 나눌 것
 
 ## 10. 남은 위험
 
@@ -782,3 +783,72 @@ FRED 약관은 notes 에 "Copyright" 가 있으면 저작권 시리즈라고 하
 | 3 | 낮음 | 필수 고지가 11px 연회색이라 약관의 "prominently"에 못 미침 | **고침**: 12px·진한 글자색·위 경계선으로 구분 |
 | 4 | 낮음 | 지급준비금 남은 문단의 "지금 준비금은 서서히 줄고 있고"가 데이터(1년 동안 거의 제자리)로 뒷받침되지 않음 | **고침**: 추세 단정을 빼고 "RRP 쿠션이 없어 돈이 빠지면 준비금이 바로 준다"는 구조 설명으로 |
 | 5 | 낮음(참고) | 지수 수집이 cron 에서 계속 돌아 Redis 에 저장되고 cron 응답에 최신 값이 나옴 | **유지(기록)**: 미션 지시가 "수집 코드는 지우지 말고 화면 연결만 끊어라"여서 그대로 둠. cron 은 CRON_SECRET 없이는 401(배포 사이트에서도 확인). 수집 중단 여부는 8장 13번·검수 자료 3장 2번(사람 결정) |
+
+## 17. 미션 5 — 관측소의 FRED 의존 제거 · 지수 수집 중단 · 문서 정리 (2026-10-19)
+
+### 17-1. 시리즈 18개와 원출처 (전 기간 대조)
+원출처 값을 FRED 와 같은 날짜 규칙·단위의 `{date, value}` 로 만들어 수집기에 넘기므로, 수집기의 가공 코드는 그대로입니다(`lib/observatory-origin.ts`). 대조는 전환 전에 실제 TypeScript 모듈의 출력과 FRED 전체 관측치를 비교했습니다(`parseFloat` 값 기준).
+
+| FRED 시리즈 | 쓰는 지표 | 원출처 | 공개 접근 방법 | 주기·갱신 | 원출처 시리즈 | FRED 와 정의 차이(변환) | 대조 (FRED 수 / 원출처 수 / 불일치 / 최대차) | 결과 |
+|---|---|---|---|---|---|---|---|---|
+| RRPONTSYD | RRP | 뉴욕 연은 역레포 운영 결과 | markets.newyorkfed.org/api/rp/results/search.json (JSON) | 일간, 당일 | 운영별 금액(details.amtAccepted) | — | 17-3 참고 | **미전환** — 아래 17-3 |
+| WRESBAL | 지급준비금 | 연준 이사회 H.4.1 | DDP Output.aspx?rel=H41&filetype=zip (SDMX XML) | 주간(수요일로 끝나는 주 평균), 목요일 | RESH4R_XAW_N.WW | 없음 | 1244 / 1244 / 0 / 0 | **전환** |
+| SOFR | SOFR−IORB | 뉴욕 연은 참조금리 | markets.newyorkfed.org/api/rates/secured/sofr/search.json (JSON) | 일간, 다음 영업일 08:00 ET 무렵 | percentRate | 없음 | 2132 / 2133 / 0 / 0 (원출처에만 1: 2018-04-02) | **전환** |
+| IORB | SOFR−IORB | 연준 이사회 정책금리(PRATES) | DDP Output.aspx?rel=PRATES&filetype=zip | 일간(7일), 변경 시 | RESBM_N.D | 없음 | 1909 / 1909 / 0 / 0 | **전환** |
+| RPONTTLD | SRF | 뉴욕 연은 레포 운영 결과 | markets.newyorkfed.org/api/rp/results/search.json | 일간, 당일 | 운영별 금액 | — | 17-3 참고 | **미전환** — 아래 17-3 |
+| WLCFLPCL | 재할인 창구 | 연준 이사회 H.4.1 | DDP H41 zip | 주간(수요일), 목요일 | RESPPALDP_N.WW | 없음 | 1244 / 1244 / 0 / 0 | **전환** |
+| BOGZ1FL403069330Q | FHLB | 연준 이사회 Z.1 | DDP Output.aspx?rel=Z1&filetype=zip (압축 38MB, XML 620MB — 스트리밍) | 분기, 분기 말 뒤 약 10주 | FL403069330.Q | 날짜: 분기 말일 → 분기 첫날 | 305 / 305 / 0 / 0 | **전환** |
+| DPSSCBW027NBOG | 예금 유출 | 연준 이사회 H.8 | DDP Output.aspx?rel=H8&filetype=zip | 주간(수요일), 9일 뒤 금요일 | B1058NSMD | 단위: 백만 → 십억 달러 | 2806 / 2806 / 0 / 0 | **전환** |
+| DPSLCBW027NBOG | 예금 유출 | 연준 이사회 H.8 | DDP H8 zip | 주간, 같은 날 | B1058NLGD | 단위: 백만 → 십억 달러 | 2167 / 2167 / 0 / 0 | **전환** |
+| DRCRELEXFT100S | CRE(화면용) | 연준 이사회 대출 상각·연체율(CHGDEL) | DDP Output.aspx?rel=CHGDEL&filetype=zip | 분기, 분기 말 뒤 7~8주 | STFBQDSX%STFBAILSX_XEOP_XDO_XS1A2_MA.Q | 날짜: 분기 말일 → 분기 첫날 | 142 / 142 / 0 / 0 | **전환** |
+| DRCRELEXFOBS | CRE(화면용) | 연준 이사회 CHGDEL | DDP CHGDEL zip | 같음 | …_XS3A4_MA.Q | 같음 | 142 / 142 / 0 / 0 | **전환** |
+| DRCRELEXFACBS | CRE(화면용) | 연준 이사회 CHGDEL | DDP CHGDEL zip | 같음 | STFBQDSX%STFBAILSX_XEOP_XDO_MA.Q | 같음 | 142 / 142 / 0 / 0 | **전환** |
+| LNFACBW027SBOG | NDFI | 연준 이사회 H.8 | DDP H8 zip | 주간, 9일 뒤 금요일 | B1030NCBA | 단위: 백만 → 십억 달러 | 614 / 614 / 0 / 0 | **전환** |
+| TOTLL | NDFI(비교용) | 연준 이사회 H.8 | DDP H8 zip | 같음 | B1020NCBA | 단위: 백만 → 십억 달러 | 2806 / 2806 / 0 / 0 | **전환** |
+| DGS10 | 금리 변동성 | 연준 이사회 H.15(원자료 미 재무부) | DDP Output.aspx?rel=H15&filetype=zip | 일간, 다음 영업일 | RIFLGFCY10_N.B | 상태 ND(공휴일, 값 -9999) 721일은 건너뜀 = FRED 의 "." | 16182 / 16182 / 0 / 0 | **전환** |
+| CORBLACBS | 기업대출 상각률 | 연준 이사회 CHGDEL | DDP CHGDEL zip | 분기, 분기 말 뒤 7~8주 | STFBQCB%STFBAILB_MA.Q | 날짜: 분기 말일 → 분기 첫날 | 166 / 166 / 0 / 0 | **전환** |
+| SP500 | (화면 미사용) | S&P Dow Jones Indices | — | — | — | — | — | **수집 중단**, 키는 배포 뒤 삭제(17-5) |
+| NASDAQCOM | (화면 미사용) | Nasdaq | — | — | — | — | — | **수집 중단**, 키는 배포 뒤 삭제(17-5) |
+
+- SOFR 의 "원출처에만 1일"(2018-04-02, SOFR 첫 발표일)은 이 사이트 수집 시작일(2021-07-29)보다 앞이라 쓰이지 않습니다.
+- DGS10 은 처음 대조 때 원출처에 721일이 더 있었습니다. 원인은 H.15 XML 의 공휴일 자리표시(상태 ND, 값 -9999)였고, 상태 "A" 만 쓰도록 고친 뒤 불일치·누락 0 이 됐습니다. 다른 발표의 NA·NC 자리표시(-999999 등)도 같은 규칙으로 걸러집니다.
+
+### 17-2. 원출처 이용 조건 (원문)
+- **연준 이사회**(H.4.1·H.8·H.15·Z.1·CHGDEL·PRATES): "Unless otherwise indicated, information on Board's website is in the public domain and may be copied and distributed without permission. Please cite to the Board as the source of the information." (https://www.federalreserve.gov/disclaimer.htm) → 재게시 가능, 출처 표기 "연준 이사회 ○○".
+- **뉴욕 연은**(SOFR): 약관(https://www.newyorkfed.org/privacy/termsofuse)은 출처 표기 "© [year] Federal Reserve Bank of New York. Content from the New York Fed subject to the Terms of Use at newyorkfed.org."와 참조금리 고지문을 요구합니다 → 미션 3·4에서 넣은 고지(관측소 하단)를 그대로 둡니다.
+- 허락 없이 재게시할 수 있다는 근거가 없는 원출처는 없었습니다(전환하지 않은 두 시리즈는 이용 조건이 아니라 값 차이 때문).
+- **위험**: 연준은 데이터 다운로드 프로그램(DDP)을 언젠가 폐지한다고 예고했습니다("During the week of November 9, the 'Build Your Package' feature in the Data Download Program (DDP) will be removed in preparation for the eventual retirement of the DDP"). 이 사이트가 쓰는 발표별 전체 묶음 주소도 DDP 에 속해, 폐지되면 수집이 실패해 cron errors 에 남습니다. 그때는 `OBSERVATORY_SOURCE=fred` 로 되돌리거나 새 주소로 바꿔야 합니다.
+
+### 17-3. 전환하지 않은 시리즈 — 역레포(RRPONTSYD)·레포(RPONTTLD)
+뉴욕 연은 API 의 운영 결과를 FRED 정의(역레포: 국채·익일물, 레포: 전체 증권·익일물)대로 합산해 비교했습니다.
+- 운영일 기준: 역레포 공통 3,333일 중 불일치 1, FRED 에만 15일, 원출처에만 22일. 레포 공통 3,250일 중 불일치 5, FRED 에만 70일(2000-01 ~ 2000-07, API 에 없음), 원출처에만 5일.
+- 결제일 기준(더 잘 맞음): 역레포는 FRED 의 모든 날짜를 포함하지만 불일치 1(2020-02-19 FRED 0.095 vs 원출처 합계 5.149)과 원출처에만 있는 7일(2014-04-17·2015-04-02·2016-03-24·2017-04-13·2018-03-29 — 성금요일 전날 —, 2018-12-04, 2019-04-18). 레포는 불일치 1(2019-12-31 FRED 25.6 vs 44.25)과 2000년 상반기 누락.
+- 운영 내역을 보면 2020-02-19 에는 소액 시험 운영(0.095)과 정규 운영(5.054)이 같이 있었고 FRED 에는 시험 운영 값만 있습니다. 2019-12-31 에도 같은 결제일 운영 두 건 중 한 건만 있습니다. **FRED 가 같은 날 여러 운영을 합산하지 않는 것으로 보이지만, 원출처 정의로 설명되는 차이가 아니라 규칙대로 전환하지 않았습니다.** 그대로 바꾸면 판정 기록도 달라집니다(날짜가 늘어남).
+- 결제일 기준 레포에는 원출처에만 있는 날도 5일 있습니다(2002-10-18, 2004-03-26, 2004-07-23, 2004-09-24, 2005-10-12 — FRED 는 ".").
+- 독립 검증에서 확인된 선택지: 결제일 기준 익일물 합산은 역레포(국채)는 2020-02-20 이후, 레포는 2020-01-01 이후 FRED 와 정확히 같습니다. 그래서 "그 전 기록은 FRED 값으로 고정하고 이후는 원출처로 이어 붙이는" 방식도 가능하지만, 옛 기록이 계속 FRED 값으로 남아 약관 문제를 풀지 못해 택하지 않았습니다(사람이 정할 선택지로 남김, 8장 18번).
+- 그래서 RRP·SRF 페이지와 그 값이 보이는 관측소 목록·배관 섹션에는 FRED 고지와 "FRED 경유" 출처 표기를 그대로 둡니다(8장 18번).
+
+### 17-4. 전환 구현
+- `lib/observatory-source-config.ts`: 전환 스위치 한 곳. `ORIGIN_SERIES`(전환한 14개: 연준 이사회 13 — IORB 포함 —, 뉴욕 연은 SOFR 1), 환경변수 `OBSERVATORY_SOURCE=fred` 면 전부 FRED. 지표별 FRED 시리즈 표(`INDICATOR_FRED_SERIES`)로 "이 페이지가 아직 FRED 를 쓰는가"를 계산합니다.
+- `lib/observatory-origin.ts`: 연준 발표 zip 을 받아 XML 을 스트리밍으로 풀며 필요한 시리즈만 꺼내고(다 찾으면 멈춤), 같은 cron 실행 안에서는 묶음을 한 번만 받습니다(H.8 은 예금·NDFI 가 같이 씀). SOFR 은 뉴욕 연은 API 를 연도별로 받습니다.
+- 수집기 9개(지급준비금·재할인 창구·FHLB·예금 유출·CRE·NDFI·금리 변동성·상각률·SOFR−IORB)는 FRED 요청 직전에 `isOriginSource(id)` 분기만 넣었고 FRED 경로는 그대로 남았습니다. FRED 키 검사도 FRED 경로를 쓸 때만 합니다.
+- 마지막 저장일부터 이어 받던 수집기 3개(지급준비금·재할인 창구·SOFR−IORB)는 원출처일 때 매번 처음부터 받아 저장분 전체를 덮어씁니다. 처음에는 이어 받기 그대로여서 FRED 에서 받았던 옛 값이 Redis 에 남았는데, 독립 검증 지적으로 고쳤습니다(값은 같아 판정에는 영향 없음).
+- cron 시작 때 연준 발표 묶음 6개를 동시에 받기 시작하고(`warmOriginReleases`), 각 수집기는 같은 결과를 기다립니다.
+- 페이지의 시리즈 번호는 원출처 이름(예: RESH4R_XAW_N.WW, FL403069330.Q)으로 적습니다. 되돌리기 모드면 "WRESBAL (FRED)"처럼 적힙니다. RRP·SRF API 의 attribution 에는 FRED 고지 문장도 넣었습니다.
+- 출처 표기: 전환한 지표는 원출처(연준 이사회 H.4.1·H.8·H.15·Z.1·대출 상각·연체율, 뉴욕 연은 SOFR)로, RRP·SRF 는 "뉴욕 연은, FRED 경유". 카탈로그 섹션 출처도 같게.
+- FRED 고지: 레이아웃에서 빼고, FRED 를 아직 쓰는 지표가 보이는 페이지에만 둡니다 — RRP·SRF 상세, 배관 섹션, 관측소 목록(4곳). 나머지 23개 페이지에는 FRED 고지와 FRED 언급이 0건입니다(렌더링 확인). 고지의 한국어 줄은 "이 페이지의 일부 자료(역레포·레포 운영 결과)는 … FRED® API로 받습니다"로 사실에 맞췄습니다.
+- cron: 원출처 수집이 늘어 로컬 프로덕션 9.6초 → 20.7초(60초 한도 안). 동시 받기를 넣은 뒤와 배포 실측은 17-8.
+
+### 17-5. 지수 수집 중단과 Redis 키 삭제
+- cron 의 주가지수 수집을 `MARKET_INDEX_COLLECTION = false` 로 껐습니다(수집 코드 `lib/observatory-market-index.ts` 는 남김).
+- 읽는 곳 grep: `loadMarketIndex`·`observatory:market-index` 를 읽는 코드는 수집기 자신뿐이고(꺼짐) 나머지는 주석입니다. `scripts/*.mjs` 의 `futures-trading:market-data-index` 는 다른 키입니다.
+- 삭제 근거: 화면에서 쓰지 않음(미션 4), 저작권자 사전 승인 필요 시리즈, 필요하면 승인 뒤 다시 받을 수 있음.
+- 배포 전에 지우면 이전 버전 cron 이 다시 만들 수 있어, 배포가 끝난 뒤 지웁니다(결과는 17-8).
+
+### 17-6. 그 밖의 정리
+- **CLAUDE.md "구현된 페이지" 목록**을 실제 `app/` 라우트로 고쳤습니다. 빠진 것: /fed-rate, /fed-rate/[slug], /indices, /indices/fear-greed, /market-events, /money-flow, /money-flow/[id], /money-flow/treasury-auction(라우트 없음). 더한 것: /calendar, /credit, /daytrading, /futures-trading, /inflation, /investor-flow, /ken-fisher 4개, /market/tradevalue, /reports, /reports/login, /sectors, /sectors/history, /sectors/history/[sector], /sectors-us, /superinvestor, /observatory 와 하위. CLAUDE.md 의 다른 줄은 건드리지 않았습니다.
+- **종료 코드 127 알림**: 확인용 로컬 서버(백그라운드 `node … next start`)를 끌 때마다 "종료 코드 127" 알림이 떴습니다. 시험용 node 서버를 띄워 확인했습니다 — 시작 명령은 정상 실행(응답 확인)되고, 끄는 명령(PowerShell `Stop-Process -Force`)도 성공(`$?` True)합니다. 같은 서버를 `taskkill /F` 로 끄면 알림은 종료 코드 1 이었습니다. 즉 127 은 "명령을 찾을 수 없음"이 아니라 **PowerShell 이 프로세스를 강제 종료할 때 시작 쪽 백그라운드 작업에 남는 종료 코드**이고 무해합니다(정확히 왜 127 로 바뀌는지는 Git Bash 쪽 변환으로 추정, 확인 못함).
+- 문서의 자리표시 문구("검증 뒤 기록", "기록 예정", "커밋 후 기록")와 같은 번호 중복을 grep 으로 찾았습니다 — 남은 것 0.
+
+### 17-7. 불변 확인
+바꾸기 전 배포 사이트(미션 4 최종)와, 원출처로 cron 을 돌린 뒤 로컬 프로덕션의 20개 지표 API 를 비교했습니다. status·발동 통계 차이 0/20. 불변값(베이시스 164/321/32/33, NDFI 208/300/88/18, 응찰 0.55%, 딜러 비중 4.85%, 금리 변동성 11.61%, 해외 보유 12.0%) 동일. 전 기간을 매번 다시 받는 수집기(FHLB·NDFI·금리 변동성·상각률)는 이번 cron 에서 원출처 값으로 저장분을 통째로 덮어썼고, 그 뒤에도 결과가 같았습니다.

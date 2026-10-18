@@ -74,7 +74,8 @@ export async function GET() {
     const dataDelayed = daysSinceLatest !== null && daysSinceLatest > RRP_STALE_DAYS;
 
     const body: RrpResponse = {
-      attribution: nyFedAttribution(),
+      // 이 값은 FRED API 로 받는다(미전환) — FRED API 이용 약관의 고지를 함께 싣는다
+      attribution: nyFedAttribution() + " This product uses the FRED® API but is not endorsed or certified by the Federal Reserve Bank of St. Louis. FRED® API Terms of Use: https://fred.stlouisfed.org/docs/api/terms_of_use.html",
       firing: tailFiringStats(series.map((p) => p.date), series, (t) => evaluateRrp(t).status),
       series,
       latest: verdict.latest,

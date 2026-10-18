@@ -18,6 +18,8 @@
  *    (그 시절엔 연간 집계만 있었다). 1951Q4 이후로는 결측이 없다.
  */
 import { redis } from "@/lib/redis";
+import { isOriginSource } from "@/lib/observatory-source-config";
+import { fetchOriginObservations } from "@/lib/observatory-origin";
 import type { FhlbPoint } from "@/lib/observatory-constants";
 
 const FRED_BASE = "https://api.stlouisfed.org/fred/series/observations";
@@ -131,16 +133,21 @@ export async function collectFhlb(): Promise<FhlbCollectResult> {
   const backfill = existing.length === 0;
 
   const apiKey = process.env.FRED_API_KEY;
-  if (!apiKey) throw new Error("FRED_API_KEY not set");
+  if (!apiKey && !isOriginSource(FHLB_SERIES_ID)) throw new Error("FRED_API_KEY not set");
 
   const url = `${FRED_BASE}?series_id=${FHLB_SERIES_ID}&api_key=${apiKey}&file_type=json&observation_start=${FHLB_START}`;
-  const res = await fetch(url, {
-    cache: "no-store",
-    signal: AbortSignal.timeout(20000),
-  });
-  if (!res.ok) throw new Error(`FRED ${FHLB_SERIES_ID}: ${res.status}`);
-
-  const json = (await res.json()) as { observations?: FredObs[] };
+  // 원출처 전환 (lib/observatory-source-config.ts) — FRED 경로는 되돌릴 수 있게 그대로 둔다
+  let json: { observations?: FredObs[] };
+  if (isOriginSource(FHLB_SERIES_ID)) {
+    json = { observations: await fetchOriginObservations(FHLB_SERIES_ID, FHLB_START) };
+  } else {
+    const res = await fetch(url, {
+      cache: "no-store",
+      signal: AbortSignal.timeout(20000),
+    });
+    if (!res.ok) throw new Error(`FRED ${FHLB_SERIES_ID}: ${res.status}`);
+    json = (await res.json()) as { observations?: FredObs[] };
+  }
   const series = buildSeries(json.observations ?? []);
 
   // 수집 결과가 비면 기존 데이터를 지우지 않는다 (FRED 일시 장애로 인한 유실 방지)

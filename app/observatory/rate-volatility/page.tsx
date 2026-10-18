@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
+import { displaySeriesId } from "@/lib/observatory-origin";
+import { isOriginSource } from "@/lib/observatory-source-config";
 import { ObservatoryBreadcrumb } from "../breadcrumb";
 import { FiringRateLine } from "../firing-rate";
+import { FredNotice } from "../source-notices";
 import type { RateVolResponse } from "@/app/api/observatory/rate-volatility/route";
 import RateVolChart from "../_obs4/RateVolChart";
 import { formatDay } from "../_obs4/format";
@@ -9,7 +12,7 @@ import { Disclaimer, fetchOwnApi, Notice, Section, StatusBadge } from "../_obs4/
 export const metadata: Metadata = {
   title: "관측소 · 10년물 금리 변동성 (MOVE 대리) | TockTock",
   description:
-    "10년 국채 금리가 최근 20영업일 동안 하루에 얼마나 흔들렸는지 봅니다. MOVE 지수가 아니라 실제 움직임으로 계산한 대리 지표입니다. 출처는 FRED DGS10입니다.",
+    "10년 국채 금리가 최근 20영업일 동안 하루에 얼마나 흔들렸는지 봅니다. MOVE 지수가 아니라 실제 움직임으로 계산한 대리 지표입니다. 출처는 연준 이사회 H.15입니다.",
 };
 
 export const dynamic = "force-dynamic";
@@ -37,7 +40,7 @@ export default async function Page() {
         <ObservatoryBreadcrumb indicator="rate-volatility" />
         <h1 className="text-2xl font-bold mb-4">10년물 금리 변동성 (MOVE 대리)</h1>
         <Limitation />
-        <p className="text-sm text-zinc-500">아직 데이터가 없습니다. FRED 수집을 기다리는 중입니다.</p>
+        <p className="text-sm text-zinc-500">아직 데이터가 없습니다. 연준 자료 수집을 기다리는 중입니다.</p>
       </div>
     );
   }
@@ -54,7 +57,7 @@ export default async function Page() {
           꺼리게 됩니다. 금리가 얼마나 거칠게 움직이는지가 국채시장의 긴장도를 보여 줍니다.
         </p>
         <p className="text-xs text-zinc-400 mt-1.5">
-          출처: FRED {data.seriesId} (10년 만기 국채 금리, 원자료는 연방준비제도 H.15) · 일간
+          출처: 연준 이사회 H.15 (10년 만기 국채 금리, 시리즈 {displaySeriesId(data.seriesId, isOriginSource(data.seriesId))}) · 일간
         </p>
       </header>
 
@@ -122,11 +125,12 @@ export default async function Page() {
 
       <Section title="언제 반영되나요">
         <p className="text-zinc-500">
-          10년물 금리는 FRED에 보통 다음 영업일에 올라옵니다. 이 사이트에는 그 뒤 첫 평일 수집(한국 시각 밤 10시)에서
+          10년물 금리는 연준 이사회 H.15 자료에 보통 다음 영업일에 실립니다. 이 사이트에는 그 뒤 첫 평일 수집(한국 시각 밤 10시)에서
           반영됩니다. 그래서 화면의 기준일은 보통 1~3영업일 전입니다.
         </p>
       </Section>
 
+      <FredNotice keys={["rate-volatility"]} />
       <Disclaimer />
     </div>
   );

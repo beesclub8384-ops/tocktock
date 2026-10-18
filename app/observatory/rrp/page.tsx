@@ -1,6 +1,7 @@
 import { ObservatoryBreadcrumb } from "../breadcrumb";
 import { CriteriaNote } from "../criteria-note";
 import { LimitsNote } from "../limits-note";
+import { FredNotice } from "../source-notices";
 import { FiringRateLine } from "../firing-rate";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
@@ -330,6 +331,7 @@ export default async function RrpPage() {
           />
 
           <CriteriaNote>잔액이 100십억 달러를 넘으면 정상, 10십억 달러 미만이면 경보, 그 사이는 주의입니다.</CriteriaNote>
+          <FredNotice keys={["rrp"]} />
           <p className="text-xs text-zinc-500 pt-1">
             이 지표는 시장 상황을 지켜보기 위한 참고 자료입니다. 투자 권유가 아니며,
             모든 투자 판단은 본인의 책임입니다.

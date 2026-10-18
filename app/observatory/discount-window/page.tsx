@@ -1,6 +1,9 @@
 import { ObservatoryBreadcrumb } from "../breadcrumb";
+import { displaySeriesId } from "@/lib/observatory-origin";
+import { isOriginSource } from "@/lib/observatory-source-config";
 import { CriteriaNote } from "../criteria-note";
 import { LimitsNote } from "../limits-note";
+import { FredNotice } from "../source-notices";
 import { FiringRateLine } from "../firing-rate";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
@@ -105,7 +108,7 @@ export default async function DiscountWindowPage() {
           급증하는 일 자체가 드뭅니다.
         </p>
         <p className="text-xs text-zinc-400 mt-1">
-          출처: 연준 이사회 H.4.1, FRED 경유, 시리즈 {data.seriesId} ·
+          출처: 연준 이사회 H.4.1, 시리즈 {displaySeriesId(data.seriesId, isOriginSource(data.seriesId))} ·
           주간(매주 수요일 기준, 목요일 갱신)
         </p>
         <p className="text-xs text-zinc-400 mt-1">
@@ -113,10 +116,10 @@ export default async function DiscountWindowPage() {
         </p>
       </header>
 
-      {/* 데이터 지연 알림 — FRED 갱신이 막혀 마지막 성공값을 그대로 보여주는 상태 */}
+      {/* 데이터 지연 알림 — 원출처 갱신이 막혀 마지막 성공값을 그대로 보여주는 상태 */}
       {data.dataDelayed && (
         <div className="mb-6 rounded-lg border border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
-          <strong>데이터 지연</strong> — FRED에서 새 값을 받지 못하고 있습니다.
+          <strong>데이터 지연</strong> — 연준 이사회에서 새 값을 받지 못하고 있습니다.
           아래 숫자는 마지막으로 받아둔 {latest ? formatDate(latest.date) : "—"}{" "}
           기준값이며, {data.daysSinceLatest}일 전 값입니다.
         </div>
@@ -320,6 +323,7 @@ export default async function DiscountWindowPage() {
           />
 
           <CriteriaNote>10십억 달러 이상이면 주의, 50십억 달러를 넘으면 경보입니다. 전주 잔액이 1십억 달러 이상일 때 전주보다 2배 이상 늘어도 주의입니다.</CriteriaNote>
+          <FredNotice keys={["discount-window"]} />
           <p className="text-xs text-zinc-500 pt-1">
             이 지표는 시장 상황을 지켜보기 위한 참고 자료입니다. 투자 권유가 아니며,
             모든 투자 판단은 본인의 책임입니다.

@@ -1,6 +1,9 @@
 import { ObservatoryBreadcrumb } from "../breadcrumb";
+import { displaySeriesId } from "@/lib/observatory-origin";
+import { isOriginSource } from "@/lib/observatory-source-config";
 import { CriteriaNote } from "../criteria-note";
 import { LimitsNote } from "../limits-note";
+import { FredNotice } from "../source-notices";
 import { FiringRateLine } from "../firing-rate";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
@@ -116,8 +119,9 @@ export default async function CrePage() {
           봅니다.
         </p>
         <p className="text-xs text-zinc-400 mt-1.5">
-          출처: FDIC 분기 은행실적보고서(QBP) 및 FRED (시리즈{" "}
-          {data.seriesIds.top100} · {data.seriesIds.other})
+          출처: FDIC 분기 은행실적보고서(QBP) 및 연준 이사회 대출 연체율 통계 (시리즈{" "}
+          {displaySeriesId(data.seriesIds.top100, isOriginSource(data.seriesIds.top100))} ·{" "}
+          {displaySeriesId(data.seriesIds.other, isOriginSource(data.seriesIds.other))})
         </p>
       </header>
 
@@ -135,7 +139,7 @@ export default async function CrePage() {
             <li className="flex gap-2">
               <span className="text-violet-600 dark:text-violet-400 font-bold">·</span>
               <span>
-                <strong>연체율(FRED, 30일 이상 연체 포함)은 대형은행이 높습니다.</strong>{" "}
+                <strong>연체율(연준 이사회, 30일 이상 연체 포함)은 대형은행이 높습니다.</strong>{" "}
                 {latestSizeSplit && latestSizeSplit.top100Pct !== null && latestSizeSplit.otherPct !== null ? (
                   <>
                     상위 100대 {formatDelinq(latestSizeSplit.top100Pct)} vs 100대 밖{" "}
@@ -264,7 +268,7 @@ export default async function CrePage() {
       {/* 차트 2 — 규모별 연체율 */}
       <section className="mb-8">
         <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-1">
-          은행 규모별 CRE 연체율 (FRED, 판정에 쓰지 않음)
+          은행 규모별 CRE 연체율 (연준 이사회, 판정에 쓰지 않음)
         </h2>
         <p className="text-xs text-zinc-500 mb-3">
           상위 100대 은행과 그 밖의 은행. 연준 통계의 연체율이라(30일 이상 연체 포함) 위의 부실채권 비율과
@@ -341,10 +345,11 @@ export default async function CrePage() {
       <div className="mb-2 text-xs"><p className="text-zinc-500">부실채권 비율 판정(수준·상승 속도):</p><FiringRateLine stats={data.firingDelinquency} unit="분기" /><p className="mt-1 text-zinc-500">지역은행 집중도 판정:</p><FiringRateLine stats={data.firingConcentration} unit="분기" /></div>
       <LimitsNote
         limits="부실채권 비율은 은행 업계 평균이라 오피스처럼 특정 용도나 지역에 몰린 부실은 묻혀 보일 수 있습니다. 대출이 부실로 잡히기까지 시간이 걸려 실제 어려움보다 늦게 움직입니다."
-        timing="판정에 쓰는 부실채권 비율과 지역은행 집중도는 FDIC 분기 보고서를 따릅니다. FDIC는 분기가 끝나고 두세 달 뒤에 내고, 이 사이트는 분기가 끝나고 두 달 뒤 달(3·6·9·12월) 1일부터 평일마다 새 분기를 찾아 반영합니다. 규모별 연체율 차트(FRED)는 분기가 끝나고 7~8주 뒤에 공개됩니다(2026년 2분기 값은 8월 25일). 이 사이트는 평일 한국 시각 밤 10시에 수집합니다(미 동부 시각으로 서머타임 때 오전 9시, 11~3월에는 오전 8시)."
+        timing="판정에 쓰는 부실채권 비율과 지역은행 집중도는 FDIC 분기 보고서를 따릅니다. FDIC는 분기가 끝나고 두세 달 뒤에 내고, 이 사이트는 분기가 끝나고 두 달 뒤 달(3·6·9·12월) 1일부터 평일마다 새 분기를 찾아 반영합니다. 규모별 연체율 차트(연준 이사회)는 분기가 끝나고 7~8주 뒤에 공개됩니다(2026년 2분기 값은 8월 25일). 이 사이트는 평일 한국 시각 밤 10시에 수집합니다(미 동부 시각으로 서머타임 때 오전 9시, 11~3월에는 오전 8시)."
       />
 
       <CriteriaNote>부실채권 비율(FDIC) 1.5% 이상 주의, 2.5% 이상 경보, 1년 상승폭 +0.5%p 이상 주의, +0.75%p 이상 경보, 지역은행 집중도 30% 이상 주의, 34% 이상 경보입니다. 상승 속도를 함께 보기로 한 것은 2010년·2023년 사례를 보고 정했지만, 0.5%p·0.75%p라는 값 자체의 근거는 따로 없습니다.</CriteriaNote>
+      <FredNotice keys={["cre"]} />
       <p className="text-xs text-zinc-500">
         이 지표는 시장 상황을 지켜보기 위한 참고 자료입니다. 투자 권유가 아니며, 모든
         투자 판단은 본인의 책임입니다.

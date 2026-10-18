@@ -16,6 +16,8 @@
  *   수요일 값이 처음 잡힌다. 평시에도 최신값이 최대 7일 전인 게 정상이다.
  */
 import { redis } from "@/lib/redis";
+import { isOriginSource } from "@/lib/observatory-source-config";
+import { fetchOriginObservations } from "@/lib/observatory-origin";
 import type { DiscountWindowPoint } from "@/lib/observatory-constants";
 
 const FRED_BASE = "https://api.stlouisfed.org/fred/series/observations";
@@ -80,21 +82,28 @@ export interface DiscountWindowCollectResult {
 export async function collectDiscountWindow(): Promise<DiscountWindowCollectResult> {
   const existing = await loadDiscountWindow();
   const backfill = existing.length === 0;
-  const observationStart = backfill
+  // 원출처에서 받을 때는 매번 처음부터 받아 저장분 전체를 원출처 값으로 덮어쓴다 — FRED 에서 받았던 옛 값이
+  // Redis 에 남지 않게 (미션 5 독립 검증 지적). 원출처 묶음에 전체 기록이 들어 있어 추가 비용이 없다.
+  const observationStart = backfill || isOriginSource(DISCOUNT_WINDOW_SERIES_ID)
     ? DISCOUNT_WINDOW_START
     : existing[existing.length - 1].date;
 
   const apiKey = process.env.FRED_API_KEY;
-  if (!apiKey) throw new Error("FRED_API_KEY not set");
+  if (!apiKey && !isOriginSource(DISCOUNT_WINDOW_SERIES_ID)) throw new Error("FRED_API_KEY not set");
 
   const url = `${FRED_BASE}?series_id=${DISCOUNT_WINDOW_SERIES_ID}&api_key=${apiKey}&file_type=json&observation_start=${observationStart}`;
-  const res = await fetch(url, {
-    cache: "no-store",
-    signal: AbortSignal.timeout(15000),
-  });
-  if (!res.ok) throw new Error(`FRED ${DISCOUNT_WINDOW_SERIES_ID}: ${res.status}`);
-
-  const json = (await res.json()) as { observations?: FredObs[] };
+  // 원출처 전환 (lib/observatory-source-config.ts) — FRED 경로는 되돌릴 수 있게 그대로 둔다
+  let json: { observations?: FredObs[] };
+  if (isOriginSource(DISCOUNT_WINDOW_SERIES_ID)) {
+    json = { observations: await fetchOriginObservations(DISCOUNT_WINDOW_SERIES_ID, observationStart) };
+  } else {
+    const res = await fetch(url, {
+      cache: "no-store",
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!res.ok) throw new Error(`FRED ${DISCOUNT_WINDOW_SERIES_ID}: ${res.status}`);
+    json = (await res.json()) as { observations?: FredObs[] };
+  }
   const observations = json.observations ?? [];
 
   const merged = new Map<string, DiscountWindowPoint>(

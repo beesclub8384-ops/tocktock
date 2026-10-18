@@ -1,5 +1,8 @@
 import { ObservatoryBreadcrumb } from "../breadcrumb";
+import { displaySeriesId } from "@/lib/observatory-origin";
+import { isOriginSource } from "@/lib/observatory-source-config";
 import { FiringRateLine } from "../firing-rate";
+import { FredNotice } from "../source-notices";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import NbfiLoansChart from "./NbfiLoansChart";
@@ -103,7 +106,7 @@ export default async function NbfiLoansPage() {
         <h1 className="text-2xl font-bold mb-4">은행의 비예금 금융기관 대출</h1>
         <LimitationNotice />
         <p className="text-sm text-zinc-500">
-          아직 데이터가 없습니다. FRED 수집을 기다리는 중입니다.
+          아직 데이터가 없습니다. 연준 자료 수집을 기다리는 중입니다.
         </p>
       </div>
     );
@@ -124,7 +127,7 @@ export default async function NbfiLoansPage() {
           끌어다 쓰고 있는지, 반대로 보면 은행이 그림자금융에 얼마나 물려 있는지를 보여 줍니다.
         </p>
         <p className="text-xs text-zinc-400 mt-1.5">
-          출처: 연방준비제도 H.8 (FRED 시리즈 {data.seriesId}, 비교용 총대출 {data.totalLoansSeriesId}) ·
+          출처: 연준 이사회 H.8 (시리즈 {displaySeriesId(data.seriesId, isOriginSource(data.seriesId))}, 비교용 총대출 {displaySeriesId(data.totalLoansSeriesId, isOriginSource(data.totalLoansSeriesId))}) ·
           주간 (수요일 기준) · 계절조정
         </p>
       </header>
@@ -326,6 +329,7 @@ export default async function NbfiLoansPage() {
         </div>
       </section>
 
+      <FredNotice keys={["nbfi-loans"]} />
       <p className="text-xs text-zinc-500">
         이 지표는 시장 상황을 지켜보기 위한 참고 자료입니다. 투자 권유가 아니며, 모든 투자
         판단은 본인의 책임입니다.

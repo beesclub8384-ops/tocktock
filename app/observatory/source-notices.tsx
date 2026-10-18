@@ -12,12 +12,18 @@
  *
  * ⚠ "use client" 를 넣지 않는다 (서버 컴포넌트에서 쓴다).
  */
+import { anyUsesFred } from "@/lib/observatory-source-config";
 
-export function FredNotice() {
+/**
+ * FRED 고지 — 미션 5에서 대부분의 시리즈를 원출처로 바꾼 뒤, FRED 를 아직 쓰는 지표가 보이는 페이지에만 둔다.
+ * keys 는 그 페이지에 값이 나오는 지표들. 하나도 FRED 를 쓰지 않으면 아무것도 그리지 않는다.
+ */
+export function FredNotice({ keys }: { keys: string[] }) {
+  if (!anyUsesFred(keys)) return null;
   // 영어 문장은 FRED API 이용 약관(Requirements)의 문구 그대로다. 바꾸거나 줄이지 않는다.
+  // 약관이 "prominently" 를 요구해 다른 출처 표기보다 크고 진하게, 경계선으로 구분해 둔다
   return (
-    // 약관이 "prominently" 를 요구해 다른 출처 표기보다 크고 진하게, 경계선으로 구분해 둔다 (독립 검증 지적)
-    <div className="container mx-auto max-w-5xl px-4 sm:px-6 mt-6 border-t border-zinc-200 dark:border-zinc-800 pt-3 text-xs leading-relaxed text-zinc-700 dark:text-zinc-300">
+    <div className="mt-6 border-t border-zinc-200 dark:border-zinc-800 pt-3 text-xs leading-relaxed text-zinc-700 dark:text-zinc-300">
       <p>
         This product uses the FRED® API but is not endorsed or certified by the Federal Reserve Bank of St. Louis.{" "}
         <a href="https://fred.stlouisfed.org/docs/api/terms_of_use.html" className="underline" target="_blank" rel="noreferrer">
@@ -25,8 +31,9 @@ export function FredNotice() {
         </a>
       </p>
       <p>
-        이 사이트의 일부 자료는 미국 세인트루이스 연방준비은행의 FRED® API로 받습니다. 세인트루이스 연방준비은행이 이
-        사이트를 보증하거나 인증한 것은 아니며, 자료 이용에는 위 FRED® API 이용 약관이 적용됩니다.
+        이 페이지의 일부 자료는 미국 세인트루이스 연방준비은행의 FRED® API로 받습니다(원래 발표 기관은 각 출처 표기에
+        적었습니다). 세인트루이스 연방준비은행이 이 사이트를 보증하거나 인증한 것은 아니며, 자료 이용에는 위 FRED® API 이용
+        약관이 적용됩니다.
       </p>
     </div>
   );

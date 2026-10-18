@@ -23,6 +23,8 @@
  *   (docs/observatory-decision-log.md 8장 8번).
  */
 import { redis } from "@/lib/redis";
+import { isOriginSource } from "@/lib/observatory-source-config";
+import { fetchOriginObservations } from "@/lib/observatory-origin";
 import type { MonthSpreadPoint, QuarterRatePoint } from "@/lib/observatory-constants";
 import { assertReplaceable, nextMonth, nextQuarter } from "@/lib/observatory-series-guard";
 
@@ -79,11 +81,17 @@ export async function collectGz(): Promise<GzCollectResult> {
 
 async function fetchFred(seriesId: string): Promise<{ date: string; value: string }[]> {
   const apiKey = process.env.FRED_API_KEY;
-  if (!apiKey) throw new Error("FRED_API_KEY not set");
+  if (!apiKey && !isOriginSource(seriesId)) throw new Error("FRED_API_KEY not set");
   const url = `${FRED_BASE}?series_id=${seriesId}&api_key=${apiKey}&file_type=json`;
-  const res = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(20000) });
-  if (!res.ok) throw new Error(`FRED ${seriesId}: ${res.status}`);
-  const json = (await res.json()) as { observations?: { date: string; value: string }[] };
+  // 원출처 전환 (lib/observatory-source-config.ts) — FRED 경로는 되돌릴 수 있게 그대로 둔다
+  let json: { observations?: { date: string; value: string }[] };
+  if (isOriginSource(seriesId)) {
+    json = { observations: await fetchOriginObservations(seriesId, undefined) };
+  } else {
+    const res = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(20000) });
+    if (!res.ok) throw new Error(`FRED ${seriesId}: ${res.status}`);
+    json = (await res.json()) as { observations?: { date: string; value: string }[] };
+  }
   return json.observations ?? [];
 }
 

@@ -6,6 +6,8 @@
  *  - IORB: Interest on Reserve Balances (연준이 지준에 주는 이자율)
  */
 import { redis } from "@/lib/redis";
+import { isOriginSource } from "@/lib/observatory-source-config";
+import { fetchOriginObservations } from "@/lib/observatory-origin";
 import type { SofrIorbPoint } from "@/lib/observatory-constants";
 
 const FRED_BASE = "https://api.stlouisfed.org/fred/series/observations";
@@ -33,13 +35,18 @@ async function fetchFredSeries(
   observationStart: string
 ): Promise<Map<string, number>> {
   const apiKey = process.env.FRED_API_KEY;
-  if (!apiKey) throw new Error("FRED_API_KEY not set");
+  if (!apiKey && !isOriginSource(seriesId)) throw new Error("FRED_API_KEY not set");
 
   const url = `${FRED_BASE}?series_id=${seriesId}&api_key=${apiKey}&file_type=json&observation_start=${observationStart}`;
-  const res = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(15000) });
-  if (!res.ok) throw new Error(`FRED ${seriesId}: ${res.status}`);
-
-  const json = (await res.json()) as { observations?: FredObs[] };
+  // 원출처 전환 (lib/observatory-source-config.ts) — FRED 경로는 되돌릴 수 있게 그대로 둔다
+  let json: { observations?: FredObs[] };
+  if (isOriginSource(seriesId)) {
+    json = { observations: await fetchOriginObservations(seriesId, observationStart) };
+  } else {
+    const res = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(15000) });
+    if (!res.ok) throw new Error(`FRED ${seriesId}: ${res.status}`);
+    json = (await res.json()) as { observations?: FredObs[] };
+  }
   const map = new Map<string, number>();
   for (const o of json.observations ?? []) {
     const v = toNum(o.value);
@@ -78,7 +85,9 @@ export interface CollectResult {
 export async function collectSofrIorb(): Promise<CollectResult> {
   const existing = await loadSofrIorb();
   const backfill = existing.length === 0;
-  const observationStart = backfill
+  // 원출처에서 받을 때는 매번 처음부터 받아 저장분 전체를 원출처 값으로 덮어쓴다 — FRED 에서 받았던 옛 값이
+  // Redis 에 남지 않게 (미션 5 독립 검증 지적). 원출처 묶음에 전체 기록이 들어 있어 추가 비용이 없다.
+  const observationStart = backfill || (isOriginSource("SOFR") && isOriginSource("IORB"))
     ? SOFR_IORB_START
     : existing[existing.length - 1].date;
 

@@ -1,6 +1,7 @@
 import { ObservatoryBreadcrumb } from "../breadcrumb";
 import { CriteriaNote } from "../criteria-note";
 import { LimitsNote } from "../limits-note";
+import { FredNotice } from "../source-notices";
 import { FiringRateLine } from "../firing-rate";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
@@ -261,6 +262,7 @@ export default async function SrfPage() {
             timing="뉴욕 연은의 레포 결과가 FRED에 같은 날 올라옵니다. 이 사이트는 평일 한국 시각 밤 10시에 수집합니다(미 동부 시각으로 서머타임 때 오전 9시, 11~3월에는 오전 8시). 그래서 보통 다음 평일 밤에 반영됩니다."
           />
           <CriteriaNote>최근 10영업일 중 1십억 달러 이상 쓰인 날이 1일 이상이면 주의, 3일 이상이면 경보입니다.</CriteriaNote>
+          <FredNotice keys={["srf"]} />
           <p className="text-xs text-zinc-500">
             이 지표는 시장 상황을 지켜보기 위한 참고 자료입니다. 투자 권유가
             아니며, 모든 투자 판단은 본인의 책임입니다.

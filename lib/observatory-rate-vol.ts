@@ -9,6 +9,8 @@
  * 과거 값 정정에 대비해 매번 전체(약 6,700건)를 받아 덮어쓴다.
  */
 import { redis } from "@/lib/redis";
+import { isOriginSource } from "@/lib/observatory-source-config";
+import { fetchOriginObservations } from "@/lib/observatory-origin";
 import { assertNotShrunk } from "@/lib/observatory-series-guard";
 import type { YieldPoint } from "@/lib/observatory-constants";
 
@@ -32,12 +34,18 @@ export interface RateVolCollectResult {
 
 export async function collectYields(): Promise<RateVolCollectResult> {
   const apiKey = process.env.FRED_API_KEY;
-  if (!apiKey) throw new Error("FRED_API_KEY not set");
+  if (!apiKey && !isOriginSource(RATE_VOL_SERIES_ID)) throw new Error("FRED_API_KEY not set");
   const existing = await loadYields();
   const url = `${FRED_BASE}?series_id=${RATE_VOL_SERIES_ID}&api_key=${apiKey}&file_type=json&observation_start=${RATE_VOL_START}`;
-  const res = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(20000) });
-  if (!res.ok) throw new Error(`FRED ${RATE_VOL_SERIES_ID}: ${res.status}`);
-  const json = (await res.json()) as { observations?: { date: string; value: string }[] };
+  // 원출처 전환 (lib/observatory-source-config.ts) — FRED 경로는 되돌릴 수 있게 그대로 둔다
+  let json: { observations?: { date: string; value: string }[] };
+  if (isOriginSource(RATE_VOL_SERIES_ID)) {
+    json = { observations: await fetchOriginObservations(RATE_VOL_SERIES_ID, RATE_VOL_START) };
+  } else {
+    const res = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(20000) });
+    if (!res.ok) throw new Error(`FRED ${RATE_VOL_SERIES_ID}: ${res.status}`);
+    json = (await res.json()) as { observations?: { date: string; value: string }[] };
+  }
   const points: YieldPoint[] = [];
   for (const o of json.observations ?? []) {
     if (!o.date || o.value === "." || o.value === "") continue;

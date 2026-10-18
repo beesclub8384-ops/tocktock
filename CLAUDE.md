@@ -328,7 +328,7 @@ Next.js 가 브라우저 번들에 값을 그대로 심는다 — 사이트를 �
 
 ## 📋 구현된 페이지 및 기능
 
-페이지: /, /news, /fed-rate, /fed-rate/[slug], /economics, /economics/[slug], /indices, /indices/fear-greed, /market-events, /global-indicators, /foreign-ownership, /stock/[symbol], /money-flow, /money-flow/[id], /money-flow/treasury-auction, /liquidity/us, /liquidity/us/backtest, /liquidity/global, /virtual-trading, /ai-trading
+페이지: /(→ /sectors 로 이동), /news, /economics, /economics/[slug], /calendar, /credit, /daytrading, /foreign-ownership, /futures-trading, /global-indicators, /inflation, /investor-flow, /ken-fisher, /ken-fisher/dcf-calculator, /ken-fisher/earnings-yield-vs-bond, /ken-fisher/korea-market, /liquidity/us, /liquidity/us/backtest, /liquidity/global, /market/tradevalue, /reports, /reports/login, /sectors, /sectors/history, /sectors/history/[sector], /sectors-us, /stock/[symbol], /superinvestor, /virtual-trading, /ai-trading, /observatory, /observatory/[section], /observatory/{지표 20개 — lib/observatory-catalog.ts}
 
 API(31개): /api/stock/[symbol]/quote|chart|trendlines|growth-score|search, /api/usd-krw, /api/oil-prices, /api/credit-balance|overheat|vs-index, /api/money-flow-data|analysis, /api/treasury-auction|bill-history, /api/global-indicators, /api/foreign-ownership, /api/liquidity/us|backtest, /api/market-events, /api/ai-trading, /api/virtual-trading
 

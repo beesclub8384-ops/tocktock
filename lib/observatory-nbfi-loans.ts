@@ -18,6 +18,8 @@
  *    우리 cron(평일 13:00 UTC)은 금요일 발표보다 먼저 돌아 월요일에 들어온다.
  */
 import { redis } from "@/lib/redis";
+import { isOriginSource } from "@/lib/observatory-source-config";
+import { fetchOriginObservations } from "@/lib/observatory-origin";
 import { findNbfiSurges, type NbfiLoansPoint } from "@/lib/observatory-constants";
 
 const FRED_BASE = "https://api.stlouisfed.org/fred/series/observations";
@@ -45,9 +47,15 @@ export async function loadNbfiLoans(): Promise<NbfiLoansPoint[]> {
 
 async function fetchSeries(seriesId: string, apiKey: string): Promise<Map<string, number>> {
   const url = `${FRED_BASE}?series_id=${seriesId}&api_key=${apiKey}&file_type=json&observation_start=${NBFI_START}`;
-  const res = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(20000) });
-  if (!res.ok) throw new Error(`FRED ${seriesId}: ${res.status}`);
-  const json = (await res.json()) as { observations?: FredObs[] };
+  // 원출처 전환 (lib/observatory-source-config.ts) — FRED 경로는 되돌릴 수 있게 그대로 둔다
+  let json: { observations?: FredObs[] };
+  if (isOriginSource(seriesId)) {
+    json = { observations: await fetchOriginObservations(seriesId, NBFI_START) };
+  } else {
+    const res = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(20000) });
+    if (!res.ok) throw new Error(`FRED ${seriesId}: ${res.status}`);
+    json = (await res.json()) as { observations?: FredObs[] };
+  }
   const out = new Map<string, number>();
   for (const o of json.observations ?? []) {
     // 결측은 건너뛴다 (0 으로 채우지 않는다)
@@ -91,8 +99,9 @@ export function recentNbfiSurges(points: NbfiLoansPoint[]): { date: string; chan
  * 총대출은 참고 카드용이라, 그쪽만 실패하면 비중 없이(null) 저장하고 던지지 않는다.
  */
 export async function collectNbfiLoans(): Promise<NbfiLoansCollectResult> {
-  const apiKey = process.env.FRED_API_KEY;
-  if (!apiKey) throw new Error("FRED_API_KEY not set");
+  // FRED 키는 FRED 경로를 쓸 때만 필요하다 (원출처 전환 — lib/observatory-source-config.ts)
+  const apiKey = process.env.FRED_API_KEY ?? "";
+  if (!apiKey && !["LNFACBW027SBOG", "TOTLL"].every(isOriginSource)) throw new Error("FRED_API_KEY not set");
 
   const existing = await loadNbfiLoans();
   const [loans, total] = await Promise.all([

@@ -101,7 +101,7 @@ export const OBSERVATORY_SECTIONS: ObservatorySectionMeta[] = [
       "시스템 전체의 현금 사정을 재는 곳입니다. 여기가 흔들리면 어디가 아픈지와 무관하게 모두가 아파집니다.",
     chainNote: "①→⑤는 시스템의 현금이 마를 때 경보가 켜지는 순서입니다",
     // FRED 이용 약관: 원출처와 "FRED 경유"를 함께 적는다 (뉴욕 연은 시리즈는 "Copyrighted: Citation required")
-    source: "뉴욕 연방준비은행(RRP·SOFR·SRF)·연준 이사회(IORB·지급준비금·재할인 창구), 모두 FRED 경유",
+    source: "뉴욕 연방준비은행(SOFR; RRP·SRF 는 FRED 경유)·연준 이사회(IORB·지급준비금·재할인 창구)",
     indicators: [
       {
         key: "rrp",
@@ -156,7 +156,7 @@ export const OBSERVATORY_SECTIONS: ObservatorySectionMeta[] = [
       "개별 은행이 아니라 은행업 전체의 체질을 봅니다. 2023년 SVB 사태 때 문제가 된 약점들이 업계 전체에 얼마나 쌓여 있는지 봅니다.",
     chainNote:
       "관측소 1이 시스템 전체의 현금을 잰다면, 여기는 그 돈을 굴리는 은행들의 몸 상태를 봅니다",
-    source: "연준 이사회(Z.1·H.8·대출 연체율, FRED 경유) · FDIC 분기 은행실적보고서(QBP)",
+    source: "연준 이사회(Z.1·H.8·대출 연체율) · FDIC 분기 은행실적보고서(QBP)",
     indicators: [
       {
         key: "unrealized-losses",
@@ -203,7 +203,7 @@ export const OBSERVATORY_SECTIONS: ObservatorySectionMeta[] = [
     chainNote:
       "관측소 2가 은행의 몸 상태를 본다면, 여기는 은행 밖에서 레버리지를 쓰는 곳을 봅니다. 지금은 국채 베이시스 트레이드, 은행의 비예금 금융기관 대출, 헤지펀드 자금조달 조건 세 가지를 봅니다. 사모신용의 현물 이자(PIK)는 일관된 공시 자료를 만들 수 없어 넣지 않았습니다",
     source:
-      "CFTC Traders in Financial Futures (Futures Only) · 연방준비제도 H.8 (FRED) · 연준 SCOOS",
+      "CFTC Traders in Financial Futures (Futures Only) · 연준 이사회 H.8 · 연준 SCOOS",
     indicators: [
       {
         key: "basis-trade",
@@ -241,7 +241,7 @@ export const OBSERVATORY_SECTIONS: ObservatorySectionMeta[] = [
       "미국 국채는 세계 금융이 담보로 쓰는 자산입니다. 사려는 사람이 줄거나 값이 크게 흔들리면, 다른 시장이 기대는 바닥이 흔들립니다.",
     chainNote:
       "새 국채를 누가 사 가는지(입찰), 값이 얼마나 흔들리는지(변동성), 해외에서 계속 사 주는지(해외 보유) 순서로 봅니다. 딜러가 얼마나 떠안는지(딜러 보유)도 함께 봅니다. 입찰 테일·시장 심도·MOVE 원지수는 무료 공개 출처가 없어 넣지 않았습니다",
-    source: "미 재무부 Fiscal Data(입찰 결과) · FRED DGS10(연준 H.15) · 미 재무부 TIC · 뉴욕 연은 딜러 통계",
+    source: "미 재무부 Fiscal Data(입찰 결과) · 연준 이사회 H.15(10년물 금리) · 미 재무부 TIC · 뉴욕 연은 딜러 통계",
     indicators: [
       {
         key: "auction-bid-to-cover",
@@ -295,7 +295,7 @@ export const OBSERVATORY_SECTIONS: ObservatorySectionMeta[] = [
       "회사들이 빚을 얼마나 비싸게 빌리는지, 실제로 못 갚는 일이 늘고 있는지 봅니다. 돈줄이 막히면 가장 약한 회사부터 무너집니다.",
     chainNote:
       "시장이 먼저 웃돈 이자를 올리고(신용 스프레드), 시간이 지나 실제 손실이 장부에 잡히는(상각률) 순서로 봅니다. 하이일드·CCC 원지수는 데이터 제공사의 사전 서면 승인 없이는 공개할 수 없게 돼 있어, 만기 벽(앞으로 갚아야 할 회사채 규모)은 무료 공개 출처가 없어 넣지 않았습니다",
-    source: "연준 이사회 GZ 신용 스프레드 · FRED CORBLACBS(연준)",
+    source: "연준 이사회 GZ 신용 스프레드 · 연준 이사회 대출 상각률",
     indicators: [
       {
         key: "gz-spread",

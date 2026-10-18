@@ -19,6 +19,8 @@
  */
 import * as XLSX from "xlsx";
 import { redis } from "@/lib/redis";
+import { isOriginSource } from "@/lib/observatory-source-config";
+import { fetchOriginObservations } from "@/lib/observatory-origin";
 import {
   expectedLatestQuarter,
   fetchLatestWorkbook,
@@ -82,12 +84,18 @@ export async function loadDepositFlightWeekly(): Promise<DepositFlightWeeklyPoin
 
 async function fetchSeries(seriesId: string, apiKey: string): Promise<FredObs[]> {
   const url = `${FRED_BASE}?series_id=${seriesId}&api_key=${apiKey}&file_type=json&observation_start=${DF_WEEKLY_START}`;
-  const res = await fetch(url, {
-    cache: "no-store",
-    signal: AbortSignal.timeout(20000),
-  });
-  if (!res.ok) throw new Error(`FRED ${seriesId}: ${res.status}`);
-  const json = (await res.json()) as { observations?: FredObs[] };
+  // 원출처 전환 (lib/observatory-source-config.ts) — FRED 경로는 되돌릴 수 있게 그대로 둔다
+  let json: { observations?: FredObs[] };
+  if (isOriginSource(seriesId)) {
+    json = { observations: await fetchOriginObservations(seriesId, DF_WEEKLY_START) };
+  } else {
+    const res = await fetch(url, {
+      cache: "no-store",
+      signal: AbortSignal.timeout(20000),
+    });
+    if (!res.ok) throw new Error(`FRED ${seriesId}: ${res.status}`);
+    json = (await res.json()) as { observations?: FredObs[] };
+  }
   return json.observations ?? [];
 }
 
@@ -166,8 +174,9 @@ export async function collectDepositFlightWeekly(): Promise<DepositFlightWeeklyR
   const existing = await loadDepositFlightWeekly();
   const backfill = existing.length === 0;
 
-  const apiKey = process.env.FRED_API_KEY;
-  if (!apiKey) throw new Error("FRED_API_KEY not set");
+  // FRED 키는 FRED 경로를 쓸 때만 필요하다 (원출처 전환 — lib/observatory-source-config.ts)
+  const apiKey = process.env.FRED_API_KEY ?? "";
+  if (!apiKey && !["DPSSCBW027NBOG", "DPSLCBW027NBOG"].every(isOriginSource)) throw new Error("FRED_API_KEY not set");
 
   const [smallObs, largeObs] = await Promise.all([
     fetchSeries(DF_SMALL_SERIES_ID, apiKey),

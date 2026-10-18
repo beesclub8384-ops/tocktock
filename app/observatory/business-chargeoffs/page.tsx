@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ObservatoryBreadcrumb } from "../breadcrumb";
 import { FiringRateLine } from "../firing-rate";
+import { FredNotice } from "../source-notices";
 import type { ChargeOffResponse } from "@/app/api/observatory/business-chargeoffs/route";
 import LevelChart from "../_level/LevelChart";
 import { Disclaimer, fetchOwnApi, Notice, Section, StatusBadge } from "../_obs4/parts";
@@ -8,7 +9,7 @@ import { Disclaimer, fetchOwnApi, Notice, Section, StatusBadge } from "../_obs4/
 export const metadata: Metadata = {
   title: "관측소 · 기업대출 상각률 (부도율 대리) | TockTock",
   description:
-    "미국 은행이 기업대출을 회수할 수 없다고 보고 털어 낸 비율입니다. 회사채 부도율 대신 쓰는 대리 지표입니다. 출처는 FRED(연방준비제도)입니다.",
+    "미국 은행이 기업대출을 회수할 수 없다고 보고 털어 낸 비율입니다. 회사채 부도율 대신 쓰는 대리 지표입니다. 출처는 연준 이사회입니다.",
 };
 
 export const dynamic = "force-dynamic";
@@ -37,7 +38,7 @@ export default async function Page() {
         <ObservatoryBreadcrumb indicator="business-chargeoffs" />
         <h1 className="text-2xl font-bold mb-4">기업대출 상각률 (부도율 대리)</h1>
         <Limitation />
-        <p className="text-sm text-zinc-500">아직 데이터가 없습니다. FRED 수집을 기다리는 중입니다.</p>
+        <p className="text-sm text-zinc-500">아직 데이터가 없습니다. 연준 자료 수집을 기다리는 중입니다.</p>
       </div>
     );
   }
@@ -54,7 +55,7 @@ export default async function Page() {
           늘고 있다는 뜻입니다.
         </p>
         <p className="text-xs text-zinc-400 mt-1.5">
-          출처: FRED {data.seriesId} (Charge-Off Rate on Business Loans, All Commercial Banks, 연방준비제도) · 분기 ·
+          출처: 연준 이사회 대출 상각·연체율 통계(Charge-Off Rate on Business Loans, All Commercial Banks) · 분기 ·
           계절조정 · 단위 %
         </p>
       </header>
@@ -127,12 +128,13 @@ export default async function Page() {
 
       <Section title="언제 반영되나요">
         <p className="text-zinc-500">
-          FRED 갱신 기록을 보면 분기가 끝나고 약 7~8주 뒤에 새 값이 올라옵니다(2026년 2분기 값은 8월 25일). 이
+          연준 이사회는 분기가 끝나고 약 7~8주 뒤에 새 값을 냅니다(2026년 2분기 값은 8월 25일 공개). 이
           사이트에는 그 뒤 첫 평일 수집(한국 시각 밤 10시)에서 반영됩니다. 과거 값이 고쳐질 수 있어 매번 전체를 다시
           받습니다.
         </p>
       </Section>
 
+      <FredNotice keys={["business-chargeoffs"]} />
       <Disclaimer />
     </div>
   );

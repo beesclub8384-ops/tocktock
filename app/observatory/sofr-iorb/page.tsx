@@ -1,6 +1,7 @@
 import { ObservatoryBreadcrumb } from "../breadcrumb";
 import { CriteriaNote } from "../criteria-note";
 import { LimitsNote } from "../limits-note";
+import { FredNotice } from "../source-notices";
 import { FiringRateLine } from "../firing-rate";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
@@ -101,7 +102,7 @@ export default async function ObservatoryPage() {
         </h1>
         <p className="text-sm text-zinc-500 mt-2">
           레포 금리(SOFR)가 연준이 은행 지급준비금에 주는 이자율(IORB) 위로 뜨는지
-          매일 지켜봅니다. 출처: SOFR는 뉴욕 연방준비은행(Federal Reserve Bank of New York), IORB는 연준 이사회, 둘 다 FRED 경유.
+          매일 지켜봅니다. 출처: SOFR는 뉴욕 연방준비은행(Federal Reserve Bank of New York), IORB는 연준 이사회 정책금리 자료.
         </p>
         <p className="text-xs text-zinc-400 mt-1">
           마지막 업데이트: {formatKstDate(data.lastUpdated)}
@@ -251,10 +252,11 @@ export default async function ObservatoryPage() {
           <div className="mb-2 text-xs"><FiringRateLine stats={data.firing} unit="영업일" /></div>
           <LimitsNote
             limits="SOFR는 하루 거래를 모은 대표 금리라, 하루 안의 순간적인 압박이나 일부 참가자만 겪는 어려움은 보이지 않습니다. 월말·분기말에는 자금 수요 때문에 평소보다 쉽게 오릅니다."
-            timing="뉴욕 연은이 SOFR를 다음 영업일 아침 8시 무렵(미 동부)에 발표하고, FRED에는 그 직후 올라옵니다. 이 사이트는 평일 한국 시각 밤 10시에 수집합니다(미 동부 시각으로 서머타임 때 오전 9시, 11~3월에는 오전 8시). 그래서 서머타임 기간에는 보통 하루 전 SOFR가 그날 밤에 반영되고, 11~3월에는 수집이 FRED 갱신보다 조금 일러 하루 더 늦게 반영됩니다(연휴가 끼면 더 늦습니다)."
+            timing="뉴욕 연은이 SOFR를 다음 영업일 아침 8시 무렵(미 동부)에 발표하고, 이 사이트는 뉴욕 연은에서 직접 받습니다. 이 사이트는 평일 한국 시각 밤 10시에 수집합니다(미 동부 시각으로 서머타임 때 오전 9시, 11~3월에는 오전 8시). 그래서 서머타임 기간에는 보통 하루 전 SOFR가 그날 밤에 반영되고, 11~3월에는 수집 시각이 발표 시각과 거의 같아 하루 늦게 반영될 수 있습니다(연휴가 끼면 더 늦습니다)."
           />
 
           <CriteriaNote>최근 10영업일 중 스프레드가 0보다 큰 날이 5일 이상이면 주의, 같은 10영업일 중 월말 마지막 3영업일(주말만 빼고 셉니다)을 뺀 날에 10bp 이상인 날이 하루라도 있으면 경보입니다.</CriteriaNote>
+          <FredNotice keys={["sofr-iorb"]} />
           <p className="text-xs text-zinc-500 pt-1">
             이 지표는 시장 상황을 지켜보기 위한 참고 자료입니다. 투자 권유가 아니며,
             모든 투자 판단은 본인의 책임입니다.

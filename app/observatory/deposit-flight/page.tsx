@@ -1,6 +1,9 @@
 import { ObservatoryBreadcrumb } from "../breadcrumb";
+import { displaySeriesId } from "@/lib/observatory-origin";
+import { isOriginSource } from "@/lib/observatory-source-config";
 import { CriteriaNote } from "../criteria-note";
 import { LimitsNote } from "../limits-note";
+import { FredNotice } from "../source-notices";
 import { FiringRateLine } from "../firing-rate";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
@@ -106,7 +109,7 @@ export default async function DepositFlightPage() {
           돈일수록 더 빨리 도망간다는 것을 함께 봅니다.
         </p>
         <p className="text-xs text-zinc-400 mt-1.5">
-          출처: 연준 이사회 H.8, FRED 경유(시리즈 {data.seriesIds.small} · {data.seriesIds.large}) 및 FDIC
+          출처: 연준 이사회 H.8(시리즈 {displaySeriesId(data.seriesIds.small, isOriginSource(data.seriesIds.small))} · {displaySeriesId(data.seriesIds.large, isOriginSource(data.seriesIds.large))}) 및 FDIC
           분기 은행실적보고서(QBP)
         </p>
       </header>
@@ -297,6 +300,7 @@ export default async function DepositFlightPage() {
       />
 
       <CriteriaNote>소형 은행 예금 비중이 한 주에 0.4%p 이상 줄면 주의, 0.7%p 이상 줄면 경보입니다. 무보험 예금 비중은 43% 이상이면 주의, 45% 이상이면 경보입니다.</CriteriaNote>
+      <FredNotice keys={["deposit-flight"]} />
       <p className="text-xs text-zinc-500">
         이 지표는 시장 상황을 지켜보기 위한 참고 자료입니다. 투자 권유가 아니며, 모든
         투자 판단은 본인의 책임입니다.

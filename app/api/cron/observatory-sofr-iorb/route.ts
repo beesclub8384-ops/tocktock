@@ -5,6 +5,8 @@ import { collectDiscountWindow } from "@/lib/observatory-discount-window";
 import { collectRrp } from "@/lib/observatory-rrp";
 import { collectReserves } from "@/lib/observatory-reserves";
 import { collectMarketIndex } from "@/lib/observatory-market-index";
+import { isOriginSource, MARKET_INDEX_COLLECTION } from "@/lib/observatory-source-config";
+import { warmOriginReleases } from "@/lib/observatory-origin";
 // 관측소 2 — FDIC 분기 보고서 (FRED 아님)
 import {
   collectUnrealizedLosses,
@@ -39,23 +41,23 @@ export const maxDuration = 60;
 
 /**
  * 관측소 전체 지표 수집 — 지금 6개 관측소 · 지표 20개
- *   관측소 1 배관(FRED):  SOFR−IORB · SRF · 재할인 창구 · RRP · 지급준비금
- *   관측소 2 은행(FRED + FDIC 분기 워크북): 채권 미실현손실 · FHLB · 예금 유출 · CRE
+ *   관측소 1 배관: SOFR(뉴욕 연은)·IORB·재할인 창구·지급준비금(연준 이사회 원출처), RRP·SRF(FRED — 미전환)
+ *   관측소 2 은행(연준 이사회 원출처 + FDIC 분기 워크북): 채권 미실현손실 · FHLB · 예금 유출 · CRE
  *   관측소 3 그림자금융: 국채 베이시스 트레이드 대리 지표(CFTC TFF) ·
- *                        은행의 비예금 금융기관 대출(FRED, H.8)
+ *                        은행의 비예금 금융기관 대출(연준 이사회 H.8)
  *   관측소 4 국채시장: 입찰 응찰 배율·딜러 비중(재무부 Fiscal Data, 한 번 받아 둘이 같이 씀) ·
- *                      10년물 금리 변동성(FRED DGS10) · 해외 보유(재무부 TIC)
- *   관측소 5 신용의 벽: GZ 신용 스프레드(연준 이사회 CSV) · 기업대출 상각률(FRED CORBLACBS)
+ *                      10년물 금리 변동성(연준 이사회 H.15) · 해외 보유(재무부 TIC)
+ *   관측소 5 신용의 벽: GZ 신용 스프레드(연준 이사회 CSV) · 기업대출 상각률(연준 이사회 CHGDEL)
  *   관측소 6 신참 결절점: 대형 기술기업 5곳 설비투자(SEC XBRL, 회사별 요청 5번)
  *   + 관측소 3 헤지펀드 조달 조건(연준 SCOOS XML zip) · 관측소 4 딜러 국채 보유(뉴욕 연은 API)
- *   + 차트 오버레이용 나스닥·S&P 500 (지표 아님)
+ *   (차트 오버레이용 나스닥·S&P 500 수집은 미션 5부터 꺼짐 — MARKET_INDEX_COLLECTION)
  *
  * ⚠ 경로 이름이 sofr-iorb 로 남아 있지만 관측소 지표를 모두 여기서 모은다.
  *   경로를 바꾸면 vercel.json 의 cron path 도 같이 바꿔야 하고, 한쪽만 고치면
  *   cron 이 조용히 404 로 죽는다. 그래서 이름은 그대로 두고 지표만 추가한다.
  *   새 지표가 늘어도 이 파일에 수집 함수를 하나 더 붙이면 된다.
  *
- * 실행 시간 (maxDuration 60초): 2026-10-18 실측 로컬 프로덕션 7.9~8.7초, 배포 10~12초.
+ * 실행 시간 (maxDuration 60초): 미션 5 원출처 전환 뒤 로컬 프로덕션 약 20초(연준 발표 zip 6개 약 60MB). 배포 실측은 결정 로그 17장.
  *   관측소 4·5 수집기는 관측소별로 Promise.allSettled 로 동시에 받는다. 분기 FDIC 워크북(2.6MB)을
  *   받는 날의 시간은 아직 재지 못했다 — 40초를 넘기 시작하면 라우트를 나눌 것.
  *
@@ -69,6 +71,8 @@ export async function GET(request: Request) {
   if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  // 연준 발표 묶음(원출처)을 미리 동시에 받기 시작한다 — 아래 수집기들이 같은 결과를 기다린다(미션 5)
+  warmOriginReleases(isOriginSource);
 
   // 지표마다 따로 잡는다. 한쪽이 실패해도 다른 쪽은 저장된다
   const results: Record<string, unknown> = {};
@@ -267,14 +271,16 @@ export async function GET(request: Request) {
     }
   }
 
-  // 주가지수는 관측소 "지표" 가 아니라 SRF 차트에 겹쳐 그리는 참고 데이터다.
-  // 판정도 카드도 없지만 갱신 주기가 같아 여기서 같이 모은다.
-  try {
-    results.marketIndex = await collectMarketIndex();
-  } catch (error) {
-    const detail = error instanceof Error ? error.message : String(error);
-    console.error("[observatory] market-index 수집 실패:", error);
-    errors.marketIndex = detail;
+  // 주가지수(SP500·NASDAQCOM)는 미션 5부터 수집하지 않는다 — FRED 등급 "사전 승인 필요" 시리즈이고 화면에서도
+  // 쓰지 않는다(미션 4). 코드는 남겨 두고 lib/observatory-source-config.ts 의 MARKET_INDEX_COLLECTION 으로 끈다.
+  if (MARKET_INDEX_COLLECTION) {
+    try {
+      results.marketIndex = await collectMarketIndex();
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      console.error("[observatory] market-index 수집 실패:", error);
+      errors.marketIndex = detail;
+    }
   }
 
   const failed = Object.keys(errors);

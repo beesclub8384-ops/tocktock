@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { FredNotice } from "../source-notices";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
@@ -172,6 +173,7 @@ export default async function ObservatorySectionPage({
         </div>
       )}
 
+      <FredNotice keys={section.indicators.map((i) => i.key)} />
       <p className="mt-8 text-xs text-zinc-500">
         이 지표들은 시장 상황을 지켜보기 위한 참고 자료입니다. 투자 권유가 아니며,
         모든 투자 판단은 본인의 책임입니다.
