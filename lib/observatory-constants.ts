@@ -2105,3 +2105,92 @@ export function chargeOffFiringStats(points: QuarterRatePoint[]): FiringStats {
     points.map((_, i) => evaluateChargeOffAt(points, i).status)
   );
 }
+
+/* ════════════════════════════════════════════════════════════
+ * 관측소 6 — 신참 결절점
+ *
+ *   6-A AI 설비투자: 구현 — 대형 기술기업 5곳 설비투자 합계 (SEC XBRL, 대리 지표)
+ *                    미구현 — 관련 회사채 스프레드(기술기업 전용 무료 시리즈 없음),
+ *                             전력·설비 계약 취소(공개 정형 데이터 없음)
+ *   6-B 스테이블코인: 미구현 — 발행 잔액·디페그: 초안에 쓴 DefiLlama 이용약관이 허락 없는 재게시를
+ *                             금지(8조). 발행사 페이지·온체인 값은 재게시 조건과 과거 시계열을 확인하지 못함.
+ *                             준비금 구성: 발행사 공개 자료를 다시 실어도 되는지 확인하지 못함
+ * ════════════════════════════════════════════════════════════ */
+
+/* ────────────────────────────────────────────────────────────
+ * 6-A AI 설비투자 — 대형 기술기업 5곳(MSFT · GOOGL · AMZN · META · ORCL) 분기 설비투자 합계
+ *
+ * SEC XBRL 의 현금흐름표 "유형자산 취득" 지출을 회사별로 받아 분기 값으로 바꿔 합친다.
+ * AI 에만 쓴 돈이 아니라 **설비투자 전체**다(데이터센터·물류센터·사무실 등 섞임). 또 빌려서
+ * 쓴 돈(조달)인지 벌어서 쓴 돈인지는 이 숫자로 알 수 없다 — 대리 지표다.
+ *
+ * 판정 (2026-10-18 도입, 한 번만 적용)
+ *   - 합계는 추세적으로 커지므로 **전년 같은 분기 대비 증가율**로 본다.
+ *   - 그 시점까지 증가율 분포에서 상위 10% 이상 주의, 상위 3% 이상 경보.
+ *     최소 20개(5년) 쌓인 뒤부터. 분기 자료가 짧아(아래 아마존 단절 때문에 2017년부터)
+ *     10년(40개)을 기다리면 2028년 2분기까지 판정을 못 해서 5년으로 정했다. 20개로는 상위 3% 가
+ *     사실상 최댓값 근처라 경보가 드물게만 켜진다는 점도 함께 공개한다.
+ *   - 빨라지는 쪽만 본다: 이 관측소의 질문은 "투자가 너무 빨리 불어나 조달 부담이 쌓이는가" 다.
+ *     급감은 다른 위험(투자 중단)이지만 이번 규칙에는 넣지 않았다.
+ * ──────────────────────────────────────────────────────────── */
+
+export const CAPEX_MIN_OBS = 20;
+export const CAPEX_CAUTION_PCTILE = 90;
+export const CAPEX_ALERT_PCTILE = 97;
+
+export interface CapexQuarter {
+  /** 달력 분기 "2026Q2" (회사 회계분기 말일이 속한 달력 분기) */
+  quarter: string;
+  /** 회사별 분기 설비투자, 십억 달러 */
+  byCompany: Record<string, number>;
+  /** 5곳 합계, 십억 달러 (5곳 값이 모두 있는 분기만 저장) */
+  totalBillions: number;
+}
+
+export interface CapexRow extends CapexQuarter {
+  /** 전년 같은 분기 대비 증가율 (%) */
+  yoyPct: number | null;
+}
+
+function quarterIdx(q: string): number {
+  return Number(q.slice(0, 4)) * 4 + Number(q.slice(5, 6)) - 1;
+}
+
+export function withCapexChanges(points: CapexQuarter[]): CapexRow[] {
+  const by = new Map(points.map((p) => [quarterIdx(p.quarter), p]));
+  return points.map((p) => {
+    const prev = by.get(quarterIdx(p.quarter) - 4);
+    return {
+      ...p,
+      yoyPct: prev && prev.totalBillions > 0 ? (p.totalBillions / prev.totalBillions - 1) * 100 : null,
+    };
+  });
+}
+
+export function evaluateCapexAt(rows: CapexRow[], i: number): LevelVerdict {
+  const labels: string[] = [];
+  const values: number[] = [];
+  let k = -1;
+  rows.forEach((r, j) => {
+    if (j > i || r.yoyPct === null) return;
+    labels.push(r.quarter);
+    values.push(r.yoyPct);
+    if (j === i) k = values.length - 1;
+  });
+  if (k < 0) {
+    const r = rows[i];
+    return { status: null, latestLabel: r?.quarter ?? null, latestValue: null, cautionCut: null, alertCut: null, percentile: null, obs: values.length };
+  }
+  return levelVerdictAt(labels, values, k, CAPEX_MIN_OBS, CAPEX_CAUTION_PCTILE, CAPEX_ALERT_PCTILE);
+}
+
+export function evaluateCapex(rows: CapexRow[]): LevelVerdict {
+  return evaluateCapexAt(rows, rows.length - 1);
+}
+
+export function capexFiringStats(rows: CapexRow[]): FiringStats {
+  return tallyFiring(
+    rows.map((r) => r.quarter),
+    rows.map((_, i) => evaluateCapexAt(rows, i).status)
+  );
+}

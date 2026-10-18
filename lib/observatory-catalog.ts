@@ -39,7 +39,8 @@ export type ObservatoryIndicatorKey =
   | "rate-volatility"
   | "foreign-holdings"
   | "gz-spread"
-  | "business-chargeoffs";
+  | "business-chargeoffs"
+  | "ai-capex";
 
 export interface ObservatoryIndicatorMeta {
   key: ObservatoryIndicatorKey;
@@ -295,6 +296,28 @@ export const OBSERVATORY_SECTIONS: ObservatorySectionMeta[] = [
       },
     ],
   },
+  {
+    // id 는 지표 슬러그(ai-capex)와 겹치지 않게 짓는다 (assertCatalogIsSane)
+    id: "new-nodes",
+    number: 6,
+    name: "신참 결절점: 새로 커진 돈의 매듭",
+    shortName: "신참 결절점",
+    subtitle:
+      "지난 위기 때는 없었거나 작았던 곳에 돈이 빠르게 몰리고 있습니다. 처음 겪는 곳이라 무엇이 약한지 아직 아무도 모릅니다.",
+    chainNote:
+      "지금은 AI 데이터센터에 몰리는 대형 기술기업 설비투자 하나를 봅니다. 관련 회사채 스프레드와 전력·설비 계약 취소는 무료 정형 자료를 찾지 못해서, 스테이블코인 발행 잔액·디페그·준비금 구성은 다시 실어도 되는 무료 출처를 확인하지 못해서 넣지 않았습니다",
+    source: "미국 증권거래위원회(SEC) XBRL 공시",
+    indicators: [
+      {
+        key: "ai-capex",
+        order: 1,
+        href: "/observatory/ai-capex",
+        name: "AI 설비투자 (대형 기술기업 5곳)",
+        oneLiner:
+          "마이크로소프트·알파벳·아마존·메타·오라클의 분기 설비투자 합계가 1년 전보다 얼마나 빨리 늘었는지입니다. AI에만 쓴 돈이 아니라 설비투자 전체라 대리 지표입니다.",
+      },
+    ],
+  },
 ];
 
 /* ────────────────────────────────────────────────────────────
@@ -353,8 +376,8 @@ function assertCatalogIsSane(sections: ObservatorySectionMeta[]): void {
  *   지금처럼 최상위에서 부르면 레이아웃(navbar)이 이 모듈을 쓰는 덕에 빌드가
  *   실패하고, 잘못된 슬러그가 배포까지 가지 못한다.
  *
- *   대가는 클라이언트 번들에 검사 함수가 같이 실리는 것뿐이다. 섹션 5개 ·
- *   지표 17개를 훑는 루프라 실행 비용은 사실상 0이고, 조용히 안 뜨는 페이지를
+ *   대가는 클라이언트 번들에 검사 함수가 같이 실리는 것뿐이다. 섹션 6개 ·
+ *   지표 18개를 훑는 루프라 실행 비용은 사실상 0이고, 조용히 안 뜨는 페이지를
  *   막는 값으로는 싸다.
  */
 assertCatalogIsSane(OBSERVATORY_SECTIONS);

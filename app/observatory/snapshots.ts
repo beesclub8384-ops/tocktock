@@ -41,6 +41,8 @@ import {
   withTicChanges,
   evaluateGz,
   evaluateChargeOff,
+  evaluateCapex,
+  withCapexChanges,
   type ObservatoryStatus,
 } from "@/lib/observatory-constants";
 import { loadSofrIorb } from "@/lib/observatory-sofr-iorb";
@@ -65,6 +67,8 @@ import { loadYields } from "@/lib/observatory-rate-vol";
 import { loadTic } from "@/lib/observatory-tic";
 // 관측소 5 — 연준 GZ 신용 스프레드 · FRED CORBLACBS
 import { loadChargeOffs, loadGz } from "@/lib/observatory-credit";
+// 관측소 6 — SEC XBRL 공시
+import { loadCapex } from "@/lib/observatory-capex";
 // 카드 표기는 지표들을 나란히 놓고 읽는 화면이라 단위를 십억 달러로
 // 통일한다 (상세 페이지 포맷터는 지표별로 단위를 바꿔서 카드에는 안 맞는다).
 // 자세한 이유는 card-format.ts 상단 주석 참고.
@@ -372,6 +376,25 @@ const LOADERS: Record<ObservatoryIndicatorKey, () => Promise<IndicatorSnapshot>>
           raw: v.latestValue,
         }
       : EMPTY_SNAPSHOT;
+  },
+  // 관측소 6. 분기라 note 에 시점을 넣는다. raw 는 전년 같은 분기 대비 증가율
+  "ai-capex": async () => {
+    const rows = withCapexChanges(await orLog("ai-capex", loadCapex(), []));
+    const latest = rows[rows.length - 1];
+    if (!latest) return EMPTY_SNAPSHOT;
+    const v = evaluateCapex(rows);
+    return {
+      status: v.status,
+      value: {
+        main: formatCardBillions(latest.totalBillions).main,
+        note:
+          latest.yoyPct === null
+            ? `${latest.quarter.replace("Q", "년 ")}분기 5곳 합계`
+            : `${latest.quarter.replace("Q", "년 ")}분기 5곳 합계 · 전년 대비 ${latest.yoyPct >= 0 ? "+" : ""}${latest.yoyPct.toFixed(1)}%`,
+      },
+      asOf: null,
+      raw: latest.yoyPct,
+    };
   },
 };
 

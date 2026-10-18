@@ -24,6 +24,7 @@
  */
 import { redis } from "@/lib/redis";
 import type { MonthSpreadPoint, QuarterRatePoint } from "@/lib/observatory-constants";
+import { assertReplaceable, nextMonth, nextQuarter } from "@/lib/observatory-series-guard";
 
 const FRED_BASE = "https://api.stlouisfed.org/fred/series/observations";
 
@@ -35,42 +36,6 @@ export const CHARGEOFF_KEY = "observatory:business-chargeoffs";
 
 /** 이보다 적게 읽히면 파일 형식이 바뀐 것으로 보고 저장하지 않는다 (2026-10 실측 645개월) */
 const GZ_MIN_ROWS = 600;
-
-/** "2026-09" → 그다음 달 */
-function nextMonth(m: string): string {
-  const [y, mo] = m.split("-").map(Number);
-  return mo === 12 ? `${y + 1}-01` : `${y}-${String(mo + 1).padStart(2, "0")}`;
-}
-
-/** "2026Q2" → 그다음 분기 */
-function nextQuarter(q: string): string {
-  const y = Number(q.slice(0, 4));
-  const n = Number(q.slice(5));
-  return n === 4 ? `${y + 1}Q1` : `${y}Q${n + 1}`;
-}
-
-/**
- * 받은 시계열이 덮어써도 되는지 검사한다. 통과 못 하면 던져서 기존 저장분을 지킨다.
- *  - 중간이 빠지지 않았는가 (연속)
- *  - 최신 시점이 저장된 것보다 뒤로 가지 않았는가
- *  - 개수가 저장된 것보다 줄지 않았는가 (앞이나 끝이 잘린 파일)
- * 과거 값의 개정은 막지 않는다 — 두 출처 모두 개정이 정상이다.
- */
-function assertReplaceable(
-  what: string,
-  labels: string[],
-  existing: string[],
-  next: (l: string) => string
-): void {
-  for (let i = 1; i < labels.length; i++) {
-    if (labels[i] !== next(labels[i - 1])) throw new Error(`${what}: ${labels[i - 1]} 다음이 ${labels[i]} — 중간이 빠짐`);
-  }
-  if (existing.length === 0) return;
-  const last = labels[labels.length - 1];
-  const prevLast = existing[existing.length - 1];
-  if (last < prevLast) throw new Error(`${what}: 최신 ${last} 가 저장된 ${prevLast} 보다 앞섬`);
-  if (labels.length < existing.length) throw new Error(`${what}: ${labels.length}개 — 저장된 ${existing.length}개보다 적음`);
-}
 
 export async function loadGz(): Promise<MonthSpreadPoint[]> {
   // @upstash/redis 는 직렬화/역직렬화를 자동 처리한다 (JSON.parse 금지)

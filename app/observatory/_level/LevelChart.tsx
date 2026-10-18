@@ -87,7 +87,8 @@ export default function LevelChart({
   const lo = Math.min(...vals, ...cuts, bars ? 0 : Infinity);
   const hi = Math.max(...vals, ...cuts, bars ? 0 : -Infinity);
   const pad = (hi - lo) * 0.05 || 1;
-  const domain: [number, number] = [lo - pad, hi + pad];
+  // 막대인데 값이 모두 0 이상이면 아래 여백을 0 밑으로 내리지 않는다 (축이 -9.1 처럼 시작하던 것)
+  const domain: [number, number] = [bars && lo >= 0 ? 0 : lo - pad, hi + pad];
 
   return (
     <div>

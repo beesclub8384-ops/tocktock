@@ -339,6 +339,31 @@ export function summarizeCreditWall(
 }
 
 /* ────────────────────────────────────────────────────────────
+ * 관측소 6 — 신참 결절점
+ *
+ * 지금은 지표가 하나(대형 기술기업 설비투자)라 그 증가율과 판정을 그대로 붙인다.
+ * ──────────────────────────────────────────────────────────── */
+
+/**
+ * 예) "대형 기술기업 5곳 설비투자는 전년 대비 +86.5% — 주의"
+ */
+export function summarizeNewNodes(
+  statuses: ObservatoryStatusMap,
+  raw?: ObservatoryRawMap
+): ObservatorySummary {
+  const status = statuses["ai-capex"] ?? null;
+  const yoy = raw?.["ai-capex"];
+  if (status === null && typeof yoy !== "number") {
+    return { text: "현재 상태를 확인할 수 없습니다 (수집 대기)", status: null };
+  }
+  const yoyText =
+    typeof yoy === "number"
+      ? `대형 기술기업 5곳 설비투자는 전년 대비 ${yoy >= 0 ? "+" : ""}${yoy.toFixed(1)}%`
+      : "대형 기술기업 5곳 설비투자는 확인 불가";
+  return { text: `${yoyText} — ${status ? BASIS_TEXT[status] : "판정 보류"}`, status };
+}
+
+/* ────────────────────────────────────────────────────────────
  * 레지스트리
  * ──────────────────────────────────────────────────────────── */
 
@@ -352,6 +377,7 @@ const SECTION_SUMMARIZERS: Record<
   "shadow-banking": summarizeShadowBanking,
   "treasury-market": summarizeTreasuryMarket,
   "credit-wall": summarizeCreditWall,
+  "new-nodes": summarizeNewNodes,
 };
 
 /**

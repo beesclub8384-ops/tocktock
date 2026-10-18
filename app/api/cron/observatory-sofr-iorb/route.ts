@@ -28,12 +28,14 @@ import { collectYields } from "@/lib/observatory-rate-vol";
 import { collectTic } from "@/lib/observatory-tic";
 // 관측소 5 — 연준 GZ 신용 스프레드 · FRED CORBLACBS
 import { collectChargeOffs, collectGz } from "@/lib/observatory-credit";
+// 관측소 6 — SEC XBRL 공시
+import { collectCapex } from "@/lib/observatory-capex";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 /**
- * 관측소 전체 지표 수집 — 지금 5개 관측소 · 지표 17개
+ * 관측소 전체 지표 수집 — 지금 6개 관측소 · 지표 18개
  *   관측소 1 배관(FRED):  SOFR−IORB · SRF · 재할인 창구 · RRP · 지급준비금
  *   관측소 2 은행(FRED + FDIC 분기 워크북): 채권 미실현손실 · FHLB · 예금 유출 · CRE
  *   관측소 3 그림자금융: 국채 베이시스 트레이드 대리 지표(CFTC TFF) ·
@@ -41,6 +43,7 @@ export const maxDuration = 60;
  *   관측소 4 국채시장: 입찰 응찰 배율·딜러 비중(재무부 Fiscal Data, 한 번 받아 둘이 같이 씀) ·
  *                      10년물 금리 변동성(FRED DGS10) · 해외 보유(재무부 TIC)
  *   관측소 5 신용의 벽: GZ 신용 스프레드(연준 이사회 CSV) · 기업대출 상각률(FRED CORBLACBS)
+ *   관측소 6 신참 결절점: 대형 기술기업 5곳 설비투자(SEC XBRL, 회사별 요청 5번)
  *   + 차트 오버레이용 나스닥·S&P 500 (지표 아님)
  *
  * ⚠ 경로 이름이 sofr-iorb 로 남아 있지만 관측소 지표를 모두 여기서 모은다.
@@ -235,10 +238,12 @@ export async function GET(request: Request) {
   }
 
   // 관측소 5 — 두 출처가 서로 독립이라 동시에 받는다. 둘 다 과거 값이 고쳐질 수 있어 전체를 덮어쓴다
-  const [gz, chargeOffs] = await Promise.allSettled([collectGz(), collectChargeOffs()]);
+  // 관측소 6 — SEC 설비투자도 독립 출처라 같은 묶음에서 동시에 받는다 (회사 5곳은 안에서 차례로)
+  const [gz, chargeOffs, capex] = await Promise.allSettled([collectGz(), collectChargeOffs(), collectCapex()]);
   for (const [name, r] of [
     ["gzSpread", gz],
     ["businessChargeOffs", chargeOffs],
+    ["bigtechCapex", capex],
   ] as const) {
     if (r.status === "fulfilled") {
       results[name] = r.value;
