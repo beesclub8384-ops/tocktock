@@ -1,4 +1,5 @@
 import { ObservatoryBreadcrumb } from "../breadcrumb";
+import { CriteriaNote } from "../criteria-note";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import FhlbChart from "./FhlbChart";
@@ -164,12 +165,13 @@ export default async function FhlbPage() {
               재할인 창구는 &ldquo;저 은행 급하다&rdquo;는 낙인이 찍혀 평시엔 아무도
               안 쓰지만, FHLB는 평상시에도 쓰는 곳이라 급할 때 먼저 손이 갑니다.
             </strong>{" "}
-            그래서 연준 창구보다 <strong>앞서</strong> 움직입니다.
+            그래서 연준 창구보다 <strong>앞서</strong> 움직일 수 있습니다.
           </p>
           <p>
             특정 은행이나 지역의 차입이 갑자기 늘면 그 은행이 목말라졌다는 뜻입니다.
-            실제로 <strong>2008년, 2020년, 2023년 SVB 사태 직전</strong>에 이 잔액이
-            뚜렷이 급증했습니다. 차트의 세로 점선이 그 시점들입니다.
+            실제로 <strong>2007년 3분기(+28%), 2020년 1분기(+25%), 2023년 1분기(+27%)</strong>에
+            이 잔액이 크게 늘었습니다. 차트의 세로 점선이 그 시점들입니다. 다만 2022년 2분기(+40%)처럼
+            큰 위기 없이 급증한 때도 있어, 급증이 곧 위기라는 뜻은 아닙니다.
           </p>
           <p>
             잔액 자체보다 <strong>전분기 대비 증가율</strong>을 봅니다. 은행 자산이
@@ -184,6 +186,7 @@ export default async function FhlbPage() {
         </div>
       </section>
 
+      <CriteriaNote>전분기 대비 15% 이상 늘면 주의, 30% 이상 늘면 경보입니다.</CriteriaNote>
       <p className="text-xs text-zinc-500">
         이 지표는 시장 상황을 지켜보기 위한 참고 자료입니다. 투자 권유가 아니며, 모든
         투자 판단은 본인의 책임입니다.

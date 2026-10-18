@@ -9,6 +9,8 @@ import {
 import {
   evaluateNbfiLoans,
   findNbfiSurges,
+  nbfiFiringStats,
+  type FiringStats,
   NBFI_RECLASSIFICATIONS,
   NBFI_ALERT_PCTILE,
   NBFI_CAUTION_PCTILE,
@@ -31,6 +33,8 @@ export interface NbfiLoansResponse {
   status: ObservatoryStatus | null;
   /** 최신 보정 YoY 의 전 기간 분포 내 순위 (0~100) */
   yoyPercentile: number | null;
+  /** 판정할 수 있었던 주 중 주의 이상 비율 — 저장된 데이터로 매 요청 계산 */
+  firing: FiringStats;
   /** 보정에 쓴 재분류 표 (H.8 주석, 십억 달러) */
   reclassifications: typeof NBFI_RECLASSIFICATIONS;
   /** 점검 필요 주 — 판정과 무관. cut 은 십억 달러 */
@@ -78,6 +82,7 @@ export async function GET() {
       latest: v.latest,
       status: v.status,
       yoyPercentile: v.yoyPercentile,
+      firing: nbfiFiringStats(series),
       reclassifications: NBFI_RECLASSIFICATIONS,
       surges: (() => {
         const s = findNbfiSurges(points);

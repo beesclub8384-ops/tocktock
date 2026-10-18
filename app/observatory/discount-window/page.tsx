@@ -1,4 +1,5 @@
 import { ObservatoryBreadcrumb } from "../breadcrumb";
+import { CriteriaNote } from "../criteria-note";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import DiscountWindowChart from "./DiscountWindowChart";
@@ -9,7 +10,7 @@ import type { ObservatoryStatus } from "@/lib/observatory-constants";
 export const metadata: Metadata = {
   title: "관측소 · 재할인 창구 대출 잔액 | TockTock",
   description:
-    "은행들의 최후 비상구. 낙인 때문에 평시엔 아무도 안 쓰는 창구라, 잔액 급증은 가짜 양성이 없는 경보입니다.",
+    "은행들의 최후 비상구. 낙인 때문에 평시엔 거의 안 쓰는 창구라, 잔액이 급증하는 일 자체가 드뭅니다.",
 };
 
 export const dynamic = "force-dynamic";
@@ -98,8 +99,8 @@ export default async function DiscountWindowPage() {
           재할인 창구 대출 잔액
         </h1>
         <p className="text-sm text-zinc-500 mt-2">
-          은행들의 최후 비상구. 낙인 때문에 평시엔 아무도 안 쓰는 창구라, 잔액
-          급증은 가짜 양성이 없는 경보입니다.
+          은행들의 최후 비상구. 낙인 때문에 평시엔 거의 안 쓰는 창구라, 잔액이
+          급증하는 일 자체가 드뭅니다.
         </p>
         <p className="text-xs text-zinc-400 mt-1">
           출처: FRED (Federal Reserve Bank of St. Louis), 시리즈 {data.seriesId} ·
@@ -311,6 +312,7 @@ export default async function DiscountWindowPage() {
             </div>
           </div>
 
+          <CriteriaNote>10십억 달러 이상이면 주의, 50십억 달러를 넘으면 경보입니다. 전주 잔액이 1십억 달러 이상일 때 전주보다 2배 이상 늘어도 주의입니다.</CriteriaNote>
           <p className="text-xs text-zinc-500 pt-1">
             이 지표는 시장 상황을 지켜보기 위한 참고 자료입니다. 투자 권유가 아니며,
             모든 투자 판단은 본인의 책임입니다.

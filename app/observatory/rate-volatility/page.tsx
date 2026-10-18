@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { ObservatoryBreadcrumb } from "../breadcrumb";
+import { FiringRateLine } from "../firing-rate";
 import type { RateVolResponse } from "@/app/api/observatory/rate-volatility/route";
 import RateVolChart from "../_obs4/RateVolChart";
 import { formatDay } from "../_obs4/format";
@@ -114,9 +115,9 @@ export default async function Page() {
         <p className="text-zinc-500">
           과거에 이 규칙을 그 시점까지의 자료로만 적용해 보면, 2020년 3월에는 9일에 주의, 10일부터 경보였습니다. 2023년
           10월에는 21영업일 중 14일, 11월에는 모든 영업일이 주의 이상이었습니다. 2025년 4월 4일~11일은 금리가 크게 움직였지만 20영업일 평균으로는 주의 기준에
-          닿지 않아 정상이었습니다. 2000년 이후 판정할 수 있었던 날 중 약 12%에서 주의 이상이 켜졌고, 2022년에는 대부분의
-          날이 주의 이상이었습니다.
+          닿지 않아 정상이었습니다. 2022년에는 대부분의 날이 주의 이상이었습니다(2026년 10월 점검 기준).
         </p>
+        <FiringRateLine stats={data.firing} unit="영업일" />
       </Section>
 
       <Section title="언제 반영되나요">

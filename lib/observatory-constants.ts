@@ -1482,8 +1482,8 @@ export function findNbfiSurges(points: NbfiLoansPoint[]): NbfiSurgeCheck {
  *     경보는 그보다 4배 드물게 0.5%. 결과를 보고 고른 값이 아니라 데이터를 보기 전에 정했다.
  *     ⚠ 정할 때는 "28일 창에 보통 8~10개" 로 가정했는데, 독립 검증에서 실제로는 2016년 이후
  *       5~7개가 대부분(8개 이상 약 4%)인 것으로 확인됐다. 7개면 1 − 0.98^7 ≈ 13%. 가정은
- *       틀렸지만 기준값은 바꾸지 않았다 (한 번만 적용 원칙). 실제 창 발동은 응찰 배율 1.1%,
- *       딜러 비중 6.0% 로 계산보다 훨씬 낮다 — 놀람이 서로 독립이 아니기 때문으로 보인다.
+ *       틀렸지만 기준값은 바꾸지 않았다 (한 번만 적용 원칙). 실제 창 발동은 응찰 배율 0.55%,
+ *       딜러 비중 5.5% 로 계산보다 훨씬 낮다 (실제 만기 분류로 고친 뒤 값) — 놀람이 서로 독립이 아니기 때문으로 보인다.
  *   - 한쪽 방향만 본다: 응찰이 몰리는 것(배율 상승)이나 딜러 비중 하락은 수요가 강하다는
  *     뜻이라 경보 대상이 아니다.
  * ──────────────────────────────────────────────────────────── */
@@ -1808,4 +1808,147 @@ export function evaluateTicAt(rows: TicRow[], i: number): TicVerdict {
 
 export function evaluateTic(rows: TicRow[]): TicVerdict {
   return evaluateTicAt(rows, rows.length - 1);
+}
+
+/* ════════════════════════════════════════════════════════════
+ * 발동 비율 — "판정할 수 있었던 기간 중 주의 이상이 켜진 비율"
+ *
+ * 페이지에 숫자를 박지 않고, 저장된 데이터로 그때그때 계산해 보여 주려고 둔다.
+ * 각 시점의 판정은 위의 evaluate*At 와 **같은 규칙·같은 결과**여야 한다.
+ * (금리 변동성만 6,700일을 매번 다시 정렬하면 느려서, 정렬된 창을 유지하는 방식으로 계산한다.
+ *  결과가 evaluateRateVolAt 와 한 날도 다르지 않은지 구현 때 전 기간 대조했다.)
+ * ════════════════════════════════════════════════════════════ */
+
+export interface FiringStats {
+  /** 판정할 수 있었던 시점 수 (보류 제외) */
+  evaluable: number;
+  /** 그중 주의 이상 */
+  firing: number;
+  /** firing / evaluable × 100. 판정 가능 시점이 없으면 null */
+  pct: number | null;
+  /** 판정 가능한 첫 시점 · 마지막 시점 (날짜 또는 월) */
+  from: string | null;
+  to: string | null;
+}
+
+function tallyFiring(labels: string[], statuses: (ObservatoryStatus | null)[]): FiringStats {
+  let evaluable = 0;
+  let firing = 0;
+  let from: string | null = null;
+  let to: string | null = null;
+  statuses.forEach((s, i) => {
+    if (s === null) return;
+    evaluable++;
+    if (s !== "normal") firing++;
+    if (from === null) from = labels[i];
+    to = labels[i];
+  });
+  return { evaluable, firing, pct: evaluable > 0 ? (firing / evaluable) * 100 : null, from, to };
+}
+
+export function basisTradeFiringStats(rows: BasisTradeRow[]): FiringStats {
+  return tallyFiring(
+    rows.map((r) => r.date),
+    rows.map((_, i) => evaluateBasisTradeAt(rows, i).status)
+  );
+}
+
+export function nbfiFiringStats(rows: NbfiLoansRow[]): FiringStats {
+  return tallyFiring(
+    rows.map((r) => r.date),
+    rows.map((_, i) => evaluateNbfiLoansAt(rows, i).status)
+  );
+}
+
+export function ticFiringStats(rows: TicRow[]): FiringStats {
+  return tallyFiring(
+    rows.map((r) => r.month),
+    rows.map((_, i) => evaluateTicAt(rows, i).status)
+  );
+}
+
+/** 정렬된 배열에 값을 넣을 자리 (이진 탐색) */
+function lowerBound(a: number[], v: number): number {
+  let lo = 0;
+  let hi = a.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (a[mid] < v) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo;
+}
+
+/** 이미 정렬된 배열의 분위수 — quantile() 과 같은 식 (선형 보간) */
+function quantileSorted(s: number[], p: number): number {
+  const idx = (s.length - 1) * p;
+  const lo = Math.floor(idx);
+  const hi = Math.ceil(idx);
+  return s[lo] + (s[hi] - s[lo]) * (idx - lo);
+}
+
+/**
+ * 금리 변동성 발동 비율. evaluateRateVolAt 를 날마다 부르면 2,520개를 6,700번 정렬하게 되어
+ * 정렬된 창을 유지한다: 새 값은 이진 탐색으로 넣고, 창이 2,520개를 넘으면 가장 오래된 값을 뺀다.
+ */
+export function rateVolFiringStats(rows: RateVolRow[]): FiringStats {
+  return tallyFiring(rows.map((r) => r.date), rateVolStatuses(rows));
+}
+
+/** 날짜마다의 판정 — evaluateRateVolAt(rows, i).status 와 같아야 한다 */
+export function rateVolStatuses(rows: RateVolRow[]): (ObservatoryStatus | null)[] {
+  const sorted: number[] = [];
+  const order: number[] = []; // 창에 들어간 순서 (가장 오래된 것이 앞)
+  const statuses: (ObservatoryStatus | null)[] = [];
+  for (const r of rows) {
+    const v = r.rv20Bp;
+    if (v !== null) {
+      sorted.splice(lowerBound(sorted, v), 0, v);
+      order.push(v);
+      if (order.length > RV_RANK_WINDOW) {
+        const old = order.shift()!;
+        sorted.splice(lowerBound(sorted, old), 1);
+      }
+    }
+    if (v === null || sorted.length < RV_MIN_OBS) {
+      statuses.push(null);
+      continue;
+    }
+    const c = quantileSorted(sorted, RV_CAUTION_PCTILE / 100);
+    const a = quantileSorted(sorted, RV_ALERT_PCTILE / 100);
+    statuses.push(v >= a ? "warning" : v >= c ? "caution" : "normal");
+  }
+  return statuses;
+}
+
+/**
+ * 입찰 지표의 시점별 판정(28일 창) — evaluateAuctionAt(rows, i, m).status 와 같아야 한다.
+ * 입찰마다 분포를 다시 정렬하지 않고, 놀람 값을 정렬 배열에 하나씩 넣어 가며 등급을 낸다.
+ */
+export function auctionWindowStatuses(rows: AuctionRow[], m: AuctionMetric): (ObservatoryStatus | null)[] {
+  const sorted: number[] = [];
+  const grades: (ObservatoryStatus | null)[] = rows.map((r) => {
+    const v = surpriseOf(r, m);
+    if (v !== null) sorted.splice(lowerBound(sorted, v), 0, v);
+    if (v === null || sorted.length < AUCTION_MIN_OBS) return null;
+    const c = quantileSorted(sorted, (m === "btc" ? BTC_CAUTION_PCTILE : PD_CAUTION_PCTILE) / 100);
+    const a = quantileSorted(sorted, (m === "btc" ? BTC_ALERT_PCTILE : PD_ALERT_PCTILE) / 100);
+    return m === "btc"
+      ? v <= a ? "warning" : v <= c ? "caution" : "normal"
+      : v >= a ? "warning" : v >= c ? "caution" : "normal";
+  });
+  const SEV: Record<ObservatoryStatus, number> = { normal: 0, caution: 1, warning: 2 };
+  return rows.map((r, i) => {
+    let worst: ObservatoryStatus | null = null;
+    for (let j = i; j >= 0; j--) {
+      if (daysBetween(rows[j].date, r.date) >= AUCTION_WINDOW_DAYS) break;
+      const g = grades[j];
+      if (g && (worst === null || SEV[g] > SEV[worst])) worst = g;
+    }
+    return worst;
+  });
+}
+
+export function auctionFiringStats(rows: AuctionRow[], m: AuctionMetric): FiringStats {
+  return tallyFiring(rows.map((r) => r.date), auctionWindowStatuses(rows, m));
 }

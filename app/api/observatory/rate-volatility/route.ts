@@ -2,12 +2,14 @@ import { NextResponse } from "next/server";
 import { collectYields, loadYields, RATE_VOL_SERIES_ID } from "@/lib/observatory-rate-vol";
 import {
   evaluateRateVol,
+  rateVolFiringStats,
   RV_ALERT_PCTILE,
   RV_CAUTION_PCTILE,
   RV_MIN_OBS,
   RV_RANK_WINDOW,
   RV_WINDOW_DAYS,
   withRateVol,
+  type FiringStats,
   type ObservatoryStatus,
   type RateVolRow,
 } from "@/lib/observatory-constants";
@@ -21,6 +23,8 @@ export interface RateVolResponse {
   latest: RateVolRow | null;
   status: ObservatoryStatus | null;
   percentile: number | null;
+  /** 판정할 수 있었던 영업일 중 주의 이상 비율 — 전 기간(2000년~) 저장 데이터로 매 요청 계산 */
+  firing: FiringStats;
   seriesId: string;
   thresholds: {
     cautionPctile: number;
@@ -53,6 +57,7 @@ export async function GET() {
       latest: v.latest,
       status: v.status,
       percentile: v.percentile,
+      firing: rateVolFiringStats(rows),
       seriesId: RATE_VOL_SERIES_ID,
       thresholds: {
         cautionPctile: RV_CAUTION_PCTILE,

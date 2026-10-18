@@ -1,4 +1,5 @@
 import { ObservatoryBreadcrumb } from "../breadcrumb";
+import { CriteriaNote } from "../criteria-note";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import SrfChart from "./SrfChart";
@@ -255,6 +256,7 @@ export default async function SrfPage() {
             연준은 최근 이 창구의 이름을 SRP(상설 레포 운영)로 바꿔 부르고
             있습니다. 이 페이지에서는 익숙한 이름인 SRF로 씁니다.
           </p>
+          <CriteriaNote>최근 10영업일 중 1십억 달러 이상 쓰인 날이 1일 이상이면 주의, 3일 이상이면 경고입니다.</CriteriaNote>
           <p className="text-xs text-zinc-500">
             이 지표는 시장 상황을 지켜보기 위한 참고 자료입니다. 투자 권유가
             아니며, 모든 투자 판단은 본인의 책임입니다.

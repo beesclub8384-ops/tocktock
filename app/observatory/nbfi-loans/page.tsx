@@ -1,4 +1,5 @@
 import { ObservatoryBreadcrumb } from "../breadcrumb";
+import { FiringRateLine } from "../firing-rate";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import NbfiLoansChart from "./NbfiLoansChart";
@@ -295,10 +296,10 @@ export default async function NbfiLoansPage() {
           <p className="text-zinc-500">
             과거 데이터에 이 규칙을 그 시점까지의 데이터로만 적용해 보면, 2020년 3월에는 3월 18일
             기준일부터 경보가 켜졌습니다. 2023년 3월 SVB 때는 정상이었습니다. 재분류를 보정하기
-            전에는 2025년 53주 중 52주가 경보였는데, 보정 후에는 경보 8주, 주의 24주입니다. 판정할 수
-            있었던 406주 중 약 26%에서 주의 이상이 켜져, 보정 뒤에도 신호가 자주 나오는 편입니다.
-            이 결과를 보고 기준을 고치지는 않았습니다.
+            전에는 2025년 53주 중 52주가 경보였는데, 보정 후에는 경보 8주, 주의 24주입니다(2026년
+            10월 점검 기준). 아래 발동 비율을 보고 기준을 고치지는 않았습니다.
           </p>
+          <FiringRateLine stats={data.firing} unit="주" />
         </div>
       </section>
 

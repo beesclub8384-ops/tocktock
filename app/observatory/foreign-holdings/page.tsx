@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { ObservatoryBreadcrumb } from "../breadcrumb";
+import { FiringRateLine } from "../firing-rate";
 import type { TicResponse } from "@/app/api/observatory/foreign-holdings/route";
 import TicChart from "../_obs4/TicChart";
 import { formatBillions, formatMonth } from "../_obs4/format";
@@ -115,9 +116,9 @@ export default async function Page() {
         <p>이 지표는 위기를 미리 알려 주는 용도로 검증된 것이 아닙니다.</p>
         <p className="text-zinc-500">
           과거에 이 규칙을 그 시점까지의 자료로만 적용해 보면, 2020년 3월은 정상이었고 2022년 9월~2023년 2월에 경보가
-          이어졌습니다. 이때는 금리가 크게 올라 국채 가격이 떨어진 시기라, 실제로 판 것과 가격 하락이 섞여 있습니다. 판정할
-          수 있었던 달 중 약 13%에서 주의 이상이 켜졌습니다.
+          이어졌습니다. 이때는 금리가 크게 올라 국채 가격이 떨어진 시기라, 실제로 판 것과 가격 하락이 섞여 있습니다.
         </p>
+        <FiringRateLine stats={data.firing} unit="개월" />
       </Section>
 
       <Section title="자료의 단절">

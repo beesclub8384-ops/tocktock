@@ -14,8 +14,10 @@ import {
   BT_LONG_WEEKS,
   BT_LOOKBACK_WEEKS,
   BT_SHORT_WEEKS,
+  basisTradeFiringStats,
   evaluateBasisTrade,
   withChanges,
+  type FiringStats,
   type BasisTradeRow,
   type BasisTradeVerdict,
   type ObservatoryStatus,
@@ -39,6 +41,8 @@ export interface BasisTradeResponse {
   /** 순숏 변화의 구성 (숏·롱·미결제약정) — 판정과 무관한 참고 정보. 못 구하면 null */
   composition4w: BasisTradeComposition | null;
   composition8w: BasisTradeComposition | null;
+  /** 판정할 수 있었던 주 중 주의 이상 비율 — 저장된 데이터로 매 요청 계산 */
+  firing: FiringStats;
   datasetId: string;
   contracts: { code: string; label: string; faceUsd: number }[];
   thresholds: {
@@ -88,6 +92,7 @@ export async function GET() {
       percentile3y: v.percentile3y,
       composition4w: compositionAt(series, 4),
       composition8w: compositionAt(series, 8),
+      firing: basisTradeFiringStats(series),
       datasetId: BASIS_TRADE_DATASET_ID,
       contracts: Object.entries(BASIS_TRADE_CONTRACTS).map(([code, c]) => ({
         code,

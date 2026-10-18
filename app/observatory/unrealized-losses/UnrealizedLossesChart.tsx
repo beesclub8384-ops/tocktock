@@ -276,9 +276,8 @@ export default function UnrealizedLossesChart({
       <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-relaxed text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
         <strong>유령 손실의 정점({peakQuarter})은 사건({svbQuarter})보다 두 분기
         앞섰습니다.</strong>{" "}
-        은행 장부가 먼저 곪고 나서 SVB가 무너졌다는 뜻입니다. 이 지표를 사건이
-        터진 뒤에 보는 결과 보고서가 아니라, 앞서 켜지는 경고등으로 보는 이유가
-        여기 있습니다.
+        은행 장부가 먼저 곪고 나서 SVB가 무너졌습니다. 다만 이 한 번의 사례만으로
+        이 지표가 위기를 미리 알려 준다고 검증된 것은 아닙니다.
       </p>
     </div>
   );

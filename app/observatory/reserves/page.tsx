@@ -1,4 +1,5 @@
 import { ObservatoryBreadcrumb } from "../breadcrumb";
+import { CriteriaNote } from "../criteria-note";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import ReservesChart from "./ReservesChart";
@@ -372,6 +373,7 @@ export default async function ReservesPage() {
             </div>
           </div>
 
+          <CriteriaNote>2,800십억 달러를 넘으면 정상, 2,300십억 달러 미만이면 경보, 그 사이는 주의입니다. 차트의 2019년 수준은 참고선일 뿐 기준이 아닙니다.</CriteriaNote>
           <p className="text-xs text-zinc-500 pt-1">
             이 지표는 시장 상황을 지켜보기 위한 참고 자료입니다. 투자 권유가 아니며,
             모든 투자 판단은 본인의 책임입니다.

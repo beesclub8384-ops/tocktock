@@ -5,6 +5,7 @@
  * ⚠ "use client" 를 넣지 않는다. 차트(AuctionChart)만 클라이언트다.
  */
 import { ObservatoryBreadcrumb } from "../breadcrumb";
+import { FiringRateLine } from "../firing-rate";
 import type { AuctionMetricResponse } from "@/lib/observatory-auction-response";
 import AuctionChart from "./AuctionChart";
 import { auctionName, formatDay, signed, statusLabel } from "./format";
@@ -175,6 +176,7 @@ export default function AuctionPage({ data, metric }: Props) {
             ? "과거 입찰에 이 규칙을 그 시점까지의 자료로만 적용해 보면, 2020년 3월 국채시장 혼란기, 2023년 11월 9일 30년물 입찰(응찰 배율 2.24), 2025년 4월 8일 3년물 입찰 모두 정상으로 나왔습니다. 입찰 하나가 주의 이상이었던 경우는 2007년 11월 28일 2년물과 2012년 8월 8일 10년물, 두 번뿐입니다. 이 결과를 보고 기준을 고치지는 않았습니다."
             : "과거 입찰에 이 규칙을 그 시점까지의 자료로만 적용해 보면, 2020년 3월에는 3월 10~12일 입찰 무렵 최근 28일 창이 주의였습니다(2월 25일 2년물 입찰의 높은 딜러 비중 때문). 2023년 11월 9일 30년물 입찰과 2025년 4월 8일 3년물 입찰은 정상이었습니다. 이 결과를 보고 기준을 고치지는 않았습니다."}
         </p>
+        <FiringRateLine stats={data.firing} unit="개 입찰 시점" />
         {!isBtc && (
           <p className="text-zinc-500">
             재무부 자료에 딜러 낙찰액이 실린 것은 2008년 4월부터라, 그 전 입찰은 이 지표에 들어가지 않습니다.

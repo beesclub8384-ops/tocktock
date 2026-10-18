@@ -1,4 +1,5 @@
 import { ObservatoryBreadcrumb } from "../breadcrumb";
+import { CriteriaNote } from "../criteria-note";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import {
@@ -335,6 +336,7 @@ export default async function CrePage() {
         </div>
       </section>
 
+      <CriteriaNote>연체율 1.5% 이상 주의, 2.5% 이상 경보, 1년 상승폭 +0.5%p 이상 주의, +0.75%p 이상 경보, 지역은행 집중도 30% 이상 주의, 34% 이상 경보입니다. 상승 속도를 함께 보기로 한 것은 2010년·2023년 사례를 보고 정했지만, 0.5%p·0.75%p라는 값 자체의 근거는 따로 없습니다.</CriteriaNote>
       <p className="text-xs text-zinc-500">
         이 지표는 시장 상황을 지켜보기 위한 참고 자료입니다. 투자 권유가 아니며, 모든
         투자 판단은 본인의 책임입니다.

@@ -1,4 +1,5 @@
 import { ObservatoryBreadcrumb } from "../breadcrumb";
+import { CriteriaNote } from "../criteria-note";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import UnrealizedLossesChart from "./UnrealizedLossesChart";
@@ -216,6 +217,7 @@ export default async function UnrealizedLossesPage() {
         데이터를 처음 확인한 날입니다. FDIC 페이지에서 발표일을 기계적으로 읽을 방법이
         없어, 없는 정확도를 지어내는 대신 확인 시점을 그대로 적었습니다.
       </p>
+      <CriteriaNote>자기자본 대비 10% 이상이면 주의, 20%를 넘으면 경보입니다.</CriteriaNote>
       <p className="mt-2 text-xs text-zinc-500">
         이 지표는 시장 상황을 지켜보기 위한 참고 자료입니다. 투자 권유가 아니며, 모든
         투자 판단은 본인의 책임입니다.

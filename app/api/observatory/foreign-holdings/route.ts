@@ -2,11 +2,13 @@ import { NextResponse } from "next/server";
 import { collectTic, loadTic } from "@/lib/observatory-tic";
 import {
   evaluateTic,
+  ticFiringStats,
   TIC_ALERT_PCTILE,
   TIC_CAUTION_PCTILE,
   TIC_MIN_OBS,
   TIC_START_MONTH,
   withTicChanges,
+  type FiringStats,
   type ObservatoryStatus,
   type TicRow,
 } from "@/lib/observatory-constants";
@@ -19,6 +21,8 @@ export interface TicResponse {
   latest: TicRow | null;
   status: ObservatoryStatus | null;
   percentile: number | null;
+  /** 판정할 수 있었던 달 중 주의 이상 비율 — 저장된 데이터로 매 요청 계산 */
+  firing: FiringStats;
   thresholds: {
     cautionPctile: number;
     alertPctile: number;
@@ -49,6 +53,7 @@ export async function GET() {
       latest: v.latest,
       status: v.status,
       percentile: v.percentile,
+      firing: ticFiringStats(rows),
       thresholds: {
         cautionPctile: TIC_CAUTION_PCTILE,
         alertPctile: TIC_ALERT_PCTILE,

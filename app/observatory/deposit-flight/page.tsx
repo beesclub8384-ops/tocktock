@@ -1,4 +1,5 @@
 import { ObservatoryBreadcrumb } from "../breadcrumb";
+import { CriteriaNote } from "../criteria-note";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { QuarterlyChart, WeeklyChart } from "./DepositFlightCharts";
@@ -288,6 +289,7 @@ export default async function DepositFlightPage() {
         </div>
       </section>
 
+      <CriteriaNote>소형 은행 예금 비중이 한 주에 0.4%p 이상 줄면 주의, 0.7%p 이상 줄면 경보입니다. 무보험 예금 비중은 43% 이상이면 주의, 45% 이상이면 경보입니다.</CriteriaNote>
       <p className="text-xs text-zinc-500">
         이 지표는 시장 상황을 지켜보기 위한 참고 자료입니다. 투자 권유가 아니며, 모든
         투자 판단은 본인의 책임입니다.

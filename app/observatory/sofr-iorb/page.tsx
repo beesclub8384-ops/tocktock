@@ -1,4 +1,5 @@
 import { ObservatoryBreadcrumb } from "../breadcrumb";
+import { CriteriaNote } from "../criteria-note";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import SofrIorbChart from "./SofrIorbChart";
@@ -246,6 +247,7 @@ export default async function ObservatoryPage() {
             </div>
           </div>
 
+          <CriteriaNote>최근 10영업일 중 스프레드가 0보다 큰 날이 5일 이상이면 주의, 월말 마지막 3영업일을 뺀 날에 10bp 이상인 날이 하루라도 있으면 경고입니다.</CriteriaNote>
           <p className="text-xs text-zinc-500 pt-1">
             이 지표는 시장 상황을 지켜보기 위한 참고 자료입니다. 투자 권유가 아니며,
             모든 투자 판단은 본인의 책임입니다.

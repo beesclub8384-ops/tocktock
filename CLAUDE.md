@@ -33,6 +33,9 @@ claude --dangerously-skip-permissions
 
 ---
 
+## 관측소 작업 규칙
+- 관측소(`/observatory`) 작업은 `docs/observatory-mission-rules.md`를 따른다.
+
 ## 사이트 슬로건
 - TockTock의 공식 슬로건: "내가 매매하는데 보려고 만든 사이트"
 - 소개 문구, 메타 설명, 푸터, 페이지 설명 등 사이트를 소개할 때

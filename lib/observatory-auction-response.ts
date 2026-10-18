@@ -9,8 +9,10 @@ import {
   AUCTION_LOOKBACK,
   AUCTION_MIN_OBS,
   AUCTION_WINDOW_DAYS,
+  auctionFiringStats,
   evaluateAuction,
   withAuctionSurprises,
+  type FiringStats,
   type AuctionRow,
   type AuctionVerdict,
   type ObservatoryStatus,
@@ -23,6 +25,8 @@ export interface AuctionMetricResponse {
   status: ObservatoryStatus | null;
   /** 최근 28일 창의 입찰과 등급 (최근 → 과거) */
   window: AuctionVerdict["window"];
+  /** 판정할 수 있었던 입찰 시점 중 주의 이상 비율 — 저장된 데이터로 매 요청 계산 */
+  firing: FiringStats;
   thresholds: {
     cautionPctile: number;
     alertPctile: number;
@@ -60,6 +64,7 @@ export async function buildAuctionResponse(
     latest: v.latest,
     status: v.status,
     window: v.window,
+    firing: auctionFiringStats(series, metric),
     thresholds: {
       cautionPctile,
       alertPctile,

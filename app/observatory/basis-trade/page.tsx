@@ -1,4 +1,5 @@
 import { ObservatoryBreadcrumb } from "../breadcrumb";
+import { FiringRateLine } from "../firing-rate";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import BasisTradeChart from "./BasisTradeChart";
@@ -357,9 +358,9 @@ export default async function BasisTradePage() {
             있습니다. 롱이 늘어서 순숏이 줄어도 주의나 경보가 켜질 수 있습니다.
           </p>
           <p>
-            2016년 4월 이후 주의 이상이 켜진 65주를 살펴보면, 22주는 여러 만기에서 숏이 함께
-            줄고 미결제약정도 줄어든 모습이었고, 나머지 대부분은 롱 증가나 미결제약정 증가 등이
-            섞인 모습이었습니다.
+            2016년 4월 이후 주의 이상이 켜진 65주를 살펴보면(2026년 10월 점검 기준), 22주는 여러
+            만기에서 숏이 함께 줄고 미결제약정도 줄어든 모습이었고, 나머지 대부분은 롱 증가나
+            미결제약정 증가 등이 섞인 모습이었습니다.
           </p>
           <p>
             이 지표는 위기를 미리 알려 주는 용도로 검증된 것이 아닙니다. 2020년 3월에도 첫 경보
@@ -368,10 +369,10 @@ export default async function BasisTradePage() {
           </p>
           <p className="text-zinc-500">
             과거 데이터에 이 규칙을 그 시점까지의 데이터로만 적용해 보면, 2020년 3월 코로나
-            때는 3월 10일 보고분부터 경보가 켜졌습니다. 대신 판정할 수 있었던 394주 중 약
-            16%에서 주의 이상이 켜져, 신호가 꽤 자주 나오는 편입니다. 이 결과를 보고 기준을
-            다시 고치지는 않았습니다.
+            때는 3월 10일 보고분부터 경보가 켜졌습니다. 아래 발동 비율을 보고 기준을 다시 고치지는
+            않았습니다.
           </p>
+          <FiringRateLine stats={data.firing} unit="주" />
         </div>
       </section>
 
