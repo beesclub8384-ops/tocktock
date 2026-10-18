@@ -1213,3 +1213,133 @@ export function evaluateBasisTradeAt(rows: BasisTradeRow[], i: number): BasisTra
 export function evaluateBasisTrade(rows: BasisTradeRow[]): BasisTradeVerdict {
   return evaluateBasisTradeAt(rows, rows.length - 1);
 }
+
+/* ────────────────────────────────────────────────────────────
+ * 은행의 비예금 금융기관(NDFI) 대출 (관측소 3 — 그림자금융)
+ *
+ * FRED LNFACBW027SBOG (Fed H.8, 전체 상업은행, 계절조정, 주간 수요일, 십억 달러).
+ * 은행이 "은행이 아닌 금융회사"에 빌려준 대출 전체다. 사모신용만 잰 값이 아니다.
+ *
+ * 판정 규칙 (2026-10 도입, 한 번만 적용하고 결과에 맞춰 다시 조정하지 않았다)
+ *   - 수준이 아니라 **전년 대비 증가율(YoY, 52주 전 대비 %)** 로 본다.
+ *     잔액은 추세적으로 커지는 시계열이라 수준 백분위로 판정하면 상시 경보가 된다.
+ *   - 각 시점까지 쌓인 YoY 분포에서 상위 10% 이상이면 주의, 상위 3% 이상이면 경보.
+ *     분포에 YoY 가 157개(약 3년) 이상 쌓인 뒤부터 판정하고, 그 전은 판정 보류.
+ *   - 감소 방향(대출 급감)은 판정에 쓰지 않는다. 13주 변화는 참고로만 보여준다.
+ *
+ * ⚠ H.8 은 2025-01-01 이후 여러 차례 다른 대출 항목을 NDFI 대출로 **재분류**했다
+ *   (보고 지침 변경). 재분류로 늘어난 잔액도 YoY 에 그대로 섞인다 — 보정하지 않았다.
+ * ⚠ 주간 값은 분기말 Call Report 에 맞춰 사후 개정된다. 수집기는 매번 전체를 다시 받는다.
+ * ──────────────────────────────────────────────────────────── */
+
+/** 주의 — YoY 가 그 시점까지 분포의 이 백분위 이상 */
+export const NBFI_CAUTION_PCTILE = 90;
+
+/** 경보 — YoY 가 그 시점까지 분포의 이 백분위 이상 */
+export const NBFI_ALERT_PCTILE = 97;
+
+/** 판정을 시작하는 최소 YoY 개수 (주). 157주 ≈ 3년 */
+export const NBFI_MIN_YOY_OBS = 157;
+
+/** YoY 비교 간격 (주) */
+export const NBFI_YOY_WEEKS = 52;
+
+/** 참고 카드 — 13주 변화 */
+export const NBFI_CHANGE_WEEKS = 13;
+
+/** n주 전 비교를 인정하는 날짜 간격 허용 오차 (일). 주간 시리즈에 빠진 주가 있으면 null */
+export const NBFI_GAP_TOLERANCE_DAYS = 3;
+
+export interface NbfiLoansPoint {
+  /** 기준일(수요일) YYYY-MM-DD */
+  date: string;
+  /** NDFI 대출 잔액, 십억 달러 (FRED 원단위 그대로, 계절조정) */
+  loansBillions: number;
+  /** 같은 날 총대출(TOTLL, 십억 달러, 계절조정). 없으면 null */
+  totalLoansBillions: number | null;
+}
+
+export interface NbfiLoansRow extends NbfiLoansPoint {
+  /** 52주 전 대비 증가율 (%). 못 구하면 null */
+  yoyPct: number | null;
+  /** 13주 전 대비 변화, 십억 달러. 못 구하면 null */
+  change13wBillions: number | null;
+  /** 총대출 대비 비중 (%). 총대출이 없으면 null */
+  shareOfTotalPct: number | null;
+}
+
+export interface NbfiLoansVerdict {
+  /** 최종 판정. 계산할 수 없으면 null (판정 보류) */
+  status: ObservatoryStatus | null;
+  latest: NbfiLoansRow | null;
+  /** 그 시점까지 YoY 분포의 90 / 97 백분위 (%) */
+  cautionCutoffPct: number | null;
+  alertCutoffPct: number | null;
+  /** 최신 YoY 의 분포 내 순위 (0~100, 높을수록 큼) */
+  yoyPercentile: number | null;
+  /** 분포에 쓴 YoY 개수 */
+  yoyObs: number;
+}
+
+/** 날짜 오름차순 점들에 YoY·13주 변화·비중을 붙인다 */
+export function withNbfiChanges(points: NbfiLoansPoint[]): NbfiLoansRow[] {
+  const back = (i: number, n: number): NbfiLoansPoint | null => {
+    if (i < n) return null;
+    const prev = points[i - n];
+    const gap = daysBetween(prev.date, points[i].date);
+    return Math.abs(gap - n * 7) > NBFI_GAP_TOLERANCE_DAYS ? null : prev;
+  };
+  return points.map((p, i) => {
+    const y = back(i, NBFI_YOY_WEEKS);
+    const q = back(i, NBFI_CHANGE_WEEKS);
+    return {
+      ...p,
+      yoyPct: y && y.loansBillions > 0 ? (p.loansBillions / y.loansBillions - 1) * 100 : null,
+      change13wBillions: q ? p.loansBillions - q.loansBillions : null,
+      shareOfTotalPct:
+        p.totalLoansBillions && p.totalLoansBillions > 0
+          ? (p.loansBillions / p.totalLoansBillions) * 100
+          : null,
+    };
+  });
+}
+
+/** rows 의 i 번째 시점에서 판정한다 (i 이후 데이터는 보지 않는다) */
+export function evaluateNbfiLoansAt(rows: NbfiLoansRow[], i: number): NbfiLoansVerdict {
+  const empty: NbfiLoansVerdict = {
+    status: null,
+    latest: null,
+    cautionCutoffPct: null,
+    alertCutoffPct: null,
+    yoyPercentile: null,
+    yoyObs: 0,
+  };
+  if (i < 0 || i >= rows.length) return empty;
+  const latest = rows[i];
+  const dist = rows
+    .slice(0, i + 1)
+    .map((r) => r.yoyPct)
+    .filter((v): v is number => typeof v === "number");
+  if (dist.length < NBFI_MIN_YOY_OBS || latest.yoyPct === null) {
+    return { ...empty, latest, yoyObs: dist.length };
+  }
+  const cautionCutoffPct = quantile(dist, NBFI_CAUTION_PCTILE / 100);
+  const alertCutoffPct = quantile(dist, NBFI_ALERT_PCTILE / 100);
+  const y = latest.yoyPct;
+  const status: ObservatoryStatus =
+    y >= alertCutoffPct ? "warning" : y >= cautionCutoffPct ? "caution" : "normal";
+  return {
+    status,
+    latest,
+    cautionCutoffPct,
+    alertCutoffPct,
+    // 순위 = 분포 안에서 최신값 이하인 값의 비율 (최신값 자신 포함)
+    yoyPercentile: (dist.filter((v) => v <= y).length / dist.length) * 100,
+    yoyObs: dist.length,
+  };
+}
+
+/** 현재(가장 최근 기준일) 판정. rows 는 withNbfiChanges 결과, 날짜 오름차순 */
+export function evaluateNbfiLoans(rows: NbfiLoansRow[]): NbfiLoansVerdict {
+  return evaluateNbfiLoansAt(rows, rows.length - 1);
+}

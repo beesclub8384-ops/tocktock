@@ -21,15 +21,17 @@ import {
 } from "@/lib/observatory-cre";
 // 관측소 3 — CFTC TFF 보고서 (FRED 아님)
 import { collectBasisTrade } from "@/lib/observatory-basis-trade";
+import { collectNbfiLoans } from "@/lib/observatory-nbfi-loans";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 /**
- * 관측소 전체 지표 수집 — 지금 3개 관측소 · 지표 10개
+ * 관측소 전체 지표 수집 — 지금 3개 관측소 · 지표 11개
  *   관측소 1 배관(FRED):  SOFR−IORB · SRF · 재할인 창구 · RRP · 지급준비금
  *   관측소 2 은행(FRED + FDIC 분기 워크북): 채권 미실현손실 · FHLB · 예금 유출 · CRE
- *   관측소 3 그림자금융(CFTC TFF): 국채 베이시스 트레이드 대리 지표
+ *   관측소 3 그림자금융: 국채 베이시스 트레이드 대리 지표(CFTC TFF) ·
+ *                        은행의 비예금 금융기관 대출(FRED, H.8)
  *   + 차트 오버레이용 나스닥·S&P 500 (지표 아님)
  *
  * ⚠ 경로 이름이 sofr-iorb 로 남아 있지만 관측소 지표를 모두 여기서 모은다.
@@ -175,6 +177,17 @@ export async function GET(request: Request) {
     const detail = error instanceof Error ? error.message : String(error);
     console.error("[observatory] basis-trade 수집 실패:", error);
     errors.basisTrade = detail;
+  }
+
+  // 관측소 3 — 은행의 NDFI 대출(FRED H.8). 과거 값이 사후 개정되는 시리즈라
+  // 매번 전체(약 600건)를 받아 덮어쓴다. H.8 발표(금 16:15 ET)가 이 cron 보다
+  // 늦어 월요일 실행에서 그 전주 수요일 값이 처음 잡힌다 — 정상이다.
+  try {
+    results.nbfiLoans = await collectNbfiLoans();
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    console.error("[observatory] nbfi-loans 수집 실패:", error);
+    errors.nbfiLoans = detail;
   }
 
   // 주가지수는 관측소 "지표" 가 아니라 SRF 차트에 겹쳐 그리는 참고 데이터다.

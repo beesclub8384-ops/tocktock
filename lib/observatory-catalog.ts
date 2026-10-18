@@ -31,7 +31,8 @@ export type ObservatoryIndicatorKey =
   | "fhlb"
   | "deposit-flight"
   | "cre"
-  | "basis-trade";
+  | "basis-trade"
+  | "nbfi-loans";
 
 export interface ObservatoryIndicatorMeta {
   key: ObservatoryIndicatorKey;
@@ -189,8 +190,9 @@ export const OBSERVATORY_SECTIONS: ObservatorySectionMeta[] = [
     subtitle:
       "은행이 아닌 곳에서 빌린 돈으로 크게 굴리는 거래를 봅니다. 규제 밖이라 잘 보이지 않고, 흔들리면 한꺼번에 몰려 나옵니다.",
     chainNote:
-      "관측소 2가 은행의 몸 상태를 본다면, 여기는 은행 밖에서 레버리지를 쓰는 곳을 봅니다. 지금은 국채 베이시스 트레이드 하나만 보고 있습니다",
-    source: "CFTC Traders in Financial Futures (Futures Only)",
+      "관측소 2가 은행의 몸 상태를 본다면, 여기는 은행 밖에서 레버리지를 쓰는 곳을 봅니다. 지금은 국채 베이시스 트레이드와 은행의 비예금 금융기관 대출 두 가지를 보고 있습니다",
+    source:
+      "CFTC Traders in Financial Futures (Futures Only) · 연방준비제도 H.8 (FRED)",
     indicators: [
       {
         key: "basis-trade",
@@ -199,6 +201,14 @@ export const OBSERVATORY_SECTIONS: ObservatorySectionMeta[] = [
         name: "국채 베이시스 트레이드 (대리 지표)",
         oneLiner:
           "헤지펀드가 국채 선물을 판 규모입니다. 현물과 선물의 가격 차이를 노리는 레버리지 거래가 얼마나 쌓였는지 짐작해 봅니다.",
+      },
+      {
+        key: "nbfi-loans",
+        order: 2,
+        href: "/observatory/nbfi-loans",
+        name: "은행의 비예금 금융기관 대출",
+        oneLiner:
+          "은행이 사모펀드·보험사·헤지펀드 같은 은행 아닌 금융회사에 빌려준 돈입니다. 그림자금융에 대한 은행의 노출이 얼마나 빠르게 커지는지 봅니다.",
       },
     ],
   },
@@ -261,7 +271,7 @@ function assertCatalogIsSane(sections: ObservatorySectionMeta[]): void {
  *   실패하고, 잘못된 슬러그가 배포까지 가지 못한다.
  *
  *   대가는 클라이언트 번들에 검사 함수가 같이 실리는 것뿐이다. 섹션 3개 ·
- *   지표 10개를 훑는 루프라 실행 비용은 사실상 0이고, 조용히 안 뜨는 페이지를
+ *   지표 11개를 훑는 루프라 실행 비용은 사실상 0이고, 조용히 안 뜨는 페이지를
  *   막는 값으로는 싸다.
  */
 assertCatalogIsSane(OBSERVATORY_SECTIONS);

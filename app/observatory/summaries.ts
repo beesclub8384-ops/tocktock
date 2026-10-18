@@ -206,8 +206,8 @@ export function summarizeBanks(
 /* ────────────────────────────────────────────────────────────
  * 관측소 3 — 그림자금융
  *
- * 지금은 지표가 국채 베이시스 하나라 묶어 읽을 덩어리가 없다.
- * 판정 상태와 최근 3년 백분위를 그대로 한 줄로 말한다.
+ * 두 지표(국채 베이시스, 은행의 NDFI 대출)는 묶어 읽을 덩어리가 아니다.
+ * 각자의 숫자를 한 줄에 나란히 두고, 끝에 둘 중 더 나쁜 상태를 붙인다.
  * ──────────────────────────────────────────────────────────── */
 
 const BASIS_TEXT: Record<ObservatoryStatus, string> = {
@@ -219,28 +219,37 @@ const BASIS_TEXT: Record<ObservatoryStatus, string> = {
 /**
  * 관측소 3 요약.
  *
- * 예) "국채 베이시스(대리 지표)는 최근 3년 중 22번째 백분위 — 정상"
+ * 예) "국채 베이시스(대리 지표)는 최근 3년 중 22번째 백분위,
+ *      은행의 NDFI 대출은 전년 대비 +20.0% — 정상"
  */
 export function summarizeShadowBanking(
   statuses: ObservatoryStatusMap,
   raw?: ObservatoryRawMap
 ): ObservatorySummary {
-  const status = statuses["basis-trade"] ?? null;
+  const basis = statuses["basis-trade"] ?? null;
+  const nbfi = statuses["nbfi-loans"] ?? null;
   const pctile = raw?.["basis-trade"];
+  const yoy = raw?.["nbfi-loans"];
 
   // 값도 상태도 없으면 수집 전이다. 상태를 지어내지 않는다
-  if (status === null && typeof pctile !== "number") {
+  if (basis === null && nbfi === null && typeof pctile !== "number" && typeof yoy !== "number") {
     return { text: "현재 상태를 확인할 수 없습니다 (수집 대기)", status: null };
   }
 
-  const position =
+  const basisText =
     typeof pctile === "number"
-      ? `최근 3년 중 ${pctile.toFixed(0)}번째 백분위`
-      : "최근 3년 백분위 계산 불가";
+      ? `국채 베이시스(대리 지표)는 최근 3년 중 ${pctile.toFixed(0)}번째 백분위`
+      : "국채 베이시스는 확인 불가";
+  const nbfiText =
+    typeof yoy === "number"
+      ? `은행의 NDFI 대출은 전년 대비 ${yoy >= 0 ? "+" : ""}${yoy.toFixed(1)}%`
+      : "은행의 NDFI 대출은 확인 불가";
 
+  // 둘 다 판정이 있으면 더 나쁜 쪽, 하나만 있으면 그쪽. 둘 다 없으면 보류
+  const overall = worstStatus([basis, nbfi]);
   return {
-    text: `국채 베이시스(대리 지표)는 ${position} — ${status ? BASIS_TEXT[status] : "판정 보류"}`,
-    status,
+    text: `${basisText}, ${nbfiText} — ${overall ? BASIS_TEXT[overall] : "판정 보류"}`,
+    status: overall,
   };
 }
 
