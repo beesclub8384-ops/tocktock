@@ -20,7 +20,7 @@
  * 월요일 실행에서 들어온다. 연휴 주는 월요일 발표라 화요일에 들어온다.
  */
 import { redis } from "@/lib/redis";
-import type { BasisTradePoint } from "@/lib/observatory-constants";
+import type { BasisTradePoint, BasisTradeRow } from "@/lib/observatory-constants";
 
 const CFTC_BASE = "https://publicreporting.cftc.gov/resource";
 
@@ -143,6 +143,12 @@ export function aggregateRows(rows: CftcRow[]): {
     let netShortContracts = 0;
     let notionalUsd = 0;
     let openInterest = 0;
+    // 구성 표시용 (판정에는 안 쓴다). 순숏 액면은 위 notionalUsd 를 그대로 쓴다 —
+    // 저장된 기존 값과 계산 순서까지 같아야 한 비트도 안 바뀐다.
+    let longContracts = 0;
+    let shortContracts = 0;
+    let longUsd = 0;
+    let shortUsd = 0;
     for (const [code, { faceUsd }] of Object.entries(BASIS_TRADE_CONTRACTS)) {
       const r = g.get(code)!;
       const long = toNumber(r.lev_money_positions_long, "lev_money_positions_long", date, code);
@@ -152,6 +158,10 @@ export function aggregateRows(rows: CftcRow[]): {
       netShortContracts += net;
       notionalUsd += net * faceUsd;
       openInterest += oi;
+      longContracts += long;
+      shortContracts += short;
+      longUsd += long * faceUsd;
+      shortUsd += short * faceUsd;
     }
 
     points.push({
@@ -161,6 +171,10 @@ export function aggregateRows(rows: CftcRow[]): {
       notionalBillions: notionalUsd / 1e9,
       openInterest,
       netShortPctOfOi: openInterest > 0 ? (netShortContracts / openInterest) * 100 : 0,
+      longContracts,
+      shortContracts,
+      longNotionalBillions: longUsd / 1e9,
+      shortNotionalBillions: shortUsd / 1e9,
     });
   }
   return { points, skippedDates };
@@ -171,6 +185,10 @@ export function aggregateRows(rows: CftcRow[]): {
  *
  * 96a85a8 판에서는 각 점에 change4wPct 를 함께 저장했다. 병합은 기존 객체를
  * 그대로 들고 가므로, 걸러내지 않으면 옛 필드가 영원히 남는다.
+ *
+ * ⚠ 필드는 **추가만** 한다. 지우거나 이름을 바꾸면 배포가 끝나기 전 옛 코드가
+ *   새 데이터를 읽다가 깨진다 (실제로 change4wPct 를 지웠을 때 배포 직전 잠깐
+ *   "판정 보류" 가 보였다).
  */
 function toStored(p: BasisTradePoint): BasisTradePoint {
   return {
@@ -179,11 +197,26 @@ function toStored(p: BasisTradePoint): BasisTradePoint {
     notionalBillions: p.notionalBillions,
     openInterest: p.openInterest,
     netShortPctOfOi: p.netShortPctOfOi,
+    ...(p.longContracts !== undefined && { longContracts: p.longContracts }),
+    ...(p.shortContracts !== undefined && { shortContracts: p.shortContracts }),
+    ...(p.longNotionalBillions !== undefined && { longNotionalBillions: p.longNotionalBillions }),
+    ...(p.shortNotionalBillions !== undefined && { shortNotionalBillions: p.shortNotionalBillions }),
   };
 }
 
+/** 구성 필드(롱·숏)가 빠진 점이 있으면 전체를 다시 받아야 한다 */
+function missingCompositionFields(points: BasisTradePoint[]): boolean {
+  return points.some(
+    (p) =>
+      p.longContracts === undefined ||
+      p.shortContracts === undefined ||
+      p.longNotionalBillions === undefined ||
+      p.shortNotionalBillions === undefined
+  );
+}
+
 export interface BasisTradeCollectResult {
-  /** 이번 실행이 전체 백필이었는지 */
+  /** 이번 실행이 전체 백필이었는지 (처음이거나, 구성 필드가 빠진 점이 있어서) */
   backfill: boolean;
   /** 저장 후 전체 보고일 수 */
   total: number;
@@ -200,6 +233,8 @@ export interface BasisTradeCollectResult {
  *
  * 처음에는 2016-04-01 이후 전체를, 이후에는 마지막 저장일 기준 최근 10주를
  * 다시 받아 **같은 날짜는 덮어쓴다** (몇 번을 돌려도 결과가 같다).
+ * 구성 필드(롱·숏)가 없는 점이 하나라도 있으면 전체를 다시 받아 채운다 —
+ * 필드를 추가하기 전에 저장된 550주를 한 번에 백필하는 경로다.
  *
  * 받은 행이 하나도 없거나 호출이 실패하면 기존 저장분을 건드리지 않고 던진다.
  * cron 이 errors 에 남기게 하려는 것이다 — 조용히 0건 성공으로 끝나면 갱신이
@@ -207,7 +242,7 @@ export interface BasisTradeCollectResult {
  */
 export async function collectBasisTrade(): Promise<BasisTradeCollectResult> {
   const existing = await loadBasisTrade();
-  const backfill = existing.length === 0;
+  const backfill = existing.length === 0 || missingCompositionFields(existing);
 
   let fromDate = BASIS_TRADE_START;
   if (!backfill) {
@@ -239,5 +274,63 @@ export async function collectBasisTrade(): Promise<BasisTradeCollectResult> {
     skippedDates,
     latestDate: latest.date,
     latestNotionalBillions: latest.notionalBillions,
+  };
+}
+
+/* ────────────────────────────────────────────────────────────
+ * 순숏 변화의 구성 — 읽을 때 계산한다 (저장하지 않는다)
+ *
+ * 순숏 = 숏 − 롱 이라, 순숏이 줄어든 주에는 "숏이 줄었나, 롱이 늘었나" 가
+ * 섞여 있다. 판정은 순숏만 보지만, 화면에서 둘을 나눠 볼 수 있게 한다.
+ * ──────────────────────────────────────────────────────────── */
+
+export interface BasisTradeComposition {
+  weeks: number;
+  /** 비교 기준 보고일 (n회차 전) */
+  fromDate: string;
+  toDate: string;
+  /** 숏 액면 변화, 십억 달러 */
+  shortChangeBillions: number;
+  /** 롱 액면 변화, 십억 달러 */
+  longChangeBillions: number;
+  /** 순숏 액면 변화 = 숏 변화 − 롱 변화, 십억 달러 (withChanges 의 n주 변화와 같다) */
+  netChangeBillions: number;
+  /** 미결제약정 합계 변화 (계약 수) */
+  openInterestChange: number;
+}
+
+/**
+ * rows 의 마지막 시점과 n회차 전 사이의 구성 변화.
+ *
+ * n주 변화를 인정할지(날짜 간격 검사)는 withChanges 의 결과를 그대로 따른다 —
+ * 여기서 따로 판단하면 카드의 4주·8주 변화와 구성 영역의 기준이 어긋날 수 있다.
+ * 구성 필드가 없는 점이면 null.
+ */
+export function compositionAt(
+  rows: BasisTradeRow[],
+  weeks: 4 | 8
+): BasisTradeComposition | null {
+  const i = rows.length - 1;
+  if (i < weeks) return null;
+  const cur = rows[i];
+  const valid = weeks === 4 ? cur.change4wBillions : cur.change8wBillions;
+  if (valid === null) return null;
+  const prev = rows[i - weeks];
+  if (
+    cur.shortNotionalBillions === undefined ||
+    cur.longNotionalBillions === undefined ||
+    prev.shortNotionalBillions === undefined ||
+    prev.longNotionalBillions === undefined
+  ) {
+    return null;
+  }
+  return {
+    weeks,
+    fromDate: prev.date,
+    toDate: cur.date,
+    shortChangeBillions: cur.shortNotionalBillions - prev.shortNotionalBillions,
+    longChangeBillions: cur.longNotionalBillions - prev.longNotionalBillions,
+    netChangeBillions: cur.notionalBillions - prev.notionalBillions,
+    openInterestChange: cur.openInterest - prev.openInterest,
   };
 }

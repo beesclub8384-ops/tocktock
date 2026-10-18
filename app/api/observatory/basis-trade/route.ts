@@ -3,7 +3,9 @@ import {
   BASIS_TRADE_CONTRACTS,
   BASIS_TRADE_DATASET_ID,
   collectBasisTrade,
+  compositionAt,
   loadBasisTrade,
+  type BasisTradeComposition,
 } from "@/lib/observatory-basis-trade";
 import {
   BT_CONC_PCTILE,
@@ -34,6 +36,9 @@ export interface BasisTradeResponse {
   concentrated: boolean | null;
   /** 최신 액면 명목의 최근 157주 백분위 순위 (0~100) */
   percentile3y: number | null;
+  /** 순숏 변화의 구성 (숏·롱·미결제약정) — 판정과 무관한 참고 정보. 못 구하면 null */
+  composition4w: BasisTradeComposition | null;
+  composition8w: BasisTradeComposition | null;
   datasetId: string;
   contracts: { code: string; label: string; faceUsd: number }[];
   thresholds: {
@@ -81,6 +86,8 @@ export async function GET() {
       liquidationStatus: v.liquidationStatus,
       concentrated: v.concentrated,
       percentile3y: v.percentile3y,
+      composition4w: compositionAt(series, 4),
+      composition8w: compositionAt(series, 8),
       datasetId: BASIS_TRADE_DATASET_ID,
       contracts: Object.entries(BASIS_TRADE_CONTRACTS).map(([code, c]) => ({
         code,

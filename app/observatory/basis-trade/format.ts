@@ -41,6 +41,19 @@ export function formatEokShort(billions: number): string {
   return Math.round(billions * 10).toLocaleString("en-US");
 }
 
+/** 계약 수 변화 — +1,234,567계약 / 없으면 "—" */
+export function formatContractsChange(n: number | null): string {
+  if (n === null) return "—";
+  const r = Math.round(n);
+  return `${r > 0 ? "+" : ""}${r.toLocaleString("en-US")}계약`;
+}
+
+/** 액면 (십억 달러 입력) 을 억 달러로 — 8,251억 달러. 없으면 "—" */
+export function formatNotionalEok(billions: number | undefined): string {
+  if (billions === undefined) return "—";
+  return `${Math.round(billions * 10).toLocaleString("en-US")}억 달러`;
+}
+
 /** 비율 — 28.5% */
 export function formatPct(pct: number | null): string {
   return pct === null ? "—" : `${pct.toFixed(1)}%`;

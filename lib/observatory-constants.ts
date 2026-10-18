@@ -1039,6 +1039,20 @@ export interface BasisTradePoint {
   openInterest: number;
   /** 순숏 계약 ÷ 미결제약정 × 100 (%) */
   netShortPctOfOi: number;
+  /*
+   * 아래는 "순숏 변화의 구성"(숏이 줄었나, 롱이 늘었나) 표시용으로 나중에 추가한 필드다.
+   * 판정에는 쓰지 않는다. 추가 전에 저장된 점에는 없을 수 있어 optional 이다
+   * (수집기가 빠진 점을 발견하면 전체를 다시 받아 채운다).
+   * 항등식: shortNotionalBillions − longNotionalBillions = notionalBillions
+   */
+  /** 6개 만기 레버리지 펀드 롱 합계 (계약 수) */
+  longContracts?: number;
+  /** 6개 만기 레버리지 펀드 숏 합계 (계약 수) */
+  shortContracts?: number;
+  /** 롱 액면 명목, 십억 달러 (계약당 액면 환산) */
+  longNotionalBillions?: number;
+  /** 숏 액면 명목, 십억 달러 (계약당 액면 환산) */
+  shortNotionalBillions?: number;
 }
 
 /** 저장된 점 + 계산한 변화. 변화는 저장하지 않고 매번 계산한다 (규칙이 바뀌어도 데이터는 그대로) */
@@ -1106,6 +1120,11 @@ export function withChanges(points: BasisTradePoint[]): BasisTradeRow[] {
     notionalBillions: p.notionalBillions,
     openInterest: p.openInterest,
     netShortPctOfOi: p.netShortPctOfOi,
+    // 구성 표시용 필드는 판정과 무관하게 그대로 넘긴다 (없으면 빠진 채로)
+    ...(p.longContracts !== undefined && { longContracts: p.longContracts }),
+    ...(p.shortContracts !== undefined && { shortContracts: p.shortContracts }),
+    ...(p.longNotionalBillions !== undefined && { longNotionalBillions: p.longNotionalBillions }),
+    ...(p.shortNotionalBillions !== undefined && { shortNotionalBillions: p.shortNotionalBillions }),
     change4wBillions: change(i, BT_SHORT_WEEKS),
     change8wBillions: change(i, BT_LONG_WEEKS),
   }));

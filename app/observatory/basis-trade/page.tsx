@@ -5,7 +5,9 @@ import BasisTradeChart from "./BasisTradeChart";
 import {
   formatChangeEok,
   formatContracts,
+  formatContractsChange,
   formatNotional,
+  formatNotionalEok,
   formatPct,
   formatReportDate,
 } from "./format";
@@ -200,6 +202,107 @@ export default async function BasisTradePage() {
         </dl>
       </div>
 
+      {/* 순숏 변화의 구성 — 판정과 무관한 참고 정보. 해석 문구 없이 숫자만 둔다 */}
+      <section className="mb-6">
+        <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-1">
+          순숏 변화의 구성
+        </h2>
+        <p className="text-xs text-zinc-500 mb-3">
+          순숏 변화 = 숏 변화 − 롱 변화입니다. 액면 명목 기준이며, 미결제약정은 6개 만기 전체
+          참가자의 계약 수 합계입니다.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {[data.composition4w, data.composition8w].map((c, idx) => (
+            <div
+              key={idx}
+              className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4"
+            >
+              <div className="text-xs font-semibold text-zinc-400 mb-2">
+                {idx === 0 ? thresholds.shortWeeks : thresholds.longWeeks}주 변화
+                {c && (
+                  <span className="font-normal">
+                    {" "}
+                    ({c.fromDate} → {c.toDate})
+                  </span>
+                )}
+              </div>
+              {c ? (
+                <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                  <div>
+                    <dt className="text-xs text-zinc-400">숏 변화</dt>
+                    <dd className="font-semibold text-zinc-800 dark:text-zinc-200 tabular-nums">
+                      {formatChangeEok(c.shortChangeBillions)}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-zinc-400">롱 변화</dt>
+                    <dd className="font-semibold text-zinc-800 dark:text-zinc-200 tabular-nums">
+                      {formatChangeEok(c.longChangeBillions)}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-zinc-400">순숏 변화</dt>
+                    <dd className="font-semibold text-zinc-800 dark:text-zinc-200 tabular-nums">
+                      {formatChangeEok(c.netChangeBillions)}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-zinc-400">미결제약정 변화</dt>
+                    <dd className="font-semibold text-zinc-800 dark:text-zinc-200 tabular-nums">
+                      {formatContractsChange(c.openInterestChange)}
+                    </dd>
+                  </div>
+                </dl>
+              ) : (
+                <p className="text-sm text-zinc-500">계산할 수 없습니다 (데이터 부족)</p>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* 최근 8주 주간 구성 — 가장 최근 주가 위로.
+            ⚠ 감싸개에 w-0 min-w-full 을 준다. 레이아웃의 main 이 flex 자식이라, 그냥 두면
+              표의 최소 너비가 main 을 밀어 모바일에서 페이지 전체가 가로로 넘친다
+              (실측: 390px 화면에서 문서 폭 554px). 이렇게 하면 표만 감싸개 안에서 스크롤된다. */}
+        <div className="mt-4 w-0 min-w-full overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-800">
+          <table className="w-full min-w-[520px] whitespace-nowrap text-sm tabular-nums">
+            <thead className="bg-zinc-50 dark:bg-zinc-900 text-xs text-zinc-500">
+              <tr>
+                <th className="px-3 py-2 text-left font-semibold">보고일</th>
+                <th className="px-3 py-2 text-right font-semibold">순숏 액면</th>
+                <th className="px-3 py-2 text-right font-semibold">숏 액면</th>
+                <th className="px-3 py-2 text-right font-semibold">롱 액면</th>
+                <th className="px-3 py-2 text-right font-semibold">미결제약정</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.series
+                .slice(-8)
+                .reverse()
+                .map((r) => (
+                  <tr key={r.date} className="border-t border-zinc-100 dark:border-zinc-800">
+                    <td className="px-3 py-2 text-left text-zinc-700 dark:text-zinc-300">
+                      {r.date}
+                    </td>
+                    <td className="px-3 py-2 text-right text-zinc-800 dark:text-zinc-200">
+                      {formatNotionalEok(r.notionalBillions)}
+                    </td>
+                    <td className="px-3 py-2 text-right text-zinc-700 dark:text-zinc-300">
+                      {formatNotionalEok(r.shortNotionalBillions)}
+                    </td>
+                    <td className="px-3 py-2 text-right text-zinc-700 dark:text-zinc-300">
+                      {formatNotionalEok(r.longNotionalBillions)}
+                    </td>
+                    <td className="px-3 py-2 text-right text-zinc-700 dark:text-zinc-300">
+                      {formatContracts(r.openInterest)}
+                    </td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
       {/* 추이 */}
       <section className="mb-6">
         <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-3">주간 추이</h2>
@@ -247,6 +350,21 @@ export default async function BasisTradePage() {
             비율이 아니라 금액으로 보는 이유가 있습니다. 2021년 말에는 순숏이 0 근처까지 줄어
             비율이 수백 %씩 튀었습니다. 다만 금액 변화는 시장이 커질수록 폭도 커지는 경향이
             있어, 최근 연도에 신호가 더 쉽게 켜질 수 있습니다.
+          </p>
+          <p>
+            이 지표는 순숏(숏에서 롱을 뺀 값)의 금액이 크게 줄어든 주를 알려 드립니다. 숏이
+            줄어서 줄었는지, 롱이 늘어서 줄었는지는 위의 구성 영역에서 구분해서 보실 수
+            있습니다. 롱이 늘어서 순숏이 줄어도 주의나 경보가 켜질 수 있습니다.
+          </p>
+          <p>
+            2016년 4월 이후 주의 이상이 켜진 65주를 살펴보면, 22주는 여러 만기에서 숏이 함께
+            줄고 미결제약정도 줄어든 모습이었고, 나머지 대부분은 롱 증가나 미결제약정 증가 등이
+            섞인 모습이었습니다.
+          </p>
+          <p>
+            이 지표는 위기를 미리 알려 주는 용도로 검증된 것이 아닙니다. 2020년 3월에도 첫 경보
+            기준일은 3월 10일이었고, 이 사이트에는 다음 주 월요일에 반영되기 때문에 위기와 같은
+            시기에 나타났습니다.
           </p>
           <p className="text-zinc-500">
             과거 데이터에 이 규칙을 그 시점까지의 데이터로만 적용해 보면, 2020년 3월 코로나
