@@ -971,50 +971,58 @@ export function evaluateCre(
  * 베이시스 트레이드의 대리 지표로 본다. 6개 만기(2년·5년·10년·울트라 10년·
  * 30년·울트라 본드)를 계약당 액면으로 환산해 합친다.
  *
- * 두 신호를 보고 더 나쁜 쪽을 판정으로 쓴다.
- *   청산 신호 — 액면 명목의 4주 변화율이 **저장된 전 기간(2016-04~)** 분포의
- *              하위 5% 이하면 주의, 하위 2% 이하면 경보.
- *   쏠림 신호 — 액면 명목이 **최근 157주(3년)** 중 상위 10% 안이면 주의.
- *              경보는 만들지 않는다 (쌓인 것 자체는 아직 사고가 아니다).
+ * 판정 규칙 (2026-10 재설계, 한 번만 적용하고 사건에 맞춰 다시 조정하지 않았다)
  *
- * ⚠ 기준이 고정 금액·고정 변화율이 아니라 **분포의 백분위**다. 기준값(컷오프)은
- *   evaluateBasisTrade 가 저장된 시계열에서 매번 계산한다. 시장 규모가 10년 새
- *   몇 배로 커져 고정 금액은 금방 낡기 때문이다.
+ *   ① 청산 신호 — 액면 명목의 **금액 변화**(4주, 8주)로 본다.
+ *      각 변화를 "그 시점까지 쌓인" 2016-04 이후 분포에 놓고, 감소 쪽
+ *      하위 5% 이하면 주의, 하위 2% 이하면 경보. 4주·8주 중 더 나쁜 쪽.
+ *      - 비율이 아니라 금액인 이유: 2021-10~11 에 순숏이 0 근처·순매수로
+ *        내려가 비율의 분모가 0 에 붙었고, 그 극단값이 분포를 끌고 갔다.
+ *      - 8주를 같이 보는 이유: 2020-03 청산은 6~8주에 걸쳐 서서히 진행됐다
+ *        (2020-02-18 4,745억 달러 → 2020-04-14 3,034억 달러). 4주만 보면
+ *        매주 감소폭이 기준에 못 미친다.
+ *      - 분포는 최소 157주가 쌓인 뒤부터 쓴다. 그 전은 판정 보류.
  *
- * ⚠ 이 백분위들은 사후에 사건을 맞추려고 고른 값이 아니다. 2026-10 구현 때
- *   회귀 검증에서 2020-03(4주 −20.8%)은 청산 신호에 걸리지 않았고, 그대로 뒀다.
+ *   ② 쏠림 — 액면 명목이 최근 157주(3년) 상위 10% 이상이면 "쏠림 구간".
+ *      **단독으로 주의를 켜지 않는다.** 순숏이 추세적으로 커지는 시계열이라
+ *      상위 10% 에 오래 머문다(옛 규칙에서 판정 가능 주의 37% 가 주의였다).
+ *      청산 신호가 주의일 때만 한 단계 격상한다 (주의 → 경보).
+ *      쌓인 상태에서 풀리기 시작하면 더 위험하다는 뜻이다.
+ *
+ *   ③ 최종 = ① 에 ② 격상을 반영한 결과. 계산할 수 없으면 null(판정 보류).
+ *
+ * ⚠ 기준선은 고정 금액이 아니라 분포의 백분위라 evaluate 가 매번 계산한다.
+ * ⚠ 금액 변화는 시장 규모가 커질수록 폭이 커지는 경향이 있다. 그래서 최근
+ *   연도에 하위 5% 가 몰릴 수 있다 — 알려진 한계로 두고 보정하지 않았다.
  * ──────────────────────────────────────────────────────────── */
 
-/** 청산 신호 "주의" — 4주 변화율이 전 기간 분포의 이 백분위 이하 */
+/** 청산 신호 "주의" — 변화(감소)가 그 시점까지 분포의 이 백분위 이하 */
 export const BT_LIQ_CAUTION_PCTILE = 5;
 
-/** 청산 신호 "경보" — 4주 변화율이 전 기간 분포의 이 백분위 이하 */
+/** 청산 신호 "경보" — 변화(감소)가 그 시점까지 분포의 이 백분위 이하 */
 export const BT_LIQ_ALERT_PCTILE = 2;
 
-/** 쏠림 신호 "주의" — 액면 명목의 최근 창 백분위 순위가 이 값 이상 */
-export const BT_CONC_CAUTION_PCTILE = 90;
+/** 쏠림 구간 — 액면 명목의 최근 창 백분위 순위가 이 값 이상 */
+export const BT_CONC_PCTILE = 90;
 
-/** 쏠림 신호를 보는 최근 창 (주). 157주 ≈ 3년 */
+/**
+ * 최근 창 (주). 157주 ≈ 3년.
+ * 쏠림 순위를 보는 창이자, 청산 분포를 쓰기 시작하는 최소 누적 주 수다.
+ */
 export const BT_LOOKBACK_WEEKS = 157;
 
-/** 변화율을 재는 간격 (보고 회차 수) */
-export const BT_CHANGE_WEEKS = 4;
+/** 변화를 재는 간격 (보고 회차 수) */
+export const BT_SHORT_WEEKS = 4;
+export const BT_LONG_WEEKS = 8;
 
 /**
- * 청산 신호 분포에 필요한 최소 변화율 개수. 이보다 적으면 판정 보류.
- * 1년치(52주) 미만의 분포로 하위 2%를 말하면 사실상 최저값 한두 개라 의미가 없다.
- */
-export const BT_MIN_CHANGE_OBS = 52;
-
-/**
- * 4주 변화율을 인정하는 날짜 간격 (일).
+ * n회차 전 비교를 인정하는 날짜 간격 허용 오차 (일).
  *
- * 보통 28일이지만 연휴 주에는 보고일이 월요일로 밀려 27~29일이 된다.
- * 6개 만기 중 하나라도 빠진 주는 저장하지 않으므로, 4회차 전이 5주 이상
- * 떨어져 있을 수 있다 — 그때는 "4주" 변화가 아니므로 null 로 둔다.
+ * 보통 n×7일이지만 연휴 주에는 보고일이 월요일로 밀려 ±1일이 생긴다.
+ * 6개 만기 중 하나라도 빠진 주는 저장하지 않으므로, n회차 전이 한 주 이상
+ * 더 떨어져 있을 수 있다 — 그때는 "n주" 변화가 아니므로 null 로 둔다.
  */
-export const BT_CHANGE_MIN_DAYS = 25;
-export const BT_CHANGE_MAX_DAYS = 31;
+export const BT_GAP_TOLERANCE_DAYS = 3;
 
 export interface BasisTradePoint {
   /** 보고 기준일(화요일, 연휴 주는 월요일) YYYY-MM-DD — CFTC 원본에 시간대 없음 */
@@ -1031,34 +1039,38 @@ export interface BasisTradePoint {
   openInterest: number;
   /** 순숏 계약 ÷ 미결제약정 × 100 (%) */
   netShortPctOfOi: number;
-  /**
-   * 4회차 전 대비 액면 명목 변화율 (%).
-   *
-   * ⚠ null 인 경우: 4회차 전이 없거나, 날짜 간격이 25~31일을 벗어나거나,
-   *   **4회차 전 액면 명목이 0 이하**일 때. 2021년 10~11월에 레버리지 펀드가
-   *   순매수(음수)로 돌아선 구간이 실제로 있는데, 음수나 0 근처를 분모로 쓰면
-   *   부호가 뒤집히거나 수백 % 가 나와 분포가 망가진다.
-   */
-  change4wPct: number | null;
+}
+
+/** 저장된 점 + 계산한 변화. 변화는 저장하지 않고 매번 계산한다 (규칙이 바뀌어도 데이터는 그대로) */
+export interface BasisTradeRow extends BasisTradePoint {
+  /** 4회차 전 대비 액면 명목 변화, **십억 달러** (화면에는 억 달러로 바꿔 표시). 못 구하면 null */
+  change4wBillions: number | null;
+  /** 8회차 전 대비 액면 명목 변화, 십억 달러. 못 구하면 null */
+  change8wBillions: number | null;
 }
 
 export interface BasisTradeVerdict {
-  /** 최종 판정. 데이터가 모자라 백분위를 못 구하면 null (판정 보류) */
+  /** 최종 판정. 계산할 수 없으면 null (판정 보류) */
   status: ObservatoryStatus | null;
-  /** 청산 신호 (null = 보류) */
+  /** 청산 신호 — 쏠림 격상 전 (null = 보류) */
   liquidationStatus: ObservatoryStatus | null;
-  /** 쏠림 신호 (null = 보류) */
-  concentrationStatus: ObservatoryStatus | null;
-  latest: BasisTradePoint | null;
-  /** 전 기간 4주 변화율 분포의 하위 5% / 2% 값 (%) */
-  liquidationCautionCutoffPct: number | null;
-  liquidationAlertCutoffPct: number | null;
-  /** 분포에 쓴 4주 변화율 개수 */
-  changeObs: number;
+  /** 쏠림 구간 여부 (null = 157주 미만이라 계산 불가) */
+  concentrated: boolean | null;
+  latest: BasisTradeRow | null;
   /** 최신 액면 명목의 최근 157주 백분위 순위 (0~100, 높을수록 큼) */
   percentile3y: number | null;
-  /** 최근 157주 액면 명목의 90번째 백분위 값 (십억 달러) — 차트 기준선용 */
+  /** 최근 157주 액면 명목의 90번째 백분위 값 (십억 달러) — 쏠림 기준선 */
   concentrationCutoffBillions: number | null;
+  /** 4주·8주 변화 분포의 하위 5% / 2% 값 (십억 달러, 음수) */
+  cutoffs: {
+    caution4w: number | null;
+    alert4w: number | null;
+    caution8w: number | null;
+    alert8w: number | null;
+  };
+  /** 분포에 쓴 변화 개수 */
+  obs4w: number;
+  obs8w: number;
 }
 
 /**
@@ -1075,90 +1087,110 @@ export function quantile(values: number[], p: number): number {
   return s[lo] + (s[hi] - s[lo]) * (idx - lo);
 }
 
+function daysBetween(a: string, b: string): number {
+  return (Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86_400_000;
+}
+
+/** 날짜 오름차순 점들에 4주·8주 금액 변화를 붙인다 */
+export function withChanges(points: BasisTradePoint[]): BasisTradeRow[] {
+  const change = (i: number, n: number): number | null => {
+    if (i < n) return null;
+    const prev = points[i - n];
+    const gap = daysBetween(prev.date, points[i].date);
+    if (Math.abs(gap - n * 7) > BT_GAP_TOLERANCE_DAYS) return null;
+    return points[i].notionalBillions - prev.notionalBillions;
+  };
+  return points.map((p, i) => ({
+    date: p.date,
+    netShortContracts: p.netShortContracts,
+    notionalBillions: p.notionalBillions,
+    openInterest: p.openInterest,
+    netShortPctOfOi: p.netShortPctOfOi,
+    change4wBillions: change(i, BT_SHORT_WEEKS),
+    change8wBillions: change(i, BT_LONG_WEEKS),
+  }));
+}
+
+const SEVERITY: Record<ObservatoryStatus, number> = { normal: 0, caution: 1, warning: 2 };
+
+/** 한 변화값을 그 분포의 하위 백분위와 비교한다 */
+function grade(
+  value: number | null,
+  history: (number | null)[]
+): { status: ObservatoryStatus | null; caution: number | null; alert: number | null; obs: number } {
+  const dist = history.filter((v): v is number => typeof v === "number");
+  if (dist.length === 0) return { status: null, caution: null, alert: null, obs: 0 };
+  const caution = quantile(dist, BT_LIQ_CAUTION_PCTILE / 100);
+  const alert = quantile(dist, BT_LIQ_ALERT_PCTILE / 100);
+  if (value === null) return { status: null, caution, alert, obs: dist.length };
+  const status: ObservatoryStatus =
+    value <= alert ? "warning" : value <= caution ? "caution" : "normal";
+  return { status, caution, alert, obs: dist.length };
+}
+
 /**
- * series 의 i 번째 시점에서 판정한다 (i 이후 데이터는 보지 않는다).
+ * rows 의 i 번째 시점에서 판정한다 (i 이후 데이터는 보지 않는다).
  *
  * 회귀 검증에서 과거 시점을 "그때 알 수 있었던 데이터만으로" 판정하려고
  * 시점 인덱스를 받는다. 현재 판정은 evaluateBasisTrade 가 마지막 인덱스로 부른다.
  */
-export function evaluateBasisTradeAt(
-  series: BasisTradePoint[],
-  i: number
-): BasisTradeVerdict {
+export function evaluateBasisTradeAt(rows: BasisTradeRow[], i: number): BasisTradeVerdict {
   const empty: BasisTradeVerdict = {
     status: null,
     liquidationStatus: null,
-    concentrationStatus: null,
+    concentrated: null,
     latest: null,
-    liquidationCautionCutoffPct: null,
-    liquidationAlertCutoffPct: null,
-    changeObs: 0,
     percentile3y: null,
     concentrationCutoffBillions: null,
+    cutoffs: { caution4w: null, alert4w: null, caution8w: null, alert8w: null },
+    obs4w: 0,
+    obs8w: 0,
   };
-  if (i < 0 || i >= series.length) return empty;
+  if (i < 0 || i >= rows.length) return empty;
 
-  const hist = series.slice(0, i + 1);
+  const hist = rows.slice(0, i + 1);
   const latest = hist[hist.length - 1];
+  // 157주 미만이면 분포도 쏠림 순위도 쓰지 않는다 — 판정 보류
+  if (hist.length < BT_LOOKBACK_WEEKS) return { ...empty, latest };
 
-  // 청산 신호 — 전 기간 4주 변화율 분포
-  const changes = hist
-    .map((p) => p.change4wPct)
-    .filter((v): v is number => typeof v === "number");
-  let liquidationStatus: ObservatoryStatus | null = null;
-  let cautionCut: number | null = null;
-  let alertCut: number | null = null;
-  if (changes.length >= BT_MIN_CHANGE_OBS) {
-    cautionCut = quantile(changes, BT_LIQ_CAUTION_PCTILE / 100);
-    alertCut = quantile(changes, BT_LIQ_ALERT_PCTILE / 100);
-    const c = latest.change4wPct;
-    // 최신 변화율을 못 구하면(분모 0 이하 등) 청산 신호는 보류한다
-    if (typeof c === "number") {
-      liquidationStatus =
-        c <= alertCut ? "warning" : c <= cautionCut ? "caution" : "normal";
-    }
-  }
-
-  // 쏠림 신호 — 최근 157주 안에서의 순위
-  let concentrationStatus: ObservatoryStatus | null = null;
-  let percentile3y: number | null = null;
-  let concCut: number | null = null;
-  if (hist.length >= BT_LOOKBACK_WEEKS) {
-    const window = hist.slice(-BT_LOOKBACK_WEEKS).map((p) => p.notionalBillions);
-    // 순위 = 창 안에서 최신값 이하인 값의 비율 (최신값 자신 포함)
-    percentile3y =
-      (window.filter((v) => v <= latest.notionalBillions).length / window.length) * 100;
-    concCut = quantile(window, BT_CONC_CAUTION_PCTILE / 100);
-    concentrationStatus = percentile3y >= BT_CONC_CAUTION_PCTILE ? "caution" : "normal";
-  }
-
-  // 둘 중 하나라도 보류면 최종도 보류 — 한쪽만 보고 "정상" 이라 말하지 않는다
-  const severity: Record<ObservatoryStatus, number> = {
-    normal: 0,
-    caution: 1,
-    warning: 2,
-  };
-  const status =
-    liquidationStatus === null || concentrationStatus === null
+  // ① 청산 신호 — 4주·8주 중 더 나쁜 쪽. 하나라도 못 구하면 보류
+  const g4 = grade(latest.change4wBillions, hist.map((r) => r.change4wBillions));
+  const g8 = grade(latest.change8wBillions, hist.map((r) => r.change8wBillions));
+  const liquidationStatus =
+    g4.status === null || g8.status === null
       ? null
-      : severity[liquidationStatus] >= severity[concentrationStatus]
-        ? liquidationStatus
-        : concentrationStatus;
+      : SEVERITY[g4.status] >= SEVERITY[g8.status]
+        ? g4.status
+        : g8.status;
+
+  // ② 쏠림 — 최근 157주 안에서의 순위 (최신값 자신 포함)
+  const window = hist.slice(-BT_LOOKBACK_WEEKS).map((r) => r.notionalBillions);
+  const percentile3y =
+    (window.filter((v) => v <= latest.notionalBillions).length / window.length) * 100;
+  const concentrated = percentile3y >= BT_CONC_PCTILE;
+
+  // ③ 최종 — 청산 신호가 주의이고 쏠림 구간이면 경보로 격상
+  const status: ObservatoryStatus | null =
+    liquidationStatus === null
+      ? null
+      : liquidationStatus === "caution" && concentrated
+        ? "warning"
+        : liquidationStatus;
 
   return {
     status,
     liquidationStatus,
-    concentrationStatus,
+    concentrated,
     latest,
-    liquidationCautionCutoffPct: cautionCut,
-    liquidationAlertCutoffPct: alertCut,
-    changeObs: changes.length,
     percentile3y,
-    concentrationCutoffBillions: concCut,
+    concentrationCutoffBillions: quantile(window, BT_CONC_PCTILE / 100),
+    cutoffs: { caution4w: g4.caution, alert4w: g4.alert, caution8w: g8.caution, alert8w: g8.alert },
+    obs4w: g4.obs,
+    obs8w: g8.obs,
   };
 }
 
-/** 현재(가장 최근 보고일) 판정. series 는 날짜 오름차순 */
-export function evaluateBasisTrade(series: BasisTradePoint[]): BasisTradeVerdict {
-  return evaluateBasisTradeAt(series, series.length - 1);
+/** 현재(가장 최근 보고일) 판정. rows 는 withChanges 결과, 날짜 오름차순 */
+export function evaluateBasisTrade(rows: BasisTradeRow[]): BasisTradeVerdict {
+  return evaluateBasisTradeAt(rows, rows.length - 1);
 }

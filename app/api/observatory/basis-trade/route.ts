@@ -6,12 +6,16 @@ import {
   loadBasisTrade,
 } from "@/lib/observatory-basis-trade";
 import {
-  BT_CONC_CAUTION_PCTILE,
+  BT_CONC_PCTILE,
   BT_LIQ_ALERT_PCTILE,
   BT_LIQ_CAUTION_PCTILE,
+  BT_LONG_WEEKS,
   BT_LOOKBACK_WEEKS,
+  BT_SHORT_WEEKS,
   evaluateBasisTrade,
-  type BasisTradePoint,
+  withChanges,
+  type BasisTradeRow,
+  type BasisTradeVerdict,
   type ObservatoryStatus,
 } from "@/lib/observatory-constants";
 
@@ -19,28 +23,32 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 export interface BasisTradeResponse {
-  series: BasisTradePoint[];
-  latest: BasisTradePoint | null;
-  /** 최종 판정. null = 판정 보류 (백분위를 구할 데이터 부족) */
+  /** 저장된 점 + 4주·8주 금액 변화 (십억 달러) */
+  series: BasisTradeRow[];
+  latest: BasisTradeRow | null;
+  /** 최종 판정. null = 판정 보류 */
   status: ObservatoryStatus | null;
+  /** 청산 신호 (쏠림 격상 전) */
   liquidationStatus: ObservatoryStatus | null;
-  concentrationStatus: ObservatoryStatus | null;
+  /** 쏠림 구간 여부. null = 계산 불가 */
+  concentrated: boolean | null;
   /** 최신 액면 명목의 최근 157주 백분위 순위 (0~100) */
   percentile3y: number | null;
   datasetId: string;
   contracts: { code: string; label: string; faceUsd: number }[];
   thresholds: {
-    /** 4주 변화율이 전 기간 이 백분위 이하면 주의 */
+    /** 변화(감소)가 그 시점까지 분포의 이 백분위 이하면 주의 */
     liquidationCautionPctile: number;
-    /** 4주 변화율이 전 기간 이 백분위 이하면 경보 */
+    /** 변화(감소)가 그 시점까지 분포의 이 백분위 이하면 경보 */
     liquidationAlertPctile: number;
-    /** 위 백분위에 해당하는 실제 변화율 (%) — 저장된 데이터로 계산 */
-    liquidationCautionCutoffPct: number | null;
-    liquidationAlertCutoffPct: number | null;
-    /** 분포에 쓴 4주 변화율 개수 */
-    changeObs: number;
-    /** 액면 명목이 최근 창에서 이 백분위 이상이면 주의 */
-    concentrationCautionPctile: number;
+    /** 위 백분위에 해당하는 실제 변화 (십억 달러) — 저장된 데이터로 계산 */
+    cutoffs: BasisTradeVerdict["cutoffs"];
+    obs4w: number;
+    obs8w: number;
+    shortWeeks: number;
+    longWeeks: number;
+    /** 액면 명목이 최근 창에서 이 백분위 이상이면 쏠림 구간 */
+    concentrationPctile: number;
     /** 위 백분위에 해당하는 액면 명목 (십억 달러) */
     concentrationCutoffBillions: number | null;
     lookbackWeeks: number;
@@ -50,19 +58,20 @@ export interface BasisTradeResponse {
 
 export async function GET() {
   try {
-    let series = await loadBasisTrade();
+    let points = await loadBasisTrade();
 
     // 아직 cron 이 한 번도 안 돈 상태면 이 요청에서 한 번 채운다.
     // (첫 배포 직후 페이지가 빈 화면으로 보이는 것을 막는다)
-    if (series.length === 0) {
+    if (points.length === 0) {
       try {
         await collectBasisTrade();
-        series = await loadBasisTrade();
+        points = await loadBasisTrade();
       } catch (e) {
         console.error("[observatory/basis-trade] 최초 수집 실패:", e);
       }
     }
 
+    const series = withChanges(points);
     const v = evaluateBasisTrade(series);
 
     const body: BasisTradeResponse = {
@@ -70,7 +79,7 @@ export async function GET() {
       latest: v.latest,
       status: v.status,
       liquidationStatus: v.liquidationStatus,
-      concentrationStatus: v.concentrationStatus,
+      concentrated: v.concentrated,
       percentile3y: v.percentile3y,
       datasetId: BASIS_TRADE_DATASET_ID,
       contracts: Object.entries(BASIS_TRADE_CONTRACTS).map(([code, c]) => ({
@@ -81,10 +90,12 @@ export async function GET() {
       thresholds: {
         liquidationCautionPctile: BT_LIQ_CAUTION_PCTILE,
         liquidationAlertPctile: BT_LIQ_ALERT_PCTILE,
-        liquidationCautionCutoffPct: v.liquidationCautionCutoffPct,
-        liquidationAlertCutoffPct: v.liquidationAlertCutoffPct,
-        changeObs: v.changeObs,
-        concentrationCautionPctile: BT_CONC_CAUTION_PCTILE,
+        cutoffs: v.cutoffs,
+        obs4w: v.obs4w,
+        obs8w: v.obs8w,
+        shortWeeks: BT_SHORT_WEEKS,
+        longWeeks: BT_LONG_WEEKS,
+        concentrationPctile: BT_CONC_PCTILE,
         concentrationCutoffBillions: v.concentrationCutoffBillions,
         lookbackWeeks: BT_LOOKBACK_WEEKS,
       },

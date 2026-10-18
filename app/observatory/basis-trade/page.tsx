@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import BasisTradeChart from "./BasisTradeChart";
 import {
-  formatChange,
+  formatChangeEok,
   formatContracts,
   formatNotional,
   formatPct,
@@ -66,10 +66,6 @@ const PENDING_META = {
     "bg-zinc-50 text-zinc-600 border-zinc-300 dark:bg-zinc-900 dark:text-zinc-400 dark:border-zinc-700",
   dot: "bg-zinc-400",
 };
-
-function signalLabel(s: ObservatoryStatus | null): string {
-  return s === null ? "판정 보류" : STATUS_META[s].label;
-}
 
 /** 한계 문구 — 지표의 성격을 숫자보다 먼저 읽게 상단에 고정한다 */
 function LimitationNotice() {
@@ -151,7 +147,7 @@ export default async function BasisTradePage() {
           </div>
         </div>
 
-        <dl className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-3 text-sm">
+        <dl className="mt-5 grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-3 text-sm">
           <div>
             <dt className="text-xs text-zinc-400">기준일</dt>
             <dd className="font-semibold text-zinc-800 dark:text-zinc-200">
@@ -159,27 +155,46 @@ export default async function BasisTradePage() {
             </dd>
           </div>
           <div>
-            <dt className="text-xs text-zinc-400">미결제약정 대비 순숏</dt>
+            <dt className="text-xs text-zinc-400">4주 변화</dt>
             <dd className="font-semibold text-zinc-800 dark:text-zinc-200 tabular-nums">
-              {formatPct(latest.netShortPctOfOi)}
+              {formatChangeEok(latest.change4wBillions)}
+            </dd>
+            <dd className="text-xs text-zinc-500">
+              주의 {formatChangeEok(thresholds.cutoffs.caution4w)} · 경보{" "}
+              {formatChangeEok(thresholds.cutoffs.alert4w)}
             </dd>
           </div>
           <div>
-            <dt className="text-xs text-zinc-400">4주 변화율</dt>
+            <dt className="text-xs text-zinc-400">8주 변화</dt>
             <dd className="font-semibold text-zinc-800 dark:text-zinc-200 tabular-nums">
-              {formatChange(latest.change4wPct)}
+              {formatChangeEok(latest.change8wBillions)}
             </dd>
             <dd className="text-xs text-zinc-500">
-              청산 신호: {signalLabel(data.liquidationStatus)}
+              주의 {formatChangeEok(thresholds.cutoffs.caution8w)} · 경보{" "}
+              {formatChangeEok(thresholds.cutoffs.alert8w)}
             </dd>
+          </div>
+          <div>
+            <dt className="text-xs text-zinc-400">쏠림 구간 (참고)</dt>
+            <dd className="font-semibold text-zinc-800 dark:text-zinc-200">
+              {data.concentrated === null
+                ? "계산 불가"
+                : data.concentrated
+                  ? "쏠림 구간"
+                  : "쏠림 아님"}
+            </dd>
+            <dd className="text-xs text-zinc-500">청산 신호가 켜질 때만 판정에 반영</dd>
           </div>
           <div>
             <dt className="text-xs text-zinc-400">최근 3년 백분위</dt>
             <dd className="font-semibold text-zinc-800 dark:text-zinc-200 tabular-nums">
               {data.percentile3y === null ? "—" : `${data.percentile3y.toFixed(0)}번째`}
             </dd>
-            <dd className="text-xs text-zinc-500">
-              쏠림 신호: {signalLabel(data.concentrationStatus)}
+          </div>
+          <div>
+            <dt className="text-xs text-zinc-400">미결제약정 대비 순숏</dt>
+            <dd className="font-semibold text-zinc-800 dark:text-zinc-200 tabular-nums">
+              {formatPct(latest.netShortPctOfOi)}
             </dd>
           </div>
         </dl>
@@ -190,8 +205,8 @@ export default async function BasisTradePage() {
         <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-3">주간 추이</h2>
         <BasisTradeChart
           series={data.series}
-          liquidationCautionCutoffPct={thresholds.liquidationCautionCutoffPct}
-          liquidationAlertCutoffPct={thresholds.liquidationAlertCutoffPct}
+          caution4wBillions={thresholds.cutoffs.caution4w}
+          alert4wBillions={thresholds.cutoffs.alert4w}
           concentrationCutoffBillions={thresholds.concentrationCutoffBillions}
         />
       </section>
@@ -206,27 +221,38 @@ export default async function BasisTradePage() {
           </p>
           <ul className="list-disc pl-5 space-y-1">
             <li>
-              <strong>청산 신호</strong>: 4주 변화율이 2016년 4월 이후 전체 분포의 하위{" "}
-              {thresholds.liquidationCautionPctile}% 이하면 주의, 하위{" "}
-              {thresholds.liquidationAlertPctile}% 이하면 경보입니다. 지금 기준으로는 각각{" "}
-              {formatChange(thresholds.liquidationCautionCutoffPct)},{" "}
-              {formatChange(thresholds.liquidationAlertCutoffPct)}입니다 (변화율{" "}
-              {thresholds.changeObs.toLocaleString("en-US")}개 기준).
+              <strong>청산 신호</strong>: 액면 명목이 {thresholds.shortWeeks}주, {thresholds.longWeeks}
+              주 동안 얼마나 줄었는지를 금액으로 봅니다. 각각 2016년 4월부터 그 시점까지 쌓인
+              분포에서 하위 {thresholds.liquidationCautionPctile}% 이하면 주의, 하위{" "}
+              {thresholds.liquidationAlertPctile}% 이하면 경보이고, 둘 중 더 나쁜 쪽을 씁니다.
+              지금 기준선은 4주 {formatChangeEok(thresholds.cutoffs.caution4w)}(주의) ·{" "}
+              {formatChangeEok(thresholds.cutoffs.alert4w)}(경보), 8주{" "}
+              {formatChangeEok(thresholds.cutoffs.caution8w)}(주의) ·{" "}
+              {formatChangeEok(thresholds.cutoffs.alert8w)}(경보)입니다.
             </li>
             <li>
-              <strong>쏠림 신호</strong>: 액면 명목이 최근 {thresholds.lookbackWeeks}주(약
-              3년) 중 상위 {100 - thresholds.concentrationCautionPctile}% 안에 들면 주의입니다.
-              지금 기준선은{" "}
+              <strong>쏠림 구간</strong>: 액면 명목이 최근 {thresholds.lookbackWeeks}주(약 3년) 중
+              상위 {100 - thresholds.concentrationPctile}% 안에 들면 쏠림 구간입니다. 지금
+              기준선은{" "}
               {thresholds.concentrationCutoffBillions === null
                 ? "—"
                 : formatNotional(thresholds.concentrationCutoffBillions)}
-              입니다. 쌓인 것 자체는 아직 사고가 아니라서 경보는 두지 않습니다.
+              입니다. 쏠림 구간만으로는 주의를 켜지 않습니다. 청산 신호가 주의일 때 쏠림
+              구간이면 경보로 한 단계 올립니다. 많이 쌓인 상태에서 풀리기 시작하는 쪽이 더
+              위험하기 때문입니다.
             </li>
-            <li>두 신호 중 더 나쁜 쪽이 최종 판정입니다.</li>
+            <li>데이터가 157주보다 적게 쌓인 시점은 판정 보류로 둡니다.</li>
           </ul>
           <p className="text-zinc-500">
-            2020년 3월 코로나 때 순숏은 4주 동안 20% 안팎 줄었습니다. 이 정도로는 청산 신호의
-            주의 기준에 닿지 않았습니다. 기준을 그 사건에 맞춰 고치지 않고 그대로 두었습니다.
+            비율이 아니라 금액으로 보는 이유가 있습니다. 2021년 말에는 순숏이 0 근처까지 줄어
+            비율이 수백 %씩 튀었습니다. 다만 금액 변화는 시장이 커질수록 폭도 커지는 경향이
+            있어, 최근 연도에 신호가 더 쉽게 켜질 수 있습니다.
+          </p>
+          <p className="text-zinc-500">
+            과거 데이터에 이 규칙을 그 시점까지의 데이터로만 적용해 보면, 2020년 3월 코로나
+            때는 3월 10일 보고분부터 경보가 켜졌습니다. 대신 판정할 수 있었던 394주 중 약
+            16%에서 주의 이상이 켜져, 신호가 꽤 자주 나오는 편입니다. 이 결과를 보고 기준을
+            다시 고치지는 않았습니다.
           </p>
         </div>
       </section>

@@ -25,11 +25,20 @@ export function formatContracts(n: number): string {
   return `${Math.round(n).toLocaleString("en-US")}계약`;
 }
 
-/** 변화율 — +4.9% / 없으면 "—" */
-export function formatChange(pct: number | null): string {
-  if (pct === null) return "—";
-  const sign = pct >= 0 ? "+" : "";
-  return `${sign}${pct.toFixed(1)}%`;
+/**
+ * 금액 변화 — 십억 달러 입력을 **억 달러**로 바꿔 표시한다. +383억 달러 / 없으면 "—"
+ * (십억 달러 1 = 억 달러 10)
+ */
+export function formatChangeEok(billions: number | null): string {
+  if (billions === null) return "—";
+  const eok = Math.round(billions * 10);
+  const sign = eok > 0 ? "+" : "";
+  return `${sign}${eok.toLocaleString("en-US")}억 달러`;
+}
+
+/** 축용 짧은 억 달러 표기 — 십억 달러 입력 → -2,000 */
+export function formatEokShort(billions: number): string {
+  return Math.round(billions * 10).toLocaleString("en-US");
 }
 
 /** 비율 — 28.5% */

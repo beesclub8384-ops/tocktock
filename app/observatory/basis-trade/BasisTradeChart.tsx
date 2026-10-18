@@ -12,30 +12,33 @@ import {
   ReferenceLine,
   ResponsiveContainer,
 } from "recharts";
-import type { BasisTradePoint } from "@/lib/observatory-constants";
-import { formatChange, formatContracts, formatNotional, formatNotionalShort } from "./format";
+import type { BasisTradeRow } from "@/lib/observatory-constants";
+import {
+  formatChangeEok,
+  formatContracts,
+  formatEokShort,
+  formatNotional,
+  formatNotionalShort,
+} from "./format";
 
 interface Props {
-  series: BasisTradePoint[];
-  /** 4주 변화율 주의 기준 (%) — 전 기간 하위 5% */
-  liquidationCautionCutoffPct: number | null;
-  /** 4주 변화율 경보 기준 (%) — 전 기간 하위 2% */
-  liquidationAlertCutoffPct: number | null;
+  series: BasisTradeRow[];
+  /** 4주 변화 주의 기준 (십억 달러) — 분포 하위 5% */
+  caution4wBillions: number | null;
+  /** 4주 변화 경보 기준 (십억 달러) — 분포 하위 2% */
+  alert4wBillions: number | null;
   /** 액면 명목 쏠림 기준 (십억 달러) — 최근 157주 상위 10% */
   concentrationCutoffBillions: number | null;
 }
 
 // CSS 변수 대신 hex 하드코딩 (recharts 는 CSS 변수를 해석하지 못한다)
 const NOTIONAL_COLOR = "#4f46e5"; // 액면 명목 — 좌축 선
-const CHANGE_DOWN_COLOR = "#dc2626"; // 4주 변화율 막대 (감소 = 청산 쪽)
-const CHANGE_UP_COLOR = "#94a3b8"; // 4주 변화율 막대 (증가)
+const CHANGE_DOWN_COLOR = "#dc2626"; // 4주 변화 막대 (감소 = 청산 쪽)
+const CHANGE_UP_COLOR = "#94a3b8"; // 4주 변화 막대 (증가)
 const WARN_COLOR = "#f59e0b";
 const ALERT_COLOR = "#e11d48";
 
-/** 우축(4주 변화율) 표시 한계 (%) — 아래 YAxis 주석 참고 */
-const CHANGE_AXIS_LIMIT = 100;
-
-/** 3년 ≈ 157주 — 쏠림 신호를 보는 창과 같다 */
+/** 3년 ≈ 157주 — 쏠림 구간을 보는 창과 같다 */
 const RANGES = [
   { label: "전체 (2016.04~)", weeks: null },
   { label: "최근 3년", weeks: 157 },
@@ -58,7 +61,7 @@ const EVENTS: {
 ];
 
 interface TooltipPayloadEntry {
-  payload?: BasisTradePoint;
+  payload?: BasisTradeRow;
 }
 
 function ChartTooltip({
@@ -72,6 +75,7 @@ function ChartTooltip({
   const row = payload[0]?.payload;
   if (!row) return null;
   const event = EVENTS.find((e) => e.date === row.date);
+  const downColor = (v: number | null) => (v !== null && v < 0 ? CHANGE_DOWN_COLOR : "#64748b");
 
   return (
     <div
@@ -90,13 +94,11 @@ function ChartTooltip({
       </div>
       <div style={{ color: NOTIONAL_COLOR }}>액면 명목 {formatNotional(row.notionalBillions)}</div>
       <div style={{ color: "#52525b" }}>순숏 {formatContracts(row.netShortContracts)}</div>
-      <div
-        style={{
-          color:
-            row.change4wPct !== null && row.change4wPct < 0 ? CHANGE_DOWN_COLOR : "#64748b",
-        }}
-      >
-        4주 변화 {formatChange(row.change4wPct)}
+      <div style={{ color: downColor(row.change4wBillions) }}>
+        4주 변화 {formatChangeEok(row.change4wBillions)}
+      </div>
+      <div style={{ color: downColor(row.change8wBillions) }}>
+        8주 변화 {formatChangeEok(row.change8wBillions)}
       </div>
     </div>
   );
@@ -104,8 +106,8 @@ function ChartTooltip({
 
 export default function BasisTradeChart({
   series,
-  liquidationCautionCutoffPct,
-  liquidationAlertCutoffPct,
+  caution4wBillions,
+  alert4wBillions,
   concentrationCutoffBillions,
 }: Props) {
   const [rangeIdx, setRangeIdx] = useState(0);
@@ -162,47 +164,41 @@ export default function BasisTradeChart({
             tickFormatter={(v: number) => formatNotionalShort(v)}
             width={52}
           />
-          {/* 우축: 4주 변화율 (%)
-              ⚠ ±100% 로 고정한다. 2021년 말 순숏이 0 근처로 줄었을 때 분모가 작아
-                변화율이 +600% 까지 튄 주가 있어, 자동 축이면 나머지 막대가 전부
-                납작해진다. 넘는 막대는 잘려 보이고 툴팁에는 실제 값이 나온다.
-                (판정은 잘리지 않은 실제 값으로 한다 — 표시만의 문제다) */}
+          {/* 우축: 4주 변화 — 데이터는 십억 달러, 눈금은 억 달러로 표시 */}
           <YAxis
             yAxisId="change"
             orientation="right"
-            domain={[-CHANGE_AXIS_LIMIT, CHANGE_AXIS_LIMIT]}
-            allowDataOverflow
-            ticks={[-100, -50, 0, 50, 100]}
             tick={{ fontSize: 11, fill: "#71717a" }}
-            tickFormatter={(v: number) => `${v.toFixed(0)}%`}
-            width={48}
+            tickFormatter={(v: number) => formatEokShort(v)}
+            width={52}
           />
 
           <ReferenceLine yAxisId="change" y={0} stroke="#d4d4d8" />
 
-          {/* 청산 신호 경계 (전 기간 하위 5% / 2%) */}
-          {liquidationCautionCutoffPct !== null && (
+          {/* 청산 신호 경계 (4주 변화 분포 하위 5% / 2%) */}
+          {caution4wBillions !== null && (
             <ReferenceLine
               yAxisId="change"
-              y={liquidationCautionCutoffPct}
+              y={caution4wBillions}
               stroke={WARN_COLOR}
               strokeDasharray="3 4"
               label={{
-                value: `청산 주의 ${liquidationCautionCutoffPct.toFixed(0)}%`,
-                position: "insideTopRight",
+                value: `4주 주의 ${formatEokShort(caution4wBillions)}억`,
+                // 주의·경보 선이 가까워 둘 다 오른쪽에 두면 라벨이 겹친다 → 주의는 왼쪽
+                position: "insideTopLeft",
                 fontSize: 10,
                 fill: WARN_COLOR,
               }}
             />
           )}
-          {liquidationAlertCutoffPct !== null && (
+          {alert4wBillions !== null && (
             <ReferenceLine
               yAxisId="change"
-              y={liquidationAlertCutoffPct}
+              y={alert4wBillions}
               stroke={ALERT_COLOR}
               strokeDasharray="3 4"
               label={{
-                value: `청산 경보 ${liquidationAlertCutoffPct.toFixed(0)}%`,
+                value: `4주 경보 ${formatEokShort(alert4wBillions)}억`,
                 position: "insideBottomRight",
                 fontSize: 10,
                 fill: ALERT_COLOR,
@@ -210,7 +206,7 @@ export default function BasisTradeChart({
             />
           )}
 
-          {/* 쏠림 신호 경계 (최근 157주 상위 10%) */}
+          {/* 쏠림 구간 경계 (최근 157주 상위 10%) */}
           {concentrationCutoffBillions !== null && (
             <ReferenceLine
               yAxisId="level"
@@ -218,7 +214,7 @@ export default function BasisTradeChart({
               stroke={WARN_COLOR}
               strokeDasharray="6 3"
               label={{
-                value: `쏠림 주의 ${formatNotionalShort(concentrationCutoffBillions)}`,
+                value: `쏠림 구간 ${formatNotionalShort(concentrationCutoffBillions)}`,
                 position: "insideTopLeft",
                 fontSize: 10,
                 fill: WARN_COLOR,
@@ -243,13 +239,13 @@ export default function BasisTradeChart({
             />
           ))}
 
-          {/* 4주 변화율은 막대로. 막대마다 색을 달리하려면 Cell 을 써야 한다 */}
-          <Bar yAxisId="change" dataKey="change4wPct" name="4주 변화율" barSize={2}>
+          {/* 4주 변화는 막대로. 막대마다 색을 달리하려면 Cell 을 써야 한다 */}
+          <Bar yAxisId="change" dataKey="change4wBillions" name="4주 변화" barSize={2}>
             {rows.map((r) => (
               <Cell
                 key={r.date}
                 fill={
-                  r.change4wPct !== null && r.change4wPct < 0
+                  r.change4wBillions !== null && r.change4wBillions < 0
                     ? CHANGE_DOWN_COLOR
                     : CHANGE_UP_COLOR
                 }
@@ -281,13 +277,9 @@ export default function BasisTradeChart({
             className="inline-block h-2.5 w-1.5"
             style={{ backgroundColor: CHANGE_DOWN_COLOR }}
           />
-          4주 변화율 (%, 오른쪽 축)
+          4주 변화 (억 달러, 오른쪽 축)
         </span>
       </div>
-      <p className="mt-1.5 text-xs text-zinc-400">
-        2021년 말처럼 순숏이 0 근처까지 줄었던 시기에는 4주 변화율이 ±100%를 넘습니다.
-        그런 막대는 차트에서 잘려 보이며, 마우스를 올리면 실제 값이 나옵니다.
-      </p>
     </div>
   );
 }

@@ -20,7 +20,6 @@
  * 월요일 실행에서 들어온다. 연휴 주는 월요일 발표라 화요일에 들어온다.
  */
 import { redis } from "@/lib/redis";
-import { BT_CHANGE_MAX_DAYS, BT_CHANGE_MIN_DAYS, BT_CHANGE_WEEKS } from "@/lib/observatory-constants";
 import type { BasisTradePoint } from "@/lib/observatory-constants";
 
 const CFTC_BASE = "https://publicreporting.cftc.gov/resource";
@@ -83,10 +82,6 @@ function toNumber(v: string | undefined, field: string, date: string, code: stri
   return n;
 }
 
-function daysBetween(a: string, b: string): number {
-  return (Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86_400_000;
-}
-
 /** CFTC 에서 지정일 이후 6개 만기 행을 받는다 */
 async function fetchRows(fromDate: string): Promise<CftcRow[]> {
   const codes = Object.keys(BASIS_TRADE_CONTRACTS)
@@ -116,7 +111,8 @@ async function fetchRows(fromDate: string): Promise<CftcRow[]> {
  * ⚠ 6개 코드가 **모두** 있는 보고일만 쓴다. 하나라도 빠진 날을 합치면
  *   그 주만 액면이 뚝 떨어져 가짜 청산 신호가 켜진다. 빠진 날은 로그에 남긴다.
  *
- * change4wPct 는 여기서 채우지 않는다 (병합 후 전체에 대해 다시 계산한다).
+ * 4주·8주 변화는 저장하지 않는다. 판정 규칙이 바뀌어도 저장 데이터는 그대로
+ * 두려고, 읽을 때마다 withChanges(observatory-constants)로 계산한다.
  */
 export function aggregateRows(rows: CftcRow[]): {
   points: BasisTradePoint[];
@@ -165,28 +161,25 @@ export function aggregateRows(rows: CftcRow[]): {
       notionalBillions: notionalUsd / 1e9,
       openInterest,
       netShortPctOfOi: openInterest > 0 ? (netShortContracts / openInterest) * 100 : 0,
-      change4wPct: null,
     });
   }
   return { points, skippedDates };
 }
 
-/** 날짜 오름차순 시계열에 4주 변화율을 채운다 */
-export function fillChanges(points: BasisTradePoint[]): BasisTradePoint[] {
-  return points.map((p, i) => {
-    const prev = i >= BT_CHANGE_WEEKS ? points[i - BT_CHANGE_WEEKS] : null;
-    const gap = prev ? daysBetween(prev.date, p.date) : NaN;
-    const ok =
-      prev !== null &&
-      gap >= BT_CHANGE_MIN_DAYS &&
-      gap <= BT_CHANGE_MAX_DAYS &&
-      // 분모가 0 이하면 변화율이 의미를 잃는다 (constants 의 change4wPct 주석 참고)
-      prev.notionalBillions > 0;
-    return {
-      ...p,
-      change4wPct: ok ? (p.notionalBillions / prev.notionalBillions - 1) * 100 : null,
-    };
-  });
+/**
+ * 저장할 필드만 남긴다.
+ *
+ * 96a85a8 판에서는 각 점에 change4wPct 를 함께 저장했다. 병합은 기존 객체를
+ * 그대로 들고 가므로, 걸러내지 않으면 옛 필드가 영원히 남는다.
+ */
+function toStored(p: BasisTradePoint): BasisTradePoint {
+  return {
+    date: p.date,
+    netShortContracts: p.netShortContracts,
+    notionalBillions: p.notionalBillions,
+    openInterest: p.openInterest,
+    netShortPctOfOi: p.netShortPctOfOi,
+  };
 }
 
 export interface BasisTradeCollectResult {
@@ -230,10 +223,10 @@ export async function collectBasisTrade(): Promise<BasisTradeCollectResult> {
     throw new Error(`CFTC ${fromDate} 이후 6개 만기가 다 있는 보고일이 없음 (행 ${rows.length}건)`);
   }
 
-  const merged = new Map(existing.map((p) => [p.date, p]));
+  const merged = new Map(existing.map((p) => [p.date, toStored(p)]));
   for (const p of points) merged.set(p.date, p);
-  const series = fillChanges(
-    [...merged.values()].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
+  const series = [...merged.values()].sort((a, b) =>
+    a.date < b.date ? -1 : a.date > b.date ? 1 : 0
   );
 
   await redis.set(BASIS_TRADE_KEY, series);

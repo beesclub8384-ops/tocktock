@@ -150,7 +150,7 @@ const BANKS_OVERALL: Record<ObservatoryStatus, string> = {
  * 관측소 2 요약.
  *
  * 예) "장부에 유령 손실 12.4%, 자금줄은 잠잠, 예금은 제자리,
- *      부동산은 지역은행이 34% 물렸다 — 위험 구간"
+ *      부동산은 지역은행이 34% 물려 있습니다 — 위험 구간"
  *
  * ⚠ 부동산 문구는 **무엇이 경보를 켰는지**에 따라 갈린다. 지역은행 집중도가
  *   임계를 넘어서 켜진 것이면 "물렸다" 고 말해야 정확하다 — 연체가 번지는
@@ -194,7 +194,7 @@ export function summarizeBanks(
     cre === null
       ? "부동산은 확인 불가"
       : cre === "warning" && concentrationDrove
-        ? `부동산은 지역은행이 ${regionalPct.toFixed(0)}% 물렸다`
+        ? `부동산은 지역은행이 ${regionalPct.toFixed(0)}% 물려 있습니다`
         : `부동산은 ${CRE_TEXT[cre]}`;
 
   return {

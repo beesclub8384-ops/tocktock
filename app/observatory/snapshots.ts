@@ -30,6 +30,7 @@ import {
   evaluateDepositFlight,
   evaluateCre,
   evaluateBasisTrade,
+  withChanges,
   type ObservatoryStatus,
 } from "@/lib/observatory-constants";
 import { loadSofrIorb } from "@/lib/observatory-sofr-iorb";
@@ -231,7 +232,9 @@ const LOADERS: Record<ObservatoryIndicatorKey, () => Promise<IndicatorSnapshot>>
   // 주간 지표. 판정이 백분위라 값이 있어도 status 가 null(판정 보류)일 수 있다.
   // raw 는 최근 3년 백분위 — 요약 문장이 그 숫자를 쓴다.
   "basis-trade": async () => {
-    const v = evaluateBasisTrade(await orLog("basis-trade", loadBasisTrade(), []));
+    const v = evaluateBasisTrade(
+      withChanges(await orLog("basis-trade", loadBasisTrade(), []))
+    );
     return v.latest
       ? {
           status: v.status,

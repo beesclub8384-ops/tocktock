@@ -87,8 +87,8 @@ export const OBSERVATORY_SECTIONS: ObservatorySectionMeta[] = [
     name: "배관: 자금시장의 수압계",
     shortName: "배관",
     subtitle:
-      "시스템 전체의 현금 사정을 재는 곳. 여기가 흔들리면 어디가 아픈지와 무관하게 모두가 아파진다.",
-    chainNote: "①→⑤는 시스템의 현금이 마를 때 경보가 켜지는 순서다",
+      "시스템 전체의 현금 사정을 재는 곳입니다. 여기가 흔들리면 어디가 아픈지와 무관하게 모두가 아파집니다.",
+    chainNote: "①→⑤는 시스템의 현금이 마를 때 경보가 켜지는 순서입니다",
     source: "FRED (Federal Reserve Bank of St. Louis)",
     indicators: [
       {
@@ -97,7 +97,7 @@ export const OBSERVATORY_SECTIONS: ObservatorySectionMeta[] = [
         href: "/observatory/rrp",
         name: "역레포(RRP) 잔액",
         oneLiner:
-          "시스템의 여유 현금 쿠션. 이 잔액이 마르면 다음은 은행 지급준비금 본체가 마른다.",
+          "시스템의 여유 현금 쿠션입니다. 이 잔액이 마르면 다음은 은행 지급준비금 본체가 마릅니다.",
         lowerIsWorse: true,
       },
       {
@@ -106,7 +106,7 @@ export const OBSERVATORY_SECTIONS: ObservatorySectionMeta[] = [
         href: "/observatory/reserves",
         name: "지급준비금 총량",
         oneLiner:
-          "미국 은행 전체가 연준 계좌에 가진 돈의 총합. 시스템이 굴러가는 연료의 총량이다.",
+          "미국 은행 전체가 연준 계좌에 가진 돈의 총합입니다. 시스템이 굴러가는 연료의 총량입니다.",
         lowerIsWorse: true,
       },
       {
@@ -115,7 +115,7 @@ export const OBSERVATORY_SECTIONS: ObservatorySectionMeta[] = [
         href: "/observatory/sofr-iorb",
         name: "SOFR − IORB 스프레드",
         oneLiner:
-          "연료가 빠듯해지면 먼저 튀는 값. 0 위로 올라오면 달러 자금이 빡빡해졌다는 뜻이다.",
+          "연료가 빠듯해지면 먼저 튀는 값입니다. 0 위로 올라오면 달러 자금이 빡빡해졌다는 뜻입니다.",
       },
       {
         key: "srf",
@@ -123,7 +123,7 @@ export const OBSERVATORY_SECTIONS: ObservatorySectionMeta[] = [
         href: "/observatory/srf",
         name: "SRF 사용량",
         oneLiner:
-          "연준의 응급 창구. 평소엔 0이라, 0에서 벗어나면 시장에서 돈을 못 구한 기관이 생겼다는 신호다.",
+          "연준의 응급 창구입니다. 평소엔 0이라, 0에서 벗어나면 시장에서 돈을 못 구한 기관이 생겼다는 신호입니다.",
       },
       {
         key: "discount-window",
@@ -131,7 +131,7 @@ export const OBSERVATORY_SECTIONS: ObservatorySectionMeta[] = [
         href: "/observatory/discount-window",
         name: "재할인 창구 대출 잔액",
         oneLiner:
-          "은행들의 최후 비상구. 낙인 때문에 평시엔 아무도 안 쓰는 창구라, 잔액 급증은 가짜 양성이 없는 경보다.",
+          "은행들의 최후 비상구입니다. 낙인 때문에 평시엔 아무도 안 쓰는 창구라, 잔액 급증은 가짜 양성이 없는 경보입니다.",
       },
     ],
   },
@@ -141,9 +141,9 @@ export const OBSERVATORY_SECTIONS: ObservatorySectionMeta[] = [
     name: "가맹점들: 은행의 금고 엑스레이",
     shortName: "가맹점들",
     subtitle:
-      "개별 은행이 아니라 은행업 전체의 체질을 본다. SVB의 재림 후보를 찾는 곳.",
+      "개별 은행이 아니라 은행업 전체의 체질을 봅니다. SVB의 재림 후보를 찾는 곳입니다.",
     chainNote:
-      "관측소 1이 시스템 전체의 현금을 잰다면, 여기는 그 돈을 굴리는 은행들의 몸 상태를 본다",
+      "관측소 1이 시스템 전체의 현금을 잰다면, 여기는 그 돈을 굴리는 은행들의 몸 상태를 봅니다",
     source: "FRED (Federal Reserve Bank of St. Louis) · FDIC 분기 은행실적보고서(QBP)",
     indicators: [
       {
@@ -152,7 +152,7 @@ export const OBSERVATORY_SECTIONS: ObservatorySectionMeta[] = [
         href: "/observatory/unrealized-losses",
         name: "채권 미실현손실 비율",
         oneLiner:
-          "은행이 아직 팔지 않은 채권에 숨어 있는 손실을 자기자본으로 나눈 값. 뱅크런이 오면 이 유령이 실물이 되어 자본을 갉아먹는다.",
+          "은행이 아직 팔지 않은 채권에 숨어 있는 손실을 자기자본으로 나눈 값입니다. 뱅크런이 오면 이 유령이 실물이 되어 자본을 갉아먹습니다.",
       },
       {
         key: "fhlb",
@@ -160,7 +160,7 @@ export const OBSERVATORY_SECTIONS: ObservatorySectionMeta[] = [
         href: "/observatory/fhlb",
         name: "FHLB 차입 잔액",
         oneLiner:
-          "은행이 연준 창구보다 먼저, 낙인 없이 조용히 쓰는 자금줄. 차입이 갑자기 늘면 목이 마르기 시작했다는 뜻이다.",
+          "은행이 연준 창구보다 먼저, 낙인 없이 조용히 쓰는 자금줄입니다. 차입이 갑자기 늘면 목이 마르기 시작했다는 뜻입니다.",
       },
       {
         key: "deposit-flight",
@@ -168,7 +168,7 @@ export const OBSERVATORY_SECTIONS: ObservatorySectionMeta[] = [
         href: "/observatory/deposit-flight",
         name: "예금 유출",
         oneLiner:
-          "예금이 소형 은행에서 대형으로 옮겨가는 흐름과, 그 예금 중 보험 밖에 있는 돈의 비중을 함께 본다.",
+          "예금이 소형 은행에서 대형으로 옮겨가는 흐름과, 그 예금 중 보험 밖에 있는 돈의 비중을 함께 봅니다.",
       },
       {
         key: "cre",
@@ -176,7 +176,7 @@ export const OBSERVATORY_SECTIONS: ObservatorySectionMeta[] = [
         href: "/observatory/cre",
         name: "상업용 부동산 익스포저",
         oneLiner:
-          "연체율은 대형은행이 높고 집중도는 지역은행이 훨씬 높다. 아픈 곳과 물린 곳이 다르다.",
+          "연체율은 대형은행이 높고 집중도는 지역은행이 훨씬 높습니다. 아픈 곳과 물린 곳이 다릅니다.",
       },
     ],
   },
