@@ -106,7 +106,7 @@ export default async function DepositFlightPage() {
           돈일수록 더 빨리 도망간다는 것을 함께 봅니다.
         </p>
         <p className="text-xs text-zinc-400 mt-1.5">
-          출처: FRED (시리즈 {data.seriesIds.small} · {data.seriesIds.large}) 및 FDIC
+          출처: 연준 이사회 H.8, FRED 경유(시리즈 {data.seriesIds.small} · {data.seriesIds.large}) 및 FDIC
           분기 은행실적보고서(QBP)
         </p>
       </header>

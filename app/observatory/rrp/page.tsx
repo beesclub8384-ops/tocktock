@@ -7,9 +7,10 @@ import { headers } from "next/headers";
 import RrpChart from "./RrpChart";
 import { formatRrp, formatTrillion } from "./format";
 import type { RrpResponse } from "@/app/api/observatory/rrp/route";
-// 오버레이용 주가지수는 "지표" 가 아니라 참고 데이터라 RRP API 응답에 섞지 않는다.
-// 서버 컴포넌트에서 Redis 를 직접 읽어 차트에만 넘긴다.
-import { loadMarketIndex } from "@/lib/observatory-market-index";
+// 주가지수(S&P 500·나스닥) 겹쳐 그리기는 2026-10-18 미션 4에서 화면 연결을 끊었다.
+// FRED 시리즈 SP500·NASDAQCOM 은 "Copyrighted: pre-approval required"(저작권자 사전 승인 필요)라
+// 승인 없이 공개 페이지에 실을 수 없다. 수집 코드(lib/observatory-market-index.ts)와 차트의 겹치기
+// 기능(indices prop)은 남겨 두었다 — 승인을 받으면 loadMarketIndex() 를 다시 불러 indices 로 넘기면 된다.
 import type { ObservatoryStatus } from "@/lib/observatory-constants";
 
 export const metadata: Metadata = {
@@ -78,11 +79,7 @@ function formatKstDate(iso: string): string {
 }
 
 export default async function RrpPage() {
-  const [data, indices] = await Promise.all([
-    getData(),
-    // 지수 수집이 아직이거나 실패해도 RRP 페이지는 그대로 떠야 한다
-    loadMarketIndex().catch(() => []),
-  ]);
+  const data = await getData();
 
   if (!data || data.series.length === 0) {
     return (
@@ -112,7 +109,7 @@ export default async function RrpPage() {
           곳 — 잔액이 마르면 다음은 은행 지급준비금 본체가 마릅니다.
         </p>
         <p className="text-xs text-zinc-400 mt-1">
-          출처: FRED (Federal Reserve Bank of St. Louis), 시리즈 {data.seriesId} ·
+          출처: 뉴욕 연방준비은행(Federal Reserve Bank of New York), FRED 경유, 시리즈 {data.seriesId} ·
           일간(영업일)
         </p>
         <p className="text-xs text-zinc-400 mt-1">
@@ -205,7 +202,6 @@ export default async function RrpPage() {
           peakDate={thresholds.peakDate}
           normalBillions={thresholds.normalBillions}
           alertBillions={thresholds.alertBillions}
-          indices={indices}
         />
       </section>
 
@@ -240,17 +236,12 @@ export default async function RrpPage() {
 
           <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-4">
             <div className="font-semibold text-zinc-900 dark:text-zinc-100 mb-2">
-              차트가 보여주는 것 &mdash; 잔액과 주가는 한 방향으로 움직이지 않았습니다
+              잔액이 쌓이고 빠진다는 것의 뜻
             </div>
             <p>
-              위 차트에 주가지수를 겹쳐 보면, RRP 잔액이 쌓이던 2021~2022년에 S&amp;P 500은{" "}
-              <strong>2021년에 27% 올랐다가 2022년에 19% 내렸습니다</strong>(두 해를 합치면 거의
-              제자리). 잔액이 빠지던 <strong>2023년 이후에는 주가가 올랐습니다.</strong>
-            </p>
-            <p className="mt-2">
-              그러니 RRP가 쌓인다는 걸 곧바로 &ldquo;돈이 넘쳐 주가에 좋다&rdquo;는
-              신호로 읽기는 어렵습니다. 갈 곳을 못 찾은 돈이 연준에 머문다고 보는 해석도
-              있지만, 이 차트만으로 확인할 수는 없습니다.
+              RRP가 쌓인다는 걸 곧바로 &ldquo;돈이 넘쳐 시장에 좋다&rdquo;는 신호로 읽기는
+              어렵습니다. 갈 곳을 못 찾은 돈이 연준에 머문다고 보는 해석도 있지만, 이 숫자만으로
+              확인할 수는 없습니다.
             </p>
             <p className="mt-2">
               반대로 잔액이 빠지는 건 그 돈이 다시 일하러 나가거나, 시스템에서
@@ -260,12 +251,11 @@ export default async function RrpPage() {
             <p className="mt-2">
               그래서 이렇게 읽으시면 됩니다.{" "}
               <strong className="text-zinc-900 dark:text-zinc-100">
-                잔액이 높다고 강세를 기대할 근거는 이 차트에 없습니다. 그리고 잔액이 0에
-                가까운 지금은, 그 완충재가 사라졌다는 뜻입니다.
+                잔액이 0에 가까운 지금은, 그 완충재가 사라졌다는 뜻입니다.
               </strong>
             </p>
             <p className="mt-2 text-xs text-zinc-500">
-              다만 이건 한 번의 사이클에서 나타난 흐름입니다. 앞으로도 같은 순서로
+              다만 RRP가 지금처럼 크게 쌓였다가 빠진 것은 이번 한 번뿐이라, 앞으로도 같은 순서로
               움직인다고 단정할 수는 없습니다.
             </p>
           </div>

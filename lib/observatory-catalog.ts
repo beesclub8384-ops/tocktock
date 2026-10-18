@@ -100,7 +100,8 @@ export const OBSERVATORY_SECTIONS: ObservatorySectionMeta[] = [
     subtitle:
       "시스템 전체의 현금 사정을 재는 곳입니다. 여기가 흔들리면 어디가 아픈지와 무관하게 모두가 아파집니다.",
     chainNote: "①→⑤는 시스템의 현금이 마를 때 경보가 켜지는 순서입니다",
-    source: "FRED (Federal Reserve Bank of St. Louis)",
+    // FRED 이용 약관: 원출처와 "FRED 경유"를 함께 적는다 (뉴욕 연은 시리즈는 "Copyrighted: Citation required")
+    source: "뉴욕 연방준비은행(RRP·SOFR·SRF)·연준 이사회(IORB·지급준비금·재할인 창구), 모두 FRED 경유",
     indicators: [
       {
         key: "rrp",
@@ -155,7 +156,7 @@ export const OBSERVATORY_SECTIONS: ObservatorySectionMeta[] = [
       "개별 은행이 아니라 은행업 전체의 체질을 봅니다. 2023년 SVB 사태 때 문제가 된 약점들이 업계 전체에 얼마나 쌓여 있는지 봅니다.",
     chainNote:
       "관측소 1이 시스템 전체의 현금을 잰다면, 여기는 그 돈을 굴리는 은행들의 몸 상태를 봅니다",
-    source: "FRED (Federal Reserve Bank of St. Louis) · FDIC 분기 은행실적보고서(QBP)",
+    source: "연준 이사회(Z.1·H.8·대출 연체율, FRED 경유) · FDIC 분기 은행실적보고서(QBP)",
     indicators: [
       {
         key: "unrealized-losses",

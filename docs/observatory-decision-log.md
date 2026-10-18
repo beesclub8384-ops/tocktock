@@ -2,7 +2,7 @@
 
 > 이 문서는 사이트 공개 전에 사람이 검수할 때 보는 **유일한 입구**입니다.
 > 무엇을 왜 그렇게 정했는지, 무엇을 확인했고 무엇을 확인하지 못했는지를 한곳에 모았습니다.
-> 마지막 갱신: 2026-10-18 (미션 3: 최소 표본 규칙 · 관측소 3·4 보강 · 공개 전 검수 자료)
+> 마지막 갱신: 2026-10-18 (미션 4: FRED 약관 정정 · 저작권 시리즈 제거 · 필수 고지)
 > 공개 전 검수 자료는 `docs/pre-launch-review.md`에 있습니다.
 > 작업 규칙은 `docs/observatory-mission-rules.md`, 진행 상태는 `docs/observatory-progress.md`에 있습니다.
 
@@ -353,12 +353,16 @@
 9. ~~Redis에 남은 키 `observatory:hy-spread`, `observatory:ccc-spread`~~ → 미션 3에서 사용자 지시로 삭제했습니다(15장).
 10. **스테이블코인 지표(관측소 6-B)에 DefiLlama 자료를 쓸지**: 이용약관 8조가 "허락 없이 어떤 형태로든 데이터 재게시 금지"라 싣지 않았습니다. 쓰려면 DefiLlama의 허락을 받을지 사람이 정해야 합니다. 초안 코드와 회귀 결과(발행 잔액 발동 3.2%, 디페그 13.6%, 2023-03-11 USDC 경보)는 세션 임시 폴더에만 있어, 쓰기로 하면 다시 만들어야 합니다.
 11. **SEC 요청의 연락처**: SEC는 User-Agent에 연락처(이메일)를 넣으라고 권합니다. 개인 이메일을 저장소 코드에 넣지 않으려고 사이트 주소만 넣었습니다(2026-10-18 정상 응답). SEC가 막으면 연락처를 환경변수로 넣을지 사람이 정해야 합니다.
-12. **FRED 약관과 공개 사이트**(미션 3): FRED 일반 약관은 사전 서면 허락 없이 인터넷 사이트에 다시 게시하거나 저장(캐시)하는 것을 금지합니다. 관측소 지표 상당수가 FRED에서 받아 Redis에 저장한 값입니다. 원출처로 옮길지, 허락을 구할지, 그대로 둘지 사람이 정해야 합니다(15장).
-13. **S&P 500·나스닥 지수 겹쳐 그리기**(미션 3): RRP·지급준비금·SRF 차트에 겹쳐 그리는데, FRED 시리즈 고지가 "S&P의 사전 서면 허락 없이 복제 금지"입니다. 이미 공개된 기능이고 본문과 엮여 있어 이번에 빼지 않았습니다. 빼거나 허락을 받을지 정해야 합니다.
+12. **FRED 약관과 공개 사이트**(미션 3, 미션 4에서 원문 재확인 — 16-1): /legal 의 전체 이용 약관에 사전 서면 허락 없는 인터넷 재게시·저장(캐시) 금지 조항이 있고, API 약관도 /legal 을 포함하므로 API 사용에도 적용됩니다. 관측소 지표 상당수가 FRED에서 받아 Redis에 저장한 값입니다. 원출처로 옮길지, 허락을 구할지, 그대로 둘지 사람이 정해야 합니다(15장).
+13. ~~S&P 500·나스닥 지수 겹쳐 그리기~~ → 미션 4에서 화면에서 뺐습니다(16-3). 다시 싣으려면 S&P·나스닥의 사전 승인이 필요합니다. 수집(cron)은 계속 돌아 Redis 에 저장되고 있어, 승인 전에 수집도 멈출지 사람이 정해야 합니다.
 14. **tocktock.kr 도메인 DNS 상태**(미션 3 지시): 이 PC에서 tocktock.kr 조회가 실패합니다(tocktock.vercel.app은 정상). 확인이 필요합니다.
 15. **lib/reports/fetcher.ts의 개인 이메일**(미션 3 지시): 관측소 밖 코드의 User-Agent에 개인 이메일이 들어 있습니다. 이번에는 고치지 않았습니다.
 16. **저장소 공개 여부**(미션 3 지시): 7번(커밋 기록의 도구 표기)과 함께 정해야 합니다.
 17. **관측소 밖 문구**(미션 3): 평서체·"AI 자동매매" 등 목록은 `docs/pre-launch-review.md` 5장. 수정 여부는 사람이 정합니다.
+18. **FRED 약관을 이 사이트가 어떻게 지키는지**(미션 4): /legal 의 재게시·저장 금지(일반 조항, (p), (l))가 공개 사이트에서 FRED 값을 Redis 에 저장해 보여 주는 지금 방식에 걸릴 수 있습니다. 세인트루이스 연은에 서면 허락을 구할지, 원출처(연준 이사회·뉴욕 연은)에서 직접 받도록 바꿀지 정해야 합니다. 법적 판단입니다.
+19. **사이트 이용 약관 페이지**(미션 4): FRED API 약관은 "앱의 이용 약관에 사용자가 FRED API 약관에 동의한다는 내용을 명시하라"고 합니다. 이 사이트에는 이용 약관 페이지가 없습니다. 만들지, 무엇을 담을지는 법적 문서라 사람이 정합니다.
+20. **관측소 밖 FRED 사용 화면의 고지**(미션 4): `/global-indicators`, `/liquidity/us`, `/inflation` 등도 FRED API를 씁니다. 사이트 전체(공통 푸터)에 FRED 고지를 둘지 정해야 합니다. 이번에는 관측소 밖 파일을 고치지 않았습니다.
+21. **뉴욕 연은 저작권 시리즈 3개(RRPONTSYD·SOFR·RPONTTLD)**(미션 4): FRED 등급 "Copyrighted: Citation required" — 원출처와 FRED 경유를 표기하면 쓸 수 있다고 되어 있어 표기를 맞췄지만, 판정에 쓰는 시리즈라 계속 쓸지는 사람이 확인해야 합니다(뉴욕 연은 약관은 출처 표기 조건으로 사용을 허락함 — 15-4).
 
 ## 9. 공개 전 점검 체크리스트
 
@@ -698,3 +702,83 @@ A 검증에서 따로 고친 것: 모바일에서 큰 숫자가 두 줄로 꺾�
 | FHLB | 1945Q4 ~ | 12.5% |
 | 예금 유출 주간 / 분기 | 1985 ~ / 1984Q1 ~ | 0.4% / 7.1% |
 | CRE 부실채권(수준·속도) / 집중도 | 2009Q3 ~ / 1984Q1 ~ | 45.6% / 25.3% (둘 다 상시 경보 위험) |
+
+## 16. 미션 4 — FRED 약관 정정 · 저작권 시리즈 제거 · 필수 고지 (2026-10-18)
+
+### 16-1. FRED 약관 원문 확인 (2026-10-18, 두 페이지를 직접 받음)
+이 PC에서는 브라우저형 User-Agent로 요청하면 FRED 사이트가 연결을 끊어, curl User-Agent·HTTP/1.1로 받았습니다(미션 3 조사 때 API 약관은 웹 보관본으로 읽었습니다).
+
+**(a) 데이터 저장·게시 조항**
+- API 약관 페이지(https://fred.stlouisfed.org/docs/api/terms_of_use.html) 본문에는 데이터 저장·캐시·재게시 조항이 따로 없습니다(해지 때 "destroy and remove … all copies of the FRED® API"만 있음). **그러나 같은 페이지가 "The Terms of Use shall include: These terms and conditions set forth in this document; The Federal Reserve Bank of St. Louis web site Legal Terms; and The Federal Reserve Bank of St. Louis Privacy Policy."라고 /legal 약관을 포함하고, "Use the FRED® API only for purposes (a) that are permitted by the Terms of Use"라고 합니다.** 그래서 아래 /legal 의 저장 금지 조항은 API 사용에도 적용됩니다(독립 검증 지적으로 고쳐 씀).
+- 법적 고지 페이지(https://fred.stlouisfed.org/legal)의 전체 이용 약관에는 있습니다.
+  - 일반 조항: "Except as expressly provided in these Terms of Use, FRED® Content may not be modified, duplicated, copied, distributed, framed, reproduced, rebranded, republished, uploaded, downloaded, scraped, displayed, posted, transmitted on any Internet, Intranet or Extranet site, nor may the FRED® Content be incorporated in any other database or compilation … without the Bank's prior written permission"
+  - "You may not, without the Bank's prior written consent: … (p) Store, cache, or archive any portion of the FRED® Services or FRED® Content; … or incorporate any FRED® Content in any database, compilation, archive, cache, or other medium."
+  - 같은 페이지의 "Additional Terms of Use for the FRED® API" → "Prohibitions for FRED® API … You may not: … (l) Use the FRED® API in connection with storing, caching, or archiving any portion of the FRED® Services or FRED® Content; … or incorporating any FRED® Content in any database, compilation, archive, cache, or other medium."
+  - 같은 페이지 요약 부분은 "you are free to use FRED for your own non-commercial, educational, and personal uses"라고 하지만 바로 앞에 "You are free to access and use FRED at no cost, subject to the full terms and conditions of the service."가 있고, "Create an app using a subset of FRED data through the free API"는 "FRED allows you to do a lot of things **for your own personal use** without requesting permission" 아래의 예입니다. 요약은 전체 약관을 대신하지 않습니다(요약의 금지 목록에 저장·캐시가 없는 것은 사실).
+- **미션 3 보고서의 "허락 없는 재게시·저장 금지" 문장의 출처**: 위 /legal 페이지의 일반 조항과 (p)·(l) 조항입니다. 미션 3의 요약 자체는 틀리지 않았습니다. 처음 미션 4 초안에서는 "API 약관 페이지에는 그 조항이 없어 두 문서가 다르게 읽힌다"고 적었으나, API 약관이 /legal 을 포함한다는 문장을 독립 검증에서 지적받아 바로잡았습니다. **공개 사이트가 FRED 값을 Redis 에 저장해 다시 보여 주는 지금 방식은 (p)(l)에 걸릴 수 있고**, 피하려면 세인트루이스 연은의 서면 허락을 받거나 원출처(연준 이사회·뉴욕 연은 등)에서 직접 받는 방식으로 바꿔야 합니다. 법적 판단과 결정은 사람이 합니다(8장 18번).
+- 두 페이지 모두 갱신일 표시를 찾지 못했습니다.
+
+**(b) 제3자 저작권 시리즈**
+- API 약관: "Data series available through the FRED® API, may be owned by third parties and subject to copyright restrictions. … Before using data series owned by third parties for anything other than your own personal use, you must contact the data owner to obtain permission. … Copyrighted series contain the word 'Copyright' in their notes."
+- /legal: 저작권 등급 셋 — "Copyrighted: Pre-approval required"(저작권자 서면 허락 없이는 비상업·교육·개인 용도만), "Copyrighted: Citation required"(원출처와 FRED 경유 표기를 하면 사용 가능, 예: "Source: BLS via FRED"), "Public Domain: Citation requested".
+
+**(c) 필수 고지와 약관 링크**
+- "Place the following notice prominently on your application: \"This product uses the FRED® API but is not endorsed or certified by the Federal Reserve Bank of St. Louis.\""
+- "If you develop a FRED® API application for use by other users, display to the users of your application the link to these Terms of Use, and explicitly state in your application's terms of use that, by using your application, your users are agreeing to be bound by the FRED® API Terms of Use"
+- → 고지 문구와 약관 링크는 넣었습니다(16-3). **이 사이트에는 자체 이용 약관 페이지가 없어** 뒤 절반(이용 약관에 명시)은 하지 못했습니다(8장 19번).
+
+**(d) 호스트 이름·상표**
+- "Use \"FRED®\" or \"ALFRED®\" or \"Federal Reserve Bank\" or any variation thereof in the hostname of your application, i.e. FRED.mydomain.com." 금지 → tocktock.kr·tocktock.vercel.app 해당 없음.
+- 세인트루이스 연은 로고·상표 사용 금지, 보증 암시 금지("State or in any way imply that your application … is endorsed …") → 로고는 쓰지 않고, 고지 한국어 문장도 "보증하거나 인증한 것은 아니며"로 썼습니다.
+
+### 16-2. 관측소가 쓰는 FRED 시리즈 저작권 전수 조사 (FRED series API + series/tags API)
+FRED 약관은 notes 에 "Copyright" 가 있으면 저작권 시리즈라고 하지만, 뉴욕 연은 시리즈는 notes 에 그 단어가 없고 저작권 등급이 태그(cc 그룹)로만 붙어 있어 둘 다 확인했습니다.
+
+| 시리즈 | 사용 위치 | notes 의 'Copyright' | FRED 저작권 등급(cc 태그) | 근거 원문 한 줄 | 처리 |
+|---|---|---|---|---|---|
+| RRPONTSYD | 관측소1 RRP 판정 | 없음 | copyrighted: citation required | This series is constructed as the aggregated daily amount value of the RRP transactions reported by the New Yo | 판정에 씀 → 건드리지 않음, 출처 표기를 '뉴욕 연은, FRED 경유'로, 사람 결정 항목 |
+| WRESBAL | 관측소1 지급준비금 판정 | 없음 | public domain: citation requested | For questions on the data, please contact the data source (https://www.federalreserve.gov/apps/ContactUs/feedb | 공공 영역 — 그대로 |
+| SOFR | 관측소1 SOFR−IORB 판정 | 없음 | copyrighted: citation required | (notes 없음) | 판정에 씀 → 건드리지 않음, 출처 표기 정리, 사람 결정 항목 |
+| IORB | 관측소1 SOFR−IORB 판정 | 없음 | public domain: citation requested | IOER (https://fred.stlouisfed.org/series/IOER)) and the interest rate on required reserves (IORR (https://fred | 공공 영역 — 그대로 |
+| RPONTTLD | 관측소1 SRF 판정 | 없음 | copyrighted: citation required | This series is constructed as the aggregated daily amount value of the RP transactions reported by the New Yor | 판정에 씀 → 건드리지 않음, 출처 표기 정리, 사람 결정 항목 |
+| WLCFLPCL | 관측소1 재할인 창구 판정 | 없음 | public domain: citation requested | For questions on the data, please contact the data source (https://www.federalreserve.gov/apps/ContactUs/feedb | 공공 영역 — 그대로 |
+| BOGZ1FL403069330Q | 관측소2 FHLB 판정 | 없음 | public domain: citation requested | Financial Accounts Guide (https://www.federalreserve.gov/apps/fof/Default.aspx). | 공공 영역 — 그대로 |
+| DPSSCBW027NBOG | 관측소2 예금 유출 판정 | 없음 | public domain: citation requested | data source (https://www.federalreserve.gov/apps/ContactUs/feedback.aspx?refurl=/releases/h8/%). For questions | 공공 영역 — 그대로 |
+| DPSLCBW027NBOG | 관측소2 예금 유출 판정 | 없음 | public domain: citation requested | data source (https://www.federalreserve.gov/apps/ContactUs/feedback.aspx?refurl=/releases/h8/%). For questions | 공공 영역 — 그대로 |
+| DRCRELEXFT100S | 관측소2 CRE 규모별 차트(표시용) | 없음 | public domain: citation requested | data source (https://www.federalreserve.gov/apps/ContactUs/feedback.aspx?refurl=/releases/chargeoff/%). For qu | 공공 영역 — 그대로 |
+| DRCRELEXFOBS | 관측소2 CRE 규모별 차트(표시용) | 없음 | public domain: citation requested | data source (https://www.federalreserve.gov/apps/ContactUs/feedback.aspx?refurl=/releases/chargeoff/%). For qu | 공공 영역 — 그대로 |
+| DRCRELEXFACBS | 관측소2 CRE 차트(표시용) | 없음 | public domain: citation requested | data source (https://www.federalreserve.gov/apps/ContactUs/feedback.aspx?refurl=/releases/chargeoff/%). For qu | 공공 영역 — 그대로 |
+| LNFACBW027SBOG | 관측소3 NDFI 판정 | 없음 | public domain: citation requested | data source (https://www.federalreserve.gov/apps/ContactUs/feedback.aspx?refurl=/releases/h8/%). For questions | 공공 영역 — 그대로 |
+| TOTLL | 관측소3 NDFI(총대출 대비 비중) | 없음 | public domain: citation requested | data source (https://www.federalreserve.gov/apps/ContactUs/feedback.aspx?refurl=/releases/h8/%). For questions | 공공 영역 — 그대로 |
+| DGS10 | 관측소4 금리 변동성 판정 | 없음 | public domain: citation requested | H.15 Statistical Release (https://www.federalreserve.gov/releases/h15/current/h15.pdf) notes and Treasury Yiel | 공공 영역 — 그대로 |
+| CORBLACBS | 관측소5 기업대출 상각률 판정 | 없음 | public domain: citation requested | data source (https://www.federalreserve.gov/apps/ContactUs/feedback.aspx?refurl=/releases/chargeoff/%). For qu | 공공 영역 — 그대로 |
+| SP500 | 관측소1 RRP·지급준비금·SRF 차트 겹치기(표시용) | 있음 | copyrighted: pre-approval required | Copyright © 2016, S&P Dow Jones Indices LLC. | **화면에서 제거**(RRP·지급준비금·SRF 차트 겹치기). 수집 코드·cron 은 그대로 |
+| NASDAQCOM | 관측소1 RRP·지급준비금·SRF 차트 겹치기(표시용) | 있음 | copyrighted: pre-approval required | Copyright Â© 2016, NASDAQ OMX Group, Inc. | **화면에서 제거**(같은 곳). 수집 코드·cron 은 그대로 |
+
+- 저작권 표시가 있는 시리즈 중 **판정에 쓰는 것은 뉴욕 연은 3개(RRPONTSYD·SOFR·RPONTTLD, "Copyrighted: Citation required")**입니다. 규칙대로 판정은 건드리지 않았고, 등급이 요구하는 "원출처 + FRED 경유" 표기만 맞췄습니다.
+- **화면 표시용은 SP500·NASDAQCOM("Copyrighted: Pre-approval required")** 둘이고, 화면에서 뺐습니다(16-3).
+
+### 16-3. 바꾼 것
+- RRP·지급준비금·SRF 페이지: 주가지수를 읽어 차트에 넘기던 연결을 끊었습니다. 차트는 지수가 없으면 겹치기 토글·오른쪽 축·지수 범례·기준일 설명을 그리지 않습니다(원래 동작). 수집 코드(`lib/observatory-market-index.ts`)·cron·차트의 겹치기 기능은 남겨, 승인을 받으면 다시 연결할 수 있습니다.
+- 주가와 비교하던 문단을 정리했습니다: RRP "잔액과 주가" 상자 → "잔액이 쌓이고 빠진다는 것의 뜻"(S&P 500 수치·주가 비교 삭제), 지급준비금 "2019~2023년엔 같이 움직였고…" 상자 삭제(관전 포인트 한 문단만 남김), RRP 차트 설명의 "지수 오버레이는 위 차트에만" 문구는 지수가 있을 때만.
+- 출처 표기: RRP·SRF "뉴욕 연방준비은행, FRED 경유", SOFR−IORB "SOFR는 뉴욕 연은, IORB는 연준 이사회, 둘 다 FRED 경유".
+- 필수 고지: 관측소 레이아웃 하단(관측소 목록 `/observatory` 포함 모든 관측소 페이지)에 영어 원문 고지 + 약관 링크, 바로 아래 존댓말 한국어 안내 한 줄. 뉴욕 연은 고지는 미션 3 그대로(따로 한 번).
+- "메인 인덱스"는 관측소 목록(`/observatory`)으로 읽었습니다. 사이트 첫 화면(`/`)은 `/sectors`로 넘기는 페이지이고 관측소 밖이라 고치지 않았습니다. 관측소 밖에도 FRED API를 쓰는 화면이 있습니다(`/global-indicators`, `/liquidity/us`, `/inflation` 등 — 8장 20번).
+- 판정·발동 비율은 바뀌지 않았습니다(16-5).
+
+### 16-4. 관측소 밖 404 페이지 연결 조사 (수정하지 않음)
+`/fed-rate`, `/indices`, `/indices/fear-greed`, `/market-events`, `/money-flow`, `/money-flow/treasury-auction`은 `app/` 아래 라우트 폴더 자체가 없습니다. navbar(`components/navbar.tsx`)·컴포넌트·페이지·글(`posts/`)·`public/`·`next.config.ts`·`vercel.json`·`proxy.ts` 어디에서도 이 주소로 연결하지 않습니다. 남은 흔적은 `lib/article-writer.ts`가 `posts/fed-rate/` 폴더에 글 파일을 쓰는 경로(파일 경로이지 링크가 아님)와, CLAUDE.md의 "구현된 페이지" 목록(낡은 문서)입니다.
+
+### 16-5. 불변 확인
+바꾸기 전 배포 사이트(미션 3 최종)와 바꾼 뒤 로컬 프로덕션의 20개 지표 API를 비교했습니다. status 와 발동 통계(firing·firingWeekly·firingQuarterly·firingDelinquency·firingConcentration) 차이 0/20. 불변값 스크립트도 그대로(베이시스 164/321/32/33, NDFI 208/300/88/18, 응찰 0.55%, 딜러 비중 4.85%, 금리 변동성 11.61%, 해외 보유 12.0%). 독립 검증도 lastUpdated 를 뺀 API 전체가 같다고 확인했습니다.
+
+### 16-6. 독립 검증
+별도 에이전트(컨텍스트 공유 없음)가 27개 페이지의 HTML·RSC 페이로드와 20개 API 를 모두 확인해 주가지수 흔적 0건, 18개 시리즈 저작권 분류 일치, 고지 문구가 약관 원문과 글자까지 같음, 판정 불변, 존댓말·제작 주체 표현 문제 없음, 390px 가로 스크롤 없음을 확인했습니다.
+
+| # | 심각도 | 지적 | 처리 |
+|---|---|---|---|
+| 1 | 중간 | 문서가 "API 약관 페이지에는 저장 금지가 없어 두 문서가 다르게 읽힌다"고 했지만, API 약관은 "The Terms of Use shall include: … Legal Terms"로 /legal 을 포함하므로 저장 금지가 API 사용에도 적용됨. 요약의 "API 앱 만들기"는 "본인의 개인적 사용" 예 | **고침**: 원문(api_terms 51~55행, 92행)을 직접 확인하고 결정 로그 16-1·8장 12·18번, 검수 자료 2장·3장을 고쳐 씀. 결론: 지금 방식은 서면 허락이 필요할 수 있음(사람 결정) |
+| 2 | 낮음~중간 | 배관 섹션 페이지 출처가 "FRED (Federal Reserve Bank of St. Louis)"로 남아 뉴욕 연은 저작권 시리즈의 원출처·FRED 경유 표기가 빠짐. 지급준비금·재할인 창구·FHLB 도 원출처 대신 세인트루이스 연은으로 표기 | **고침**: 카탈로그 배관·은행 섹션 출처, 지급준비금·재할인 창구(연준 이사회 H.4.1)·FHLB(Z.1)·예금 유출(H.8) 페이지 출처를 "원출처, FRED 경유"로 |
+| 3 | 낮음 | 필수 고지가 11px 연회색이라 약관의 "prominently"에 못 미침 | **고침**: 12px·진한 글자색·위 경계선으로 구분 |
+| 4 | 낮음 | 지급준비금 남은 문단의 "지금 준비금은 서서히 줄고 있고"가 데이터(1년 동안 거의 제자리)로 뒷받침되지 않음 | **고침**: 추세 단정을 빼고 "RRP 쿠션이 없어 돈이 빠지면 준비금이 바로 준다"는 구조 설명으로 |
+| 5 | 낮음(참고) | 지수 수집이 cron 에서 계속 돌아 Redis 에 저장되고 cron 응답에 최신 값이 나옴 | **유지(기록)**: 미션 지시가 "수집 코드는 지우지 말고 화면 연결만 끊어라"여서 그대로 둠. cron 은 CRON_SECRET 없이는 401(배포 사이트에서도 확인). 수집 중단 여부는 8장 13번·검수 자료 3장 2번(사람 결정) |

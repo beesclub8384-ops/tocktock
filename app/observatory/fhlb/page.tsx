@@ -88,7 +88,7 @@ export default async function FhlbPage() {
           갑자기 늘면 은행들이 돈줄을 찾고 있다는 신호일 수 있습니다.
         </p>
         <p className="text-xs text-zinc-400 mt-1.5">
-          출처: FRED (Federal Reserve Bank of St. Louis), 시리즈 {data.seriesId} ·
+          출처: 연준 이사회 금융계정(Z.1), FRED 경유, 시리즈 {data.seriesId} ·
           분기(분기 말 기준)
         </p>
       </header>

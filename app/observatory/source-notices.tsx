@@ -14,14 +14,21 @@
  */
 
 export function FredNotice() {
+  // 영어 문장은 FRED API 이용 약관(Requirements)의 문구 그대로다. 바꾸거나 줄이지 않는다.
   return (
-    <p className="container mx-auto max-w-5xl px-4 sm:px-6 mt-2 text-[11px] leading-relaxed text-zinc-400">
-      관측소의 여러 지표는 FRED API로 받습니다. This product uses the FRED® API but is not endorsed or certified by
-      the Federal Reserve Bank of St. Louis.{" "}
-      <a href="https://fred.stlouisfed.org/docs/api/terms_of_use.html" className="underline" target="_blank" rel="noreferrer">
-        FRED API Terms of Use
-      </a>
-    </p>
+    // 약관이 "prominently" 를 요구해 다른 출처 표기보다 크고 진하게, 경계선으로 구분해 둔다 (독립 검증 지적)
+    <div className="container mx-auto max-w-5xl px-4 sm:px-6 mt-6 border-t border-zinc-200 dark:border-zinc-800 pt-3 text-xs leading-relaxed text-zinc-700 dark:text-zinc-300">
+      <p>
+        This product uses the FRED® API but is not endorsed or certified by the Federal Reserve Bank of St. Louis.{" "}
+        <a href="https://fred.stlouisfed.org/docs/api/terms_of_use.html" className="underline" target="_blank" rel="noreferrer">
+          FRED® API Terms of Use
+        </a>
+      </p>
+      <p>
+        이 사이트의 일부 자료는 미국 세인트루이스 연방준비은행의 FRED® API로 받습니다. 세인트루이스 연방준비은행이 이
+        사이트를 보증하거나 인증한 것은 아니며, 자료 이용에는 위 FRED® API 이용 약관이 적용됩니다.
+      </p>
+    </div>
   );
 }
 

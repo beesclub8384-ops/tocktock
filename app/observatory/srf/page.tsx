@@ -7,9 +7,10 @@ import { headers } from "next/headers";
 import SrfChart from "./SrfChart";
 import { formatUsage } from "./format";
 import type { SrfResponse } from "@/app/api/observatory/srf/route";
-// 오버레이용 주가지수는 "지표" 가 아니라 참고 데이터라 SRF API 응답에 섞지 않는다.
-// 서버 컴포넌트에서 Redis 를 직접 읽어 차트에만 넘긴다.
-import { loadMarketIndex } from "@/lib/observatory-market-index";
+// 주가지수(S&P 500·나스닥) 겹쳐 그리기는 2026-10-18 미션 4에서 화면 연결을 끊었다.
+// FRED 시리즈 SP500·NASDAQCOM 은 "Copyrighted: pre-approval required"(저작권자 사전 승인 필요)라
+// 승인 없이 공개 페이지에 실을 수 없다. 수집 코드(lib/observatory-market-index.ts)와 차트의 겹치기
+// 기능(indices prop)은 남겨 두었다 — 승인을 받으면 loadMarketIndex() 를 다시 불러 indices 로 넘기면 된다.
 import type { ObservatoryStatus } from "@/lib/observatory-constants";
 
 export const metadata: Metadata = {
@@ -78,11 +79,7 @@ function formatKstDate(iso: string): string {
 }
 
 export default async function SrfPage() {
-  const [data, indices] = await Promise.all([
-    getData(),
-    // 지수 수집이 아직이거나 실패해도 SRF 페이지는 그대로 떠야 한다
-    loadMarketIndex().catch(() => []),
-  ]);
+  const data = await getData();
 
   if (!data || data.series.length === 0) {
     return (
@@ -108,8 +105,8 @@ export default async function SrfPage() {
           SRF 사용량
         </h1>
         <p className="text-sm text-zinc-500 mt-2">
-          연준이 열어둔 응급 창구가 하루에 얼마나 쓰였는지 봅니다. 출처: FRED
-          (Federal Reserve Bank of St. Louis), 시리즈 {data.seriesId}.
+          연준이 열어둔 응급 창구가 하루에 얼마나 쓰였는지 봅니다. 출처: 뉴욕
+          연방준비은행(Federal Reserve Bank of New York), FRED 경유, 시리즈 {data.seriesId}.
         </p>
         <p className="text-xs text-zinc-400 mt-1">
           마지막 업데이트: {formatKstDate(data.lastUpdated)}
@@ -166,7 +163,7 @@ export default async function SrfPage() {
         <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100 mb-3">
           하루 사용량 추이
         </h2>
-        <SrfChart series={data.series} indices={indices} />
+        <SrfChart series={data.series} />
       </section>
 
       {/* 보는 법 */}

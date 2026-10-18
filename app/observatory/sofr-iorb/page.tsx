@@ -101,7 +101,7 @@ export default async function ObservatoryPage() {
         </h1>
         <p className="text-sm text-zinc-500 mt-2">
           레포 금리(SOFR)가 연준이 은행 지급준비금에 주는 이자율(IORB) 위로 뜨는지
-          매일 지켜봅니다. 출처: FRED (Federal Reserve Bank of St. Louis).
+          매일 지켜봅니다. 출처: SOFR는 뉴욕 연방준비은행(Federal Reserve Bank of New York), IORB는 연준 이사회, 둘 다 FRED 경유.
         </p>
         <p className="text-xs text-zinc-400 mt-1">
           마지막 업데이트: {formatKstDate(data.lastUpdated)}

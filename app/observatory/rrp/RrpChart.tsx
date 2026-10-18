@@ -396,7 +396,7 @@ export default function RrpChart({
         leftAxisLabel="RRP 잔액(십억 달러, 위 차트는 1,000십억 이상을 조 단위로 표기)"
         baselines={baselines}
         hasIndices={hasIndices}
-        extra="이 지표는 값이 낮을수록 위험합니다 · 지수 오버레이는 위 차트에만 적용됩니다"
+        extra={hasIndices ? "이 지표는 값이 낮을수록 위험합니다 · 지수 오버레이는 위 차트에만 적용됩니다" : "이 지표는 값이 낮을수록 위험합니다"}
       />
     </div>
   );

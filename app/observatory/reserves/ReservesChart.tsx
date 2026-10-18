@@ -311,7 +311,7 @@ export default function ReservesChart({
         leftAxisLabel="지급준비금 총량(십억 달러, 1,000십억 이상은 조 단위로 표기)"
         baselines={baselines}
         hasIndices={hasIndices}
-        extra="준비금은 매주 수요일 기준 주간 데이터라 점 사이를 이어 그립니다 · 이 지표는 값이 낮을수록 위험합니다"
+        extra="준비금은 수요일로 끝나는 주의 평균(주간 데이터)이라 점 사이를 이어 그립니다 · 이 지표는 값이 낮을수록 위험합니다"
       />
     </div>
   );

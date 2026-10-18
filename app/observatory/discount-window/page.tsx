@@ -105,7 +105,7 @@ export default async function DiscountWindowPage() {
           급증하는 일 자체가 드뭅니다.
         </p>
         <p className="text-xs text-zinc-400 mt-1">
-          출처: FRED (Federal Reserve Bank of St. Louis), 시리즈 {data.seriesId} ·
+          출처: 연준 이사회 H.4.1, FRED 경유, 시리즈 {data.seriesId} ·
           주간(매주 수요일 기준, 목요일 갱신)
         </p>
         <p className="text-xs text-zinc-400 mt-1">
