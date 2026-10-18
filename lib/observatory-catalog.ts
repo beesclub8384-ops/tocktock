@@ -30,7 +30,8 @@ export type ObservatoryIndicatorKey =
   | "unrealized-losses"
   | "fhlb"
   | "deposit-flight"
-  | "cre";
+  | "cre"
+  | "basis-trade";
 
 export interface ObservatoryIndicatorMeta {
   key: ObservatoryIndicatorKey;
@@ -69,6 +70,12 @@ export interface ObservatorySectionMeta {
   subtitle: string;
   /** 섹션 하단 사슬 설명 */
   chainNote: string;
+  /**
+   * 섹션 페이지 헤더의 출처 표기.
+   * 관측소마다 출처가 달라(FRED · FDIC · CFTC) 섹션 페이지에 문자열을 박아두면
+   * 새 섹션이 남의 출처를 달고 나온다.
+   */
+  source: string;
   /** 사슬 순서대로 정렬된 지표들 */
   indicators: ObservatoryIndicatorMeta[];
 }
@@ -82,6 +89,7 @@ export const OBSERVATORY_SECTIONS: ObservatorySectionMeta[] = [
     subtitle:
       "시스템 전체의 현금 사정을 재는 곳. 여기가 흔들리면 어디가 아픈지와 무관하게 모두가 아파진다.",
     chainNote: "①→⑤는 시스템의 현금이 마를 때 경보가 켜지는 순서다",
+    source: "FRED (Federal Reserve Bank of St. Louis)",
     indicators: [
       {
         key: "rrp",
@@ -136,6 +144,7 @@ export const OBSERVATORY_SECTIONS: ObservatorySectionMeta[] = [
       "개별 은행이 아니라 은행업 전체의 체질을 본다. SVB의 재림 후보를 찾는 곳.",
     chainNote:
       "관측소 1이 시스템 전체의 현금을 잰다면, 여기는 그 돈을 굴리는 은행들의 몸 상태를 본다",
+    source: "FRED (Federal Reserve Bank of St. Louis) · FDIC 분기 은행실적보고서(QBP)",
     indicators: [
       {
         key: "unrealized-losses",
@@ -168,6 +177,28 @@ export const OBSERVATORY_SECTIONS: ObservatorySectionMeta[] = [
         name: "상업용 부동산 익스포저",
         oneLiner:
           "연체율은 대형은행이 높고 집중도는 지역은행이 훨씬 높다. 아픈 곳과 물린 곳이 다르다.",
+      },
+    ],
+  },
+  {
+    // ⚠ id 는 지표 슬러그(basis-trade 등)와 겹치면 안 된다 — 아래 검사가 막는다
+    id: "shadow-banking",
+    number: 3,
+    name: "그림자금융: 은행 밖의 레버리지",
+    shortName: "그림자금융",
+    subtitle:
+      "은행이 아닌 곳에서 빌린 돈으로 크게 굴리는 거래를 봅니다. 규제 밖이라 잘 보이지 않고, 흔들리면 한꺼번에 몰려 나옵니다.",
+    chainNote:
+      "관측소 2가 은행의 몸 상태를 본다면, 여기는 은행 밖에서 레버리지를 쓰는 곳을 봅니다. 지금은 국채 베이시스 트레이드 하나만 보고 있습니다",
+    source: "CFTC Traders in Financial Futures (Futures Only)",
+    indicators: [
+      {
+        key: "basis-trade",
+        order: 1,
+        href: "/observatory/basis-trade",
+        name: "국채 베이시스 트레이드 (대리 지표)",
+        oneLiner:
+          "헤지펀드가 국채 선물을 판 규모입니다. 현물과 선물의 가격 차이를 노리는 레버리지 거래가 얼마나 쌓였는지 짐작해 봅니다.",
       },
     ],
   },
@@ -229,8 +260,8 @@ function assertCatalogIsSane(sections: ObservatorySectionMeta[]): void {
  *   지금처럼 최상위에서 부르면 레이아웃(navbar)이 이 모듈을 쓰는 덕에 빌드가
  *   실패하고, 잘못된 슬러그가 배포까지 가지 못한다.
  *
- *   대가는 클라이언트 번들에 검사 함수가 같이 실리는 것뿐이다. 섹션 1개 ·
- *   지표 5개를 훑는 루프라 실행 비용은 사실상 0이고, 조용히 안 뜨는 페이지를
+ *   대가는 클라이언트 번들에 검사 함수가 같이 실리는 것뿐이다. 섹션 3개 ·
+ *   지표 10개를 훑는 루프라 실행 비용은 사실상 0이고, 조용히 안 뜨는 페이지를
  *   막는 값으로는 싸다.
  */
 assertCatalogIsSane(OBSERVATORY_SECTIONS);

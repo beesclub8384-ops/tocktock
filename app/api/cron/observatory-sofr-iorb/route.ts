@@ -19,13 +19,18 @@ import {
   collectCreConcentration,
   collectCreSizeSplit,
 } from "@/lib/observatory-cre";
+// 관측소 3 — CFTC TFF 보고서 (FRED 아님)
+import { collectBasisTrade } from "@/lib/observatory-basis-trade";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 /**
- * 관측소 전체 지표 수집 (SOFR−IORB 스프레드 + SRF 사용량 + 재할인 창구 잔액
- *                        + 역레포(RRP) 잔액 + 지급준비금 총량).
+ * 관측소 전체 지표 수집 — 지금 3개 관측소 · 지표 10개
+ *   관측소 1 배관(FRED):  SOFR−IORB · SRF · 재할인 창구 · RRP · 지급준비금
+ *   관측소 2 은행(FRED + FDIC 분기 워크북): 채권 미실현손실 · FHLB · 예금 유출 · CRE
+ *   관측소 3 그림자금융(CFTC TFF): 국채 베이시스 트레이드 대리 지표
+ *   + 차트 오버레이용 나스닥·S&P 500 (지표 아님)
  *
  * ⚠ 경로 이름이 sofr-iorb 로 남아 있지만 관측소 지표를 모두 여기서 모은다.
  *   경로를 바꾸면 vercel.json 의 cron path 도 같이 바꿔야 하고, 한쪽만 고치면
@@ -159,6 +164,17 @@ export async function GET(request: Request) {
     const detail = error instanceof Error ? error.message : String(error);
     console.error("[observatory] cre 집중도 수집 실패:", error);
     errors.creConcentration = detail;
+  }
+
+  // 관측소 3 — 국채 베이시스(CFTC). 주간 지표라 매일 돌려도 새 값은 주 1회다.
+  // CFTC 발표(금 15:30 ET)가 이 cron(UTC 13:00)보다 늦어 월요일 실행에서
+  // 그 주 화요일 값이 처음 잡힌다 — 정상이다.
+  try {
+    results.basisTrade = await collectBasisTrade();
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    console.error("[observatory] basis-trade 수집 실패:", error);
+    errors.basisTrade = detail;
   }
 
   // 주가지수는 관측소 "지표" 가 아니라 SRF 차트에 겹쳐 그리는 참고 데이터다.

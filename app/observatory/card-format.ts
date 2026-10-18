@@ -91,6 +91,20 @@ export function formatCardDepositFlight(
 }
 
 /**
+ * 국채 베이시스 대리 지표 카드 표기 — 액면 명목(십억 달러) + 미결제약정 대비 비율.
+ *
+ * 금액은 다른 카드와 같은 규칙(formatCardBillions)을 따른다. 레버리지 펀드가
+ * 순매수로 돌아서면 음수가 될 수 있는데, 그 경우도 숫자를 그대로 보여준다.
+ */
+export function formatCardBasisTrade(notionalBillions: number, pctOfOi: number): CardValue {
+  const main =
+    notionalBillions >= 0
+      ? formatCardBillions(notionalBillions).main
+      : `${notionalBillions.toFixed(1)}십억 달러`;
+  return { main, note: `미결제약정 대비 ${pctOfOi.toFixed(1)}%` };
+}
+
+/**
  * CRE 카드 표기 — 연체율(아픈 정도)을 본값, 지역은행 집중도(물린 양)를 옆에.
  *
  * 판정이 둘 중 나쁜 쪽을 따르므로 한 숫자만 보여주면 신호등 색과 어긋난다.

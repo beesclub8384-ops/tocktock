@@ -45,7 +45,7 @@ export default async function ObservatoryIndexPage() {
         </h1>
         <p className="text-sm text-zinc-500 mt-2">
           금융 시스템에 금이 가는지 지켜보는 곳입니다. 관측소별로 보는 대상이
-          다릅니다. 출처: FRED (Federal Reserve Bank of St. Louis).
+          다릅니다. 출처는 관측소마다 다르며 각 페이지에 적어 두었습니다.
         </p>
       </header>
 

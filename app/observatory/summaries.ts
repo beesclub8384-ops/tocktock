@@ -204,6 +204,47 @@ export function summarizeBanks(
 }
 
 /* ────────────────────────────────────────────────────────────
+ * 관측소 3 — 그림자금융
+ *
+ * 지금은 지표가 국채 베이시스 하나라 묶어 읽을 덩어리가 없다.
+ * 판정 상태와 최근 3년 백분위를 그대로 한 줄로 말한다.
+ * ──────────────────────────────────────────────────────────── */
+
+const BASIS_TEXT: Record<ObservatoryStatus, string> = {
+  normal: "정상",
+  caution: "주의",
+  warning: "경보",
+};
+
+/**
+ * 관측소 3 요약.
+ *
+ * 예) "국채 베이시스(대리 지표)는 최근 3년 중 22번째 백분위 — 정상"
+ */
+export function summarizeShadowBanking(
+  statuses: ObservatoryStatusMap,
+  raw?: ObservatoryRawMap
+): ObservatorySummary {
+  const status = statuses["basis-trade"] ?? null;
+  const pctile = raw?.["basis-trade"];
+
+  // 값도 상태도 없으면 수집 전이다. 상태를 지어내지 않는다
+  if (status === null && typeof pctile !== "number") {
+    return { text: "현재 상태를 확인할 수 없습니다 (수집 대기)", status: null };
+  }
+
+  const position =
+    typeof pctile === "number"
+      ? `최근 3년 중 ${pctile.toFixed(0)}번째 백분위`
+      : "최근 3년 백분위 계산 불가";
+
+  return {
+    text: `국채 베이시스(대리 지표)는 ${position} — ${status ? BASIS_TEXT[status] : "판정 보류"}`,
+    status,
+  };
+}
+
+/* ────────────────────────────────────────────────────────────
  * 레지스트리
  * ──────────────────────────────────────────────────────────── */
 
@@ -214,6 +255,7 @@ const SECTION_SUMMARIZERS: Record<
 > = {
   plumbing: summarizeSection1,
   banks: summarizeBanks,
+  "shadow-banking": summarizeShadowBanking,
 };
 
 /**

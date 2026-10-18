@@ -1,0 +1,269 @@
+import { ObservatoryBreadcrumb } from "../breadcrumb";
+import type { Metadata } from "next";
+import { headers } from "next/headers";
+import BasisTradeChart from "./BasisTradeChart";
+import {
+  formatChange,
+  formatContracts,
+  formatNotional,
+  formatPct,
+  formatReportDate,
+} from "./format";
+import type { BasisTradeResponse } from "@/app/api/observatory/basis-trade/route";
+import type { ObservatoryStatus } from "@/lib/observatory-constants";
+
+export const metadata: Metadata = {
+  title: "관측소 · 국채 베이시스 트레이드 | TockTock",
+  description:
+    "헤지펀드가 국채 선물을 판 규모로 베이시스 트레이드가 얼마나 쌓였는지 짐작해 보는 대리 지표입니다. 출처는 CFTC TFF 보고서입니다.",
+};
+
+export const dynamic = "force-dynamic";
+
+async function getData(): Promise<BasisTradeResponse | null> {
+  // 절대 URL 구성 (서버 컴포넌트에서 자체 API 호출 시)
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
+  const proto = h.get("x-forwarded-proto") ?? "https";
+  try {
+    const res = await fetch(`${proto}://${host}/api/observatory/basis-trade`, {
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as BasisTradeResponse;
+  } catch {
+    return null;
+  }
+}
+
+const STATUS_META: Record<
+  ObservatoryStatus,
+  { label: string; className: string; dot: string }
+> = {
+  normal: {
+    label: "정상",
+    className:
+      "bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800",
+    dot: "bg-emerald-500",
+  },
+  caution: {
+    label: "주의",
+    className:
+      "bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800",
+    dot: "bg-amber-500",
+  },
+  warning: {
+    label: "경보",
+    className:
+      "bg-rose-50 text-rose-700 border-rose-300 dark:bg-rose-950 dark:text-rose-300 dark:border-rose-800",
+    dot: "bg-rose-500",
+  },
+};
+
+const PENDING_META = {
+  label: "판정 보류",
+  className:
+    "bg-zinc-50 text-zinc-600 border-zinc-300 dark:bg-zinc-900 dark:text-zinc-400 dark:border-zinc-700",
+  dot: "bg-zinc-400",
+};
+
+function signalLabel(s: ObservatoryStatus | null): string {
+  return s === null ? "판정 보류" : STATUS_META[s].label;
+}
+
+/** 한계 문구 — 지표의 성격을 숫자보다 먼저 읽게 상단에 고정한다 */
+function LimitationNotice() {
+  return (
+    <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-relaxed text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
+      <p>
+        이 지표는 베이시스 트레이드 규모를 직접 잰 값이 아닙니다. CFTC가 공개하는 레버리지
+        펀드의 국채 선물 순매도 포지션으로 짐작해 보는 대리 지표입니다.
+      </p>
+      <p className="mt-1">
+        헤지펀드의 순매도에는 금리 상승에 거는 방향성 베팅이나 다른 헤지 거래도 섞여 있어,
+        숫자 전체를 베이시스 트레이드로 볼 수는 없습니다.
+      </p>
+      <p className="mt-1">
+        거래의 나머지 절반인 현물 국채 보유와 레포 차입 규모는 이 데이터에 나오지 않습니다.
+      </p>
+    </div>
+  );
+}
+
+export default async function BasisTradePage() {
+  const data = await getData();
+
+  if (!data || !data.latest) {
+    return (
+      <div className="container mx-auto max-w-5xl px-4 sm:px-6 py-8">
+        <ObservatoryBreadcrumb indicator="basis-trade" />
+        <h1 className="text-2xl font-bold mb-4">국채 베이시스 트레이드 (대리 지표)</h1>
+        <LimitationNotice />
+        <p className="text-sm text-zinc-500">
+          아직 데이터가 없습니다. CFTC 수집을 기다리는 중입니다.
+        </p>
+      </div>
+    );
+  }
+
+  const { latest, thresholds } = data;
+  const statusMeta = data.status ? STATUS_META[data.status] : PENDING_META;
+
+  return (
+    <div className="container mx-auto max-w-5xl px-4 sm:px-6 py-6 sm:py-8">
+      <ObservatoryBreadcrumb indicator="basis-trade" />
+      {/* 헤더 */}
+      <header className="mb-4">
+        <h1 className="text-2xl sm:text-3xl font-bold text-zinc-900 dark:text-zinc-100">
+          국채 베이시스 트레이드 (대리 지표)
+        </h1>
+        <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-2 leading-relaxed">
+          헤지펀드가 현물 국채를 사고 국채 선물을 팔아 둘의 가격 차이를 먹는 거래입니다.
+          레포로 돈을 빌려 크게 굴리기 때문에, 시장이 흔들리면 한꺼번에 청산될 수 있습니다.
+        </p>
+        <p className="text-xs text-zinc-400 mt-1.5">
+          출처: CFTC Traders in Financial Futures (Futures Only, 데이터셋 {data.datasetId}) ·
+          주간 (화요일 기준)
+        </p>
+      </header>
+
+      <LimitationNotice />
+
+      {/* 최신값 */}
+      <div className="mb-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 sm:p-6">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-xs font-semibold text-zinc-400 mb-1">
+              레버리지 펀드 국채 선물 순숏 (액면 명목)
+            </div>
+            <div className="text-4xl font-bold text-zinc-900 dark:text-zinc-100 tabular-nums">
+              {formatNotional(latest.notionalBillions)}
+            </div>
+            <div className="text-sm text-zinc-500 mt-1 tabular-nums">
+              {formatContracts(latest.netShortContracts)}
+            </div>
+          </div>
+          <div
+            className={`shrink-0 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-bold ${statusMeta.className}`}
+          >
+            <span className={`h-1.5 w-1.5 rounded-full ${statusMeta.dot}`} />
+            {statusMeta.label}
+          </div>
+        </div>
+
+        <dl className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-3 text-sm">
+          <div>
+            <dt className="text-xs text-zinc-400">기준일</dt>
+            <dd className="font-semibold text-zinc-800 dark:text-zinc-200">
+              {formatReportDate(latest.date)}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs text-zinc-400">미결제약정 대비 순숏</dt>
+            <dd className="font-semibold text-zinc-800 dark:text-zinc-200 tabular-nums">
+              {formatPct(latest.netShortPctOfOi)}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs text-zinc-400">4주 변화율</dt>
+            <dd className="font-semibold text-zinc-800 dark:text-zinc-200 tabular-nums">
+              {formatChange(latest.change4wPct)}
+            </dd>
+            <dd className="text-xs text-zinc-500">
+              청산 신호: {signalLabel(data.liquidationStatus)}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs text-zinc-400">최근 3년 백분위</dt>
+            <dd className="font-semibold text-zinc-800 dark:text-zinc-200 tabular-nums">
+              {data.percentile3y === null ? "—" : `${data.percentile3y.toFixed(0)}번째`}
+            </dd>
+            <dd className="text-xs text-zinc-500">
+              쏠림 신호: {signalLabel(data.concentrationStatus)}
+            </dd>
+          </div>
+        </dl>
+      </div>
+
+      {/* 추이 */}
+      <section className="mb-6">
+        <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-3">주간 추이</h2>
+        <BasisTradeChart
+          series={data.series}
+          liquidationCautionCutoffPct={thresholds.liquidationCautionCutoffPct}
+          liquidationAlertCutoffPct={thresholds.liquidationAlertCutoffPct}
+          concentrationCutoffBillions={thresholds.concentrationCutoffBillions}
+        />
+      </section>
+
+      {/* 판정 기준 */}
+      <section className="mb-6">
+        <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-3">판정 기준</h2>
+        <div className="space-y-2 text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">
+          <p>
+            고정된 금액이 아니라 <strong>과거 분포 안에서의 위치</strong>로 판정합니다. 시장
+            규모가 10년 사이 몇 배로 커져서, 고정 금액 기준은 금방 낡기 때문입니다.
+          </p>
+          <ul className="list-disc pl-5 space-y-1">
+            <li>
+              <strong>청산 신호</strong>: 4주 변화율이 2016년 4월 이후 전체 분포의 하위{" "}
+              {thresholds.liquidationCautionPctile}% 이하면 주의, 하위{" "}
+              {thresholds.liquidationAlertPctile}% 이하면 경보입니다. 지금 기준으로는 각각{" "}
+              {formatChange(thresholds.liquidationCautionCutoffPct)},{" "}
+              {formatChange(thresholds.liquidationAlertCutoffPct)}입니다 (변화율{" "}
+              {thresholds.changeObs.toLocaleString("en-US")}개 기준).
+            </li>
+            <li>
+              <strong>쏠림 신호</strong>: 액면 명목이 최근 {thresholds.lookbackWeeks}주(약
+              3년) 중 상위 {100 - thresholds.concentrationCautionPctile}% 안에 들면 주의입니다.
+              지금 기준선은{" "}
+              {thresholds.concentrationCutoffBillions === null
+                ? "—"
+                : formatNotional(thresholds.concentrationCutoffBillions)}
+              입니다. 쌓인 것 자체는 아직 사고가 아니라서 경보는 두지 않습니다.
+            </li>
+            <li>두 신호 중 더 나쁜 쪽이 최종 판정입니다.</li>
+          </ul>
+          <p className="text-zinc-500">
+            2020년 3월 코로나 때 순숏은 4주 동안 20% 안팎 줄었습니다. 이 정도로는 청산 신호의
+            주의 기준에 닿지 않았습니다. 기준을 그 사건에 맞춰 고치지 않고 그대로 두었습니다.
+          </p>
+        </div>
+      </section>
+
+      {/* 보는 법 */}
+      <section className="mb-6">
+        <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-3">보는 법</h2>
+        <div className="space-y-3 text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">
+          <p>
+            베이시스 트레이드는 같은 국채의 현물과 선물 사이에 생기는 작은 가격 차이를 먹는
+            거래입니다. 차이가 작아서 <strong>빌린 돈으로 수십 배씩 키워야</strong> 돈이
+            됩니다. 그래서 돈줄(레포)이 막히거나 가격이 튀면 한꺼번에 포지션을 정리하게 되고,
+            그 매도가 국채 시장을 다시 흔듭니다.
+          </p>
+          <p>
+            이 거래에서 헤지펀드는 선물을 <strong>파는 쪽</strong>에 섭니다. 그래서 CFTC가
+            매주 공개하는 레버리지 펀드의 국채 선물 순매도(숏 − 롱)를 거래 규모의 그림자로
+            봅니다. 2년·5년·10년·울트라 10년·30년·울트라 본드 6개 만기를 합쳤습니다.
+          </p>
+          <p>
+            만기마다 계약 크기가 달라 계약 수를 그냥 더하지 않고 액면 금액으로 바꿔
+            합쳤습니다. 2년물은 계약당 20만 달러, 나머지는 10만 달러입니다(CFTC 보고서의
+            계약 단위 기준). 다만{" "}
+            <strong>만기별 금리 민감도(듀레이션) 차이는 반영하지 못합니다.</strong> 같은 액면이라도
+            30년물이 2년물보다 금리 변화에 훨씬 크게 움직입니다.
+          </p>
+          <p className="text-zinc-500">
+            데이터는 화요일 기준이고 금요일 오후(미 동부 시간)에 공개됩니다. 이 사이트에는
+            다음 주 월요일에 반영됩니다. 미국 연휴가 낀 주에는 하루 더 늦어질 수 있습니다.
+          </p>
+        </div>
+      </section>
+
+      <p className="text-xs text-zinc-500">
+        이 지표는 시장 상황을 지켜보기 위한 참고 자료입니다. 투자 권유가 아니며, 모든 투자
+        판단은 본인의 책임입니다.
+      </p>
+    </div>
+  );
+}

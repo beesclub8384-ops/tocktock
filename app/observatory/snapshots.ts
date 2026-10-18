@@ -29,6 +29,7 @@ import {
   evaluateFhlb,
   evaluateDepositFlight,
   evaluateCre,
+  evaluateBasisTrade,
   type ObservatoryStatus,
 } from "@/lib/observatory-constants";
 import { loadSofrIorb } from "@/lib/observatory-sofr-iorb";
@@ -44,6 +45,8 @@ import {
   loadDepositFlightWeekly,
 } from "@/lib/observatory-deposit-flight";
 import { loadCreConcentration, loadCreSizeSplit } from "@/lib/observatory-cre";
+// 관측소 3 — CFTC TFF 보고서에서 온다
+import { loadBasisTrade } from "@/lib/observatory-basis-trade";
 // 카드 표기는 지표들을 나란히 놓고 읽는 화면이라 단위를 십억 달러로
 // 통일한다 (상세 페이지 포맷터는 지표별로 단위를 바꿔서 카드에는 안 맞는다).
 // 자세한 이유는 card-format.ts 상단 주석 참고.
@@ -54,6 +57,7 @@ import {
   formatCardQoq,
   formatCardDepositFlight,
   formatCardCre,
+  formatCardBasisTrade,
   type CardValue,
 } from "./card-format";
 
@@ -223,6 +227,19 @@ const LOADERS: Record<ObservatoryIndicatorKey, () => Promise<IndicatorSnapshot>>
       asOf: null,
       raw: v.regionalConcentrationPct,
     };
+  },
+  // 주간 지표. 판정이 백분위라 값이 있어도 status 가 null(판정 보류)일 수 있다.
+  // raw 는 최근 3년 백분위 — 요약 문장이 그 숫자를 쓴다.
+  "basis-trade": async () => {
+    const v = evaluateBasisTrade(await orLog("basis-trade", loadBasisTrade(), []));
+    return v.latest
+      ? {
+          status: v.status,
+          value: formatCardBasisTrade(v.latest.notionalBillions, v.latest.netShortPctOfOi),
+          asOf: v.latest.date,
+          raw: v.percentile3y,
+        }
+      : EMPTY_SNAPSHOT;
   },
 };
 
