@@ -302,6 +302,43 @@ export function summarizeTreasuryMarket(
 }
 
 /* ────────────────────────────────────────────────────────────
+ * 관측소 5 — 신용의 벽
+ *
+ * 신용 스프레드와 상각률 값을 나란히 두고, 끝에 둘 중 나쁜 상태를 붙인다.
+ * ──────────────────────────────────────────────────────────── */
+
+const SPREAD_TEXT: Record<ObservatoryStatus, string> = {
+  normal: "평소 범위",
+  caution: "넓어짐",
+  warning: "크게 넓어짐",
+};
+
+/**
+ * 예) "회사채 신용 스프레드는 0.93%p(평소 범위), 기업대출 상각률은 0.58% — 정상"
+ */
+export function summarizeCreditWall(
+  statuses: ObservatoryStatusMap,
+  raw?: ObservatoryRawMap
+): ObservatorySummary {
+  const spread = statuses["gz-spread"] ?? null;
+  const overall = worstStatus([spread, statuses["business-chargeoffs"]]);
+  const gz = raw?.["gz-spread"];
+  const rate = raw?.["business-chargeoffs"];
+  if (overall === null && typeof gz !== "number" && typeof rate !== "number") {
+    return { text: "현재 상태를 확인할 수 없습니다 (수집 대기)", status: null };
+  }
+  const spreadText =
+    typeof gz === "number"
+      ? `회사채 신용 스프레드는 ${gz.toFixed(2)}%p(${spread ? SPREAD_TEXT[spread] : "판정 보류"})`
+      : "회사채 신용 스프레드는 확인 불가";
+  const rateText = typeof rate === "number" ? `기업대출 상각률은 ${rate.toFixed(2)}%` : "기업대출 상각률은 확인 불가";
+  return {
+    text: `${spreadText}, ${rateText} — ${overall ? BASIS_TEXT[overall] : "판정 보류"}`,
+    status: overall,
+  };
+}
+
+/* ────────────────────────────────────────────────────────────
  * 레지스트리
  * ──────────────────────────────────────────────────────────── */
 
@@ -314,6 +351,7 @@ const SECTION_SUMMARIZERS: Record<
   banks: summarizeBanks,
   "shadow-banking": summarizeShadowBanking,
   "treasury-market": summarizeTreasuryMarket,
+  "credit-wall": summarizeCreditWall,
 };
 
 /**

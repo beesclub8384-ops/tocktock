@@ -26,18 +26,21 @@ import { collectNbfiLoans } from "@/lib/observatory-nbfi-loans";
 import { collectAuctions } from "@/lib/observatory-treasury-auctions";
 import { collectYields } from "@/lib/observatory-rate-vol";
 import { collectTic } from "@/lib/observatory-tic";
+// 관측소 5 — 연준 GZ 신용 스프레드 · FRED CORBLACBS
+import { collectChargeOffs, collectGz } from "@/lib/observatory-credit";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 /**
- * 관측소 전체 지표 수집 — 지금 4개 관측소 · 지표 15개
+ * 관측소 전체 지표 수집 — 지금 5개 관측소 · 지표 17개
  *   관측소 1 배관(FRED):  SOFR−IORB · SRF · 재할인 창구 · RRP · 지급준비금
  *   관측소 2 은행(FRED + FDIC 분기 워크북): 채권 미실현손실 · FHLB · 예금 유출 · CRE
  *   관측소 3 그림자금융: 국채 베이시스 트레이드 대리 지표(CFTC TFF) ·
  *                        은행의 비예금 금융기관 대출(FRED, H.8)
  *   관측소 4 국채시장: 입찰 응찰 배율·딜러 비중(재무부 Fiscal Data, 한 번 받아 둘이 같이 씀) ·
  *                      10년물 금리 변동성(FRED DGS10) · 해외 보유(재무부 TIC)
+ *   관측소 5 신용의 벽: GZ 신용 스프레드(연준 이사회 CSV) · 기업대출 상각률(FRED CORBLACBS)
  *   + 차트 오버레이용 나스닥·S&P 500 (지표 아님)
  *
  * ⚠ 경로 이름이 sofr-iorb 로 남아 있지만 관측소 지표를 모두 여기서 모은다.
@@ -46,7 +49,7 @@ export const maxDuration = 60;
  *   새 지표가 늘어도 이 파일에 수집 함수를 하나 더 붙이면 된다.
  *
  * 실행 시간 (maxDuration 60초): 2026-10-18 실측 로컬 프로덕션 7.9~8.7초, 배포 10~12초.
- *   관측소 4 세 수집기는 Promise.allSettled 로 동시에 받는다. 분기 FDIC 워크북(2.6MB)을
+ *   관측소 4·5 수집기는 관측소별로 Promise.allSettled 로 동시에 받는다. 분기 FDIC 워크북(2.6MB)을
  *   받는 날의 시간은 아직 재지 못했다 — 40초를 넘기 시작하면 라우트를 나눌 것.
  *
  * Vercel Cron 은 GET 으로 호출한다 — 반드시 GET (POST 로 만들면 405 무음 실패)
@@ -221,6 +224,21 @@ export async function GET(request: Request) {
     ["treasuryAuctions", auctions],
     ["rateVolatility", yields],
     ["foreignHoldings", tic],
+  ] as const) {
+    if (r.status === "fulfilled") {
+      results[name] = r.value;
+    } else {
+      const detail = r.reason instanceof Error ? r.reason.message : String(r.reason);
+      console.error(`[observatory] ${name} 수집 실패:`, r.reason);
+      errors[name] = detail;
+    }
+  }
+
+  // 관측소 5 — 두 출처가 서로 독립이라 동시에 받는다. 둘 다 과거 값이 고쳐질 수 있어 전체를 덮어쓴다
+  const [gz, chargeOffs] = await Promise.allSettled([collectGz(), collectChargeOffs()]);
+  for (const [name, r] of [
+    ["gzSpread", gz],
+    ["businessChargeOffs", chargeOffs],
   ] as const) {
     if (r.status === "fulfilled") {
       results[name] = r.value;

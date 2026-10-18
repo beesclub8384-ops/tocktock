@@ -37,7 +37,9 @@ export type ObservatoryIndicatorKey =
   | "auction-bid-to-cover"
   | "auction-dealer-share"
   | "rate-volatility"
-  | "foreign-holdings";
+  | "foreign-holdings"
+  | "gz-spread"
+  | "business-chargeoffs";
 
 export interface ObservatoryIndicatorMeta {
   key: ObservatoryIndicatorKey;
@@ -263,6 +265,36 @@ export const OBSERVATORY_SECTIONS: ObservatorySectionMeta[] = [
       },
     ],
   },
+  {
+    // id 는 지표 슬러그(gz-spread 등)와 겹치지 않게 짓는다 (assertCatalogIsSane)
+    id: "credit-wall",
+    number: 5,
+    name: "신용의 벽: 빌린 돈을 갚을 수 있는가",
+    shortName: "신용의 벽",
+    subtitle:
+      "회사들이 빚을 얼마나 비싸게 빌리는지, 실제로 못 갚는 일이 늘고 있는지 봅니다. 돈줄이 막히면 가장 약한 회사부터 무너집니다.",
+    chainNote:
+      "시장이 먼저 웃돈 이자를 올리고(신용 스프레드), 시간이 지나 실제 손실이 장부에 잡히는(상각률) 순서로 봅니다. 하이일드·CCC 원지수는 데이터 제공사의 사전 서면 승인 없이는 공개할 수 없게 돼 있어, 만기 벽(앞으로 갚아야 할 회사채 규모)은 무료 공개 출처가 없어 넣지 않았습니다",
+    source: "연준 이사회 GZ 신용 스프레드 · FRED CORBLACBS(연준)",
+    indicators: [
+      {
+        key: "gz-spread",
+        order: 1,
+        href: "/observatory/gz-spread",
+        name: "회사채 신용 스프레드 (하이일드 대리)",
+        oneLiner:
+          "미국 기업 회사채가 같은 만기의 국채보다 이자를 얼마나 더 주는지입니다. 투자자가 부도를 걱정할수록 넓어집니다. 하이일드 지수 대신 쓰는 연준 공개 자료입니다.",
+      },
+      {
+        key: "business-chargeoffs",
+        order: 2,
+        href: "/observatory/business-chargeoffs",
+        name: "기업대출 상각률 (부도율 대리)",
+        oneLiner:
+          "미국 은행이 기업대출을 못 받을 돈으로 보고 털어 낸 비율입니다. 회사채 부도율 대신 쓰는 대리 지표라 실제 부도보다 늦게 움직입니다.",
+      },
+    ],
+  },
 ];
 
 /* ────────────────────────────────────────────────────────────
@@ -321,8 +353,8 @@ function assertCatalogIsSane(sections: ObservatorySectionMeta[]): void {
  *   지금처럼 최상위에서 부르면 레이아웃(navbar)이 이 모듈을 쓰는 덕에 빌드가
  *   실패하고, 잘못된 슬러그가 배포까지 가지 못한다.
  *
- *   대가는 클라이언트 번들에 검사 함수가 같이 실리는 것뿐이다. 섹션 4개 ·
- *   지표 15개를 훑는 루프라 실행 비용은 사실상 0이고, 조용히 안 뜨는 페이지를
+ *   대가는 클라이언트 번들에 검사 함수가 같이 실리는 것뿐이다. 섹션 5개 ·
+ *   지표 17개를 훑는 루프라 실행 비용은 사실상 0이고, 조용히 안 뜨는 페이지를
  *   막는 값으로는 싸다.
  */
 assertCatalogIsSane(OBSERVATORY_SECTIONS);

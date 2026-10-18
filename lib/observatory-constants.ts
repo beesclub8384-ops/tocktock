@@ -1952,3 +1952,156 @@ export function auctionWindowStatuses(rows: AuctionRow[], m: AuctionMetric): (Ob
 export function auctionFiringStats(rows: AuctionRow[], m: AuctionMetric): FiringStats {
   return tallyFiring(rows.map((r) => r.date), auctionWindowStatuses(rows, m));
 }
+
+
+/* ════════════════════════════════════════════════════════════
+ * 관측소 5 — 신용의 벽
+ *
+ * 설계도의 4개 지표 중 무료로, **공개 재배포가 허용된** 출처로 만들 수 있는 것만 구현했다 (2026-10-18 조사).
+ *   구현: 하이일드 스프레드의 대리 — 연준 GZ 신용 스프레드 (연준 이사회 공개 CSV)
+ *         부도율의 대리 — 은행 기업대출 상각률 (FRED CORBLACBS, 원출처 연준 이사회)
+ *   미구현: 하이일드 · CCC 스프레드 원지수 — FRED 의 ICE BofA 시리즈는 notes 에 "내부 용도만,
+ *           ICE 사전 서면 승인 없이 제3자에게 공개·배포 금지" 조건이 있다. 승인을 받을지는 사람이
+ *           정할 일로 넘겼다(결정 로그 8장 8번). 무디스 BAA 스프레드(BAA10Y)도 같은 종류의 조건.
+ *           만기 벽 — 무료 공개 정형 출처를 찾지 못함.
+ * ════════════════════════════════════════════════════════════ */
+
+export interface LevelVerdict {
+  status: ObservatoryStatus | null;
+  /** 최신 값과 날짜(또는 분기) */
+  latestLabel: string | null;
+  latestValue: number | null;
+  cautionCut: number | null;
+  alertCut: number | null;
+  /** 분포 안 순위 (0~100, 높을수록 큼) */
+  percentile: number | null;
+  obs: number;
+}
+
+/**
+ * 수준 기반 판정 공용 — i 시점까지의 값 분포에서 상위 백분위와 비교한다 (높을수록 나쁨).
+ * 스프레드·상각률이 같이 쓴다.
+ */
+function levelVerdictAt(
+  labels: string[],
+  values: number[],
+  i: number,
+  minObs: number,
+  cautionPctile: number,
+  alertPctile: number
+): LevelVerdict {
+  const empty: LevelVerdict = { status: null, latestLabel: null, latestValue: null, cautionCut: null, alertCut: null, percentile: null, obs: 0 };
+  if (i < 0 || i >= values.length) return empty;
+  const dist = values.slice(0, i + 1);
+  const v = values[i];
+  const base = { ...empty, latestLabel: labels[i], latestValue: v, obs: dist.length };
+  if (dist.length < minObs) return base;
+  const cautionCut = quantile(dist, cautionPctile / 100);
+  const alertCut = quantile(dist, alertPctile / 100);
+  return {
+    ...base,
+    status: v >= alertCut ? "warning" : v >= cautionCut ? "caution" : "normal",
+    cautionCut,
+    alertCut,
+    percentile: (dist.filter((x) => x <= v).length / dist.length) * 100,
+  };
+}
+
+/* ────────────────────────────────────────────────────────────
+ * 하이일드 스프레드의 대리 — GZ 신용 스프레드 (연준 이사회, 월간, %p)
+ *
+ * Gilchrist·Zakrajšek 방식: 미국 비금융 기업이 발행한 회사채 하나하나의 금리와 같은 현금흐름의
+ * 국채 금리 차이를 평균한 값. 연준 이사회가 FEDS Notes 와 함께 CSV 로 공개한다(1973-01 ~).
+ * 하이일드만이 아니라 **투자등급까지 섞인** 회사채 전체의 웃돈 이자라 하이일드 지수보다 덜 움직인다.
+ * 연준이 모형을 다시 추정하면 과거 값도 바뀔 수 있어 매번 전체를 받아 덮어쓴다 — 과거 판정은
+ * 당시 공개된 값이 아니라 지금 공개된 값으로 계산한 것이다(페이지에 밝힌다).
+ *
+ * 판정 (2026-10-18 도입, 결과를 보기 전에 정함, 한 번만 적용)
+ *   - 스프레드는 추세적으로 커지는 값이 아니라 오르내리는 값이라 수준으로 본다.
+ *   - 그 시점까지 쌓인 월 값 전체 분포에서 상위 10% 이상 주의, 상위 3% 이상 경보.
+ *   - 최소 120개월(10년) 뒤부터 판정. 157개(주간 3년에 해당하는 표본)보다 적지만, 월간 자료로
+ *     157개를 기다리면 13년이 걸리고 10년이면 경기 순환 한 번 이상이 들어가 상각률과 같게 맞췄다.
+ *   - 넓어지는 쪽만 본다: 스프레드가 좁은 것은 이 지표의 질문(빌리기 어려워졌는가)이 아니다.
+ * ──────────────────────────────────────────────────────────── */
+
+export const GZ_MIN_OBS = 120;
+export const GZ_CAUTION_PCTILE = 90;
+export const GZ_ALERT_PCTILE = 97;
+
+export interface MonthSpreadPoint {
+  /** YYYY-MM */
+  month: string;
+  /** GZ 신용 스프레드 (%p). 1.00 = 100bp */
+  spreadPct: number;
+}
+
+export function evaluateGzAt(points: MonthSpreadPoint[], i: number): LevelVerdict {
+  return levelVerdictAt(
+    points.map((p) => p.month),
+    points.map((p) => p.spreadPct),
+    i,
+    GZ_MIN_OBS,
+    GZ_CAUTION_PCTILE,
+    GZ_ALERT_PCTILE
+  );
+}
+
+export function evaluateGz(points: MonthSpreadPoint[]): LevelVerdict {
+  return evaluateGzAt(points, points.length - 1);
+}
+
+export function gzFiringStats(points: MonthSpreadPoint[]): FiringStats {
+  return tallyFiring(
+    points.map((p) => p.month),
+    points.map((_, i) => evaluateGzAt(points, i).status)
+  );
+}
+
+/* ────────────────────────────────────────────────────────────
+ * 부도율의 대리 — 은행 기업대출 상각률 (FRED CORBLACBS, 분기, 계절조정, %)
+ *
+ * 회사채 부도율(무디스·S&P)은 연간 보고서의 헤드라인 숫자만 공개되고, 자동 수집할 수 있는
+ * 정형 시계열은 유료다. 대신 미국 상업은행이 기업대출(C&I)을
+ * 회수 불능으로 털어 낸 비율을 쓴다. 회사채가 아니라 **은행 대출**이고, 부도가 아니라
+ * **상각**(장부에서 지움)이다. 부도보다 늦게, 은행 판단에 따라 움직인다.
+ *
+ * 판정 (2026-10 도입, 한 번만 적용)
+ *   - 비율이라 추세적으로 커지지 않는다 → 수준으로 본다.
+ *   - 그 시점까지 쌓인 분기 분포에서 상위 10% 이상 주의, 상위 3% 이상 경보.
+ *   - 최소 40분기(10년) 뒤부터 판정. 분기 자료는 157개를 모으려면 39년이 걸리고,
+ *     12분기(3년)로는 상위 3% 가 사실상 최댓값 하나라 의미가 없어 10년으로 정했다.
+ *   - 높은 쪽만 본다.
+ * ──────────────────────────────────────────────────────────── */
+
+export const CHARGEOFF_MIN_OBS = 40;
+export const CHARGEOFF_CAUTION_PCTILE = 90;
+export const CHARGEOFF_ALERT_PCTILE = 97;
+
+export interface QuarterRatePoint {
+  /** "2026Q2" */
+  quarter: string;
+  /** 비율 (%) */
+  ratePct: number;
+}
+
+export function evaluateChargeOffAt(points: QuarterRatePoint[], i: number): LevelVerdict {
+  return levelVerdictAt(
+    points.map((p) => p.quarter),
+    points.map((p) => p.ratePct),
+    i,
+    CHARGEOFF_MIN_OBS,
+    CHARGEOFF_CAUTION_PCTILE,
+    CHARGEOFF_ALERT_PCTILE
+  );
+}
+
+export function evaluateChargeOff(points: QuarterRatePoint[]): LevelVerdict {
+  return evaluateChargeOffAt(points, points.length - 1);
+}
+
+export function chargeOffFiringStats(points: QuarterRatePoint[]): FiringStats {
+  return tallyFiring(
+    points.map((p) => p.quarter),
+    points.map((_, i) => evaluateChargeOffAt(points, i).status)
+  );
+}

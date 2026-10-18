@@ -39,6 +39,8 @@ import {
   withRateVol,
   evaluateTic,
   withTicChanges,
+  evaluateGz,
+  evaluateChargeOff,
   type ObservatoryStatus,
 } from "@/lib/observatory-constants";
 import { loadSofrIorb } from "@/lib/observatory-sofr-iorb";
@@ -61,6 +63,8 @@ import { loadNbfiLoans } from "@/lib/observatory-nbfi-loans";
 import { loadAuctions } from "@/lib/observatory-treasury-auctions";
 import { loadYields } from "@/lib/observatory-rate-vol";
 import { loadTic } from "@/lib/observatory-tic";
+// 관측소 5 — 연준 GZ 신용 스프레드 · FRED CORBLACBS
+import { loadChargeOffs, loadGz } from "@/lib/observatory-credit";
 // 카드 표기는 지표들을 나란히 놓고 읽는 화면이라 단위를 십억 달러로
 // 통일한다 (상세 페이지 포맷터는 지표별로 단위를 바꿔서 카드에는 안 맞는다).
 // 자세한 이유는 card-format.ts 상단 주석 참고.
@@ -336,6 +340,36 @@ const LOADERS: Record<ObservatoryIndicatorKey, () => Promise<IndicatorSnapshot>>
           },
           asOf: null,
           raw: v.latest.yoyPct,
+        }
+      : EMPTY_SNAPSHOT;
+  },
+  // 관측소 5. 월간·분기라 asOf 대신 note 에 시점을 넣는다. raw 는 값(요약 문장이 쓴다)
+  "gz-spread": async () => {
+    const v = evaluateGz(await orLog("gz-spread", loadGz(), []));
+    if (v.latestLabel === null || v.latestValue === null) return EMPTY_SNAPSHOT;
+    const [y, m] = v.latestLabel.split("-");
+    return {
+      status: v.status,
+      value: {
+        main: `${v.latestValue.toFixed(2)}%p`,
+        note: `${y}년 ${Number(m)}월 · 1973년 이후 ${v.percentile === null ? "—" : Math.floor(v.percentile)}번째 백분위`,
+      },
+      asOf: null,
+      raw: v.latestValue,
+    };
+  },
+  // 분기. asOf 는 날짜가 아니라 분기라 note 에 넣는다
+  "business-chargeoffs": async () => {
+    const v = evaluateChargeOff(await orLog("business-chargeoffs", loadChargeOffs(), []));
+    return v.latestLabel !== null && v.latestValue !== null
+      ? {
+          status: v.status,
+          value: {
+            main: `${v.latestValue.toFixed(2)}%`,
+            note: `${v.latestLabel.replace("Q", "년 ")}분기 · 1985년 이후 ${v.percentile === null ? "—" : Math.floor(v.percentile)}번째 백분위`,
+          },
+          asOf: null,
+          raw: v.latestValue,
         }
       : EMPTY_SNAPSHOT;
   },
