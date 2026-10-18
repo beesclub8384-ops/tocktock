@@ -169,7 +169,7 @@ export default async function NbfiLoansPage() {
           <div>
             <dt className="text-xs text-zinc-400">전 기간 보정 증가율 백분위</dt>
             <dd className="font-semibold text-zinc-800 dark:text-zinc-200 tabular-nums">
-              {data.yoyPercentile === null ? "—" : `${data.yoyPercentile.toFixed(0)}번째`}
+              {data.yoyPercentile === null ? "—" : `${Math.floor(data.yoyPercentile)}번째`}
             </dd>
           </div>
           <div>

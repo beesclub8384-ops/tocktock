@@ -1,5 +1,7 @@
 import { ObservatoryBreadcrumb } from "../breadcrumb";
 import { CriteriaNote } from "../criteria-note";
+import { LimitsNote } from "../limits-note";
+import { FiringRateLine } from "../firing-rate";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import SofrIorbChart from "./SofrIorbChart";
@@ -47,7 +49,7 @@ const STATUS_META: Record<
     dot: "bg-amber-500",
   },
   warning: {
-    label: "경고",
+    label: "경보",
     className:
       "bg-rose-50 text-rose-700 border-rose-300 dark:bg-rose-950 dark:text-rose-300 dark:border-rose-800",
     dot: "bg-rose-500",
@@ -215,7 +217,7 @@ export default async function ObservatoryPage() {
                 은행들이 결산 때문에 자금을 당겨쓰느라 스프레드가 튀는 게 정상입니다.
                 그래서 각 월의 마지막 {thresholds.monthEndExcludeDays}영업일은 판정에서
                 뺍니다. 그런 날이 아닌데도 +{thresholds.spikeThresholdBp}bp 이상
-                뛰었다면 <strong>경고</strong>입니다.
+                뛰었다면 <strong>경보</strong>입니다.
               </li>
             </ul>
           </div>
@@ -239,15 +241,20 @@ export default async function ObservatoryPage() {
             </div>
             <div className="rounded-lg border border-rose-200 dark:border-rose-900 bg-rose-50 dark:bg-rose-950 px-3 py-2">
               <div className="text-xs font-bold text-rose-700 dark:text-rose-300">
-                경고
+                경보
               </div>
               <div className="text-xs text-rose-800 dark:text-rose-200 mt-0.5">
                 월말이 아닌 날에 급등 발생
               </div>
             </div>
           </div>
+          <div className="mb-2 text-xs"><FiringRateLine stats={data.firing} unit="영업일" /></div>
+          <LimitsNote
+            limits="SOFR는 하루 거래를 모은 대표 금리라, 하루 안의 순간적인 압박이나 일부 참가자만 겪는 어려움은 보이지 않습니다. 월말·분기말에는 자금 수요 때문에 평소보다 쉽게 오릅니다."
+            timing="뉴욕 연은이 SOFR를 다음 영업일 아침 8시 무렵(미 동부)에 발표하고, FRED에는 그 직후 올라옵니다. 이 사이트는 평일 한국 시각 밤 10시에 수집합니다(미 동부 시각으로 서머타임 때 오전 9시, 11~3월에는 오전 8시). 그래서 서머타임 기간에는 보통 하루 전 SOFR가 그날 밤에 반영되고, 11~3월에는 수집이 FRED 갱신보다 조금 일러 하루 더 늦게 반영됩니다(연휴가 끼면 더 늦습니다)."
+          />
 
-          <CriteriaNote>최근 10영업일 중 스프레드가 0보다 큰 날이 5일 이상이면 주의, 월말 마지막 3영업일을 뺀 날에 10bp 이상인 날이 하루라도 있으면 경고입니다.</CriteriaNote>
+          <CriteriaNote>최근 10영업일 중 스프레드가 0보다 큰 날이 5일 이상이면 주의, 같은 10영업일 중 월말 마지막 3영업일(주말만 빼고 셉니다)을 뺀 날에 10bp 이상인 날이 하루라도 있으면 경보입니다.</CriteriaNote>
           <p className="text-xs text-zinc-500 pt-1">
             이 지표는 시장 상황을 지켜보기 위한 참고 자료입니다. 투자 권유가 아니며,
             모든 투자 판단은 본인의 책임입니다.

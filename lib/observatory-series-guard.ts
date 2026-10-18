@@ -39,3 +39,15 @@ export function assertReplaceable(
   if (last < prevLast) throw new Error(`${what}: 최신 ${last} 가 저장된 ${prevLast} 보다 앞섬`);
   if (labels.length < existing.length) throw new Error(`${what}: ${labels.length}개 — 저장된 ${existing.length}개보다 적음`);
 }
+
+/**
+ * 간격이 불규칙한 시계열(영업일·입찰)용 — 연속 검사 없이 최신 시점 후퇴와 개수 감소만 막는다.
+ * (2026-10-18 독립 검증 지적: 잘린 응답이 저장분을 덮어쓸 수 있었다)
+ */
+export function assertNotShrunk(what: string, labels: string[], existing: string[]): void {
+  if (existing.length === 0 || labels.length === 0) return;
+  const last = labels[labels.length - 1];
+  const prevLast = existing[existing.length - 1];
+  if (last < prevLast) throw new Error(`${what}: 최신 ${last} 가 저장된 ${prevLast} 보다 앞섬`);
+  if (labels.length < existing.length) throw new Error(`${what}: ${labels.length}개 — 저장된 ${existing.length}개보다 적음`);
+}

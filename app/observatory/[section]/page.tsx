@@ -127,7 +127,7 @@ export default async function ObservatorySectionPage({
                   // 값은 있는데 상태가 없으면 판정 보류다 (백분위를 구할 데이터 부족).
                   // "수집 대기" 로 쓰면 수집이 멈춘 것처럼 읽힌다.
                   <div className="shrink-0 rounded-full border border-zinc-300 dark:border-zinc-700 px-2.5 py-1 text-xs font-bold text-zinc-500">
-                    {snap.value ? "판정 보류" : "수집 대기"}
+                    {snap.value ? `판정 보류${snap.pendingReason ? `(${snap.pendingReason})` : ""}` : "수집 대기"}
                   </div>
                 )}
               </div>

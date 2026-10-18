@@ -191,7 +191,7 @@ export default async function BasisTradePage() {
           <div>
             <dt className="text-xs text-zinc-400">최근 3년 백분위</dt>
             <dd className="font-semibold text-zinc-800 dark:text-zinc-200 tabular-nums">
-              {data.percentile3y === null ? "—" : `${data.percentile3y.toFixed(0)}번째`}
+              {data.percentile3y === null ? "—" : `${Math.floor(data.percentile3y)}번째`}
             </dd>
           </div>
           <div>
@@ -345,7 +345,7 @@ export default async function BasisTradePage() {
               구간이면 경보로 한 단계 올립니다. 많이 쌓인 상태에서 풀리기 시작하는 쪽이 더
               위험하기 때문입니다.
             </li>
-            <li>데이터가 157주보다 적게 쌓인 시점은 판정 보류로 둡니다.</li>
+            <li>4주 변화와 8주 변화가 각각 157개보다 적게 쌓인 시점은 판정 보류로 둡니다(그래서 2019년 5월 말부터 판정합니다).</li>
           </ul>
           <p className="text-zinc-500">
             비율이 아니라 금액으로 보는 이유가 있습니다. 2021년 말에는 순숏이 0 근처까지 줄어

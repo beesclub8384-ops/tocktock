@@ -1,5 +1,7 @@
 import { ObservatoryBreadcrumb } from "../breadcrumb";
 import { CriteriaNote } from "../criteria-note";
+import { LimitsNote } from "../limits-note";
+import { FiringRateLine } from "../firing-rate";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { QuarterlyChart, WeeklyChart } from "./DepositFlightCharts";
@@ -288,6 +290,11 @@ export default async function DepositFlightPage() {
           </p>
         </div>
       </section>
+      <div className="mb-2 text-xs"><p className="text-zinc-500">주간 판정(소형 은행 예금 비중 변화):</p><FiringRateLine stats={data.firingWeekly} unit="주" /><p className="mt-1 text-zinc-500">분기 판정(무보험 예금 비중):</p><FiringRateLine stats={data.firingQuarterly} unit="분기" /></div>
+      <LimitsNote
+        limits="소형·대형 은행 구분은 연준 통계의 분류를 따릅니다. 주간 예금은 세금 납부일이나 계절에 따라 흔들릴 수 있고, 무보험 예금 비중은 분기 자료라 늦습니다."
+        timing="주간 예금(H.8)은 수요일 값이 9일 뒤 금요일에 발표됩니다. 발표가 이 사이트 수집 시각보다 늦어 그다음 평일(보통 월요일) 밤에 반영됩니다. 무보험 예금 비중은 FDIC 분기 보고서(분기가 끝나고 두세 달 뒤 발표, 이 사이트는 3·6·9·12월 1일부터 평일마다 확인)를 따릅니다. 이 사이트는 평일 한국 시각 밤 10시에 수집합니다(미 동부 시각으로 서머타임 때 오전 9시, 11~3월에는 오전 8시)."
+      />
 
       <CriteriaNote>소형 은행 예금 비중이 한 주에 0.4%p 이상 줄면 주의, 0.7%p 이상 줄면 경보입니다. 무보험 예금 비중은 43% 이상이면 주의, 45% 이상이면 경보입니다.</CriteriaNote>
       <p className="text-xs text-zinc-500">

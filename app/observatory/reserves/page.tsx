@@ -1,5 +1,7 @@
 import { ObservatoryBreadcrumb } from "../breadcrumb";
 import { CriteriaNote } from "../criteria-note";
+import { LimitsNote } from "../limits-note";
+import { FiringRateLine } from "../firing-rate";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import ReservesChart from "./ReservesChart";
@@ -111,7 +113,7 @@ export default async function ReservesPage() {
         </p>
         <p className="text-xs text-zinc-400 mt-1">
           출처: FRED (Federal Reserve Bank of St. Louis), 시리즈 {data.seriesId} ·
-          주간(매주 수요일 기준, 목요일 갱신)
+          주간(수요일로 끝나는 주의 평균, 목요일 갱신)
         </p>
         <p className="text-xs text-zinc-400 mt-1">
           마지막 업데이트: {formatKstDate(data.lastUpdated)}
@@ -148,11 +150,11 @@ export default async function ReservesPage() {
           </div>
 
           <div>
-            <div className="text-xs text-zinc-500">기준일 (수요일)</div>
+            <div className="text-xs text-zinc-500">기준일 (주 평균의 마지막 수요일)</div>
             <div className="text-base font-semibold text-zinc-900 dark:text-zinc-100 mt-1">
               {latest ? formatDate(latest.date) : "—"}
             </div>
-            {/* 주간 데이터라 최신값이 최대 7일 전인 게 정상이다. 오해 없게 명시 */}
+            {/* 주간 데이터라 최신값이 최대 9일 전인 게 정상이다(수요일 값 → 금요일 밤 반영). 오해 없게 명시 */}
             <div className="text-xs text-zinc-500 mt-0.5">
               {data.daysSinceLatest !== null ? `${data.daysSinceLatest}일 전 값` : "—"}
             </div>
@@ -275,8 +277,8 @@ export default async function ReservesPage() {
                 준비금 수준이 서서히 낮아지는 것만으로는 주가가 꺾이지 않았습니다.
               </strong>{" "}
               주가를 실제로 때린 건 방향이 급전환된 사건이었습니다 &mdash; 2022년
-              QT와 금리 인상이 동시에 시작된 그때죠. 반대로 준비금이 바닥에 닿은
-              사건(2019년 9월, 2025년 10월)은 연준이 곧바로 개입해서 주가에 흔적을
+              QT와 금리 인상이 동시에 시작된 그때죠. 반대로 돈줄이 빠듯해진
+              사건(2019년 9월, 2025년 10월 — 2025년의 저점 2,848십억 달러는 이 사이트의 정상 기준 2,800보다는 위였습니다)은 연준이 곧바로 개입해서 주가에 흔적을
               남기지 않았습니다.
             </p>
             <p className="mt-2">
@@ -334,10 +336,10 @@ export default async function ReservesPage() {
               날짜가 며칠 전인데 괜찮나요
             </div>
             <p>
-              이 지표는 <strong>주간 데이터</strong>입니다. 매주 수요일 잔액을 그 주
-              목요일에 발표합니다. 그래서 최신값이{" "}
+              이 지표는 <strong>주간 데이터</strong>입니다. 수요일로 끝나는 한 주의 평균 잔액을 그 주
+              목요일에 발표하고, 이 사이트에는 금요일 밤에 반영됩니다. 그래서 최신값이{" "}
               <strong className="text-zinc-900 dark:text-zinc-100">
-                최대 7일 전 값
+                최대 9일 전 값
               </strong>
               인 게 정상입니다. {thresholds.staleDays}일이 넘도록 새 값이 안
               들어오면 발표를 한 번 통째로 놓친 것으로 보고{" "}
@@ -372,6 +374,11 @@ export default async function ReservesPage() {
               </div>
             </div>
           </div>
+          <div className="mb-2 text-xs"><FiringRateLine stats={data.firing} unit="주" /><p className="text-zinc-500">이 기준은 준비금이 수조 달러인 2008년 이후의 제도를 전제로 정했습니다. 준비금이 3~24십억 달러에 불과하던 2008년 9월 이전까지 세면 경보 비율이 크게 나옵니다.</p></div>
+          <LimitsNote
+            limits="은행 전체의 합계라 어느 은행에 돈이 모자란지는 보이지 않습니다. 얼마가 '충분한' 수준인지도 추정일 뿐 정해진 값이 없습니다."
+            timing="연준이 수요일로 끝나는 주의 평균 잔액을 목요일(H.4.1)에 발표합니다. 이 사이트는 평일 한국 시각 밤 10시에 수집합니다(미 동부 시각으로 서머타임 때 오전 9시, 11~3월에는 오전 8시). 그래서 목요일 발표분은 금요일 밤에 반영됩니다."
+          />
 
           <CriteriaNote>2,800십억 달러를 넘으면 정상, 2,300십억 달러 미만이면 경보, 그 사이는 주의입니다. 차트의 2019년 수준은 참고선일 뿐 기준이 아닙니다.</CriteriaNote>
           <p className="text-xs text-zinc-500 pt-1">

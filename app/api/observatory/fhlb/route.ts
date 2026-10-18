@@ -6,12 +6,16 @@ import {
   FHLB_WARN_QOQ_PCT,
   type FhlbPoint,
   type ObservatoryStatus,
+  tailFiringStats,
+  type FiringStats,
 } from "@/lib/observatory-constants";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 export interface FhlbResponse {
+  /** 발동 비율 — 각 시점에 같은 판정 함수를 적용 (관측소 작업 규칙 4) */
+  firing: FiringStats;
   series: FhlbPoint[];
   latest: FhlbPoint | null;
   previous: FhlbPoint | null;
@@ -44,6 +48,7 @@ export async function GET() {
     const verdict = evaluateFhlb(series);
 
     const body: FhlbResponse = {
+      firing: tailFiringStats(series.map((p) => p.quarter), series, (t) => evaluateFhlb(t).status),
       series,
       latest: verdict.latest,
       previous: verdict.previous,

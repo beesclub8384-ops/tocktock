@@ -21,13 +21,20 @@ import {
   type CreDelinquencyPoint,
   type CreSizeSplitPoint,
   type ObservatoryStatus,
+  tailFiringStats,
+  type FiringStats,
 } from "@/lib/observatory-constants";
+
+const SEV_ORDER = { normal: 0, caution: 1, warning: 2 } as const;
 
 export const dynamic = "force-dynamic";
 // 워크북이 2.6MB 라 최초 수집이 붙는 요청은 길다
 export const maxDuration = 120;
 
 export interface CreResponse {
+  /** 발동 비율 — 부실채권 비율(수준·속도)·지역은행 집중도 따로 (관측소 작업 규칙 4) */
+  firingDelinquency: FiringStats;
+  firingConcentration: FiringStats;
   /** 임대용/자가사용 비주거 CRE 연체율 (워크북) */
   delinquency: CreDelinquencyPoint[];
   /** 규모별 CRE 연체율 (FRED) */
@@ -87,6 +94,11 @@ export async function GET() {
     const verdict = evaluateCre(store.delinquency, sizeSplit, store.concentration);
 
     const body: CreResponse = {
+      firingDelinquency: tailFiringStats(store.delinquency.map((p) => p.quarter), store.delinquency, (t) => {
+        const v = evaluateCre(t, [], []);
+        return SEV_ORDER[v.delinquencyStatus] >= SEV_ORDER[v.momentumStatus] ? v.delinquencyStatus : v.momentumStatus;
+      }),
+      firingConcentration: tailFiringStats(store.concentration.map((p) => p.quarter), store.concentration, (t) => evaluateCre([], [], t).concentrationStatus),
       delinquency: store.delinquency,
       sizeSplit,
       concentration: store.concentration,

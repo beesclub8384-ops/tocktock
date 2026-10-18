@@ -10,6 +10,15 @@
  *   끝까지 내리면 본문 마지막 문단은 버튼보다 위에 있었다. 실제로 겹치는 것은 모바일 **푸터의 저작권 줄**과
  *   단타 기록 버튼이다. 이것은 사이트 전체 문제라 관측소 레이아웃으로는 고칠 수 없다(남은 위험으로 기록).
  */
+import { FredNotice, NyFedNotice } from "./source-notices";
+
 export default function ObservatoryLayout({ children }: { children: React.ReactNode }) {
-  return <div className="pb-40">{children}</div>;
+  // FRED API·뉴욕 연은 이용 약관이 요구하는 고지 (source-notices.tsx) — 목록·섹션 카드에도 그 자료가 나와 모든 관측소 페이지에 둔다
+  return (
+    <div className="pb-40">
+      {children}
+      <FredNotice />
+      <NyFedNotice />
+    </div>
+  );
 }

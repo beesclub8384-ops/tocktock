@@ -46,9 +46,9 @@ export interface SofrIorbVerdict {
  * 해당 날짜가 그 달의 마지막 MONTH_END_EXCLUDE_DAYS 영업일에 속하는지.
  *
  * 달력 기준(월~금)으로 계산한다. 미국 공휴일은 반영하지 않으므로
- * 마지막 영업일이 공휴일이면 창이 하루 어긋날 수 있다 — 월말 급등을
- * 놓치는 쪽이 아니라 하루 더 보수적으로 제외하는 쪽이라 판정이 과하게
- * 민감해지지는 않는다.
+ * 마지막 영업일이 공휴일이면(예: 5월 31일이 메모리얼 데이인 해) 실제 영업일은 2일만 제외되고,
+ * 월말에서 세 번째 실제 영업일의 급등은 경보 대상이 된다 — 더 민감해지는 쪽이다
+ * (2026-10-18 독립 검증에서 예전 주석이 거꾸로 적혀 있던 것을 바로잡음. 규칙은 바꾸지 않음).
  */
 export function isMonthEndExcluded(date: string): boolean {
   const d = new Date(`${date}T00:00:00Z`);
@@ -1091,6 +1091,29 @@ export interface BasisTradeVerdict {
  * 분위수 (선형 보간, Excel PERCENTILE.INC / R type 7 과 같은 방식).
  * @param p 0~1
  */
+/* ────────────────────────────────────────────────────────────
+ * 최소 표본 규칙 (2026-10-18 미션 3, 사용자 결정 — 모든 분포(백분위) 기반 판정에 적용)
+ *
+ * 분포 기반 판정은 관측치 40개 이상이고 3년 이상일 때만 한다. 주기별로는
+ *   주간 157주 · 월간 40개월 · 분기 40분기 · 영업일 756일(252 × 3) · 불규칙(입찰) 40개 이상 + 첫 값부터 3년 이상.
+ * 미달이면 "판정 보류(표본 부족)" 로 두고 값은 그대로 보여 준다.
+ * 지표별 최소값(BT_LOOKBACK_WEEKS, NBFI_MIN_YOY_OBS, AUCTION_MIN_OBS, RV_MIN_OBS, TIC_MIN_OBS,
+ * GZ_MIN_OBS, CHARGEOFF_MIN_OBS, CAPEX_MIN_OBS)은 이 규칙 이상이어야 한다 — 아래 assert 가 지킨다.
+ * 이 규칙으로 바뀐 것: TIC 36 → 40개월, AI 설비투자 20 → 40분기, 입찰 등급에 "3년 이상" 조건 추가.
+ * ──────────────────────────────────────────────────────────── */
+
+export const MIN_SAMPLE_WEEKLY = 157;
+export const MIN_SAMPLE_MONTHLY = 40;
+export const MIN_SAMPLE_QUARTERLY = 40;
+export const MIN_SAMPLE_BUSINESS_DAYS = 756;
+export const MIN_SAMPLE_IRREGULAR = 40;
+export const MIN_SAMPLE_YEARS = 3;
+
+/** first(YYYY-MM-DD) 부터 date 까지 달력으로 years 년 이상 지났는가 */
+export function spansYears(first: string, date: string, years = MIN_SAMPLE_YEARS): boolean {
+  return `${Number(first.slice(0, 4)) + years}${first.slice(4)}` <= date;
+}
+
 export function quantile(values: number[], p: number): number {
   // 빈 배열이면 NaN 이 조용히 기준값으로 들어가 모든 비교가 false(=정상)가 된다
   if (values.length === 0) throw new Error("quantile: 빈 배열");
@@ -1138,7 +1161,9 @@ function grade(
   history: (number | null)[]
 ): { status: ObservatoryStatus | null; caution: number | null; alert: number | null; obs: number } {
   const dist = history.filter((v): v is number => typeof v === "number");
-  if (dist.length === 0) return { status: null, caution: null, alert: null, obs: 0 };
+  // 최소 표본 규칙: 변화 분포 자체가 157개 이상이어야 한다 (2026-10-18 미션 3 독립 검증 지적 —
+  // 예전에는 행 수만 157 이상인지 봐서 첫 판정 때 4주 변화 분포가 153개, 8주는 149개였다)
+  if (dist.length < MIN_SAMPLE_WEEKLY) return { status: null, caution: null, alert: null, obs: dist.length };
   const caution = quantile(dist, BT_LIQ_CAUTION_PCTILE / 100);
   const alert = quantile(dist, BT_LIQ_ALERT_PCTILE / 100);
   if (value === null) return { status: null, caution, alert, obs: dist.length };
@@ -1483,7 +1508,7 @@ export function findNbfiSurges(points: NbfiLoansPoint[]): NbfiSurgeCheck {
  *     ⚠ 정할 때는 "28일 창에 보통 8~10개" 로 가정했는데, 독립 검증에서 실제로는 2016년 이후
  *       5~7개가 대부분(8개 이상 약 4%)인 것으로 확인됐다. 7개면 1 − 0.98^7 ≈ 13%. 가정은
  *       틀렸지만 기준값은 바꾸지 않았다 (한 번만 적용 원칙). 실제 창 발동은 응찰 배율 0.55%,
- *       딜러 비중 5.5% 로 계산보다 훨씬 낮다 (실제 만기 분류로 고친 뒤 값) — 놀람이 서로 독립이 아니기 때문으로 보인다.
+ *       딜러 비중 5.5% 로 계산보다 훨씬 낮다 (실제 만기 분류로 고친 뒤 값. 2026-10-18 최소 표본 규칙 뒤 4.85%) — 놀람이 서로 독립이 아니기 때문으로 보인다.
  *   - 한쪽 방향만 본다: 응찰이 몰리는 것(배율 상승)이나 딜러 비중 하락은 수요가 강하다는
  *     뜻이라 경보 대상이 아니다.
  * ──────────────────────────────────────────────────────────── */
@@ -1494,9 +1519,18 @@ export const AUCTION_LOOKBACK = 6;
 /**
  * 등급을 내기 시작하는 최소 놀람 개수.
  * 다른 관측소의 "최소 157개(주간이면 3년)" 와 맞춘 숫자다. 입찰 수 기준으로 따로 근거를
- * 계산한 것은 아니다. 실제 판정 시작: 응찰 배율 2006-07, 딜러 비중 2011-04.
+ * 계산한 것은 아니다. 실제 판정 시작: 응찰 배율 2006-07, 딜러 비중 2011-11-08(아래 3년 조건 때문. 그 전에는 2011-04).
  */
 export const AUCTION_MIN_OBS = 157;
+
+/**
+ * 입찰은 시점이 불규칙해 개수만으로는 기간이 보장되지 않는다(딜러 비중은 157개가 2.45년 만에 찼다).
+ * 최소 표본 규칙(위)대로 놀람 분포의 첫 값부터 3년이 지나야 등급을 낸다 (2026-10-18 미션 3에서 추가).
+ */
+function firstSurpriseDate(rows: AuctionRow[], m: AuctionMetric): string | null {
+  for (const r of rows) if ((m === "btc" ? r.btcSurprise : r.pdSurprise) !== null) return r.date;
+  return null;
+}
 
 /** 지표 상태를 모으는 창 (일) */
 export const AUCTION_WINDOW_DAYS = 28;
@@ -1591,7 +1625,10 @@ export function auctionGradeAt(rows: AuctionRow[], j: number, m: AuctionMetric):
     if (v !== null) dist.push(v);
   }
   const v = surpriseOf(rows[j], m);
-  if (dist.length < AUCTION_MIN_OBS) return { status: null, cautionCut: null, alertCut: null, obs: dist.length };
+  const first = firstSurpriseDate(rows, m);
+  if (dist.length < AUCTION_MIN_OBS || first === null || !spansYears(first, rows[j].date)) {
+    return { status: null, cautionCut: null, alertCut: null, obs: dist.length };
+  }
   const cautionCut = quantile(dist, (m === "btc" ? BTC_CAUTION_PCTILE : PD_CAUTION_PCTILE) / 100);
   const alertCut = quantile(dist, (m === "btc" ? BTC_ALERT_PCTILE : PD_ALERT_PCTILE) / 100);
   if (v === null) return { status: null, cautionCut, alertCut, obs: dist.length };
@@ -1738,12 +1775,13 @@ export function evaluateRateVol(rows: RateVolRow[]): RateVolVerdict {
  *
  * 판정 (2026-10 도입, 한 번만 적용)
  *   - 보유액은 추세적으로 커지므로 **12개월 증가율**로 본다 (분모가 9조 달러 안팎이라 0 에 가까울 일이 없다).
- *   - 그 시점까지의 증가율 분포에서 하위 10% 이하 주의, 하위 3% 이하 경보. 증가율이 36개(3년) 이상 쌓인 뒤부터.
+ *   - 그 시점까지의 증가율 분포에서 하위 10% 이하 주의, 하위 3% 이하 경보. 증가율이 40개 이상 쌓인 뒤부터
+ *     (처음엔 36개였고, 2026-10-18 최소 표본 규칙으로 40개로 바꿨다 — 2015-12·2016-01 경보 2건이 판정 전으로 빠짐).
  *   - 줄어드는 쪽만 본다: 해외 수요가 빠지는 것이 국채시장의 위험이다.
  * ──────────────────────────────────────────────────────────── */
 
 export const TIC_START_MONTH = "2012-01";
-export const TIC_MIN_OBS = 36;
+export const TIC_MIN_OBS = MIN_SAMPLE_MONTHLY;
 export const TIC_CAUTION_PCTILE = 10;
 export const TIC_ALERT_PCTILE = 3;
 
@@ -1927,10 +1965,11 @@ export function rateVolStatuses(rows: RateVolRow[]): (ObservatoryStatus | null)[
  */
 export function auctionWindowStatuses(rows: AuctionRow[], m: AuctionMetric): (ObservatoryStatus | null)[] {
   const sorted: number[] = [];
+  const first = firstSurpriseDate(rows, m);
   const grades: (ObservatoryStatus | null)[] = rows.map((r) => {
     const v = surpriseOf(r, m);
     if (v !== null) sorted.splice(lowerBound(sorted, v), 0, v);
-    if (v === null || sorted.length < AUCTION_MIN_OBS) return null;
+    if (v === null || sorted.length < AUCTION_MIN_OBS || first === null || !spansYears(first, r.date)) return null;
     const c = quantileSorted(sorted, (m === "btc" ? BTC_CAUTION_PCTILE : PD_CAUTION_PCTILE) / 100);
     const a = quantileSorted(sorted, (m === "btc" ? BTC_ALERT_PCTILE : PD_ALERT_PCTILE) / 100);
     return m === "btc"
@@ -2127,14 +2166,14 @@ export function chargeOffFiringStats(points: QuarterRatePoint[]): FiringStats {
  * 판정 (2026-10-18 도입, 한 번만 적용)
  *   - 합계는 추세적으로 커지므로 **전년 같은 분기 대비 증가율**로 본다.
  *   - 그 시점까지 증가율 분포에서 상위 10% 이상 주의, 상위 3% 이상 경보.
- *     최소 20개(5년) 쌓인 뒤부터. 분기 자료가 짧아(아래 아마존 단절 때문에 2017년부터)
- *     10년(40개)을 기다리면 2028년 2분기까지 판정을 못 해서 5년으로 정했다. 20개로는 상위 3% 가
- *     사실상 최댓값 근처라 경보가 드물게만 켜진다는 점도 함께 공개한다.
+ *     처음에는 최소 20개(5년)로 정했으나, 2026-10-18 최소 표본 규칙으로 40개가 됐다(CAPEX_MIN_OBS).
+ *     증가율이 2018Q3 부터라 2028Q2 에 판정을 시작한다. 그 전에는 판정 보류(표본 부족).
  *   - 빨라지는 쪽만 본다: 이 관측소의 질문은 "투자가 너무 빨리 불어나 조달 부담이 쌓이는가" 다.
  *     급감은 다른 위험(투자 중단)이지만 이번 규칙에는 넣지 않았다.
  * ──────────────────────────────────────────────────────────── */
 
-export const CAPEX_MIN_OBS = 20;
+// 처음엔 20개였고, 2026-10-18 최소 표본 규칙으로 40개로 바꿨다 — 증가율이 2018Q3 부터라 2028Q2 에 판정 시작
+export const CAPEX_MIN_OBS = MIN_SAMPLE_QUARTERLY;
 export const CAPEX_CAUTION_PCTILE = 90;
 export const CAPEX_ALERT_PCTILE = 97;
 
@@ -2192,5 +2231,175 @@ export function capexFiringStats(rows: CapexRow[]): FiringStats {
   return tallyFiring(
     rows.map((r) => r.quarter),
     rows.map((_, i) => evaluateCapexAt(rows, i).status)
+  );
+}
+
+/* ────────────────────────────────────────────────────────────
+ * 최소 표본 규칙 점검 — 지표별 최소값이 규칙보다 작으면 모듈이 로드될 때 터진다(빌드에서 잡힌다)
+ * ──────────────────────────────────────────────────────────── */
+for (const [name, v, min] of [
+  ["BT_LOOKBACK_WEEKS", BT_LOOKBACK_WEEKS, MIN_SAMPLE_WEEKLY],
+  ["NBFI_MIN_YOY_OBS", NBFI_MIN_YOY_OBS, MIN_SAMPLE_WEEKLY],
+  ["AUCTION_MIN_OBS", AUCTION_MIN_OBS, MIN_SAMPLE_IRREGULAR],
+  ["RV_MIN_OBS", RV_MIN_OBS, MIN_SAMPLE_BUSINESS_DAYS],
+  ["TIC_MIN_OBS", TIC_MIN_OBS, MIN_SAMPLE_MONTHLY],
+  ["GZ_MIN_OBS", GZ_MIN_OBS, MIN_SAMPLE_MONTHLY],
+  ["CHARGEOFF_MIN_OBS", CHARGEOFF_MIN_OBS, MIN_SAMPLE_QUARTERLY],
+  ["CAPEX_MIN_OBS", CAPEX_MIN_OBS, MIN_SAMPLE_QUARTERLY],
+] as const) {
+  if (v < min) throw new Error(`[observatory-constants] ${name}=${v} 가 최소 표본 규칙 ${min} 보다 작습니다`);
+}
+
+/* ════════════════════════════════════════════════════════════
+ * 미션 3 추가 지표 (2026-10-18) — 규칙은 데이터를 보기 전에 정했고 한 번만 적용한다
+ * ════════════════════════════════════════════════════════════ */
+
+/* ────────────────────────────────────────────────────────────
+ * 관측소 3 — 헤지펀드 자금조달 조건 (연준 SCOOS, 레포 헤어컷·마진의 대리, 분기)
+ *
+ * 딜러 설문(SCOOS) 문항 "헤지펀드에 대한 비가격 조건(헤어컷·최장 만기·약정 등)을 지난 3개월
+ * 강화했는가" 의 순비율(강화 응답 % − 완화 응답 %). 시리즈 EXH_E1_C5.Q5.NP, 2011Q3 ~.
+ * 헤어컷 숫자가 아니라 **설문 응답 비율**이다. 응답 딜러가 20곳 안팎이라 한 곳이 바뀌면 5%p 쯤 움직인다.
+ * SCOOS 에는 국채 담보 헤어컷 문항이 없다(국채 베이시스와 바로 이어지지 않는다).
+ *
+ * 판정: 순비율은 추세가 없어 수준으로 본다. 그 시점까지 쌓인 분기 분포의 상위 10% 이상 주의,
+ * 상위 3% 이상 경보, 강화 쪽만. 최소 40분기(최소 표본 규칙).
+ * ──────────────────────────────────────────────────────────── */
+
+export const SCOOS_MIN_OBS = MIN_SAMPLE_QUARTERLY;
+export const SCOOS_CAUTION_PCTILE = 90;
+export const SCOOS_ALERT_PCTILE = 97;
+
+export interface ScoosPoint {
+  /** 조사 분기 "2026Q3" */
+  quarter: string;
+  /** 순강화 비율 (%p) — 양수면 강화가 더 많음 */
+  netPct: number;
+}
+
+export function evaluateScoosAt(points: ScoosPoint[], i: number): LevelVerdict {
+  return levelVerdictAt(
+    points.map((p) => p.quarter),
+    points.map((p) => p.netPct),
+    i,
+    SCOOS_MIN_OBS,
+    SCOOS_CAUTION_PCTILE,
+    SCOOS_ALERT_PCTILE
+  );
+}
+
+export function evaluateScoos(points: ScoosPoint[]): LevelVerdict {
+  return evaluateScoosAt(points, points.length - 1);
+}
+
+export function scoosFiringStats(points: ScoosPoint[]): FiringStats {
+  return tallyFiring(
+    points.map((p) => p.quarter),
+    points.map((_, i) => evaluateScoosAt(points, i).status)
+  );
+}
+
+/* ────────────────────────────────────────────────────────────
+ * 관측소 4 — 프라이머리 딜러 국채 순포지션 (뉴욕 연은 FR 2004, 주간, 수요일 기준)
+ *
+ * PDPOSGST-TOT: 딜러가 가진 미국 국채(단기채·이표채·FRN·TIPS)의 순포지션(롱 − 숏), 백만 달러.
+ * API 설명에는 "excluding TIPS" 라고 적혀 있지만 실제 값은 TIPS 를 포함한다(구성 합으로 확인, 독립 조사).
+ * 2013-04-03 부터 쓴다(그 전은 다른 양식·다른 시리즈).
+ *
+ * 판정: 보유액은 국채 발행이 늘며 추세적으로 커지고 0 근처까지 내려간 적도 있어(2014-12-31 7.8십억 달러)
+ * 비율이 아니라 **4주 변화(십억 달러)** 로 본다. 딜러가 짧은 기간에 국채를 크게 떠안는 것(2020년 3월처럼)
+ * 이 이 지표의 질문이다. 그 시점까지의 4주 변화 분포에서 상위 10% 이상 주의, 상위 3% 이상 경보, 늘어나는 쪽만.
+ * 최소 157주(최소 표본 규칙).
+ * 단절: 뉴욕 연은 시리즈 구분 SBN2015(2015-01-01, FRN 추가)·SBN2022(2022-01-05)·SBN2024(2024-07-03).
+ *   4주 창이 단절을 넘으면 변화를 계산하지 않는다(정의가 바뀐 값끼리 빼지 않으려고).
+ * ──────────────────────────────────────────────────────────── */
+
+export const DEALER_CHANGE_WEEKS = 4;
+export const DEALER_MIN_OBS = MIN_SAMPLE_WEEKLY;
+export const DEALER_CAUTION_PCTILE = 90;
+export const DEALER_ALERT_PCTILE = 97;
+/** 뉴욕 연은 Primary Dealer Statistics 시리즈 구분 시작일 (API list/seriesbreaks, 2026-10-18 확인) */
+export const DEALER_SERIES_BREAKS = ["2015-01-01", "2022-01-05", "2024-07-03"];
+
+export interface DealerPoint {
+  /** 수요일 기준일 YYYY-MM-DD */
+  date: string;
+  /** 국채 순포지션, 십억 달러 */
+  netBillions: number;
+}
+
+export interface DealerRow extends DealerPoint {
+  /** 4주 전 대비 변화, 십억 달러. 단절을 넘거나 4주 전 값이 없으면 null */
+  change4wBillions: number | null;
+}
+
+export function withDealerChanges(points: DealerPoint[]): DealerRow[] {
+  const byDate = new Map(points.map((p) => [p.date, p]));
+  return points.map((p) => {
+    const d = new Date(`${p.date}T00:00:00Z`);
+    d.setUTCDate(d.getUTCDate() - 7 * DEALER_CHANGE_WEEKS);
+    const prevDate = d.toISOString().slice(0, 10);
+    const prev = byDate.get(prevDate);
+    const crosses = DEALER_SERIES_BREAKS.some((b) => prevDate < b && b <= p.date);
+    return { ...p, change4wBillions: prev && !crosses ? p.netBillions - prev.netBillions : null };
+  });
+}
+
+export function evaluateDealerAt(rows: DealerRow[], i: number): LevelVerdict {
+  const labels: string[] = [];
+  const values: number[] = [];
+  let k = -1;
+  rows.forEach((r, j) => {
+    if (j > i || r.change4wBillions === null) return;
+    labels.push(r.date);
+    values.push(r.change4wBillions);
+    if (j === i) k = values.length - 1;
+  });
+  if (k < 0) {
+    const r = rows[i];
+    return { status: null, latestLabel: r?.date ?? null, latestValue: null, cautionCut: null, alertCut: null, percentile: null, obs: values.length };
+  }
+  return levelVerdictAt(labels, values, k, DEALER_MIN_OBS, DEALER_CAUTION_PCTILE, DEALER_ALERT_PCTILE);
+}
+
+export function evaluateDealer(rows: DealerRow[]): LevelVerdict {
+  return evaluateDealerAt(rows, rows.length - 1);
+}
+
+/** 시점별 판정 — 정렬 배열로 누적 분포를 유지한다. evaluateDealerAt 와 결과가 같아야 한다 */
+export function dealerStatuses(rows: DealerRow[]): (ObservatoryStatus | null)[] {
+  const sorted: number[] = [];
+  return rows.map((r) => {
+    const v = r.change4wBillions;
+    if (v === null) return null;
+    sorted.splice(lowerBound(sorted, v), 0, v);
+    if (sorted.length < DEALER_MIN_OBS) return null;
+    const c = quantileSorted(sorted, DEALER_CAUTION_PCTILE / 100);
+    const a = quantileSorted(sorted, DEALER_ALERT_PCTILE / 100);
+    return v >= a ? "warning" : v >= c ? "caution" : "normal";
+  });
+}
+
+export function dealerFiringStats(rows: DealerRow[]): FiringStats {
+  return tallyFiring(rows.map((r) => r.date), dealerStatuses(rows));
+}
+
+/* ────────────────────────────────────────────────────────────
+ * 관측소 1·2 발동 비율 (2026-10-18 미션 3 독립 검증 지적 — 규칙 4 "15% 넘으면 상시 경보 위험 명시")
+ *
+ * 관측소 1·2 판정 함수는 모두 최근 값 몇 개(최대 10개)만 보는 순수 함수라, 각 시점까지의 꼬리 30개에
+ * 같은 함수를 그대로 적용하면 그 시점의 판정과 같다(판정 규칙은 바꾸지 않는다). 시계열 첫 값부터 센다.
+ * 판정이 고정 기준이라 "판정 보류" 기간은 없다(데이터가 있으면 매 시점 판정한다).
+ * ──────────────────────────────────────────────────────────── */
+const TAIL_FOR_FIXED_RULES = 30;
+
+export function tailFiringStats<T>(
+  labels: string[],
+  series: T[],
+  statusOf: (tail: T[]) => ObservatoryStatus | null
+): FiringStats {
+  return tallyFiring(
+    labels,
+    series.map((_, i) => statusOf(series.slice(Math.max(0, i + 1 - TAIL_FOR_FIXED_RULES), i + 1)))
   );
 }

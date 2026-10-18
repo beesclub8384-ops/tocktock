@@ -14,6 +14,8 @@ import {
   UL_SVB_QUARTER,
   type ObservatoryStatus,
   type UnrealizedLossPoint,
+  tailFiringStats,
+  type FiringStats,
 } from "@/lib/observatory-constants";
 
 export const dynamic = "force-dynamic";
@@ -21,6 +23,8 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
 export interface UnrealizedLossesResponse {
+  /** 발동 비율 — 각 시점에 같은 판정 함수를 적용 (관측소 작업 규칙 4) */
+  firing: FiringStats;
   series: UnrealizedLossPoint[];
   latest: UnrealizedLossPoint | null;
   previous: UnrealizedLossPoint | null;
@@ -62,6 +66,7 @@ export async function GET() {
     const verdict = evaluateUnrealizedLosses(store.series);
 
     const body: UnrealizedLossesResponse = {
+      firing: tailFiringStats(store.series.map((p) => p.quarter), store.series, (t) => evaluateUnrealizedLosses(t).status),
       series: store.series,
       latest: verdict.latest,
       previous: verdict.previous,

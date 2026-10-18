@@ -16,12 +16,16 @@ import {
   DW_SURGE_MULTIPLE,
   type DiscountWindowPoint,
   type ObservatoryStatus,
+  tailFiringStats,
+  type FiringStats,
 } from "@/lib/observatory-constants";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 export interface DiscountWindowResponse {
+  /** 발동 비율 — 각 시점에 같은 판정 함수를 적용 (관측소 작업 규칙 4) */
+  firing: FiringStats;
   /** 십억 달러 단위 (수집 단계에서 변환 완료 — 여기서 재변환하지 않는다) */
   series: DiscountWindowPoint[];
   latest: DiscountWindowPoint | null;
@@ -76,6 +80,7 @@ export async function GET() {
     const dataDelayed = daysSinceLatest !== null && daysSinceLatest > DW_STALE_DAYS;
 
     const body: DiscountWindowResponse = {
+      firing: tailFiringStats(series.map((p) => p.date), series, (t) => evaluateDiscountWindow(t).status),
       series,
       latest: verdict.latest,
       previous: verdict.previous,

@@ -1,5 +1,7 @@
 import { ObservatoryBreadcrumb } from "../breadcrumb";
 import { CriteriaNote } from "../criteria-note";
+import { LimitsNote } from "../limits-note";
+import { FiringRateLine } from "../firing-rate";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import SrfChart from "./SrfChart";
@@ -13,7 +15,7 @@ import type { ObservatoryStatus } from "@/lib/observatory-constants";
 export const metadata: Metadata = {
   title: "관측소 · SRF 사용량 | TockTock",
   description:
-    "연준의 응급 창구가 실제로 쓰이고 있는지 매일 지켜봅니다. 평소엔 0이고, 0에서 벗어나면 돈을 못 구하는 기관이 생겼다는 신호입니다.",
+    "연준의 응급 창구가 실제로 쓰이고 있는지 매일 지켜봅니다. 평소엔 0이고, 시험 삼아 쓰는 소액을 넘어 크게 쓰이면 돈을 구하기 어려운 기관이 생겼다는 신호입니다.",
 };
 
 export const dynamic = "force-dynamic";
@@ -51,7 +53,7 @@ const STATUS_META: Record<
     dot: "bg-amber-500",
   },
   warning: {
-    label: "경고",
+    label: "경보",
     className:
       "bg-rose-50 text-rose-700 border-rose-300 dark:bg-rose-950 dark:text-rose-300 dark:border-rose-800",
     dot: "bg-rose-500",
@@ -155,7 +157,7 @@ export default async function SrfPage() {
             {data.usedDays}일
           </strong>
           입니다 ({thresholds.warnDays}일 이상이면 주의,{" "}
-          {thresholds.alertDays}일 이상이면 경고).
+          {thresholds.alertDays}일 이상이면 경보).
         </div>
       </section>
 
@@ -243,7 +245,7 @@ export default async function SrfPage() {
             </div>
             <div className="rounded-lg border border-rose-200 dark:border-rose-900 bg-rose-50 dark:bg-rose-950 px-3 py-2">
               <div className="text-xs font-bold text-rose-700 dark:text-rose-300">
-                경고
+                경보
               </div>
               <div className="text-xs text-rose-800 dark:text-rose-200 mt-0.5">
                 {thresholds.minUsageBillions * 10}억 달러 이상 쓰인 날
@@ -256,7 +258,12 @@ export default async function SrfPage() {
             연준은 최근 이 창구의 이름을 SRP(상설 레포 운영)로 바꿔 부르고
             있습니다. 이 페이지에서는 익숙한 이름인 SRF로 씁니다.
           </p>
-          <CriteriaNote>최근 10영업일 중 1십억 달러 이상 쓰인 날이 1일 이상이면 주의, 3일 이상이면 경고입니다.</CriteriaNote>
+          <div className="mb-2 text-xs"><FiringRateLine stats={data.firing} unit="영업일" /><p className="text-zinc-500">상설 레포 창구(SRF)는 2021년 7월에 생겼습니다. 그 전의 임시 레포 투입(특히 2019년 9월 이후)까지 세기 때문에 비율이 크게 나옵니다.</p></div>
+          <LimitsNote
+            limits="사용량이 0이라고 시장이 편안하다는 뜻은 아닙니다. 낙인이나 금리 조건 때문에 필요해도 쓰지 않을 수 있습니다. 2021년 7월 이전 막대는 SRF가 아니라 연준의 임시 레포 투입입니다."
+            timing="뉴욕 연은의 레포 결과가 FRED에 같은 날 올라옵니다. 이 사이트는 평일 한국 시각 밤 10시에 수집합니다(미 동부 시각으로 서머타임 때 오전 9시, 11~3월에는 오전 8시). 그래서 보통 다음 평일 밤에 반영됩니다."
+          />
+          <CriteriaNote>최근 10영업일 중 1십억 달러 이상 쓰인 날이 1일 이상이면 주의, 3일 이상이면 경보입니다.</CriteriaNote>
           <p className="text-xs text-zinc-500">
             이 지표는 시장 상황을 지켜보기 위한 참고 자료입니다. 투자 권유가
             아니며, 모든 투자 판단은 본인의 책임입니다.

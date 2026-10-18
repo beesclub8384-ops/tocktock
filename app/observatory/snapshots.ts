@@ -43,6 +43,10 @@ import {
   evaluateChargeOff,
   evaluateCapex,
   withCapexChanges,
+  evaluateScoos,
+  evaluateDealer,
+  withDealerChanges,
+  CAPEX_MIN_OBS,
   type ObservatoryStatus,
 } from "@/lib/observatory-constants";
 import { loadSofrIorb } from "@/lib/observatory-sofr-iorb";
@@ -69,6 +73,9 @@ import { loadTic } from "@/lib/observatory-tic";
 import { loadChargeOffs, loadGz } from "@/lib/observatory-credit";
 // 관측소 6 — SEC XBRL 공시
 import { loadCapex } from "@/lib/observatory-capex";
+// 미션 3 — 연준 SCOOS · 뉴욕 연은 딜러 통계
+import { loadScoos } from "@/lib/observatory-scoos";
+import { loadDealers } from "@/lib/observatory-dealers";
 // 카드 표기는 지표들을 나란히 놓고 읽는 화면이라 단위를 십억 달러로
 // 통일한다 (상세 페이지 포맷터는 지표별로 단위를 바꿔서 카드에는 안 맞는다).
 // 자세한 이유는 card-format.ts 상단 주석 참고.
@@ -115,6 +122,8 @@ export interface IndicatorSnapshot {
    * 필요한 지표만 채우고, 안 채우면 undefined 다.
    */
   raw?: number | null;
+  /** 값은 있는데 판정하지 않는 이유 (예: "표본 부족"). 카드가 "판정 보류(표본 부족)" 로 쓴다 */
+  pendingReason?: string;
 }
 
 export const EMPTY_SNAPSHOT: IndicatorSnapshot = {
@@ -322,12 +331,44 @@ const LOADERS: Record<ObservatoryIndicatorKey, () => Promise<IndicatorSnapshot>>
           status: v.status,
           value: {
             main: `${v.latest.rv20Bp.toFixed(1)}bp`,
-            note: v.percentile === null ? undefined : `최근 10년 중 ${v.percentile.toFixed(0)}번째 백분위`,
+            note: v.percentile === null ? undefined : `최근 10년 중 ${Math.floor(v.percentile)}번째 백분위`,
           },
           asOf: v.latest.date,
           raw: v.percentile,
         }
       : EMPTY_SNAPSHOT;
+  },
+  // 분기 설문. raw 는 순강화 비율(요약 문장이 쓴다)
+  "scoos-hedge-fund": async () => {
+    const v = evaluateScoos(await orLog("scoos-hedge-fund", loadScoos(), []));
+    if (v.latestLabel === null || v.latestValue === null) return EMPTY_SNAPSHOT;
+    const month = ["3", "6", "9", "12"][Number(v.latestLabel.slice(5)) - 1];
+    return {
+      status: v.status,
+      value: {
+        main: `${v.latestValue > 0 ? "+" : ""}${v.latestValue.toFixed(1)}%p`,
+        note: `${v.latestLabel.slice(0, 4)}년 ${month}월 조사 · 순강화 비율`,
+      },
+      asOf: null,
+      raw: v.latestValue,
+    };
+  },
+  // 주간. raw 는 4주 변화(십억 달러)
+  "dealer-treasury-positions": async () => {
+    const rows = withDealerChanges(await orLog("dealer-treasury-positions", loadDealers(), []));
+    const latest = rows[rows.length - 1];
+    if (!latest) return EMPTY_SNAPSHOT;
+    const v = evaluateDealer(rows);
+    const ch = latest.change4wBillions;
+    return {
+      status: v.status,
+      value: {
+        main: formatCardBillions(latest.netBillions).main,
+        note: ch === null ? "4주 변화 계산 불가" : `4주 변화 ${ch >= 0 ? "+" : ""}${ch.toFixed(1)}십억 달러`,
+      },
+      asOf: latest.date,
+      raw: ch,
+    };
   },
   // 월간. asOf 는 날짜가 아니라 월이라 note 에 넣는다. raw 는 12개월 증가율
   "foreign-holdings": async () => {
@@ -385,6 +426,8 @@ const LOADERS: Record<ObservatoryIndicatorKey, () => Promise<IndicatorSnapshot>>
     const v = evaluateCapex(rows);
     return {
       status: v.status,
+      // 최소 표본 규칙(분기 40개) 전이면 판정하지 않는다 — 값은 그대로 보여 준다
+      pendingReason: v.status === null && v.obs < CAPEX_MIN_OBS ? "표본 부족" : undefined,
       value: {
         main: formatCardBillions(latest.totalBillions).main,
         note:

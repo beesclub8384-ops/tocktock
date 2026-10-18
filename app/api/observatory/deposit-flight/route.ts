@@ -17,6 +17,10 @@ import {
   type DepositFlightQuarterlyPoint,
   type DepositFlightWeeklyPoint,
   type ObservatoryStatus,
+  evaluateDepositFlightWeekly,
+  evaluateDepositFlightQuarterly,
+  tailFiringStats,
+  type FiringStats,
 } from "@/lib/observatory-constants";
 
 export const dynamic = "force-dynamic";
@@ -24,6 +28,9 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
 export interface DepositFlightResponse {
+  /** 발동 비율 — 주간(소형 은행 비중 변화)·분기(무보험 예금 비중) 따로 (관측소 작업 규칙 4) */
+  firingWeekly: FiringStats;
+  firingQuarterly: FiringStats;
   weekly: DepositFlightWeeklyPoint[];
   quarterly: DepositFlightQuarterlyPoint[];
   latestWeekly: DepositFlightWeeklyPoint | null;
@@ -77,6 +84,8 @@ export async function GET() {
     const verdict = evaluateDepositFlight(weekly, quarterly);
 
     const body: DepositFlightResponse = {
+      firingWeekly: tailFiringStats(weekly.map((p) => p.date), weekly, (t) => evaluateDepositFlightWeekly(t)),
+      firingQuarterly: tailFiringStats(quarterly.map((p) => p.quarter), quarterly, (t) => evaluateDepositFlightQuarterly(t)),
       weekly,
       quarterly,
       latestWeekly: verdict.latestWeekly,

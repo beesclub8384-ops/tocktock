@@ -78,7 +78,7 @@ export default async function Page() {
           <div>
             <dt className="text-xs text-zinc-400">최근 10년 중 순위</dt>
             <dd className="font-semibold text-zinc-800 dark:text-zinc-200 tabular-nums">
-              {data.percentile === null ? "—" : `${data.percentile.toFixed(0)}번째 백분위`}
+              {data.percentile === null ? "—" : `${Math.floor(data.percentile)}번째 백분위`}
             </dd>
             <dd className="text-xs text-zinc-500">
               주의 {thresholds.cautionCutBp?.toFixed(1)}bp · 경보 {thresholds.alertCutBp?.toFixed(1)}bp

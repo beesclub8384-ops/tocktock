@@ -71,7 +71,7 @@ export default async function Page() {
               {latest.totalBillions.toFixed(1)}십억 달러
             </div>
           </div>
-          <StatusBadge status={data.status} />
+          <StatusBadge status={data.status} pendingReason={data.status === null ? "표본 부족" : undefined} />
         </div>
         <dl className="mt-5 grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-3 text-sm">
           <div>
@@ -128,12 +128,12 @@ export default async function Page() {
         <ul className="list-disc pl-5 space-y-1">
           <li>
             그 시점까지 쌓인 증가율 중 상위 {100 - thresholds.cautionPctile}% 안이면 주의, 상위{" "}
-            {100 - thresholds.alertPctile}% 안이면 경보입니다. 증가율이 {thresholds.minObs}개(5년)보다 적게 쌓인 동안은
+            {100 - thresholds.alertPctile}% 안이면 경보입니다. 증가율이 {thresholds.minObs}개(10년)보다 적게 쌓인 동안은
             판정 보류입니다.
           </li>
           <li>
-            자료가 2017년부터라 증가율이 아직 30여 개뿐입니다. 이 정도로는 상위 3%가 사실상 가장 높은 값 근처라, 기준선
-            자체가 매 분기 크게 움직입니다.
+            자료가 2017년부터라 증가율이 아직 {thresholds.obs}개뿐입니다. 그래서 지금은 판정하지 않고 값만 보여 드립니다.
+            증가율이 2018년 3분기부터 쌓였기 때문에, 2028년 2분기 값부터 판정할 수 있습니다.
           </li>
           <li>
             빨라지는 쪽만 봅니다. 투자가 갑자기 줄어드는 것도 위험이지만, 이 지표는 &ldquo;투자가 너무 빨리 불어나 조달
@@ -142,11 +142,15 @@ export default async function Page() {
         </ul>
         <p>이 지표는 위기를 미리 알려 주는 용도로 검증된 것이 아닙니다.</p>
         <p className="text-zinc-500">
-          판정이 시작된 2023년 2분기 이후, 2024년 2분기부터 증가율이 50~90%대로 올라서며 주의·경보가 자주 켜졌습니다.
-          과거에 이런 속도가 없었기 때문에 &ldquo;평소보다 빠르다&rdquo;는 판정이 계속 나오는 것으로, 위기가 왔다는
-          뜻은 아닙니다(2026년 10월 점검 기준).
+          처음에는 증가율 20개(5년)부터 판정했고, 그 기준으로는 2023년 2분기부터 13분기 중 8분기에 주의·경보가
+          켜졌습니다(2024년 2분기 이후 증가율 50~90%대). 2026년 10월에 모든 지표의 최소 표본을 &ldquo;40개 이상이면서
+          3년 이상&rdquo;으로 맞추면서 이 지표는 판정을 멈췄습니다.
         </p>
-        <FiringRateLine stats={data.firing} unit="분기" />
+        {data.firing.evaluable === 0 ? (
+          <p className="text-zinc-500">표본 부족으로 판정하지 않습니다.</p>
+        ) : (
+          <FiringRateLine stats={data.firing} unit="분기" />
+        )}
       </Section>
 
       <Section title="자료의 단절">

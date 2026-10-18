@@ -81,8 +81,9 @@ export default async function ObservatoryIndexPage() {
                     {meta.label}
                   </div>
                 ) : (
+                  // 값은 있는데 판정이 하나도 없으면 판정 보류다 ("수집 대기" 로 쓰면 수집이 멈춘 것처럼 읽힌다)
                   <div className="shrink-0 rounded-full border border-zinc-300 dark:border-zinc-700 px-2.5 py-1 text-xs font-bold text-zinc-500">
-                    수집 대기
+                    {section.indicators.some((ind) => snapshots[ind.key]?.value) ? "판정 보류" : "수집 대기"}
                   </div>
                 )}
               </div>

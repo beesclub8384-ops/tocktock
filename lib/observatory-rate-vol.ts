@@ -9,6 +9,7 @@
  * 과거 값 정정에 대비해 매번 전체(약 6,700건)를 받아 덮어쓴다.
  */
 import { redis } from "@/lib/redis";
+import { assertNotShrunk } from "@/lib/observatory-series-guard";
 import type { YieldPoint } from "@/lib/observatory-constants";
 
 const FRED_BASE = "https://api.stlouisfed.org/fred/series/observations";
@@ -44,6 +45,8 @@ export async function collectYields(): Promise<RateVolCollectResult> {
     if (Number.isFinite(v)) points.push({ date: o.date, yieldPct: v });
   }
   if (points.length === 0) throw new Error(`FRED ${RATE_VOL_SERIES_ID}: 관측치 0건`);
+  // 잘린 응답으로 저장분을 덮어쓰지 않는다
+  assertNotShrunk(`FRED ${RATE_VOL_SERIES_ID}`, points.map((p) => p.date), existing.map((p) => p.date));
   await redis.set(RATE_VOL_KEY, points);
   return { total: points.length, added: points.length - existing.length, latestDate: points[points.length - 1].date };
 }

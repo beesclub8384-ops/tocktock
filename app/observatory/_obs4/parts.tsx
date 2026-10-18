@@ -24,14 +24,21 @@ const DOT: Record<ObservatoryStatus | "pending", string> = {
   pending: "bg-zinc-400",
 };
 
-export function StatusBadge({ status }: { status: ObservatoryStatus | null }) {
+export function StatusBadge({
+  status,
+  pendingReason,
+}: {
+  status: ObservatoryStatus | null;
+  /** 판정 보류의 이유 (예: "표본 부족") — 있으면 "판정 보류(표본 부족)" 로 쓴다 */
+  pendingReason?: string;
+}) {
   const k = status ?? "pending";
   return (
     <div
       className={`shrink-0 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-bold ${BADGE[k]}`}
     >
       <span className={`h-1.5 w-1.5 rounded-full ${DOT[k]}`} />
-      {statusLabel(status)}
+      {status === null && pendingReason ? `${statusLabel(status)}(${pendingReason})` : statusLabel(status)}
     </div>
   );
 }

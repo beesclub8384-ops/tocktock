@@ -1,5 +1,7 @@
 import { ObservatoryBreadcrumb } from "../breadcrumb";
 import { CriteriaNote } from "../criteria-note";
+import { LimitsNote } from "../limits-note";
+import { FiringRateLine } from "../firing-rate";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import UnrealizedLossesChart from "./UnrealizedLossesChart";
@@ -163,8 +165,8 @@ export default async function UnrealizedLossesPage() {
           <strong>지금 노란불인 것은 버그가 아닙니다.</strong> 이 지표는{" "}
           {thresholds.cautionPct}% 미만이 초록, {thresholds.cautionPct}~
           {thresholds.alertPct}%가 노랑, {thresholds.alertPct}% 초과가 빨강입니다.
-          현재 {formatRatio(latest.ratioPct)}는 노랑 구간이며, 2022~2023년의 30%대에서
-          내려온 자리입니다.
+          현재 {formatRatio(latest.ratioPct)}는 노랑 구간이며, 2022년 3분기(31.8%)와 2023년 3분기(30.5%)
+          고점에서 내려온 자리입니다(그 사이 분기는 20%대).
         </div>
       )}
 
@@ -198,7 +200,9 @@ export default async function UnrealizedLossesPage() {
             녹습니다. 그래서 값이 며칠째 그대로여도 고장이 아닙니다.
           </p>
           <p>
-            은행이 채권을 만기까지 들고 있으면 이 손실은 장부에 잡히지 않습니다.
+            만기보유(HTM)로 분류한 채권의 손실은 팔기 전까지 손익에도 자기자본에도 잡히지 않습니다.
+            매도가능(AFS) 채권의 손실은 자기자본(기타포괄손익)에는 이미 반영되지만, 팔기 전까지 손익으로는
+            확정되지 않습니다.
             문제는 예금이 빠져나가 <strong>어쩔 수 없이 팔아야 할 때</strong>입니다.
             그 순간 유령이 실물 손실이 되어 자기자본을 깎습니다. SVB가 정확히 그
             경로로 무너졌습니다.
@@ -217,6 +221,11 @@ export default async function UnrealizedLossesPage() {
         데이터를 처음 확인한 날입니다. FDIC 페이지에서 발표일을 기계적으로 읽을 방법이
         없어, 없는 정확도를 지어내는 대신 확인 시점을 그대로 적었습니다.
       </p>
+      <div className="mb-2 text-xs"><FiringRateLine stats={data.firing} unit="분기" /></div>
+      <LimitsNote
+        limits="은행 업계 전체의 합계라, 2023년 SVB처럼 특정 은행에 몰린 손실은 묻혀 보일 수 있습니다. 금리가 내리면 팔지 않아도 손실이 줄어 보입니다."
+        timing="FDIC는 분기 은행실적보고서를 분기가 끝나고 두세 달 뒤에 냅니다. 이 사이트는 분기가 끝나고 두 달 뒤 달(3·6·9·12월) 1일부터 평일마다 새 분기 자료를 찾아 반영합니다. 그보다 일찍 나오면 그달 1일까지 기다립니다(2026년 2분기 자료는 9월 10일에 처음 확인했습니다)."
+      />
       <CriteriaNote>자기자본 대비 10% 이상이면 주의, 20%를 넘으면 경보입니다.</CriteriaNote>
       <p className="mt-2 text-xs text-zinc-500">
         이 지표는 시장 상황을 지켜보기 위한 참고 자료입니다. 투자 권유가 아니며, 모든

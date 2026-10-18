@@ -27,6 +27,7 @@
  * 입찰 결과는 확정 후 바뀌지 않으므로 전체를 받아 통째로 덮어써도 결과가 같다 (약 1MB, 수 초).
  */
 import { redis } from "@/lib/redis";
+import { assertNotShrunk } from "@/lib/observatory-series-guard";
 import type { AuctionRecord } from "@/lib/observatory-constants";
 
 const API =
@@ -150,6 +151,8 @@ export async function collectAuctions(): Promise<AuctionsCollectResult> {
           : a.cusip < b.cusip ? -1 : a.cusip > b.cusip ? 1 : 0
     );
   if (records.length === 0) throw new Error("Fiscal Data auctions: 대상 입찰 0건");
+  // 잘린 응답으로 저장분을 덮어쓰지 않는다 (같은 날 입찰이 여럿이라 날짜 연속 검사는 못 한다)
+  assertNotShrunk("Fiscal Data auctions", records.map((r) => r.date), existing.map((r) => r.date));
 
   await redis.set(AUCTIONS_KEY, records);
   return {

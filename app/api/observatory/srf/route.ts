@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { nyFedAttribution } from "@/app/observatory/source-notices";
 import { collectSrf, loadSrf, SRF_SERIES_ID } from "@/lib/observatory-srf";
 import {
   evaluateSrf,
@@ -8,12 +9,18 @@ import {
   SRF_WARN_DAYS,
   type ObservatoryStatus,
   type SrfPoint,
+  tailFiringStats,
+  type FiringStats,
 } from "@/lib/observatory-constants";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 export interface SrfResponse {
+  /** 뉴욕 연은 이용 약관이 요구하는 출처 표기 (app/observatory/source-notices.tsx) */
+  attribution: string;
+  /** 발동 비율 — 각 시점에 같은 판정 함수를 적용 (관측소 작업 규칙 4) */
+  firing: FiringStats;
   series: SrfPoint[];
   latest: SrfPoint | null;
   status: ObservatoryStatus;
@@ -48,6 +55,8 @@ export async function GET() {
     const verdict = evaluateSrf(series);
 
     const body: SrfResponse = {
+      attribution: nyFedAttribution(),
+      firing: tailFiringStats(series.map((p) => p.date), series, (t) => evaluateSrf(t).status),
       series,
       latest: verdict.latest,
       status: verdict.status,

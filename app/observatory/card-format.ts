@@ -140,7 +140,7 @@ export function formatCardCre(
   regionalConcentrationPct: number | null
 ): CardValue {
   const main =
-    investorDelinqPct === null ? "—" : `연체 ${investorDelinqPct.toFixed(2)}%`;
+    investorDelinqPct === null ? "—" : `부실채권 ${investorDelinqPct.toFixed(2)}%`;
   if (regionalConcentrationPct === null) return { main };
   return { main, note: `지역은행 집중 ${regionalConcentrationPct.toFixed(1)}%` };
 }

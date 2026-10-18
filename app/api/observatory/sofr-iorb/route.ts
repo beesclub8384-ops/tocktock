@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { nyFedAttribution, SOFR_NOTICE } from "@/app/observatory/source-notices";
 import { collectSofrIorb, loadSofrIorb } from "@/lib/observatory-sofr-iorb";
 import {
   evaluateSofrIorb,
@@ -8,12 +9,18 @@ import {
   SPIKE_THRESHOLD_BP,
   type ObservatoryStatus,
   type SofrIorbPoint,
+  tailFiringStats,
+  type FiringStats,
 } from "@/lib/observatory-constants";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 export interface SofrIorbResponse {
+  /** 뉴욕 연은 이용 약관이 요구하는 출처 표기 (app/observatory/source-notices.tsx) */
+  attribution: string;
+  /** 발동 비율 — 각 시점에 같은 판정 함수를 적용 (관측소 작업 규칙 4) */
+  firing: FiringStats;
   series: SofrIorbPoint[];
   latest: SofrIorbPoint | null;
   status: ObservatoryStatus;
@@ -46,6 +53,8 @@ export async function GET() {
     const verdict = evaluateSofrIorb(series);
 
     const body: SofrIorbResponse = {
+      attribution: nyFedAttribution() + " " + SOFR_NOTICE,
+      firing: tailFiringStats(series.map((p) => p.date), series, (t) => evaluateSofrIorb(t).status),
       series,
       latest: verdict.latest,
       status: verdict.status,

@@ -91,7 +91,7 @@ export default async function Page() {
           <div>
             <dt className="text-xs text-zinc-400">전 기간 증가율 백분위</dt>
             <dd className="font-semibold text-zinc-800 dark:text-zinc-200 tabular-nums">
-              {data.percentile === null ? "—" : `${data.percentile.toFixed(0)}번째`}
+              {data.percentile === null ? "—" : `${Math.floor(data.percentile)}번째`}
             </dd>
           </div>
         </dl>
@@ -109,7 +109,9 @@ export default async function Page() {
         <ul className="list-disc pl-5 space-y-1">
           <li>
             그 시점까지 쌓인 증가율 분포에서 하위 {thresholds.cautionPctile}% 안이면 주의, 하위 {thresholds.alertPctile}%
-            안이면 경보입니다. 증가율이 {thresholds.minObs}개(3년)보다 적게 쌓인 동안은 판정 보류입니다.
+            안이면 경보입니다. 증가율이 {thresholds.minObs}개(40개월)보다 적게 쌓인 동안은 판정 보류입니다. 처음에는 36개부터
+            판정했지만, 2026년 10월에 모든 지표의 최소 표본을 &ldquo;40개 이상이면서 3년 이상&rdquo;으로 맞추면서
+            40개로 바꿨습니다.
           </li>
           <li>늘어나는 쪽은 해외 수요가 탄탄하다는 뜻이라 판정에 쓰지 않습니다.</li>
         </ul>

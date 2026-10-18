@@ -137,7 +137,7 @@ const DEPOSIT_TEXT: Record<ObservatoryStatus, string> = {
 const CRE_TEXT: Record<ObservatoryStatus, string> = {
   normal: "잠잠",
   caution: "달아오르는 중",
-  warning: "연체가 번지는 중",
+  warning: "부실이 번지는 중",
 };
 
 const BANKS_OVERALL: Record<ObservatoryStatus, string> = {
@@ -228,8 +228,10 @@ export function summarizeShadowBanking(
 ): ObservatorySummary {
   const basis = statuses["basis-trade"] ?? null;
   const nbfi = statuses["nbfi-loans"] ?? null;
+  const scoos = statuses["scoos-hedge-fund"] ?? null;
   const pctile = raw?.["basis-trade"];
   const yoy = raw?.["nbfi-loans"];
+  const net = raw?.["scoos-hedge-fund"];
 
   // 값도 상태도 없으면 수집 전이다. 상태를 지어내지 않는다
   if (basis === null && nbfi === null && typeof pctile !== "number" && typeof yoy !== "number") {
@@ -238,17 +240,22 @@ export function summarizeShadowBanking(
 
   const basisText =
     typeof pctile === "number"
-      ? `국채 베이시스(대리 지표)는 최근 3년 중 ${pctile.toFixed(0)}번째 백분위`
+      ? `국채 베이시스(대리 지표)는 최근 3년 중 ${Math.floor(pctile)}번째 백분위`
       : "국채 베이시스는 확인 불가";
   const nbfiText =
     typeof yoy === "number"
       ? `은행의 NDFI 대출은 전년 대비 ${yoy >= 0 ? "+" : ""}${yoy.toFixed(1)}%(재분류 보정)`
       : "은행의 NDFI 대출은 확인 불가";
 
-  // 둘 다 판정이 있으면 더 나쁜 쪽, 하나만 있으면 그쪽. 둘 다 없으면 보류
-  const overall = worstStatus([basis, nbfi]);
+  const scoosText =
+    typeof net === "number"
+      ? `헤지펀드 조달 조건은 순강화 ${net >= 0 ? "+" : ""}${net.toFixed(1)}%p`
+      : "헤지펀드 조달 조건은 확인 불가";
+
+  // 판정이 있는 것 중 가장 나쁜 쪽. 모두 없으면 보류
+  const overall = worstStatus([basis, nbfi, scoos]);
   return {
-    text: `${basisText}, ${nbfiText} — ${overall ? BASIS_TEXT[overall] : "판정 보류"}`,
+    text: `${basisText}, ${nbfiText}, ${scoosText} — ${overall ? BASIS_TEXT[overall] : "판정 보류"}`,
     status: overall,
   };
 }
@@ -280,7 +287,9 @@ export function summarizeTreasuryMarket(
     statuses["auction-dealer-share"],
     statuses["rate-volatility"],
     statuses["foreign-holdings"],
+    statuses["dealer-treasury-positions"],
   ]);
+  const dealerChange = raw?.["dealer-treasury-positions"];
   const volPct = raw?.["rate-volatility"];
   const ticYoy = raw?.["foreign-holdings"];
   if (overall === null && typeof volPct !== "number" && typeof ticYoy !== "number") {
@@ -289,14 +298,18 @@ export function summarizeTreasuryMarket(
   const demandText = demand === null ? "입찰 수요는 판정 보류" : `입찰 수요는 ${DEMAND_TEXT[demand]}`;
   const volText =
     typeof volPct === "number"
-      ? `금리 변동성은 최근 10년 중 ${volPct.toFixed(0)}번째 백분위`
+      ? `금리 변동성은 최근 10년 중 ${Math.floor(volPct)}번째 백분위`
       : "금리 변동성은 확인 불가";
   const ticText =
     typeof ticYoy === "number"
       ? `해외 보유는 전년 대비 ${ticYoy >= 0 ? "+" : ""}${ticYoy.toFixed(1)}%`
       : "해외 보유는 확인 불가";
+  const dealerText =
+    typeof dealerChange === "number"
+      ? `딜러 국채 보유는 4주 ${dealerChange >= 0 ? "+" : ""}${dealerChange.toFixed(1)}십억 달러`
+      : "딜러 국채 보유는 확인 불가";
   return {
-    text: `${demandText}, ${volText}, ${ticText} — ${overall ? BASIS_TEXT[overall] : "판정 보류"}`,
+    text: `${demandText}, ${volText}, ${ticText}, ${dealerText} — ${overall ? BASIS_TEXT[overall] : "판정 보류"}`,
     status: overall,
   };
 }
@@ -360,7 +373,8 @@ export function summarizeNewNodes(
     typeof yoy === "number"
       ? `대형 기술기업 5곳 설비투자는 전년 대비 ${yoy >= 0 ? "+" : ""}${yoy.toFixed(1)}%`
       : "대형 기술기업 5곳 설비투자는 확인 불가";
-  return { text: `${yoyText} — ${status ? BASIS_TEXT[status] : "판정 보류"}`, status };
+  // 지금 판정이 없는 이유는 최소 표본(분기 40개) 부족뿐이다 — 값이 있으면 그렇게 쓴다
+  return { text: `${yoyText} — ${status ? BASIS_TEXT[status] : "판정 보류(표본 부족)"}`, status };
 }
 
 /* ────────────────────────────────────────────────────────────

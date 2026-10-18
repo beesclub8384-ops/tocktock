@@ -1,5 +1,7 @@
 import { ObservatoryBreadcrumb } from "../breadcrumb";
 import { CriteriaNote } from "../criteria-note";
+import { LimitsNote } from "../limits-note";
+import { FiringRateLine } from "../firing-rate";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import {
@@ -133,15 +135,15 @@ export default async function CrePage() {
             <li className="flex gap-2">
               <span className="text-violet-600 dark:text-violet-400 font-bold">·</span>
               <span>
-                <strong>연체율은 대형은행이 높습니다.</strong>{" "}
+                <strong>연체율(FRED, 30일 이상 연체 포함)은 대형은행이 높습니다.</strong>{" "}
                 {latestSizeSplit && latestSizeSplit.top100Pct !== null && latestSizeSplit.otherPct !== null ? (
                   <>
                     상위 100대 {formatDelinq(latestSizeSplit.top100Pct)} vs 100대 밖{" "}
                     {formatDelinq(latestSizeSplit.otherPct)}.{" "}
                   </>
                 ) : null}
-                대도시 오피스 타워처럼 가장 크게 망가진 물건을 대형은행이 들고 있기
-                때문입니다.
+                대도시 오피스 대출이 대형은행에 많기 때문이라는 해석이 많지만, 오피스만 뗀 공개
+                통계가 없어 이 사이트가 확인하지는 못했습니다.
               </span>
             </li>
             <li className="flex gap-2">
@@ -178,7 +180,7 @@ export default async function CrePage() {
         <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5">
           <div className="flex items-start justify-between gap-2">
             <div className="text-xs font-semibold text-zinc-400">
-              연체율 (아픈 정도)
+              부실채권 비율 (아픈 정도)
             </div>
             <StatusBadge status={data.delinquencyStatus} />
           </div>
@@ -188,7 +190,7 @@ export default async function CrePage() {
               : "—"}
           </div>
           <p className="mt-1 text-xs text-zinc-500">
-            임대용 비주거 CRE · 주의 {thresholds.warnDelinqPct}% / 경보{" "}
+            임대용 비주거 CRE · 90일 이상 연체 + 이자 미계상(FDIC) · 주의 {thresholds.warnDelinqPct}% / 경보{" "}
             {thresholds.alertDelinqPct}%
           </p>
         </div>
@@ -241,10 +243,11 @@ export default async function CrePage() {
       {/* 차트 1 — 주 신호 */}
       <section className="mb-8">
         <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-1">
-          임대용 상업용 부동산 연체율
+          임대용 상업용 부동산 부실채권 비율 (판정에 쓰는 값)
         </h2>
         <p className="text-xs text-zinc-500 mb-3">
-          자가사용(사업체가 쓰는 자기 건물)을 걷어낸 투자 목적 부동산.{" "}
+          자가사용(사업체가 쓰는 자기 건물)을 걷어낸 투자 목적 부동산. FDIC 분기 보고서의 부실채권 비율(90일
+          이상 연체 + 이자를 받지 못하는 대출).{" "}
           {latestDelinquency
             ? `${formatQuarter(latestDelinquency.quarter)} 기준.`
             : ""}
@@ -261,11 +264,11 @@ export default async function CrePage() {
       {/* 차트 2 — 규모별 연체율 */}
       <section className="mb-8">
         <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-1">
-          은행 규모별 CRE 연체율
+          은행 규모별 CRE 연체율 (FRED, 판정에 쓰지 않음)
         </h2>
         <p className="text-xs text-zinc-500 mb-3">
-          상위 100대 은행과 그 밖의 은행. 격차는 보여주기만 하고 판정에는 쓰지
-          않습니다 — 아래 &ldquo;보는 법&rdquo; 참고.
+          상위 100대 은행과 그 밖의 은행. 연준 통계의 연체율이라(30일 이상 연체 포함) 위의 부실채권 비율과
+          정의가 다르고 값도 다릅니다. 격차는 보여주기만 하고 판정에는 쓰지 않습니다 — 아래 &ldquo;보는 법&rdquo; 참고.
         </p>
         <SizeSplitChart series={data.sizeSplit} />
       </section>
@@ -335,8 +338,13 @@ export default async function CrePage() {
           </p>
         </div>
       </section>
+      <div className="mb-2 text-xs"><p className="text-zinc-500">부실채권 비율 판정(수준·상승 속도):</p><FiringRateLine stats={data.firingDelinquency} unit="분기" /><p className="mt-1 text-zinc-500">지역은행 집중도 판정:</p><FiringRateLine stats={data.firingConcentration} unit="분기" /></div>
+      <LimitsNote
+        limits="부실채권 비율은 은행 업계 평균이라 오피스처럼 특정 용도나 지역에 몰린 부실은 묻혀 보일 수 있습니다. 대출이 부실로 잡히기까지 시간이 걸려 실제 어려움보다 늦게 움직입니다."
+        timing="판정에 쓰는 부실채권 비율과 지역은행 집중도는 FDIC 분기 보고서를 따릅니다. FDIC는 분기가 끝나고 두세 달 뒤에 내고, 이 사이트는 분기가 끝나고 두 달 뒤 달(3·6·9·12월) 1일부터 평일마다 새 분기를 찾아 반영합니다. 규모별 연체율 차트(FRED)는 분기가 끝나고 7~8주 뒤에 공개됩니다(2026년 2분기 값은 8월 25일). 이 사이트는 평일 한국 시각 밤 10시에 수집합니다(미 동부 시각으로 서머타임 때 오전 9시, 11~3월에는 오전 8시)."
+      />
 
-      <CriteriaNote>연체율 1.5% 이상 주의, 2.5% 이상 경보, 1년 상승폭 +0.5%p 이상 주의, +0.75%p 이상 경보, 지역은행 집중도 30% 이상 주의, 34% 이상 경보입니다. 상승 속도를 함께 보기로 한 것은 2010년·2023년 사례를 보고 정했지만, 0.5%p·0.75%p라는 값 자체의 근거는 따로 없습니다.</CriteriaNote>
+      <CriteriaNote>부실채권 비율(FDIC) 1.5% 이상 주의, 2.5% 이상 경보, 1년 상승폭 +0.5%p 이상 주의, +0.75%p 이상 경보, 지역은행 집중도 30% 이상 주의, 34% 이상 경보입니다. 상승 속도를 함께 보기로 한 것은 2010년·2023년 사례를 보고 정했지만, 0.5%p·0.75%p라는 값 자체의 근거는 따로 없습니다.</CriteriaNote>
       <p className="text-xs text-zinc-500">
         이 지표는 시장 상황을 지켜보기 위한 참고 자료입니다. 투자 권유가 아니며, 모든
         투자 판단은 본인의 책임입니다.

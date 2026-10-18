@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { nyFedAttribution } from "@/app/observatory/source-notices";
 import { collectRrp, loadRrp, RRP_SERIES_ID } from "@/lib/observatory-rrp";
 import {
   daysSinceObservation,
@@ -10,12 +11,18 @@ import {
   RRP_STALE_DAYS,
   type ObservatoryStatus,
   type RrpPoint,
+  tailFiringStats,
+  type FiringStats,
 } from "@/lib/observatory-constants";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 export interface RrpResponse {
+  /** 뉴욕 연은 이용 약관이 요구하는 출처 표기 (app/observatory/source-notices.tsx) */
+  attribution: string;
+  /** 발동 비율 — 각 시점에 같은 판정 함수를 적용 (관측소 작업 규칙 4) */
+  firing: FiringStats;
   /** 십억 달러 단위 (FRED 원단위 그대로 — 변환 없음) */
   series: RrpPoint[];
   latest: RrpPoint | null;
@@ -67,6 +74,8 @@ export async function GET() {
     const dataDelayed = daysSinceLatest !== null && daysSinceLatest > RRP_STALE_DAYS;
 
     const body: RrpResponse = {
+      attribution: nyFedAttribution(),
+      firing: tailFiringStats(series.map((p) => p.date), series, (t) => evaluateRrp(t).status),
       series,
       latest: verdict.latest,
       previous: verdict.previous,

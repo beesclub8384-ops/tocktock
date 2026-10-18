@@ -154,7 +154,8 @@ export default function AuctionPage({ data, metric }: Props) {
             그 입찰까지 쌓인 차이의 분포에서 {isBtc ? "하위" : "상위"}{" "}
             {isBtc ? thresholds.cautionPctile : 100 - thresholds.cautionPctile}% 안이면 그 입찰은 주의,{" "}
             {isBtc ? thresholds.alertPctile : 100 - thresholds.alertPctile}% 안이면 경보입니다. 차이가{" "}
-            {thresholds.minObs}개보다 적게 쌓인 동안은 판정 보류입니다.
+            {thresholds.minObs}개보다 적게 쌓였거나, 첫 차이 값부터 3년이 지나지 않은 동안은 판정 보류입니다(3년 조건은
+            2026년 10월에 모든 지표의 최소 표본을 맞추면서 더했습니다).
           </li>
           <li>
             지표의 상태는 가장 최근 입찰일까지 {thresholds.windowDays}일 동안 열린 입찰 중 가장 나쁜 등급입니다.

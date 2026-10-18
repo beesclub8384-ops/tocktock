@@ -1,5 +1,7 @@
 import { ObservatoryBreadcrumb } from "../breadcrumb";
 import { CriteriaNote } from "../criteria-note";
+import { LimitsNote } from "../limits-note";
+import { FiringRateLine } from "../firing-rate";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import FhlbChart from "./FhlbChart";
@@ -10,7 +12,7 @@ import type { ObservatoryStatus } from "@/lib/observatory-constants";
 export const metadata: Metadata = {
   title: "관측소 · FHLB 차입 잔액 | TockTock",
   description:
-    "은행들이 연준 창구보다 먼저, 낙인 없이 조용히 쓰는 자금줄. 차입이 갑자기 늘면 그 은행이 목말라졌다는 뜻입니다.",
+    "은행들이 연준 창구보다 먼저, 낙인 없이 조용히 쓰는 자금줄. 차입이 갑자기 늘면 은행들이 돈줄을 찾고 있다는 신호일 수 있습니다.",
 };
 
 export const dynamic = "force-dynamic";
@@ -83,7 +85,7 @@ export default async function FhlbPage() {
         </h1>
         <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-2 leading-relaxed">
           은행들이 연준 창구보다 먼저, 낙인 없이 조용히 쓰는 자금줄입니다. 차입이
-          갑자기 늘면 그 은행이 목말라졌다는 뜻입니다.
+          갑자기 늘면 은행들이 돈줄을 찾고 있다는 신호일 수 있습니다.
         </p>
         <p className="text-xs text-zinc-400 mt-1.5">
           출처: FRED (Federal Reserve Bank of St. Louis), 시리즈 {data.seriesId} ·
@@ -168,7 +170,7 @@ export default async function FhlbPage() {
             그래서 연준 창구보다 <strong>앞서</strong> 움직일 수 있습니다.
           </p>
           <p>
-            특정 은행이나 지역의 차입이 갑자기 늘면 그 은행이 목말라졌다는 뜻입니다.
+            특정 은행이나 지역의 차입이 갑자기 늘면 은행들이 돈줄을 찾고 있다는 신호일 수 있습니다.
             실제로 <strong>2007년 3분기(+28%), 2020년 1분기(+25%), 2023년 1분기(+27%)</strong>에
             이 잔액이 크게 늘었습니다. 차트의 세로 점선이 그 시점들입니다. 다만 2022년 2분기(+40%)처럼
             큰 위기 없이 급증한 때도 있어, 급증이 곧 위기라는 뜻은 아닙니다.
@@ -185,6 +187,11 @@ export default async function FhlbPage() {
           </p>
         </div>
       </section>
+      <div className="mb-2 text-xs"><FiringRateLine stats={data.firing} unit="분기" /></div>
+      <LimitsNote
+        limits="연방주택대출은행(FHLB)이 빌려준 돈 전체라, 대출이 늘어난 이유가 은행들의 돈줄 압박인지 평소 사업 확대인지는 이 숫자만으로 구분할 수 없습니다."
+        timing="연준의 금융계정(Z.1)으로 분기마다 나옵니다. 실측으로는 분기가 끝나고 약 10주 뒤에 공개됐습니다(2026년 2분기 값은 9월 11일). 이 사이트는 평일 한국 시각 밤 10시에 수집합니다(미 동부 시각으로 서머타임 때 오전 9시, 11~3월에는 오전 8시)."
+      />
 
       <CriteriaNote>전분기 대비 15% 이상 늘면 주의, 30% 이상 늘면 경보입니다.</CriteriaNote>
       <p className="text-xs text-zinc-500">

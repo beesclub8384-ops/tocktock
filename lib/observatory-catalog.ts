@@ -34,10 +34,12 @@ export type ObservatoryIndicatorKey =
   | "cre"
   | "basis-trade"
   | "nbfi-loans"
+  | "scoos-hedge-fund"
   | "auction-bid-to-cover"
   | "auction-dealer-share"
   | "rate-volatility"
   | "foreign-holdings"
+  | "dealer-treasury-positions"
   | "gz-spread"
   | "business-chargeoffs"
   | "ai-capex";
@@ -132,7 +134,7 @@ export const OBSERVATORY_SECTIONS: ObservatorySectionMeta[] = [
         href: "/observatory/srf",
         name: "SRF 사용량",
         oneLiner:
-          "연준의 응급 창구입니다. 평소엔 0이라, 0에서 벗어나면 시장에서 돈을 못 구한 기관이 생겼다는 신호입니다.",
+          "연준의 응급 창구입니다. 평소엔 거의 0이고, 시험 삼아 쓰는 소액을 넘어 1십억 달러 이상 쓰이기 시작하면 시장에서 돈을 구하기 어려워진 기관이 있다는 신호일 수 있습니다.",
       },
       {
         key: "discount-window",
@@ -150,7 +152,7 @@ export const OBSERVATORY_SECTIONS: ObservatorySectionMeta[] = [
     name: "가맹점들: 은행의 금고 엑스레이",
     shortName: "가맹점들",
     subtitle:
-      "개별 은행이 아니라 은행업 전체의 체질을 봅니다. SVB의 재림 후보를 찾는 곳입니다.",
+      "개별 은행이 아니라 은행업 전체의 체질을 봅니다. 2023년 SVB 사태 때 문제가 된 약점들이 업계 전체에 얼마나 쌓여 있는지 봅니다.",
     chainNote:
       "관측소 1이 시스템 전체의 현금을 잰다면, 여기는 그 돈을 굴리는 은행들의 몸 상태를 봅니다",
     source: "FRED (Federal Reserve Bank of St. Louis) · FDIC 분기 은행실적보고서(QBP)",
@@ -198,9 +200,9 @@ export const OBSERVATORY_SECTIONS: ObservatorySectionMeta[] = [
     subtitle:
       "은행이 아닌 곳에서 빌린 돈으로 크게 굴리는 거래를 봅니다. 규제 밖이라 잘 보이지 않고, 흔들리면 한꺼번에 몰려 나옵니다.",
     chainNote:
-      "관측소 2가 은행의 몸 상태를 본다면, 여기는 은행 밖에서 레버리지를 쓰는 곳을 봅니다. 지금은 국채 베이시스 트레이드와 은행의 비예금 금융기관 대출 두 가지를 보고 있습니다",
+      "관측소 2가 은행의 몸 상태를 본다면, 여기는 은행 밖에서 레버리지를 쓰는 곳을 봅니다. 지금은 국채 베이시스 트레이드, 은행의 비예금 금융기관 대출, 헤지펀드 자금조달 조건 세 가지를 봅니다. 사모신용의 현물 이자(PIK)는 일관된 공시 자료를 만들 수 없어 넣지 않았습니다",
     source:
-      "CFTC Traders in Financial Futures (Futures Only) · 연방준비제도 H.8 (FRED)",
+      "CFTC Traders in Financial Futures (Futures Only) · 연방준비제도 H.8 (FRED) · 연준 SCOOS",
     indicators: [
       {
         key: "basis-trade",
@@ -218,6 +220,14 @@ export const OBSERVATORY_SECTIONS: ObservatorySectionMeta[] = [
         oneLiner:
           "은행이 사모펀드·보험사·헤지펀드 같은 은행 아닌 금융회사에 빌려준 돈입니다. 그림자금융에 대한 은행의 노출이 얼마나 빠르게 커지는지 봅니다.",
       },
+      {
+        key: "scoos-hedge-fund",
+        order: 3,
+        href: "/observatory/scoos-hedge-fund",
+        name: "헤지펀드 자금조달 조건 (레포 헤어컷 대리)",
+        oneLiner:
+          "딜러들이 헤지펀드에 돈을 빌려줄 때 헤어컷 같은 담보 조건을 조였는지 묻는 연준 설문의 응답 비율입니다. 헤어컷 숫자가 아니라 대리 지표입니다.",
+      },
     ],
   },
   {
@@ -229,8 +239,8 @@ export const OBSERVATORY_SECTIONS: ObservatorySectionMeta[] = [
     subtitle:
       "미국 국채는 세계 금융이 담보로 쓰는 자산입니다. 사려는 사람이 줄거나 값이 크게 흔들리면, 다른 시장이 기대는 바닥이 흔들립니다.",
     chainNote:
-      "새 국채를 누가 사 가는지(입찰), 값이 얼마나 흔들리는지(변동성), 해외에서 계속 사 주는지(해외 보유) 순서로 봅니다. 입찰 테일·시장 심도·MOVE 원지수는 무료 공개 출처가 없어 넣지 않았습니다",
-    source: "미 재무부 Fiscal Data(입찰 결과) · FRED DGS10(연준 H.15) · 미 재무부 TIC",
+      "새 국채를 누가 사 가는지(입찰), 값이 얼마나 흔들리는지(변동성), 해외에서 계속 사 주는지(해외 보유) 순서로 봅니다. 딜러가 얼마나 떠안는지(딜러 보유)도 함께 봅니다. 입찰 테일·시장 심도·MOVE 원지수는 무료 공개 출처가 없어 넣지 않았습니다",
+    source: "미 재무부 Fiscal Data(입찰 결과) · FRED DGS10(연준 H.15) · 미 재무부 TIC · 뉴욕 연은 딜러 통계",
     indicators: [
       {
         key: "auction-bid-to-cover",
@@ -263,6 +273,14 @@ export const OBSERVATORY_SECTIONS: ObservatorySectionMeta[] = [
         name: "해외 보유 국채",
         oneLiner:
           "외국이 가진 미국 국채의 합계입니다. 1년 전보다 크게 줄면 해외 수요가 빠진다는 뜻이지만, 가격이 떨어지기만 해도 줄어듭니다.",
+      },
+      {
+        key: "dealer-treasury-positions",
+        order: 5,
+        href: "/observatory/dealer-treasury-positions",
+        name: "프라이머리 딜러 국채 보유",
+        oneLiner:
+          "국채를 받아 주는 프라이머리 딜러들이 4주 동안 국채를 얼마나 더 떠안았는지입니다. 짧은 기간에 크게 늘면 최종 투자자가 덜 사고 있다는 뜻일 수 있습니다.",
       },
     ],
   },
@@ -377,7 +395,7 @@ function assertCatalogIsSane(sections: ObservatorySectionMeta[]): void {
  *   실패하고, 잘못된 슬러그가 배포까지 가지 못한다.
  *
  *   대가는 클라이언트 번들에 검사 함수가 같이 실리는 것뿐이다. 섹션 6개 ·
- *   지표 18개를 훑는 루프라 실행 비용은 사실상 0이고, 조용히 안 뜨는 페이지를
+ *   지표 20개를 훑는 루프라 실행 비용은 사실상 0이고, 조용히 안 뜨는 페이지를
  *   막는 값으로는 싸다.
  */
 assertCatalogIsSane(OBSERVATORY_SECTIONS);

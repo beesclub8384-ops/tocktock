@@ -1,5 +1,7 @@
 import { ObservatoryBreadcrumb } from "../breadcrumb";
 import { CriteriaNote } from "../criteria-note";
+import { LimitsNote } from "../limits-note";
+import { FiringRateLine } from "../firing-rate";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import RrpChart from "./RrpChart";
@@ -238,20 +240,17 @@ export default async function RrpPage() {
 
           <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-4">
             <div className="font-semibold text-zinc-900 dark:text-zinc-100 mb-2">
-              차트가 보여주는 것 &mdash; 쌓일 때 내리고, 빠질 때 올랐습니다
+              차트가 보여주는 것 &mdash; 잔액과 주가는 한 방향으로 움직이지 않았습니다
             </div>
             <p>
-              위 차트에 주가지수를 겹쳐 보면 방향이 눈에 들어옵니다. RRP 잔액이
-              쌓이던 <strong>2021~2022년에 주가는 내렸고</strong>, 잔액이 빠지던{" "}
-              <strong>2023~2026년에 주가는 올랐습니다.</strong>
+              위 차트에 주가지수를 겹쳐 보면, RRP 잔액이 쌓이던 2021~2022년에 S&amp;P 500은{" "}
+              <strong>2021년에 27% 올랐다가 2022년에 19% 내렸습니다</strong>(두 해를 합치면 거의
+              제자리). 잔액이 빠지던 <strong>2023년 이후에는 주가가 올랐습니다.</strong>
             </p>
             <p className="mt-2">
-              그러니 RRP가 쌓인다는 걸 &ldquo;돈이 넘친다&rdquo;는 신호로 읽으면
-              곤란합니다.{" "}
-              <strong className="text-zinc-900 dark:text-zinc-100">
-                갈 곳을 못 찾은 돈이 위험을 피해 연준에 숨는다는 신호에
-                가깝습니다.
-              </strong>
+              그러니 RRP가 쌓인다는 걸 곧바로 &ldquo;돈이 넘쳐 주가에 좋다&rdquo;는
+              신호로 읽기는 어렵습니다. 갈 곳을 못 찾은 돈이 연준에 머문다고 보는 해석도
+              있지만, 이 차트만으로 확인할 수는 없습니다.
             </p>
             <p className="mt-2">
               반대로 잔액이 빠지는 건 그 돈이 다시 일하러 나가거나, 시스템에서
@@ -261,8 +260,8 @@ export default async function RrpPage() {
             <p className="mt-2">
               그래서 이렇게 읽으시면 됩니다.{" "}
               <strong className="text-zinc-900 dark:text-zinc-100">
-                잔액이 높다고 강세를 기대하면 안 됩니다. 그리고 잔액이 0에 가까운
-                지금은, 그 완충재가 사라졌다는 뜻입니다.
+                잔액이 높다고 강세를 기대할 근거는 이 차트에 없습니다. 그리고 잔액이 0에
+                가까운 지금은, 그 완충재가 사라졌다는 뜻입니다.
               </strong>
             </p>
             <p className="mt-2 text-xs text-zinc-500">
@@ -277,8 +276,10 @@ export default async function RrpPage() {
             </div>
             <p className="text-rose-900 dark:text-rose-200">
               2026년 현재 이 지표는 <strong>쿠션 소진 상태가 지속 중</strong>입니다.
-              2022년 말 {formatTrillion(thresholds.peakBillions)}까지 쌓였던 잔액이
-              2023~2024년에 걸쳐 거의 다 빠졌고, 그 뒤로 0 부근에 붙어 있습니다.
+              2022년 말 {formatTrillion(thresholds.peakBillions)}까지 쌓였던 잔액이 2023년부터
+              줄었지만 2025년 7월까지도 월평균 2천억 달러 안팎이 남아 있었습니다. 2025년 8월부터
+              빠르게 줄어 11월 이후로는 월평균 10십억 달러 아래, 사실상 0 부근에 있습니다(2026년 10월
+              점검 기준).
             </p>
             <p className="mt-2 text-rose-900 dark:text-rose-200">
               그래서 페이지를 여는 순간부터 경보가 떠 있는 게 정상입니다. 데이터가
@@ -332,6 +333,11 @@ export default async function RrpPage() {
               </div>
             </div>
           </div>
+          <div className="mb-2 text-xs"><FiringRateLine stats={data.firing} unit="영업일" /><p className="text-zinc-500">이 기준은 역레포 창구가 상시로 돈을 받는 지금의 제도를 전제로 정했습니다. 그런 창구가 없던 2013년 이전에는 역레포가 가끔만 열렸고 잔액도 최대 26십억 달러였습니다. 그 기간까지 세면 경보 비율이 크게 나옵니다.</p></div>
+          <LimitsNote
+            limits="잔액이 줄어든 이유가 시장의 여윳돈이 말라서인지, 같은 돈이 단기 국채 같은 다른 곳으로 옮겨 가서인지는 이 숫자만으로 구분할 수 없습니다."
+            timing="뉴욕 연은이 그날 역레포 결과를 내면 FRED에 같은 날 올라옵니다. 이 사이트는 평일 한국 시각 밤 10시에 수집합니다(미 동부 시각으로 서머타임 때 오전 9시, 11~3월에는 오전 8시). 그래서 보통 다음 평일 밤에 반영됩니다."
+          />
 
           <CriteriaNote>잔액이 100십억 달러를 넘으면 정상, 10십억 달러 미만이면 경보, 그 사이는 주의입니다.</CriteriaNote>
           <p className="text-xs text-zinc-500 pt-1">

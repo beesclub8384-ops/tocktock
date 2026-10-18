@@ -1,5 +1,7 @@
 import { ObservatoryBreadcrumb } from "../breadcrumb";
 import { CriteriaNote } from "../criteria-note";
+import { LimitsNote } from "../limits-note";
+import { FiringRateLine } from "../firing-rate";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import DiscountWindowChart from "./DiscountWindowChart";
@@ -142,7 +144,7 @@ export default async function DiscountWindowPage() {
             <div className="text-base font-semibold text-zinc-900 dark:text-zinc-100 mt-1">
               {latest ? formatDate(latest.date) : "—"}
             </div>
-            {/* 주간 데이터라 최신값이 최대 7일 전인 게 정상이다. 오해 없게 명시 */}
+            {/* 주간 데이터라 최신값이 최대 9일 전인 게 정상이다(수요일 값 → 금요일 밤 반영). 오해 없게 명시 */}
             <div className="text-xs text-zinc-500 mt-0.5">
               {data.daysSinceLatest !== null ? `${data.daysSinceLatest}일 전 값` : "—"}
             </div>
@@ -270,9 +272,9 @@ export default async function DiscountWindowPage() {
             </div>
             <p>
               이 지표는 <strong>주간 데이터</strong>입니다. 매주 수요일 잔액을 그 주
-              목요일에 발표합니다. 그래서 최신값이{" "}
+              목요일에 발표하고, 이 사이트에는 금요일 밤에 반영됩니다. 그래서 최신값이{" "}
               <strong className="text-zinc-900 dark:text-zinc-100">
-                최대 7일 전 값
+                최대 9일 전 값
               </strong>
               인 게 정상입니다. 매일 갱신되는 SOFR·SRF 지표와 다릅니다.
             </p>
@@ -311,6 +313,11 @@ export default async function DiscountWindowPage() {
               </div>
             </div>
           </div>
+          <div className="mb-2 text-xs"><FiringRateLine stats={data.firing} unit="주" /></div>
+          <LimitsNote
+            limits="1차 신용(primary credit) 잔액만 봅니다. 낙인 때문에 돈이 필요해도 쓰지 않는 은행이 있어, 잔액이 적다고 은행들이 편안하다는 뜻은 아닙니다."
+            timing="연준이 매주 수요일 잔액을 목요일(H.4.1)에 발표합니다. 이 사이트는 평일 한국 시각 밤 10시에 수집합니다(미 동부 시각으로 서머타임 때 오전 9시, 11~3월에는 오전 8시). 그래서 목요일 발표분은 금요일 밤에 반영됩니다."
+          />
 
           <CriteriaNote>10십억 달러 이상이면 주의, 50십억 달러를 넘으면 경보입니다. 전주 잔액이 1십억 달러 이상일 때 전주보다 2배 이상 늘어도 주의입니다.</CriteriaNote>
           <p className="text-xs text-zinc-500 pt-1">
