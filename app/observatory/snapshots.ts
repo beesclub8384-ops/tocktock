@@ -33,6 +33,12 @@ import {
   withChanges,
   evaluateNbfiLoans,
   withNbfiChanges,
+  evaluateAuction,
+  withAuctionSurprises,
+  evaluateRateVol,
+  withRateVol,
+  evaluateTic,
+  withTicChanges,
   type ObservatoryStatus,
 } from "@/lib/observatory-constants";
 import { loadSofrIorb } from "@/lib/observatory-sofr-iorb";
@@ -51,6 +57,10 @@ import { loadCreConcentration, loadCreSizeSplit } from "@/lib/observatory-cre";
 // 관측소 3 — CFTC TFF 보고서에서 온다
 import { loadBasisTrade } from "@/lib/observatory-basis-trade";
 import { loadNbfiLoans } from "@/lib/observatory-nbfi-loans";
+// 관측소 4 — 재무부 Fiscal Data · FRED DGS10 · 재무부 TIC
+import { loadAuctions } from "@/lib/observatory-treasury-auctions";
+import { loadYields } from "@/lib/observatory-rate-vol";
+import { loadTic } from "@/lib/observatory-tic";
 // 카드 표기는 지표들을 나란히 놓고 읽는 화면이라 단위를 십억 달러로
 // 통일한다 (상세 페이지 포맷터는 지표별로 단위를 바꿔서 카드에는 안 맞는다).
 // 자세한 이유는 card-format.ts 상단 주석 참고.
@@ -63,6 +73,7 @@ import {
   formatCardCre,
   formatCardBasisTrade,
   formatCardNbfiLoans,
+  formatCardAuction,
   type CardValue,
 } from "./card-format";
 
@@ -260,6 +271,71 @@ const LOADERS: Record<ObservatoryIndicatorKey, () => Promise<IndicatorSnapshot>>
           value: formatCardNbfiLoans(v.latest.loansBillions, v.latest.adjustedYoyPct),
           asOf: v.latest.date,
           raw: v.latest.adjustedYoyPct,
+        }
+      : EMPTY_SNAPSHOT;
+  },
+  // 관측소 4. 입찰 두 지표는 같은 원자료(Redis 키 하나)를 읽는다.
+  // 상태는 최근 28일 입찰 중 최악이고, 카드 값은 가장 최근 입찰이다.
+  "auction-bid-to-cover": async () => {
+    const v = evaluateAuction(withAuctionSurprises(await orLog("auctions", loadAuctions(), [])), "btc");
+    return v.latest
+      ? {
+          status: v.status,
+          value: formatCardAuction(
+            `${v.latest.bidToCover.toFixed(2)}배`,
+            v.latest.termYears,
+            v.latest.btcSurprise,
+            ""
+          ),
+          asOf: v.latest.date,
+        }
+      : EMPTY_SNAPSHOT;
+  },
+  "auction-dealer-share": async () => {
+    const v = evaluateAuction(withAuctionSurprises(await orLog("auctions", loadAuctions(), [])), "pd");
+    return v.latest
+      ? {
+          status: v.status,
+          value: formatCardAuction(
+            v.latest.dealerSharePct === null ? "—" : `${v.latest.dealerSharePct.toFixed(1)}%`,
+            v.latest.termYears,
+            v.latest.pdSurprise,
+            "%p"
+          ),
+          asOf: v.latest.date,
+        }
+      : EMPTY_SNAPSHOT;
+  },
+  // raw 는 최근 10년 창 안의 순위 — 요약 문장이 쓴다
+  "rate-volatility": async () => {
+    const v = evaluateRateVol(withRateVol(await orLog("rate-volatility", loadYields(), [])));
+    return v.latest && v.latest.rv20Bp !== null
+      ? {
+          status: v.status,
+          value: {
+            main: `${v.latest.rv20Bp.toFixed(1)}bp`,
+            note: v.percentile === null ? undefined : `최근 10년 중 ${v.percentile.toFixed(0)}번째 백분위`,
+          },
+          asOf: v.latest.date,
+          raw: v.percentile,
+        }
+      : EMPTY_SNAPSHOT;
+  },
+  // 월간. asOf 는 날짜가 아니라 월이라 note 에 넣는다. raw 는 12개월 증가율
+  "foreign-holdings": async () => {
+    const v = evaluateTic(withTicChanges(await orLog("foreign-holdings", loadTic(), [])));
+    return v.latest
+      ? {
+          status: v.status,
+          value: {
+            main: formatCardBillions(v.latest.totalBillions).main,
+            note:
+              v.latest.yoyPct === null
+                ? `${v.latest.month} 말`
+                : `${v.latest.month} 말 · 전년 대비 ${v.latest.yoyPct >= 0 ? "+" : ""}${v.latest.yoyPct.toFixed(1)}%`,
+          },
+          asOf: null,
+          raw: v.latest.yoyPct,
         }
       : EMPTY_SNAPSHOT;
   },

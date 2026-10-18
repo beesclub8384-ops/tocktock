@@ -1446,3 +1446,366 @@ export function findNbfiSurges(points: NbfiLoansPoint[]): NbfiSurgeCheck {
     flagged: changes.filter((c) => !nearReclass(c.date) && Math.abs(c.changeBillions) >= cut),
   };
 }
+
+/* ════════════════════════════════════════════════════════════
+ * 관측소 4 — 국채시장
+ *
+ * 설계도의 6개 지표 중 무료 공개 출처로 만들 수 있는 것만 구현했다 (2026-10-18 조사).
+ *   구현: 입찰 응찰 배율 · 입찰 프라이머리 딜러 인수 비중 (TreasuryDirect/Fiscal Data)
+ *         10년물 금리 실현변동성 (MOVE 지수의 대리, FRED DGS10)
+ *         해외 보유 (재무부 TIC)
+ *   미구현: 입찰 테일 (입찰 직전 발행일전 금리의 공개 출처 없음),
+ *           시장 심도 (무료 공개 출처 없음), MOVE 원지수 (무료 공개 출처 없음)
+ * 자세한 근거는 docs/observatory-decision-log.md.
+ * ════════════════════════════════════════════════════════════ */
+
+/* ────────────────────────────────────────────────────────────
+ * 국채 입찰 — 응찰 배율 / 프라이머리 딜러 인수 비중
+ *
+ * 대상: 명목 이표채 입찰(2·3·5·7·10·20·30년, 재발행 포함). 물가연동채(TIPS)·변동금리채(FRN)·
+ *       단기채(Bill)는 뺀다 (수요 구조가 달라 같은 분포에 섞으면 안 된다).
+ *       공고 금액 10억 달러 미만의 소액 비정규 입찰(2건)도 뺀다 — 수집기 주석 참고.
+ *
+ * 왜 "같은 만기의 최근 6회 평균 대비 차이(놀람)" 인가
+ *   응찰 배율과 딜러 비중은 만기마다 평소 수준이 다르다(2년물 배율이 30년물보다 높다).
+ *   만기를 섞은 채 수준으로 비교하면 만기 구성만 바뀌어도 신호가 난다.
+ *   그래서 각 입찰을 같은 만기의 직전 6회 평균과 비교한 차이로 바꿔 한 분포에 모은다.
+ *
+ * 판정 (2026-10 도입, 한 번만 적용)
+ *   - 입찰 하나의 등급: 그 입찰까지 쌓인 놀람 분포에서
+ *       응찰 배율: 하위 2% 이하 주의, 하위 0.5% 이하 경보 (낮을수록 수요 약함)
+ *       딜러 비중: 상위 2% 이상 주의, 상위 0.5% 이상 경보 (높을수록 최종 투자자가 덜 사 간 것)
+ *     분포에 놀람이 157개 이상 쌓인 뒤부터 등급을 낸다.
+ *   - 지표의 상태: 가장 최근 입찰일 기준 28일 안 입찰들의 등급 중 가장 나쁜 것.
+ *   - 왜 2% / 0.5% 인가: 입찰 하나의 꼬리를 p 로 두면 n개 입찰이 든 창이 켜질 확률은
+ *     대략 1 − (1 − p)^n 이다. 창 단위 발동을 15% 안팎으로 두려고 p ≈ 2% 로 정했다.
+ *     경보는 그보다 4배 드물게 0.5%. 결과를 보고 고른 값이 아니라 데이터를 보기 전에 정했다.
+ *     ⚠ 정할 때는 "28일 창에 보통 8~10개" 로 가정했는데, 독립 검증에서 실제로는 2016년 이후
+ *       5~7개가 대부분(8개 이상 약 4%)인 것으로 확인됐다. 7개면 1 − 0.98^7 ≈ 13%. 가정은
+ *       틀렸지만 기준값은 바꾸지 않았다 (한 번만 적용 원칙). 실제 창 발동은 응찰 배율 1.1%,
+ *       딜러 비중 6.0% 로 계산보다 훨씬 낮다 — 놀람이 서로 독립이 아니기 때문으로 보인다.
+ *   - 한쪽 방향만 본다: 응찰이 몰리는 것(배율 상승)이나 딜러 비중 하락은 수요가 강하다는
+ *     뜻이라 경보 대상이 아니다.
+ * ──────────────────────────────────────────────────────────── */
+
+/** 놀람 기준이 되는 같은 만기 직전 입찰 수 */
+export const AUCTION_LOOKBACK = 6;
+
+/**
+ * 등급을 내기 시작하는 최소 놀람 개수.
+ * 다른 관측소의 "최소 157개(주간이면 3년)" 와 맞춘 숫자다. 입찰 수 기준으로 따로 근거를
+ * 계산한 것은 아니다. 실제 판정 시작: 응찰 배율 2006-07, 딜러 비중 2011-04.
+ */
+export const AUCTION_MIN_OBS = 157;
+
+/** 지표 상태를 모으는 창 (일) */
+export const AUCTION_WINDOW_DAYS = 28;
+
+/** 응찰 배율 — 놀람이 분포의 이 백분위 이하면 주의 / 경보 */
+export const BTC_CAUTION_PCTILE = 2;
+export const BTC_ALERT_PCTILE = 0.5;
+
+/** 딜러 비중 — 놀람이 분포의 이 백분위 이상이면 주의 / 경보 */
+export const PD_CAUTION_PCTILE = 98;
+export const PD_ALERT_PCTILE = 99.5;
+
+export interface AuctionRecord {
+  /** 입찰일 YYYY-MM-DD */
+  date: string;
+  cusip: string;
+  /** 원래 만기(년): 2 · 3 · 5 · 7 · 10 · 20 · 30 */
+  termYears: number;
+  reopening: boolean;
+  /**
+   * 응찰 배율 — 원자료(bid_to_cover_ratio) 값 그대로.
+   * 단일 식으로 재계산하지 않는다: 경쟁 응찰 ÷ 경쟁 낙찰과 맞는 건은 2,053건 중 1,295건,
+   * (총응찰 − SOMA) ÷ (총낙찰 − SOMA) 와 맞는 건은 1,829건이다 (독립 검증 결과).
+   */
+  bidToCover: number;
+  /** 프라이머리 딜러 낙찰 ÷ 경쟁 낙찰 × 100 (%). 원자료에 딜러 낙찰이 없으면 null */
+  dealerSharePct: number | null;
+}
+
+export interface AuctionRow extends AuctionRecord {
+  /** 응찰 배율 − 같은 만기 직전 6회 평균. 직전이 6회 미만이면 null */
+  btcSurprise: number | null;
+  /** 딜러 비중 − 같은 만기 직전 6회 평균 (%p). 직전 값이 6개 미만이면 null */
+  pdSurprise: number | null;
+}
+
+export type AuctionMetric = "btc" | "pd";
+
+export interface AuctionGrade {
+  status: ObservatoryStatus | null;
+  /** 그 입찰까지 분포의 주의 / 경보 기준 (놀람 단위) */
+  cautionCut: number | null;
+  alertCut: number | null;
+  obs: number;
+}
+
+export interface AuctionVerdict {
+  status: ObservatoryStatus | null;
+  /** 가장 최근 입찰 */
+  latest: AuctionRow | null;
+  /** 창 안의 입찰과 각 등급 (최근 → 과거) */
+  window: { row: AuctionRow; grade: AuctionGrade }[];
+  /** 가장 최근 입찰 기준 분포의 주의 / 경보 기준 */
+  cautionCut: number | null;
+  alertCut: number | null;
+  obs: number;
+}
+
+/** 입찰일 오름차순 기록에 놀람을 붙인다 */
+export function withAuctionSurprises(records: AuctionRecord[]): AuctionRow[] {
+  const btcHist = new Map<number, number[]>();
+  const pdHist = new Map<number, number[]>();
+  return records.map((r) => {
+    const b = btcHist.get(r.termYears) ?? [];
+    const p = pdHist.get(r.termYears) ?? [];
+    const avg = (a: number[]) => a.reduce((s, x) => s + x, 0) / a.length;
+    const row: AuctionRow = {
+      ...r,
+      btcSurprise: b.length >= AUCTION_LOOKBACK ? r.bidToCover - avg(b.slice(-AUCTION_LOOKBACK)) : null,
+      pdSurprise:
+        r.dealerSharePct !== null && p.length >= AUCTION_LOOKBACK
+          ? r.dealerSharePct - avg(p.slice(-AUCTION_LOOKBACK))
+          : null,
+    };
+    b.push(r.bidToCover);
+    btcHist.set(r.termYears, b);
+    if (r.dealerSharePct !== null) {
+      p.push(r.dealerSharePct);
+      pdHist.set(r.termYears, p);
+    }
+    return row;
+  });
+}
+
+const surpriseOf = (r: AuctionRow, m: AuctionMetric) => (m === "btc" ? r.btcSurprise : r.pdSurprise);
+
+/** j 번째 입찰의 등급 — j 까지의 놀람 분포만 쓴다 */
+export function auctionGradeAt(rows: AuctionRow[], j: number, m: AuctionMetric): AuctionGrade {
+  const dist: number[] = [];
+  for (let k = 0; k <= j; k++) {
+    const v = surpriseOf(rows[k], m);
+    if (v !== null) dist.push(v);
+  }
+  const v = surpriseOf(rows[j], m);
+  if (dist.length < AUCTION_MIN_OBS) return { status: null, cautionCut: null, alertCut: null, obs: dist.length };
+  const cautionCut = quantile(dist, (m === "btc" ? BTC_CAUTION_PCTILE : PD_CAUTION_PCTILE) / 100);
+  const alertCut = quantile(dist, (m === "btc" ? BTC_ALERT_PCTILE : PD_ALERT_PCTILE) / 100);
+  if (v === null) return { status: null, cautionCut, alertCut, obs: dist.length };
+  const status: ObservatoryStatus =
+    m === "btc"
+      ? v <= alertCut ? "warning" : v <= cautionCut ? "caution" : "normal"
+      : v >= alertCut ? "warning" : v >= cautionCut ? "caution" : "normal";
+  return { status, cautionCut, alertCut, obs: dist.length };
+}
+
+/**
+ * i 번째 입찰 시점의 지표 상태 — i 입찰일 기준 28일 안(그 날 포함, 미래 제외) 입찰 등급 중 최악.
+ * grades 를 넘기면 다시 계산하지 않는다 (회귀 검증에서 전 기간을 돌 때).
+ */
+export function evaluateAuctionAt(
+  rows: AuctionRow[],
+  i: number,
+  m: AuctionMetric,
+  grades?: AuctionGrade[]
+): AuctionVerdict {
+  const empty: AuctionVerdict = { status: null, latest: null, window: [], cautionCut: null, alertCut: null, obs: 0 };
+  if (i < 0 || i >= rows.length) return empty;
+  const end = rows[i].date;
+  const window: { row: AuctionRow; grade: AuctionGrade }[] = [];
+  for (let j = i; j >= 0; j--) {
+    if (daysBetween(rows[j].date, end) >= AUCTION_WINDOW_DAYS) break;
+    window.push({ row: rows[j], grade: grades ? grades[j] : auctionGradeAt(rows, j, m) });
+  }
+  const SEV: Record<ObservatoryStatus, number> = { normal: 0, caution: 1, warning: 2 };
+  let status: ObservatoryStatus | null = null;
+  for (const w of window) {
+    const s = w.grade.status;
+    if (s && (status === null || SEV[s] > SEV[status])) status = s;
+  }
+  const g = window[0].grade;
+  return { status, latest: rows[i], window, cautionCut: g.cautionCut, alertCut: g.alertCut, obs: g.obs };
+}
+
+/** 가장 최근 입찰 기준 상태 */
+export function evaluateAuction(rows: AuctionRow[], m: AuctionMetric): AuctionVerdict {
+  return evaluateAuctionAt(rows, rows.length - 1, m);
+}
+
+/* ────────────────────────────────────────────────────────────
+ * 10년물 금리 실현변동성 — MOVE 지수의 대리 지표
+ *
+ * MOVE(국채 옵션에 담긴 앞으로의 변동성 기대)는 무료 공개 출처가 없다(FRED 없음, 2026-10 확인).
+ * 대신 FRED DGS10(10년 만기 국채 금리, 일간)의 하루 변화(bp)로 최근 20영업일 표준편차를
+ * 계산한다. 옵션에 담긴 "기대" 가 아니라 이미 일어난 "실현" 변동이라 MOVE 와 같지 않다.
+ *
+ * 판정 (2026-10 도입, 한 번만 적용)
+ *   - 실현변동성은 추세적으로 커지는 값이 아니라 오르내리는 값이라 수준으로 본다.
+ *     다만 1980년대처럼 금리 수준 자체가 다른 시대와 섞지 않으려고 **최근 10년(2,520개)**
+ *     창 안에서의 순위로 판정한다.
+ *   - 그 시점까지의 창에서 상위 10% 이상 주의, 상위 3% 이상 경보. 창에 756개(약 3년)
+ *     이상 쌓인 뒤부터 판정.
+ *   - 높은 쪽만 본다: 변동성이 낮은 것은 위험 신호가 아니다.
+ * ──────────────────────────────────────────────────────────── */
+
+export const RV_WINDOW_DAYS = 20;
+export const RV_RANK_WINDOW = 2520;
+export const RV_MIN_OBS = 756;
+export const RV_CAUTION_PCTILE = 90;
+export const RV_ALERT_PCTILE = 97;
+
+export interface YieldPoint {
+  /** YYYY-MM-DD (영업일) */
+  date: string;
+  /** 10년물 금리 (%) */
+  yieldPct: number;
+}
+
+export interface RateVolRow extends YieldPoint {
+  /** 직전 관측치 대비 변화 (bp). 첫 관측이면 null */
+  changeBp: number | null;
+  /** 최근 20개 변화의 표본표준편차 (bp). 20개 미만이면 null */
+  rv20Bp: number | null;
+}
+
+export interface RateVolVerdict {
+  status: ObservatoryStatus | null;
+  latest: RateVolRow | null;
+  cautionCutBp: number | null;
+  alertCutBp: number | null;
+  /** 최근 10년 창 안의 순위 (0~100) */
+  percentile: number | null;
+  obs: number;
+}
+
+/** 날짜 오름차순 금리에 하루 변화와 20일 실현변동성을 붙인다. 휴장일은 원자료에서 이미 빠져 있다 */
+export function withRateVol(points: YieldPoint[]): RateVolRow[] {
+  const changes: (number | null)[] = points.map((p, i) =>
+    i === 0 ? null : (p.yieldPct - points[i - 1].yieldPct) * 100
+  );
+  return points.map((p, i) => {
+    let rv: number | null = null;
+    if (i >= RV_WINDOW_DAYS) {
+      const w = changes.slice(i - RV_WINDOW_DAYS + 1, i + 1) as number[];
+      const mean = w.reduce((s, x) => s + x, 0) / w.length;
+      rv = Math.sqrt(w.reduce((s, x) => s + (x - mean) ** 2, 0) / (w.length - 1));
+    }
+    return { ...p, changeBp: changes[i], rv20Bp: rv };
+  });
+}
+
+export function evaluateRateVolAt(rows: RateVolRow[], i: number): RateVolVerdict {
+  const empty: RateVolVerdict = { status: null, latest: null, cautionCutBp: null, alertCutBp: null, percentile: null, obs: 0 };
+  if (i < 0 || i >= rows.length) return empty;
+  const latest = rows[i];
+  const w: number[] = [];
+  for (let k = i; k >= 0 && w.length < RV_RANK_WINDOW; k--) {
+    const v = rows[k].rv20Bp;
+    if (v !== null) w.push(v);
+  }
+  if (w.length < RV_MIN_OBS || latest.rv20Bp === null) return { ...empty, latest, obs: w.length };
+  const cautionCutBp = quantile(w, RV_CAUTION_PCTILE / 100);
+  const alertCutBp = quantile(w, RV_ALERT_PCTILE / 100);
+  const v = latest.rv20Bp;
+  return {
+    status: v >= alertCutBp ? "warning" : v >= cautionCutBp ? "caution" : "normal",
+    latest,
+    cautionCutBp,
+    alertCutBp,
+    percentile: (w.filter((x) => x <= v).length / w.length) * 100,
+    obs: w.length,
+  };
+}
+
+export function evaluateRateVol(rows: RateVolRow[]): RateVolVerdict {
+  return evaluateRateVolAt(rows, rows.length - 1);
+}
+
+/* ────────────────────────────────────────────────────────────
+ * 해외 보유 국채 — 재무부 TIC (Major Foreign Holders, Grand Total)
+ *
+ * 2012-01 이후만 쓴다. TIC 과거 표에는 2000~2011 년 시리즈 단절 주석(6/~17/)이 있다 —
+ * 대부분 연례 조사 기준 변경이고, 2011-09(16/)·2011-12(17/)는 월간 TIC Form SLT 보고로
+ * 바뀐 단절이다. 마지막은 Series XIII(2011-12 부터, 월간 SLT 기준). 그 앞 연도 표는 단절 달의
+ * 비교용 열이 끼어 있어 열 구조가 고르지 않다.
+ *
+ * ⚠ 국채 채권·노트 보유분은 **시가(공정가치)** 다 (TIC Form SLT). 합계에는 단기채(Form BL2)와
+ *   비시장성 국채도 들어 있어 합계 전체가 시가라고 할 수는 없지만, 대부분을 차지하는 채권·노트는
+ *   금리가 오르면 팔지 않아도 줄어든다. "팔았다" 와 "가격이 떨어졌다" 를 이 숫자만으로는 나눌 수 없다.
+ *
+ * 판정 (2026-10 도입, 한 번만 적용)
+ *   - 보유액은 추세적으로 커지므로 **12개월 증가율**로 본다 (분모가 9조 달러 안팎이라 0 에 가까울 일이 없다).
+ *   - 그 시점까지의 증가율 분포에서 하위 10% 이하 주의, 하위 3% 이하 경보. 증가율이 36개(3년) 이상 쌓인 뒤부터.
+ *   - 줄어드는 쪽만 본다: 해외 수요가 빠지는 것이 국채시장의 위험이다.
+ * ──────────────────────────────────────────────────────────── */
+
+export const TIC_START_MONTH = "2012-01";
+export const TIC_MIN_OBS = 36;
+export const TIC_CAUTION_PCTILE = 10;
+export const TIC_ALERT_PCTILE = 3;
+
+export interface TicPoint {
+  /** YYYY-MM (월말 기준) */
+  month: string;
+  /** 해외 보유 국채 합계 (Grand Total), 십억 달러 */
+  totalBillions: number;
+}
+
+export interface TicRow extends TicPoint {
+  /** 12개월 전 대비 증가율 (%). 12개월 전 값이 없으면 null */
+  yoyPct: number | null;
+  /** 12개월 전 대비 변화, 십억 달러 */
+  yoyChangeBillions: number | null;
+}
+
+export interface TicVerdict {
+  status: ObservatoryStatus | null;
+  latest: TicRow | null;
+  cautionCutPct: number | null;
+  alertCutPct: number | null;
+  percentile: number | null;
+  obs: number;
+}
+
+function monthIndex(m: string): number {
+  return Number(m.slice(0, 4)) * 12 + Number(m.slice(5, 7)) - 1;
+}
+
+export function withTicChanges(points: TicPoint[]): TicRow[] {
+  const byIdx = new Map(points.map((p) => [monthIndex(p.month), p]));
+  return points.map((p) => {
+    const prev = byIdx.get(monthIndex(p.month) - 12);
+    const ok = prev !== undefined && prev.totalBillions > 0;
+    return {
+      ...p,
+      yoyPct: ok ? (p.totalBillions / prev.totalBillions - 1) * 100 : null,
+      yoyChangeBillions: ok ? p.totalBillions - prev.totalBillions : null,
+    };
+  });
+}
+
+export function evaluateTicAt(rows: TicRow[], i: number): TicVerdict {
+  const empty: TicVerdict = { status: null, latest: null, cautionCutPct: null, alertCutPct: null, percentile: null, obs: 0 };
+  if (i < 0 || i >= rows.length) return empty;
+  const latest = rows[i];
+  const dist = rows.slice(0, i + 1).map((r) => r.yoyPct).filter((v): v is number => v !== null);
+  if (dist.length < TIC_MIN_OBS || latest.yoyPct === null) return { ...empty, latest, obs: dist.length };
+  const cautionCutPct = quantile(dist, TIC_CAUTION_PCTILE / 100);
+  const alertCutPct = quantile(dist, TIC_ALERT_PCTILE / 100);
+  const v = latest.yoyPct;
+  return {
+    status: v <= alertCutPct ? "warning" : v <= cautionCutPct ? "caution" : "normal",
+    latest,
+    cautionCutPct,
+    alertCutPct,
+    percentile: (dist.filter((x) => x <= v).length / dist.length) * 100,
+    obs: dist.length,
+  };
+}
+
+export function evaluateTic(rows: TicRow[]): TicVerdict {
+  return evaluateTicAt(rows, rows.length - 1);
+}

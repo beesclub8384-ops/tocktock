@@ -254,6 +254,54 @@ export function summarizeShadowBanking(
 }
 
 /* ────────────────────────────────────────────────────────────
+ * 관측소 4 — 국채시장
+ *
+ * 입찰 두 지표는 "수요" 한 덩어리로 묶는다 (둘 중 나쁜 쪽). 변동성과 해외 보유는
+ * 각자의 숫자를 붙인다. 끝에 네 지표 중 가장 나쁜 상태.
+ * ──────────────────────────────────────────────────────────── */
+
+const DEMAND_TEXT: Record<ObservatoryStatus, string> = {
+  normal: "평소 수준",
+  caution: "약해짐",
+  warning: "크게 약해짐",
+};
+
+/**
+ * 예) "입찰 수요는 평소 수준, 금리 변동성은 최근 10년 중 75번째 백분위,
+ *      해외 보유는 전년 대비 +0.9% — 정상"
+ */
+export function summarizeTreasuryMarket(
+  statuses: ObservatoryStatusMap,
+  raw?: ObservatoryRawMap
+): ObservatorySummary {
+  const demand = worstStatus([statuses["auction-bid-to-cover"], statuses["auction-dealer-share"]]);
+  const overall = worstStatus([
+    statuses["auction-bid-to-cover"],
+    statuses["auction-dealer-share"],
+    statuses["rate-volatility"],
+    statuses["foreign-holdings"],
+  ]);
+  const volPct = raw?.["rate-volatility"];
+  const ticYoy = raw?.["foreign-holdings"];
+  if (overall === null && typeof volPct !== "number" && typeof ticYoy !== "number") {
+    return { text: "현재 상태를 확인할 수 없습니다 (수집 대기)", status: null };
+  }
+  const demandText = demand === null ? "입찰 수요는 판정 보류" : `입찰 수요는 ${DEMAND_TEXT[demand]}`;
+  const volText =
+    typeof volPct === "number"
+      ? `금리 변동성은 최근 10년 중 ${volPct.toFixed(0)}번째 백분위`
+      : "금리 변동성은 확인 불가";
+  const ticText =
+    typeof ticYoy === "number"
+      ? `해외 보유는 전년 대비 ${ticYoy >= 0 ? "+" : ""}${ticYoy.toFixed(1)}%`
+      : "해외 보유는 확인 불가";
+  return {
+    text: `${demandText}, ${volText}, ${ticText} — ${overall ? BASIS_TEXT[overall] : "판정 보류"}`,
+    status: overall,
+  };
+}
+
+/* ────────────────────────────────────────────────────────────
  * 레지스트리
  * ──────────────────────────────────────────────────────────── */
 
@@ -265,6 +313,7 @@ const SECTION_SUMMARIZERS: Record<
   plumbing: summarizeSection1,
   banks: summarizeBanks,
   "shadow-banking": summarizeShadowBanking,
+  "treasury-market": summarizeTreasuryMarket,
 };
 
 /**

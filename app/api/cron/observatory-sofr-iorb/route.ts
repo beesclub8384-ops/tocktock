@@ -22,16 +22,22 @@ import {
 // 관측소 3 — CFTC TFF 보고서 (FRED 아님)
 import { collectBasisTrade } from "@/lib/observatory-basis-trade";
 import { collectNbfiLoans } from "@/lib/observatory-nbfi-loans";
+// 관측소 4 — 재무부 Fiscal Data · FRED DGS10 · 재무부 TIC
+import { collectAuctions } from "@/lib/observatory-treasury-auctions";
+import { collectYields } from "@/lib/observatory-rate-vol";
+import { collectTic } from "@/lib/observatory-tic";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 /**
- * 관측소 전체 지표 수집 — 지금 3개 관측소 · 지표 11개
+ * 관측소 전체 지표 수집 — 지금 4개 관측소 · 지표 15개
  *   관측소 1 배관(FRED):  SOFR−IORB · SRF · 재할인 창구 · RRP · 지급준비금
  *   관측소 2 은행(FRED + FDIC 분기 워크북): 채권 미실현손실 · FHLB · 예금 유출 · CRE
  *   관측소 3 그림자금융: 국채 베이시스 트레이드 대리 지표(CFTC TFF) ·
  *                        은행의 비예금 금융기관 대출(FRED, H.8)
+ *   관측소 4 국채시장: 입찰 응찰 배율·딜러 비중(재무부 Fiscal Data, 한 번 받아 둘이 같이 씀) ·
+ *                      10년물 금리 변동성(FRED DGS10) · 해외 보유(재무부 TIC)
  *   + 차트 오버레이용 나스닥·S&P 500 (지표 아님)
  *
  * ⚠ 경로 이름이 sofr-iorb 로 남아 있지만 관측소 지표를 모두 여기서 모은다.
@@ -198,6 +204,27 @@ export async function GET(request: Request) {
     const detail = error instanceof Error ? error.message : String(error);
     console.error("[observatory] nbfi-loans 수집 실패:", error);
     errors.nbfiLoans = detail;
+  }
+
+  // 관측소 4 — 세 출처가 서로 독립이라 **동시에** 받는다. 순서대로 받으면 cron 전체가
+  // 그만큼 길어진다 (입찰 원자료만 약 1MB, 실측 4~5초). 하나가 실패해도 나머지는 저장된다.
+  const [auctions, yields, tic] = await Promise.allSettled([
+    collectAuctions(),
+    collectYields(),
+    collectTic(),
+  ]);
+  for (const [name, r] of [
+    ["treasuryAuctions", auctions],
+    ["rateVolatility", yields],
+    ["foreignHoldings", tic],
+  ] as const) {
+    if (r.status === "fulfilled") {
+      results[name] = r.value;
+    } else {
+      const detail = r.reason instanceof Error ? r.reason.message : String(r.reason);
+      console.error(`[observatory] ${name} 수집 실패:`, r.reason);
+      errors[name] = detail;
+    }
   }
 
   // 주가지수는 관측소 "지표" 가 아니라 SRF 차트에 겹쳐 그리는 참고 데이터다.

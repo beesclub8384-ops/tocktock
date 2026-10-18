@@ -32,7 +32,11 @@ export type ObservatoryIndicatorKey =
   | "deposit-flight"
   | "cre"
   | "basis-trade"
-  | "nbfi-loans";
+  | "nbfi-loans"
+  | "auction-bid-to-cover"
+  | "auction-dealer-share"
+  | "rate-volatility"
+  | "foreign-holdings";
 
 export interface ObservatoryIndicatorMeta {
   key: ObservatoryIndicatorKey;
@@ -212,6 +216,52 @@ export const OBSERVATORY_SECTIONS: ObservatorySectionMeta[] = [
       },
     ],
   },
+  {
+    // ⚠ id 는 지표 슬러그와 겹치면 안 된다 — 아래 검사가 막는다
+    id: "treasury-market",
+    number: 4,
+    name: "국채시장: 세계 담보의 체력",
+    shortName: "국채시장",
+    subtitle:
+      "미국 국채는 세계 금융이 담보로 쓰는 자산입니다. 사려는 사람이 줄거나 값이 크게 흔들리면, 다른 시장이 기대는 바닥이 흔들립니다.",
+    chainNote:
+      "새 국채를 누가 사 가는지(입찰), 값이 얼마나 흔들리는지(변동성), 해외에서 계속 사 주는지(해외 보유) 순서로 봅니다. 입찰 테일·시장 심도·MOVE 원지수는 무료 공개 출처가 없어 넣지 않았습니다",
+    source: "미 재무부 Fiscal Data(입찰 결과) · FRED DGS10(연준 H.15) · 미 재무부 TIC",
+    indicators: [
+      {
+        key: "auction-bid-to-cover",
+        order: 1,
+        href: "/observatory/auction-bid-to-cover",
+        name: "국채 입찰 응찰 배율",
+        oneLiner:
+          "새로 파는 국채에 사겠다는 돈이 얼마나 몰렸는지입니다. 같은 만기의 평소보다 크게 낮으면 수요가 약해졌다는 뜻입니다.",
+      },
+      {
+        key: "auction-dealer-share",
+        order: 2,
+        href: "/observatory/auction-dealer-share",
+        name: "입찰 프라이머리 딜러 인수 비중",
+        oneLiner:
+          "입찰에 꼭 참여해야 하는 프라이머리 딜러가 가져간 몫입니다. 같은 만기의 평소보다 크게 높으면 최종 투자자가 덜 사 갔을 수 있다는 뜻입니다.",
+      },
+      {
+        key: "rate-volatility",
+        order: 3,
+        href: "/observatory/rate-volatility",
+        name: "10년물 금리 변동성 (MOVE 대리)",
+        oneLiner:
+          "10년 국채 금리가 최근 20영업일 동안 하루에 얼마나 흔들렸는지입니다. 옵션 가격에 담긴 MOVE 지수가 아니라 실제로 움직인 폭입니다.",
+      },
+      {
+        key: "foreign-holdings",
+        order: 4,
+        href: "/observatory/foreign-holdings",
+        name: "해외 보유 국채",
+        oneLiner:
+          "외국이 가진 미국 국채의 합계입니다. 1년 전보다 크게 줄면 해외 수요가 빠진다는 뜻이지만, 가격이 떨어지기만 해도 줄어듭니다.",
+      },
+    ],
+  },
 ];
 
 /* ────────────────────────────────────────────────────────────
@@ -270,8 +320,8 @@ function assertCatalogIsSane(sections: ObservatorySectionMeta[]): void {
  *   지금처럼 최상위에서 부르면 레이아웃(navbar)이 이 모듈을 쓰는 덕에 빌드가
  *   실패하고, 잘못된 슬러그가 배포까지 가지 못한다.
  *
- *   대가는 클라이언트 번들에 검사 함수가 같이 실리는 것뿐이다. 섹션 3개 ·
- *   지표 11개를 훑는 루프라 실행 비용은 사실상 0이고, 조용히 안 뜨는 페이지를
+ *   대가는 클라이언트 번들에 검사 함수가 같이 실리는 것뿐이다. 섹션 4개 ·
+ *   지표 15개를 훑는 루프라 실행 비용은 사실상 0이고, 조용히 안 뜨는 페이지를
  *   막는 값으로는 싸다.
  */
 assertCatalogIsSane(OBSERVATORY_SECTIONS);

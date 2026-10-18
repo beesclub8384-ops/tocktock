@@ -116,6 +116,21 @@ export function formatCardNbfiLoans(billions: number, yoyPct: number | null): Ca
 }
 
 /**
+ * 국채 입찰 카드 표기 — 가장 최근 입찰의 값과 같은 만기 평소 대비 차이.
+ * 판정은 최근 28일 입찰 중 최악이라, 본값은 최근 입찰을 보여 주고 날짜·만기를 옆에 붙인다.
+ */
+export function formatCardAuction(
+  main: string,
+  termYears: number,
+  surprise: number | null,
+  unit: string
+): CardValue {
+  if (surprise === null) return { main, note: `${termYears}년물` };
+  const sign = surprise >= 0 ? "+" : "";
+  return { main, note: `${termYears}년물 · 평소 대비 ${sign}${surprise.toFixed(2)}${unit}` };
+}
+
+/**
  * CRE 카드 표기 — 연체율(아픈 정도)을 본값, 지역은행 집중도(물린 양)를 옆에.
  *
  * 판정이 둘 중 나쁜 쪽을 따르므로 한 숫자만 보여주면 신호등 색과 어긋난다.
