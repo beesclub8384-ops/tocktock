@@ -5,6 +5,7 @@ import NbfiLoansChart from "./NbfiLoansChart";
 import {
   formatLoans,
   formatLoansChange,
+  formatReclassAmount,
   formatShare,
   formatWeekDate,
   formatYoy,
@@ -154,17 +155,18 @@ export default async function NbfiLoansPage() {
             </dd>
           </div>
           <div>
-            <dt className="text-xs text-zinc-400">전년 대비 증가율</dt>
+            <dt className="text-xs text-zinc-400">전년 대비 증가율 (재분류 보정)</dt>
             <dd className="font-semibold text-zinc-800 dark:text-zinc-200 tabular-nums">
-              {formatYoy(latest.yoyPct)}
+              {formatYoy(latest.adjustedYoyPct)}
             </dd>
             <dd className="text-xs text-zinc-500">
               주의 {formatYoy(thresholds.cautionCutoffPct)} · 경보{" "}
               {formatYoy(thresholds.alertCutoffPct)}
             </dd>
+            <dd className="text-xs text-zinc-500">보정 전 {formatYoy(latest.yoyPct)} (참고)</dd>
           </div>
           <div>
-            <dt className="text-xs text-zinc-400">전 기간 증가율 백분위</dt>
+            <dt className="text-xs text-zinc-400">전 기간 보정 증가율 백분위</dt>
             <dd className="font-semibold text-zinc-800 dark:text-zinc-200 tabular-nums">
               {data.yoyPercentile === null ? "—" : `${data.yoyPercentile.toFixed(0)}번째`}
             </dd>
@@ -183,6 +185,17 @@ export default async function NbfiLoansPage() {
             </dd>
           </div>
         </dl>
+        {/* 점검 필요 — 최근 4주 안에 해당 주가 있을 때만. 원인을 단정하지 않는다 */}
+        {data.surges.recent.length > 0 && (
+          <p className="mt-4 rounded-lg bg-zinc-50 dark:bg-zinc-800/60 px-3 py-2 text-xs text-zinc-600 dark:text-zinc-400">
+            최근 4주 중{" "}
+            {data.surges.recent
+              .map((s) => `${s.date}(${formatLoansChange(s.changeBillions)})`)
+              .join(", ")}
+            는 주간 변화가 크고 연준이 밝힌 재분류 날짜와 겹치지 않아, 재분류 여부를 확인할 필요가
+            있는 주입니다. 판정에는 쓰지 않습니다.
+          </p>
+        )}
       </div>
 
       {/* 추이 */}
@@ -205,6 +218,11 @@ export default async function NbfiLoansPage() {
             연방준비제도는 보고 지침을 바꾸면서 2025년부터 다른 대출 항목에 있던 금액을 이
             항목으로 여러 차례 옮겼습니다. H.8 주석에 적힌 이동 금액은 아래와 같습니다.
           </p>
+          <p>
+            옮겨진 돈은 새로 빌려준 돈이 아니라서, 판정에는{" "}
+            <strong>최근 52주 안에 옮겨진 금액을 뺀 증가율(재분류 보정)</strong>을 씁니다. 잔액
+            자체는 연준 발표 그대로 보여 드립니다.
+          </p>
           <div className="w-0 min-w-full overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-800">
             <table className="w-full min-w-[420px] whitespace-nowrap text-sm tabular-nums">
               <thead className="bg-zinc-50 dark:bg-zinc-900 text-xs text-zinc-500">
@@ -215,22 +233,33 @@ export default async function NbfiLoansPage() {
                 </tr>
               </thead>
               <tbody>
-                {RECLASSIFICATIONS.map((r) => (
-                  <tr key={r.week + r.who} className="border-t border-zinc-100 dark:border-zinc-800">
-                    <td className="px-3 py-1.5 text-left">{r.week}</td>
-                    <td className="px-3 py-1.5 text-left">{r.who}</td>
-                    <td className="px-3 py-1.5 text-right">{r.amount}</td>
-                  </tr>
-                ))}
+                {data.reclassifications.flatMap((r) =>
+                  (
+                    [
+                      ["국내 은행", r.domesticBillions],
+                      ["외국계 은행", r.foreignBillions],
+                    ] as const
+                  )
+                    .filter(([, v]) => v > 0)
+                    .map(([who, v]) => (
+                      <tr key={r.date + who} className="border-t border-zinc-100 dark:border-zinc-800">
+                        <td className="px-3 py-1.5 text-left">{r.date}</td>
+                        <td className="px-3 py-1.5 text-left">{who}</td>
+                        <td className="px-3 py-1.5 text-right">{formatReclassAmount(v)}</td>
+                      </tr>
+                    ))
+                )}
               </tbody>
             </table>
           </div>
           <p>
-            <strong>
-              옮겨진 금액도 잔액에 그대로 들어가 있어서, 2025년 한 해의 전년 대비 증가율은 실제로
-              새로 빌려준 돈보다 크게 나옵니다.
-            </strong>{" "}
-            이 사이트는 이 값을 보정하지 않았습니다.
+            2025년 10월 1일 주와 12월 31일 주는 실제 주간 증가가 주석 금액보다 컸습니다. 이 두 주는
+            주석에 적힌 금액만 빼고, 나머지는 실제로 늘어난 것으로 두었습니다.
+          </p>
+          <p className="text-zinc-500">
+            앞으로 새 재분류가 생기면 연준이 공지한 뒤에야 이 표를 고칠 수 있습니다. 그 사이에는
+            보정 증가율도 부풀어 보일 수 있습니다. 보정 전 증가율은 카드에 참고로 함께 보여
+            드립니다.
           </p>
         </div>
       </section>
@@ -241,11 +270,12 @@ export default async function NbfiLoansPage() {
         <div className="space-y-2 text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">
           <p>
             잔액은 해마다 커지는 값이라, 크기 자체로 판정하면 늘 경보가 됩니다. 그래서{" "}
-            <strong>전년 대비 증가율</strong>({thresholds.yoyWeeks}주 전 대비)로 봅니다.
+            <strong>재분류를 보정한 전년 대비 증가율</strong>({thresholds.yoyWeeks}주 전 대비)로
+            봅니다.
           </p>
           <ul className="list-disc pl-5 space-y-1">
             <li>
-              2015년 이후 그 시점까지 쌓인 증가율 분포에서 상위{" "}
+              2015년 이후 그 시점까지 쌓인 보정 증가율 분포에서 상위{" "}
               {100 - thresholds.cautionPctile}% 안이면 주의, 상위 {100 - thresholds.alertPctile}%
               안이면 경보입니다. 지금 기준선은 주의 {formatYoy(thresholds.cautionCutoffPct)}, 경보{" "}
               {formatYoy(thresholds.alertCutoffPct)}입니다 (증가율{" "}
@@ -264,10 +294,10 @@ export default async function NbfiLoansPage() {
           </p>
           <p className="text-zinc-500">
             과거 데이터에 이 규칙을 그 시점까지의 데이터로만 적용해 보면, 2020년 3월에는 3월 18일
-            기준일부터 경보가 켜졌습니다. 2023년 3월 SVB 때는 정상이었습니다. 2025년에는 거의 매주
-            경보였는데, 위의 분류 변경분이 증가율에 섞인 영향이 큽니다. 판정할 수 있었던 406주 중
-            약 26%에서 주의 이상이 켜져, 신호가 자주 나오는 편입니다. 이 결과를 보고 기준을 고치지는
-            않았습니다.
+            기준일부터 경보가 켜졌습니다. 2023년 3월 SVB 때는 정상이었습니다. 재분류를 보정하기
+            전에는 2025년 53주 중 52주가 경보였는데, 보정 후에는 경보 8주, 주의 24주입니다. 판정할 수
+            있었던 406주 중 약 26%에서 주의 이상이 켜져, 보정 뒤에도 신호가 자주 나오는 편입니다.
+            이 결과를 보고 기준을 고치지는 않았습니다.
           </p>
         </div>
       </section>
@@ -302,20 +332,3 @@ export default async function NbfiLoansPage() {
     </div>
   );
 }
-
-/**
- * H.8 주석(federalreserve.gov/releases/h8/h8notes.htm, 2026-10-18 확인)에 적힌,
- * 다른 항목에서 "loans to nondepository financial institutions" 로 옮겨진 금액.
- * 2026-04-01 주 재분류는 NDFI 가 아니라 "loans not elsewhere classified" 로 간 것이라 뺐다.
- */
-const RECLASSIFICATIONS: { week: string; who: string; amount: string }[] = [
-  { week: "2025-01-01", who: "국내 은행", amount: "113.5십억 달러" },
-  { week: "2025-01-01", who: "외국계 은행", amount: "131.6십억 달러" },
-  { week: "2025-04-02", who: "국내 은행", amount: "51.6십억 달러" },
-  { week: "2025-04-02", who: "외국계 은행", amount: "15.5십억 달러" },
-  { week: "2025-07-02", who: "국내 은행", amount: "41.7십억 달러" },
-  { week: "2025-07-02", who: "외국계 은행", amount: "28.1십억 달러" },
-  { week: "2025-10-01", who: "국내 은행", amount: "9.8십억 달러" },
-  { week: "2025-12-31", who: "국내 은행", amount: "7.3십억 달러" },
-  { week: "2026-07-01", who: "외국계 은행", amount: "6.1십억 달러" },
-];

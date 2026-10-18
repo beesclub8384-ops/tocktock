@@ -30,6 +30,11 @@ export function formatLoansChange(billions: number | null): string {
   })}십억 달러`;
 }
 
+/** 재분류 금액 (십억 달러 입력) — 113.5십억 달러 */
+export function formatReclassAmount(billions: number): string {
+  return `${billions.toFixed(1)}십억 달러`;
+}
+
 /** 증가율 — +20.0% / 없으면 "—" */
 export function formatYoy(pct: number | null): string {
   if (pct === null) return "—";

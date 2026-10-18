@@ -53,6 +53,8 @@ export async function GET(request: Request) {
   // 지표마다 따로 잡는다. 한쪽이 실패해도 다른 쪽은 저장된다
   const results: Record<string, unknown> = {};
   const errors: Record<string, string> = {};
+  // 실패는 아니지만 사람이 확인해 볼 일. HTTP 상태에는 영향을 주지 않는다
+  const warnings: { indicator: string; date: string; message: string }[] = [];
 
   // ⚠ 관측소 2 의 분기 지표 셋(채권 미실현손실 · 예금 유출 · CRE)이 **같은
   //   2.6MB 워크북**을 본다. 각자 받으면 이 cron 한 번에 세 번 받는다.
@@ -183,7 +185,15 @@ export async function GET(request: Request) {
   // 매번 전체(약 600건)를 받아 덮어쓴다. H.8 발표(금 16:15 ET)가 이 cron 보다
   // 늦어 월요일 실행에서 그 전주 수요일 값이 처음 잡힌다 — 정상이다.
   try {
-    results.nbfiLoans = await collectNbfiLoans();
+    const nbfi = await collectNbfiLoans();
+    results.nbfiLoans = nbfi;
+    for (const s of nbfi.recentSurges) {
+      warnings.push({
+        indicator: "nbfi-loans",
+        date: s.date,
+        message: `주간 변화 ${s.changeBillions.toFixed(1)}십억 달러 — 재분류 표 날짜와 겹치지 않는 큰 변화. 재분류 여부 확인 필요`,
+      });
+    }
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
     console.error("[observatory] nbfi-loans 수집 실패:", error);
@@ -212,6 +222,7 @@ export async function GET(request: Request) {
       success: failed.length === 0,
       ...results,
       ...(failed.length > 0 ? { errors } : {}),
+      warnings,
       refreshedAt: new Date().toISOString(),
     },
     { status }

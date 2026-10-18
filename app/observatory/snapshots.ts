@@ -248,8 +248,8 @@ const LOADERS: Record<ObservatoryIndicatorKey, () => Promise<IndicatorSnapshot>>
         }
       : EMPTY_SNAPSHOT;
   },
-  // 주간 지표. 판정은 전년 대비 증가율의 분포 백분위라 값이 있어도 보류일 수 있다.
-  // raw 는 전년 대비 증가율 — 요약 문장이 그 숫자를 쓴다.
+  // 주간 지표. 판정은 재분류 보정 전년 대비 증가율의 분포 백분위라 값이 있어도 보류일 수 있다.
+  // raw 는 보정 증가율 — 요약 문장이 그 숫자를 쓴다 (판정과 같은 값이어야 한다).
   "nbfi-loans": async () => {
     const v = evaluateNbfiLoans(
       withNbfiChanges(await orLog("nbfi-loans", loadNbfiLoans(), []))
@@ -257,9 +257,9 @@ const LOADERS: Record<ObservatoryIndicatorKey, () => Promise<IndicatorSnapshot>>
     return v.latest
       ? {
           status: v.status,
-          value: formatCardNbfiLoans(v.latest.loansBillions, v.latest.yoyPct),
+          value: formatCardNbfiLoans(v.latest.loansBillions, v.latest.adjustedYoyPct),
           asOf: v.latest.date,
-          raw: v.latest.yoyPct,
+          raw: v.latest.adjustedYoyPct,
         }
       : EMPTY_SNAPSHOT;
   },

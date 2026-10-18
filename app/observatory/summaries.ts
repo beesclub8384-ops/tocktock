@@ -242,7 +242,7 @@ export function summarizeShadowBanking(
       : "국채 베이시스는 확인 불가";
   const nbfiText =
     typeof yoy === "number"
-      ? `은행의 NDFI 대출은 전년 대비 ${yoy >= 0 ? "+" : ""}${yoy.toFixed(1)}%`
+      ? `은행의 NDFI 대출은 전년 대비 ${yoy >= 0 ? "+" : ""}${yoy.toFixed(1)}%(재분류 보정)`
       : "은행의 NDFI 대출은 확인 불가";
 
   // 둘 다 판정이 있으면 더 나쁜 쪽, 하나만 있으면 그쪽. 둘 다 없으면 보류

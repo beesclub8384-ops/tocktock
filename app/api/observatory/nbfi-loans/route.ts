@@ -2,11 +2,14 @@ import { NextResponse } from "next/server";
 import {
   collectNbfiLoans,
   loadNbfiLoans,
+  recentNbfiSurges,
   NBFI_SERIES_ID,
   TOTAL_LOANS_SERIES_ID,
 } from "@/lib/observatory-nbfi-loans";
 import {
   evaluateNbfiLoans,
+  findNbfiSurges,
+  NBFI_RECLASSIFICATIONS,
   NBFI_ALERT_PCTILE,
   NBFI_CAUTION_PCTILE,
   NBFI_CHANGE_WEEKS,
@@ -26,8 +29,16 @@ export interface NbfiLoansResponse {
   latest: NbfiLoansRow | null;
   /** 최종 판정. null = 판정 보류 */
   status: ObservatoryStatus | null;
-  /** 최신 YoY 의 전 기간 분포 내 순위 (0~100) */
+  /** 최신 보정 YoY 의 전 기간 분포 내 순위 (0~100) */
   yoyPercentile: number | null;
+  /** 보정에 쓴 재분류 표 (H.8 주석, 십억 달러) */
+  reclassifications: typeof NBFI_RECLASSIFICATIONS;
+  /** 점검 필요 주 — 판정과 무관. cut 은 십억 달러 */
+  surges: {
+    cutBillions: number | null;
+    all: { date: string; changeBillions: number }[];
+    recent: { date: string; changeBillions: number }[];
+  };
   seriesId: string;
   totalLoansSeriesId: string;
   thresholds: {
@@ -67,6 +78,11 @@ export async function GET() {
       latest: v.latest,
       status: v.status,
       yoyPercentile: v.yoyPercentile,
+      reclassifications: NBFI_RECLASSIFICATIONS,
+      surges: (() => {
+        const s = findNbfiSurges(points);
+        return { cutBillions: s.cutBillions, all: s.flagged, recent: recentNbfiSurges(points) };
+      })(),
       seriesId: NBFI_SERIES_ID,
       totalLoansSeriesId: TOTAL_LOANS_SERIES_ID,
       thresholds: {

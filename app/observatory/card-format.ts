@@ -105,14 +105,14 @@ export function formatCardBasisTrade(notionalBillions: number, pctOfOi: number):
 }
 
 /**
- * NDFI 대출 카드 표기 — 잔액(십억 달러)을 본값으로, 판정에 쓰는 전년 대비 증가율을 옆에.
+ * NDFI 대출 카드 표기 — 잔액(십억 달러)을 본값으로, 판정에 쓰는 재분류 보정 증가율을 옆에.
  * 잔액만 크게 띄우면 증가율로 켜진 신호등 색과 숫자가 따로 논다.
  */
 export function formatCardNbfiLoans(billions: number, yoyPct: number | null): CardValue {
   const main = formatCardBillions(billions).main;
   if (yoyPct === null) return { main, note: "전년 대비 미상" };
   const sign = yoyPct >= 0 ? "+" : "";
-  return { main, note: `전년 대비 ${sign}${yoyPct.toFixed(1)}%` };
+  return { main, note: `전년 대비 ${sign}${yoyPct.toFixed(1)}% (재분류 보정)` };
 }
 
 /**

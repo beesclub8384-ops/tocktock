@@ -15,15 +15,15 @@ import { formatLoans, formatLoansShort, formatShare, formatYoy } from "./format"
 
 interface Props {
   series: NbfiLoansRow[];
-  /** YoY 주의 기준 (%) — 분포 상위 10% */
+  /** 보정 YoY 주의 기준 (%) — 분포 상위 10% */
   cautionCutoffPct: number | null;
-  /** YoY 경보 기준 (%) — 분포 상위 3% */
+  /** 보정 YoY 경보 기준 (%) — 분포 상위 3% */
   alertCutoffPct: number | null;
 }
 
 // CSS 변수 대신 hex 하드코딩 (recharts 는 CSS 변수를 해석하지 못한다)
 const LOANS_COLOR = "#0e7490"; // 잔액 — 좌축 선
-const YOY_COLOR = "#c2410c"; // 전년 대비 증가율 — 우축 선
+const YOY_COLOR = "#c2410c"; // 재분류 보정 전년 대비 증가율 — 우축 선
 const WARN_COLOR = "#f59e0b";
 const ALERT_COLOR = "#e11d48";
 
@@ -79,7 +79,10 @@ function ChartTooltip({
         {event ? ` · ${event.label}` : ""}
       </div>
       <div style={{ color: LOANS_COLOR }}>잔액 {formatLoans(row.loansBillions)}</div>
-      <div style={{ color: YOY_COLOR }}>전년 대비 {formatYoy(row.yoyPct)}</div>
+      <div style={{ color: YOY_COLOR }}>
+        전년 대비 {formatYoy(row.adjustedYoyPct)} (재분류 보정)
+      </div>
+      <div style={{ color: "#71717a" }}>보정 전 {formatYoy(row.yoyPct)}</div>
       <div style={{ color: "#52525b" }}>총대출 대비 {formatShare(row.shareOfTotalPct)}</div>
     </div>
   );
@@ -140,7 +143,7 @@ export default function NbfiLoansChart({ series, cautionCutoffPct, alertCutoffPc
             tickFormatter={(v: number) => formatLoansShort(v)}
             width={52}
           />
-          {/* 우축: 전년 대비 증가율 (%) */}
+          {/* 우축: 재분류 보정 전년 대비 증가율 (%) — 판정과 같은 값 */}
           <YAxis
             yAxisId="yoy"
             orientation="right"
@@ -159,12 +162,6 @@ export default function NbfiLoansChart({ series, cautionCutoffPct, alertCutoffPc
               y={cautionCutoffPct}
               stroke={WARN_COLOR}
               strokeDasharray="3 4"
-              label={{
-                value: `주의 ${cautionCutoffPct.toFixed(0)}%`,
-                position: "insideBottomLeft",
-                fontSize: 10,
-                fill: WARN_COLOR,
-              }}
             />
           )}
           {alertCutoffPct !== null && (
@@ -173,9 +170,14 @@ export default function NbfiLoansChart({ series, cautionCutoffPct, alertCutoffPc
               y={alertCutoffPct}
               stroke={ALERT_COLOR}
               strokeDasharray="3 4"
+              // 보정 뒤 주의·경보 선이 2%p 남짓으로 붙어 라벨 두 개가 겹친다 →
+              // 경보선 위에 한 줄로 합친다 (실측: 주의 21% / 경보 23%)
               label={{
-                value: `경보 ${alertCutoffPct.toFixed(0)}%`,
-                position: "insideTopLeft",
+                value:
+                  cautionCutoffPct !== null
+                    ? `주의 ${cautionCutoffPct.toFixed(0)}% · 경보 ${alertCutoffPct.toFixed(0)}%`
+                    : `경보 ${alertCutoffPct.toFixed(0)}%`,
+                position: "insideBottomLeft",
                 fontSize: 10,
                 fill: ALERT_COLOR,
               }}
@@ -196,12 +198,12 @@ export default function NbfiLoansChart({ series, cautionCutoffPct, alertCutoffPc
           <Line
             yAxisId="yoy"
             type="monotone"
-            dataKey="yoyPct"
+            dataKey="adjustedYoyPct"
             stroke={YOY_COLOR}
             strokeWidth={1.5}
             dot={false}
             connectNulls={false}
-            name="전년 대비"
+            name="전년 대비 (보정)"
           />
           <Line
             yAxisId="level"
@@ -224,7 +226,7 @@ export default function NbfiLoansChart({ series, cautionCutoffPct, alertCutoffPc
         </span>
         <span className="inline-flex items-center gap-1.5">
           <span className="h-0.5 w-4" style={{ backgroundColor: YOY_COLOR }} />
-          전년 대비 증가율 (%, 오른쪽 축)
+          전년 대비 증가율, 재분류 보정 (%, 오른쪽 축)
         </span>
       </div>
     </div>

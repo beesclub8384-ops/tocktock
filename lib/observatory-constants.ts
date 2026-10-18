@@ -1221,24 +1221,32 @@ export function evaluateBasisTrade(rows: BasisTradeRow[]): BasisTradeVerdict {
  * 은행이 "은행이 아닌 금융회사"에 빌려준 대출 전체다. 사모신용만 잰 값이 아니다.
  *
  * 판정 규칙 (2026-10 도입, 한 번만 적용하고 결과에 맞춰 다시 조정하지 않았다)
- *   - 수준이 아니라 **전년 대비 증가율(YoY, 52주 전 대비 %)** 로 본다.
+ *   - 수준이 아니라 **재분류 보정 전년 대비 증가율**로 본다.
  *     잔액은 추세적으로 커지는 시계열이라 수준 백분위로 판정하면 상시 경보가 된다.
- *   - 각 시점까지 쌓인 YoY 분포에서 상위 10% 이상이면 주의, 상위 3% 이상이면 경보.
- *     분포에 YoY 가 157개(약 3년) 이상 쌓인 뒤부터 판정하고, 그 전은 판정 보류.
+ *   - 각 시점까지 쌓인 보정 증가율 분포에서 상위 10% 이상이면 주의, 상위 3% 이상이면
+ *     경보. 분포에 157개(약 3년) 이상 쌓인 뒤부터 판정하고, 그 전은 판정 보류.
  *   - 감소 방향(대출 급감)은 판정에 쓰지 않는다. 13주 변화는 참고로만 보여준다.
  *
- * ⚠ H.8 은 2025-01-01 이후 여러 차례 다른 대출 항목을 NDFI 대출로 **재분류**했다
- *   (보고 지침 변경). 재분류로 늘어난 잔액도 YoY 에 그대로 섞인다 — 보정하지 않았다.
+ * 재분류 보정 (2026-10 추가)
+ *   H.8 은 2025-01-01 이후 보고 지침 변경으로 다른 대출 항목의 잔액을 NDFI 대출로
+ *   여러 차례 **옮겼다** (아래 NBFI_RECLASSIFICATIONS). 옮겨진 돈은 새로 빌려준 돈이
+ *   아닌데 잔액에는 들어가 원본 증가율을 부풀린다 — 보정 전에는 2025년 52주가 전부
+ *   경보였고, 그 값이 분포에 남아 기준선까지 끌어올렸다(주의 33.4% / 경보 54.9%).
+ *     보정 YoY(t) = (잔액(t) − 잔액(t−52주) − Σ재분류) / 잔액(t−52주) × 100
+ *     Σ재분류 = 기준 주가 (t−52주, t] 에 들어가는 재분류 금액 합계
+ *   원본 잔액은 그대로 저장하고, 보정은 읽을 때마다 계산한다.
+ *   임계 비율(상위 10% / 3%)은 바꾸지 않았다 — 데이터 단절을 고친 것이지 기준을 고친 게 아니다.
+ *
  * ⚠ 주간 값은 분기말 Call Report 에 맞춰 사후 개정된다. 수집기는 매번 전체를 다시 받는다.
  * ──────────────────────────────────────────────────────────── */
 
-/** 주의 — YoY 가 그 시점까지 분포의 이 백분위 이상 */
+/** 주의 — 보정 YoY 가 그 시점까지 분포의 이 백분위 이상 */
 export const NBFI_CAUTION_PCTILE = 90;
 
-/** 경보 — YoY 가 그 시점까지 분포의 이 백분위 이상 */
+/** 경보 — 보정 YoY 가 그 시점까지 분포의 이 백분위 이상 */
 export const NBFI_ALERT_PCTILE = 97;
 
-/** 판정을 시작하는 최소 YoY 개수 (주). 157주 ≈ 3년 */
+/** 판정을 시작하는 최소 보정 YoY 개수 (주). 157주 ≈ 3년 */
 export const NBFI_MIN_YOY_OBS = 157;
 
 /** YoY 비교 간격 (주) */
@@ -1250,6 +1258,40 @@ export const NBFI_CHANGE_WEEKS = 13;
 /** n주 전 비교를 인정하는 날짜 간격 허용 오차 (일). 주간 시리즈에 빠진 주가 있으면 null */
 export const NBFI_GAP_TOLERANCE_DAYS = 3;
 
+/**
+ * H.8 이 다른 대출 항목에서 "loans to nondepository financial institutions" 로 옮긴 금액.
+ *
+ * 출처: https://www.federalreserve.gov/releases/h8/h8notes.htm (주석 원문)
+ * 확인: 2026-10-18 (두 차례 받아 금액 대조, 일치)
+ * 단위: **십억 달러** (주석의 "$113.5 billion" 그대로). 기준 주는 H.8 의 "week ending" 수요일.
+ *
+ * - 2025-10-01, 2025-12-31 주는 실제 주간 증가(+20.1, +24.1)가 주석 금액보다 컸다.
+ *   주석 금액만 빼고 나머지는 실제 변화로 둔다 (추정으로 더 빼지 않는다).
+ * - 2026-04-01 주 재분류는 NDFI 가 아니라 "loans not elsewhere classified" 로 간 것이라 넣지 않았다.
+ * - 새 재분류가 생기면 연준 공지 후에 여기에 추가해야 한다. 그 사이에는 증가율이 부푼다.
+ */
+export const NBFI_RECLASSIFICATIONS: {
+  /** 기준 주 (수요일) YYYY-MM-DD */
+  date: string;
+  /** 국내 은행분, 십억 달러 (없으면 0) */
+  domesticBillions: number;
+  /** 외국계 은행분, 십억 달러 (없으면 0) */
+  foreignBillions: number;
+}[] = [
+  { date: "2025-01-01", domesticBillions: 113.5, foreignBillions: 131.6 },
+  { date: "2025-04-02", domesticBillions: 51.6, foreignBillions: 15.5 },
+  { date: "2025-07-02", domesticBillions: 41.7, foreignBillions: 28.1 },
+  { date: "2025-10-01", domesticBillions: 9.8, foreignBillions: 0 },
+  { date: "2025-12-31", domesticBillions: 7.3, foreignBillions: 0 },
+  { date: "2026-07-01", domesticBillions: 0, foreignBillions: 6.1 },
+];
+
+/** 점검 필요 표시 — 주간 변화 절댓값이 전 기간(재분류 주 제외) 이 백분위 이상 */
+export const NBFI_SURGE_PCTILE = 99;
+
+/** 재분류 날짜와 "겹친다" 고 보는 범위 (일). ±1주 */
+export const NBFI_SURGE_RECLASS_WINDOW_DAYS = 7;
+
 export interface NbfiLoansPoint {
   /** 기준일(수요일) YYYY-MM-DD */
   date: string;
@@ -1260,8 +1302,12 @@ export interface NbfiLoansPoint {
 }
 
 export interface NbfiLoansRow extends NbfiLoansPoint {
-  /** 52주 전 대비 증가율 (%). 못 구하면 null */
+  /** 52주 전 대비 증가율 (%) — **보정 전** 원본. 참고용. 못 구하면 null */
   yoyPct: number | null;
+  /** 52주 전 대비 증가율 (%) — 재분류 보정. 판정에 쓴다. 못 구하면 null */
+  adjustedYoyPct: number | null;
+  /** 이 52주 구간에서 뺀 재분류 합계, 십억 달러 (없으면 0, YoY 를 못 구하면 null) */
+  reclassInWindowBillions: number | null;
   /** 13주 전 대비 변화, 십억 달러. 못 구하면 null */
   change13wBillions: number | null;
   /** 총대출 대비 비중 (%). 총대출이 없으면 null */
@@ -1272,16 +1318,24 @@ export interface NbfiLoansVerdict {
   /** 최종 판정. 계산할 수 없으면 null (판정 보류) */
   status: ObservatoryStatus | null;
   latest: NbfiLoansRow | null;
-  /** 그 시점까지 YoY 분포의 90 / 97 백분위 (%) */
+  /** 그 시점까지 보정 YoY 분포의 90 / 97 백분위 (%) */
   cautionCutoffPct: number | null;
   alertCutoffPct: number | null;
-  /** 최신 YoY 의 분포 내 순위 (0~100, 높을수록 큼) */
+  /** 최신 보정 YoY 의 분포 내 순위 (0~100, 높을수록 큼) */
   yoyPercentile: number | null;
-  /** 분포에 쓴 YoY 개수 */
+  /** 분포에 쓴 보정 YoY 개수 */
   yoyObs: number;
 }
 
-/** 날짜 오름차순 점들에 YoY·13주 변화·비중을 붙인다 */
+/** (from, to] 구간에 기준 주가 들어가는 재분류 합계, 십억 달러 */
+export function reclassBetween(from: string, to: string): number {
+  return NBFI_RECLASSIFICATIONS.filter((r) => r.date > from && r.date <= to).reduce(
+    (s, r) => s + r.domesticBillions + r.foreignBillions,
+    0
+  );
+}
+
+/** 날짜 오름차순 점들에 YoY(보정 전·후)·13주 변화·비중을 붙인다 */
 export function withNbfiChanges(points: NbfiLoansPoint[]): NbfiLoansRow[] {
   const back = (i: number, n: number): NbfiLoansPoint | null => {
     if (i < n) return null;
@@ -1292,9 +1346,16 @@ export function withNbfiChanges(points: NbfiLoansPoint[]): NbfiLoansRow[] {
   return points.map((p, i) => {
     const y = back(i, NBFI_YOY_WEEKS);
     const q = back(i, NBFI_CHANGE_WEEKS);
+    const okBase = y !== null && y.loansBillions > 0;
+    const reclass = okBase ? reclassBetween(y.date, p.date) : null;
     return {
       ...p,
-      yoyPct: y && y.loansBillions > 0 ? (p.loansBillions / y.loansBillions - 1) * 100 : null,
+      yoyPct: okBase ? (p.loansBillions / y.loansBillions - 1) * 100 : null,
+      adjustedYoyPct:
+        okBase && reclass !== null
+          ? ((p.loansBillions - y.loansBillions - reclass) / y.loansBillions) * 100
+          : null,
+      reclassInWindowBillions: reclass,
       change13wBillions: q ? p.loansBillions - q.loansBillions : null,
       shareOfTotalPct:
         p.totalLoansBillions && p.totalLoansBillions > 0
@@ -1304,7 +1365,10 @@ export function withNbfiChanges(points: NbfiLoansPoint[]): NbfiLoansRow[] {
   });
 }
 
-/** rows 의 i 번째 시점에서 판정한다 (i 이후 데이터는 보지 않는다) */
+/**
+ * rows 의 i 번째 시점에서 판정한다 (i 이후 데이터는 보지 않는다).
+ * 입력은 **보정 YoY**(adjustedYoyPct)다. 원본 yoyPct 는 판정에 쓰지 않는다.
+ */
 export function evaluateNbfiLoansAt(rows: NbfiLoansRow[], i: number): NbfiLoansVerdict {
   const empty: NbfiLoansVerdict = {
     status: null,
@@ -1318,14 +1382,14 @@ export function evaluateNbfiLoansAt(rows: NbfiLoansRow[], i: number): NbfiLoansV
   const latest = rows[i];
   const dist = rows
     .slice(0, i + 1)
-    .map((r) => r.yoyPct)
+    .map((r) => r.adjustedYoyPct)
     .filter((v): v is number => typeof v === "number");
-  if (dist.length < NBFI_MIN_YOY_OBS || latest.yoyPct === null) {
+  if (dist.length < NBFI_MIN_YOY_OBS || latest.adjustedYoyPct === null) {
     return { ...empty, latest, yoyObs: dist.length };
   }
   const cautionCutoffPct = quantile(dist, NBFI_CAUTION_PCTILE / 100);
   const alertCutoffPct = quantile(dist, NBFI_ALERT_PCTILE / 100);
-  const y = latest.yoyPct;
+  const y = latest.adjustedYoyPct;
   const status: ObservatoryStatus =
     y >= alertCutoffPct ? "warning" : y >= cautionCutoffPct ? "caution" : "normal";
   return {
@@ -1342,4 +1406,43 @@ export function evaluateNbfiLoansAt(rows: NbfiLoansRow[], i: number): NbfiLoansV
 /** 현재(가장 최근 기준일) 판정. rows 는 withNbfiChanges 결과, 날짜 오름차순 */
 export function evaluateNbfiLoans(rows: NbfiLoansRow[]): NbfiLoansVerdict {
   return evaluateNbfiLoansAt(rows, rows.length - 1);
+}
+
+export interface NbfiSurgeCheck {
+  /** 컷 = 재분류 주(±1주)를 뺀 전 기간 주간 변화 절댓값의 상위 1% (십억 달러) */
+  cutBillions: number | null;
+  /** 컷 이상인데 재분류 날짜(±1주)와 겹치지 않는 주 */
+  flagged: { date: string; changeBillions: number }[];
+}
+
+/**
+ * "점검 필요" 주 — 판정에는 쓰지 않는다.
+ *
+ * 주간 변화가 아주 큰데 연준이 밝힌 재분류 날짜와 겹치지 않는 주를 고른다.
+ * 아직 공지되지 않은 재분류일 수도, 실제 급증(2020-03 처럼)일 수도 있다 —
+ * 원인을 단정하지 않고 "재분류 여부를 확인할 필요가 있는 주" 로만 쓴다.
+ */
+export function findNbfiSurges(points: NbfiLoansPoint[]): NbfiSurgeCheck {
+  const nearReclass = (date: string) =>
+    NBFI_RECLASSIFICATIONS.some(
+      (r) => Math.abs(daysBetween(r.date, date)) <= NBFI_SURGE_RECLASS_WINDOW_DAYS
+    );
+  const changes: { date: string; changeBillions: number }[] = [];
+  for (let i = 1; i < points.length; i++) {
+    // 바로 앞 주와 7일 간격일 때만 "주간 변화" 로 본다
+    if (Math.abs(daysBetween(points[i - 1].date, points[i].date) - 7) > NBFI_GAP_TOLERANCE_DAYS) {
+      continue;
+    }
+    changes.push({
+      date: points[i].date,
+      changeBillions: points[i].loansBillions - points[i - 1].loansBillions,
+    });
+  }
+  const pool = changes.filter((c) => !nearReclass(c.date)).map((c) => Math.abs(c.changeBillions));
+  if (pool.length === 0) return { cutBillions: null, flagged: [] };
+  const cut = quantile(pool, NBFI_SURGE_PCTILE / 100);
+  return {
+    cutBillions: cut,
+    flagged: changes.filter((c) => !nearReclass(c.date) && Math.abs(c.changeBillions) >= cut),
+  };
 }

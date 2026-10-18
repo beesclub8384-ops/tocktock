@@ -18,7 +18,7 @@
  *    우리 cron(평일 13:00 UTC)은 금요일 발표보다 먼저 돌아 월요일에 들어온다.
  */
 import { redis } from "@/lib/redis";
-import type { NbfiLoansPoint } from "@/lib/observatory-constants";
+import { findNbfiSurges, type NbfiLoansPoint } from "@/lib/observatory-constants";
 
 const FRED_BASE = "https://api.stlouisfed.org/fred/series/observations";
 
@@ -67,6 +67,20 @@ export interface NbfiLoansCollectResult {
   missingTotal: number;
   latestDate: string | null;
   latestLoansBillions: number | null;
+  /**
+   * 최근 4주 안의 "점검 필요" 주 — 주간 변화가 아주 큰데 연준이 밝힌 재분류
+   * 날짜와 겹치지 않는 주. 판정에는 쓰지 않는다. cron 이 warnings 로 넘긴다.
+   */
+  recentSurges: { date: string; changeBillions: number }[];
+}
+
+/** 페이지·cron 이 "최근" 으로 보는 주 수 */
+export const NBFI_RECENT_SURGE_WEEKS = 4;
+
+/** 최근 n개 기준일 안의 점검 필요 주 */
+export function recentNbfiSurges(points: NbfiLoansPoint[]): { date: string; changeBillions: number }[] {
+  const recent = new Set(points.slice(-NBFI_RECENT_SURGE_WEEKS).map((p) => p.date));
+  return findNbfiSurges(points).flagged.filter((f) => recent.has(f.date));
 }
 
 /**
@@ -105,5 +119,6 @@ export async function collectNbfiLoans(): Promise<NbfiLoansCollectResult> {
     missingTotal: series.filter((p) => p.totalLoansBillions === null).length,
     latestDate: latest.date,
     latestLoansBillions: latest.loansBillions,
+    recentSurges: recentNbfiSurges(series),
   };
 }
