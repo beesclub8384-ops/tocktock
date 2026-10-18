@@ -6,7 +6,7 @@ import { collectRrp } from "@/lib/observatory-rrp";
 import { collectReserves } from "@/lib/observatory-reserves";
 import { collectMarketIndex } from "@/lib/observatory-market-index";
 import { isOriginSource, MARKET_INDEX_COLLECTION } from "@/lib/observatory-source-config";
-import { warmOriginReleases } from "@/lib/observatory-origin";
+import { originFetchLog, warmOriginReleases } from "@/lib/observatory-origin";
 // 관측소 2 — FDIC 분기 보고서 (FRED 아님)
 import {
   collectUnrealizedLosses,
@@ -57,7 +57,9 @@ export const maxDuration = 60;
  *   cron 이 조용히 404 로 죽는다. 그래서 이름은 그대로 두고 지표만 추가한다.
  *   새 지표가 늘어도 이 파일에 수집 함수를 하나 더 붙이면 된다.
  *
- * 실행 시간 (maxDuration 60초): 미션 5 원출처 전환 뒤 로컬 프로덕션 약 20초(연준 발표 zip 6개 약 60MB). 배포 실측은 결정 로그 17장.
+ * 실행 시간 (maxDuration 60초): 미션 6부터 연준 발표 zip 은 바뀐 날만 받는다(ETag → 304). 바뀐 묶음이 없는 날 로컬 프로덕션
+ *   약 7~8초·원출처 약 0.38MB(대부분 SOFR 연도별 요청), 6개 모두 바뀐 날 약 60MB. 응답의 originFetches 에 요청별 용량·시간을 남긴다.
+ *   배포 실측은 결정 로그 18-6.
  *   관측소 4·5 수집기는 관측소별로 Promise.allSettled 로 동시에 받는다. 분기 FDIC 워크북(2.6MB)을
  *   받는 날의 시간은 아직 재지 못했다 — 40초를 넘기 시작하면 라우트를 나눌 것.
  *
@@ -296,6 +298,8 @@ export async function GET(request: Request) {
       ...results,
       ...(failed.length > 0 ? { errors } : {}),
       warnings,
+      // 원출처 요청별 기록 — 용량·시간 측정용 (304 는 바뀌지 않아 받지 않은 것)
+      originFetches: originFetchLog.splice(0),
       refreshedAt: new Date().toISOString(),
     },
     { status }

@@ -101,7 +101,7 @@ export const OBSERVATORY_SECTIONS: ObservatorySectionMeta[] = [
       "시스템 전체의 현금 사정을 재는 곳입니다. 여기가 흔들리면 어디가 아픈지와 무관하게 모두가 아파집니다.",
     chainNote: "①→⑤는 시스템의 현금이 마를 때 경보가 켜지는 순서입니다",
     // FRED 이용 약관: 원출처와 "FRED 경유"를 함께 적는다 (뉴욕 연은 시리즈는 "Copyrighted: Citation required")
-    source: "뉴욕 연방준비은행(SOFR; RRP·SRF 는 FRED 경유)·연준 이사회(IORB·지급준비금·재할인 창구)",
+    source: "뉴욕 연방준비은행(SOFR·역레포·레포)·연준 이사회(IORB·지급준비금·재할인 창구)",
     indicators: [
       {
         key: "rrp",

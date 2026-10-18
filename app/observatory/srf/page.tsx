@@ -1,4 +1,6 @@
 import { ObservatoryBreadcrumb } from "../breadcrumb";
+import { displaySeriesId } from "@/lib/observatory-origin";
+import { isOriginSource } from "@/lib/observatory-source-config";
 import { CriteriaNote } from "../criteria-note";
 import { LimitsNote } from "../limits-note";
 import { FredNotice } from "../source-notices";
@@ -106,8 +108,8 @@ export default async function SrfPage() {
           SRF 사용량
         </h1>
         <p className="text-sm text-zinc-500 mt-2">
-          연준이 열어둔 응급 창구가 하루에 얼마나 쓰였는지 봅니다. 출처: 뉴욕
-          연방준비은행(Federal Reserve Bank of New York), FRED 경유, 시리즈 {data.seriesId}.
+          연준이 열어둔 응급 창구가 하루에 얼마나 쓰였는지 봅니다. 출처: 뉴욕 연방준비은행(Federal Reserve Bank of New York){" "}
+          {displaySeriesId(data.seriesId, isOriginSource(data.seriesId))}.
         </p>
         <p className="text-xs text-zinc-400 mt-1">
           마지막 업데이트: {formatKstDate(data.lastUpdated)}
@@ -256,10 +258,10 @@ export default async function SrfPage() {
             연준은 최근 이 창구의 이름을 SRP(상설 레포 운영)로 바꿔 부르고
             있습니다. 이 페이지에서는 익숙한 이름인 SRF로 씁니다.
           </p>
-          <div className="mb-2 text-xs"><FiringRateLine stats={data.firing} unit="영업일" /><p className="text-zinc-500">상설 레포 창구(SRF)는 2021년 7월에 생겼습니다. 그 전의 임시 레포 투입(특히 2019년 9월 이후)까지 세기 때문에 비율이 크게 나옵니다.</p></div>
+          <div className="mb-2 text-xs"><FiringRateLine stats={data.firing} unit="영업일" /><p className="text-zinc-500">상설 레포 창구(SRF)는 2021년 7월에 생겼습니다. 그 전의 임시 레포 투입(특히 2019년 9월 이후)까지 세기 때문에 비율이 크게 나옵니다. 자료는 뉴욕 연은 운영 결과가 남아 있는 2000년 7월 7일부터입니다.</p></div>
           <LimitsNote
             limits="사용량이 0이라고 시장이 편안하다는 뜻은 아닙니다. 낙인이나 금리 조건 때문에 필요해도 쓰지 않을 수 있습니다. 2021년 7월 이전 막대는 SRF가 아니라 연준의 임시 레포 투입입니다."
-            timing="뉴욕 연은의 레포 결과가 FRED에 같은 날 올라옵니다. 이 사이트는 평일 한국 시각 밤 10시에 수집합니다(미 동부 시각으로 서머타임 때 오전 9시, 11~3월에는 오전 8시). 그래서 보통 다음 평일 밤에 반영됩니다."
+            timing="뉴욕 연은이 그날 레포 결과를 공개하고, 이 사이트는 그 결과를 뉴욕 연은에서 직접 받아 평일 한국 시각 밤 10시에 수집합니다(미 동부 시각으로 서머타임 때 오전 9시, 11~3월에는 오전 8시). 그래서 보통 다음 평일 밤에 반영됩니다."
           />
           <CriteriaNote>최근 10영업일 중 1십억 달러 이상 쓰인 날이 1일 이상이면 주의, 3일 이상이면 경보입니다.</CriteriaNote>
           <FredNotice keys={["srf"]} />

@@ -3,15 +3,19 @@
  * 수집기들은 FRED 응답을 가공하던 코드를 그대로 쓰므로, 값이 같으면 판정도 같다.
  *
  * 출처 (2026-10-19 확인)
- *  - 연준 이사회 데이터 다운로드 프로그램(DDP)의 발표별 전체 묶음:
- *      https://www.federalreserve.gov/datadownload/Output.aspx?rel={H41|H8|CHGDEL|H15|Z1|PRATES}&filetype=zip
- *    안에 {rel}_data.xml(SDMX). 크기가 커서(H.4.1 XML 약 127MB, Z.1 약 620MB) 통째로 풀지 않고 스트리밍으로 읽어
+ *  - 연준 이사회 발표 페이지의 XML 묶음 (미션 6에서 DDP 주소에서 옮김):
+ *      https://www.federalreserve.gov/releases/{h41|h8|chgdel|h15|z1|prates}/data/FRB_{…}_xml.zip
+ *    DDP 묶음(Output.aspx?rel=…&filetype=zip)과 바이트까지 같은 파일이다(2026-10-19 H.4.1 로 cmp 확인).
+ *    연준 공지(2026-07-16, federalreserve.gov/data/data-download-fred-information.htm): "Historical data will remain
+ *    available for download as XML files on statistical release pages." — DDP 는 폐지 예정이지만 이 경로는 남는다.
+ *    안에 {REL}_data.xml(SDMX). 크기가 커서(H.4.1 XML 약 127MB, Z.1 약 620MB) 통째로 풀지 않고 스트리밍으로 읽어
  *    필요한 시리즈만 꺼내고 다 찾으면 멈춘다.
+ *    용량 줄이기(미션 6): ETag 로 조건부 요청을 보내 바뀐 날만 내려받고(304 면 0 바이트), 꺼낸 시리즈는 Redis
+ *    (observatory:origin-cache:{REL})에 보관해 304 일 때 그 값을 쓴다.
  *    이용 조건: "Unless otherwise indicated, information on Board's website is in the public domain and may be
  *    copied and distributed without permission. Please cite to the Board as the source"(federalreserve.gov/disclaimer.htm).
- *    ⚠ 연준은 DDP 를 언젠가 폐지한다고 예고했다(2026-11 둘째 주 "Build Your Package" 기능 제거). 이 주소가 사라지면
- *      수집이 실패해 cron errors 에 남는다 — 그때는 OBSERVATORY_SOURCE=fred 로 되돌리거나 새 주소로 바꾼다.
  *  - 뉴욕 연은 Markets Data API: SOFR https://markets.newyorkfed.org/api/rates/secured/sofr/search.json
+ *    역레포·레포 운영 결과 https://markets.newyorkfed.org/api/rp/results/search.json (미션 6, 아래 fetchNyFedRp)
  *    이용 조건: 뉴욕 연은 약관의 출처 표기와 SOFR 고지문(app/observatory/source-notices.tsx).
  *
  * FRED 와의 대조 (2026-10-19, 전 기간): 아래 연준 이사회 13개 + 뉴욕 연은 SOFR, 모두 14개 값·날짜 불일치 0.
@@ -21,6 +25,7 @@
  */
 import { createInflateRaw } from "node:zlib";
 import { StringDecoder } from "node:string_decoder";
+import { redis } from "@/lib/redis";
 
 export interface OriginObs {
   date: string;
@@ -54,6 +59,16 @@ export const FED_MAPPING: Record<string, FedMapping> = {
   DRCRELEXFOBS: { rel: "CHGDEL", name: "STFBQDSX%STFBAILSX_XEOP_XDO_XS3A4_MA.Q", quarterStart: true },
   DGS10: { rel: "H15", name: "RIFLGFCY10_N.B" },
   IORB: { rel: "PRATES", name: "RESBM_N.D" },
+};
+
+/** 발표 페이지 XML 묶음 주소 (대출 상각률은 chargeoff → chgdel 로 옮겨져 최종 주소를 쓴다) */
+const RELEASE_ZIP: Record<FedRelease, string> = {
+  H41: "https://www.federalreserve.gov/releases/h41/data/FRB_h41_xml.zip",
+  H8: "https://www.federalreserve.gov/releases/h8/data/FRB_h8_xml.zip",
+  CHGDEL: "https://www.federalreserve.gov/releases/chgdel/data/FRB_CHGDEL_xml.zip",
+  H15: "https://www.federalreserve.gov/releases/h15/data/FRB_h15_xml.zip",
+  Z1: "https://www.federalreserve.gov/releases/z1/data/FRB_Z1_xml.zip",
+  PRATES: "https://www.federalreserve.gov/releases/prates/data/FRB_PRATES_xml.zip",
 };
 
 /** 이 묶음에서 한 번 실행 동안 필요한 시리즈 (같은 cron 실행에서 묶음을 한 번만 받으려고 미리 모은다) */
@@ -167,18 +182,51 @@ function extractSeries(zip: Buffer, entryName: string, names: string[]): Promise
 const releaseCache = new Map<FedRelease, { at: number; p: Promise<Map<string, { t: string; v: string }[]>> }>();
 const CACHE_MS = 10 * 60 * 1000;
 
+interface ReleaseCache {
+  etag: string | null;
+  lastModified: string | null;
+  savedAt: string;
+  /** 시리즈 이름 → [기간, 값] (상태 "A" 만) */
+  series: Record<string, [string, string][]>;
+}
+
+/** 요청별 기록 (cron 응답에 싣는다 — 용량·시간 측정용) */
+export const originFetchLog: { rel: string; status: number; bytes: number; ms: number }[] = [];
+
+const cacheKey = (rel: FedRelease) => `observatory:origin-cache:${rel}`;
+
 async function loadRelease(rel: FedRelease): Promise<Map<string, { t: string; v: string }[]>> {
   const hit = releaseCache.get(rel);
-  if (hit && Date.now() - hit.at < CACHE_MS) return hit.p;
+  if (hit && Date.now() - hit.at < CACHE_MS) {
+    originFetchLog.push({ rel, status: 0, bytes: 0, ms: 0 }); // status 0 = 같은 프로세스의 10분 메모리 캐시 (요청 없음)
+    return hit.p;
+  }
   const p = (async () => {
-    const res = await fetch(`https://www.federalreserve.gov/datadownload/Output.aspx?rel=${rel}&filetype=zip`, {
-      cache: "no-store",
-      signal: AbortSignal.timeout(40000),
-      headers: { "User-Agent": UA },
-    });
-    if (!res.ok) throw new Error(`연준 DDP ${rel}: ${res.status}`);
+    const names = namesFor(rel);
+    // @upstash/redis 는 직렬화/역직렬화를 자동 처리한다 (JSON.parse 금지)
+    const cached = await redis.get<ReleaseCache>(cacheKey(rel));
+    const usable = cached && names.every((n) => Array.isArray(cached.series?.[n]) && cached.series[n].length > 0);
+    const headers: Record<string, string> = { "User-Agent": UA };
+    if (usable && cached.etag) headers["If-None-Match"] = cached.etag;
+    if (usable && cached.lastModified) headers["If-Modified-Since"] = cached.lastModified;
+    const t0 = Date.now();
+    const res = await fetch(RELEASE_ZIP[rel], { cache: "no-store", signal: AbortSignal.timeout(40000), headers });
+    if (res.status === 304 && usable) {
+      originFetchLog.push({ rel, status: 304, bytes: 0, ms: Date.now() - t0 });
+      return new Map(names.map((n) => [n, cached.series[n].map(([t, v]) => ({ t, v }))]));
+    }
+    if (!res.ok) throw new Error(`연준 ${rel} 묶음: ${res.status}`);
     const zip = Buffer.from(await res.arrayBuffer());
-    return extractSeries(zip, `${rel}_data.xml`, namesFor(rel));
+    originFetchLog.push({ rel, status: res.status, bytes: zip.length, ms: Date.now() - t0 });
+    const out = await extractSeries(zip, `${rel}_data.xml`, names);
+    const save: ReleaseCache = {
+      etag: res.headers.get("etag"),
+      lastModified: res.headers.get("last-modified"),
+      savedAt: new Date().toISOString(),
+      series: Object.fromEntries([...out].map(([n, obs]) => [n, obs.map((o) => [o.t, o.v] as [string, string])])),
+    };
+    await redis.set(cacheKey(rel), save);
+    return out;
   })();
   releaseCache.set(rel, { at: Date.now(), p });
   p.catch(() => releaseCache.delete(rel)); // 실패는 기억하지 않는다
@@ -212,17 +260,107 @@ async function fetchSofr(observationStart: string): Promise<OriginObs[]> {
   const endYear = new Date().getUTCFullYear();
   const out: OriginObs[] = [];
   for (let y = Math.max(startYear, 2018); y <= endYear; y++) {
+    const t0 = Date.now();
     const res = await fetch(
       `https://markets.newyorkfed.org/api/rates/secured/sofr/search.json?startDate=${y}-01-01&endDate=${y}-12-31`,
       { cache: "no-store", signal: AbortSignal.timeout(15000), headers: { "User-Agent": UA } }
     );
     if (!res.ok) throw new Error(`뉴욕 연은 SOFR: ${res.status}`);
-    const json = (await res.json()) as { refRates?: { effectiveDate: string; percentRate: number }[] };
+    const body = await res.text();
+    originFetchLog.push({ rel: `NYFED-SOFR(${y})`, status: res.status, bytes: Buffer.byteLength(body), ms: Date.now() - t0 });
+    const json = JSON.parse(body) as { refRates?: { effectiveDate: string; percentRate: number }[] }; // 외부 API 응답 (Redis 아님)
     for (const r of json.refRates ?? []) {
       if (r.effectiveDate >= observationStart && Number.isFinite(r.percentRate)) {
         out.push({ date: r.effectiveDate, value: String(r.percentRate) });
       }
     }
+  }
+  return out;
+}
+
+/* ────────────────────────────────────────────────────────────
+ * 뉴욕 연은 역레포·레포 운영 결과 (미션 6) — FRED RRPONTSYD·RPONTTLD 대신
+ *
+ * 정의 (2026-10-19 FRED 와 전 기간 대조로 정함, 결정 로그 18장):
+ *  - 결제일(settlementDate) 기준으로 묶는다 (FRED 도 결제일 기준).
+ *  - 뉴욕 연은이 "Overnight" 로 분류한 결과(auctionStatus "Results")만.
+ *  - 역레포: 국채(Treasury) 구간의 낙찰액(amtAccepted) 합. 국채 구간이 없는 날(MBS 만 쓴 시험 운영)은 값이 없다 —
+ *    FRED 도 그날을 "." 로 둔다.
+ *  - 레포: 모든 증권 구간 낙찰액 합. FRED 와 같게 평일마다 행을 만들고 운영이 없는 날은 "." (수집기가 0 으로 저장).
+ *    원자료 첫날(2000-07-07) 전은 만들지 않는다 — 운영이 있었는데 자료가 없을 뿐이라 0 으로 채우면 거짓이다.
+ *  - 같은 결제일에 운영이 여러 건이면 모두 더한다(FRED 는 한 건만 싣는 날이 있었다: 2020-02-19, 2019-12-31).
+ *  - 금액은 달러 정수 → 십억 달러 문자열로 바꾼다(소수점 이동, 부동소수 오차 없음).
+ *  - 검색 API 는 결제일이 아니라 운영일(operationDate)로 거른다. 전날 운영·당일 결제 건이 빠져 첫날 합계가
+ *    일부만 잡히지 않도록 RP_QUERY_LEAD_DAYS 만큼 앞에서부터 받고, 돌려줄 때는 observationStart 이후만 남긴다.
+ * ──────────────────────────────────────────────────────────── */
+
+interface RpOperation {
+  operationType: string;
+  auctionStatus?: string;
+  settlementDate: string;
+  term?: string;
+  details?: { securityType: string; amtAccepted?: number }[];
+}
+
+/** 달러 정수 → 십억 달러 문자열 ("95000000" → "0.095") */
+export function dollarsToBillions(dollars: bigint): string {
+  const neg = dollars < BigInt(0);
+  const abs = neg ? -dollars : dollars;
+  const unit = BigInt(1000000000);
+  const whole = abs / unit;
+  const frac = (abs % unit).toString().padStart(9, "0").replace(/0+$/, "");
+  return (neg ? "-" : "") + whole.toString() + (frac ? "." + frac : "");
+}
+
+function* weekdays(from: string, to: string): Generator<string> {
+  const d = new Date(`${from}T00:00:00Z`);
+  const end = new Date(`${to}T00:00:00Z`);
+  while (d <= end) {
+    const w = d.getUTCDay();
+    if (w !== 0 && w !== 6) yield d.toISOString().slice(0, 10);
+    d.setUTCDate(d.getUTCDate() + 1);
+  }
+}
+
+/** 운영일과 결제일이 다른 건(주말·휴일을 낀 익일물 등)을 놓치지 않으려고 앞당겨 받는 날수 */
+const RP_QUERY_LEAD_DAYS = 7;
+
+async function fetchNyFedRp(kind: "rrp" | "repo", observationStart: string): Promise<OriginObs[]> {
+  const today = new Date().toISOString().slice(0, 10);
+  const lead = new Date(`${observationStart}T00:00:00Z`);
+  lead.setUTCDate(lead.getUTCDate() - RP_QUERY_LEAD_DAYS);
+  const queryStart = lead.toISOString().slice(0, 10);
+  const t0 = Date.now();
+  const res = await fetch(
+    `https://markets.newyorkfed.org/api/rp/results/search.json?startDate=${queryStart}&endDate=${today}`,
+    { cache: "no-store", signal: AbortSignal.timeout(30000), headers: { "User-Agent": UA } }
+  );
+  if (!res.ok) throw new Error(`뉴욕 연은 RP: ${res.status}`);
+  const text = await res.text();
+  originFetchLog.push({ rel: `NYFED-RP(${kind})`, status: res.status, bytes: Buffer.byteLength(text), ms: Date.now() - t0 });
+  const json = JSON.parse(text) as { repo?: { operations?: RpOperation[] } }; // 외부 API 응답 파싱 (Redis 아님)
+  const ops = json.repo?.operations ?? [];
+  const sums = new Map<string, bigint>();
+  const type = kind === "rrp" ? "Reverse Repo" : "Repo";
+  for (const o of ops) {
+    if (o.auctionStatus !== "Results" || o.operationType !== type || o.term !== "Overnight") continue;
+    const parts = (o.details ?? []).filter((x) => (kind === "rrp" ? x.securityType === "Treasury" : true));
+    if (parts.length === 0) continue; // 역레포인데 국채 구간이 없으면 그날 값은 없다
+    let sum = sums.get(o.settlementDate) ?? BigInt(0);
+    for (const x of parts) sum += BigInt(Math.round(x.amtAccepted ?? 0));
+    sums.set(o.settlementDate, sum);
+  }
+  if (sums.size === 0) throw new Error(`뉴욕 연은 RP(${kind}): 운영 결과 0건`);
+  const dates = [...sums.keys()].sort();
+  if (kind === "rrp") {
+    // observationStart 앞 날짜는 fetchOriginObservations 끝의 필터가 버린다
+    return dates.map((d) => ({ date: d, value: dollarsToBillions(sums.get(d)!) }));
+  }
+  const out: OriginObs[] = [];
+  const from = observationStart > dates[0] ? observationStart : dates[0];
+  for (const d of weekdays(from, dates[dates.length - 1])) {
+    const v = sums.get(d);
+    out.push({ date: d, value: v === undefined ? "." : dollarsToBillions(v) });
   }
   return out;
 }
@@ -235,6 +373,10 @@ export async function fetchOriginObservations(fredSeriesId: string, observationS
   let obs: OriginObs[];
   if (fredSeriesId === "SOFR") {
     obs = await fetchSofr(observationStart);
+  } else if (fredSeriesId === "RRPONTSYD") {
+    obs = await fetchNyFedRp("rrp", observationStart);
+  } else if (fredSeriesId === "RPONTTLD") {
+    obs = await fetchNyFedRp("repo", observationStart);
   } else {
     const m = FED_MAPPING[fredSeriesId];
     if (!m) throw new Error(`원출처 대응이 없는 시리즈: ${fredSeriesId}`);
@@ -263,5 +405,7 @@ export function warmOriginReleases(isOrigin: (fredId: string) => boolean): void 
 export function displaySeriesId(fredId: string, isOrigin: boolean): string {
   if (!isOrigin) return `${fredId} (FRED)`;
   if (fredId === "SOFR") return "SOFR";
+  if (fredId === "RRPONTSYD") return "역레포 운영 결과(국채, 익일물)";
+  if (fredId === "RPONTTLD") return "레포 운영 결과(전체 증권, 익일물)";
   return FED_MAPPING[fredId]?.name ?? fredId;
 }

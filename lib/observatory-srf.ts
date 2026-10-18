@@ -14,11 +14,23 @@
  * 지금 수치가 역사적으로 어느 수준인지 바로 견줄 수 있다.
  */
 import { redis } from "@/lib/redis";
+import { isOriginSource } from "@/lib/observatory-source-config";
+import { fetchOriginObservations } from "@/lib/observatory-origin";
 import type { SrfPoint } from "@/lib/observatory-constants";
 
 const FRED_BASE = "https://api.stlouisfed.org/fred/series/observations";
 
 export const SRF_KEY = "observatory:srf";
+
+/**
+ * 원출처(뉴욕 연은 운영 결과)로 처음 전체를 다시 쌓았는지 표시 (미션 6).
+ * 이 값이 없으면 한 번 전체를 받아 저장분을 **통째로 바꾼다**(FRED 에서 받았던 옛 값·FRED 에만 있던 날을 남기지 않으려고).
+ * 그 뒤에는 최근 구간만 받아 합친다. 다시 쌓고 싶으면 이 키를 지운다.
+ */
+export const SRF_KEY_ORIGIN_MARKER = "observatory:origin-marker:srf";
+const ORIGIN_MARKER_VALUE = "nyfed-rp-v1";
+/** 이어 받을 때 마지막 저장일보다 며칠 앞에서부터 다시 받는다(정정·늦은 결제일 반영) */
+const ORIGIN_OVERLAP_DAYS = 10;
 
 /** RPONTTLD 시리즈 시작일 */
 export const SRF_START = "2000-01-03";
@@ -75,25 +87,34 @@ export interface SrfCollectResult {
  */
 export async function collectSrf(): Promise<SrfCollectResult> {
   const existing = await loadSrf();
-  const backfill = existing.length === 0;
+  // 원출처 전환 (lib/observatory-source-config.ts) — FRED 경로는 되돌릴 수 있게 그대로 둔다
+  const originMode = isOriginSource(SRF_SERIES_ID);
+  const rebuild = originMode && (await redis.get<string>(SRF_KEY_ORIGIN_MARKER)) !== ORIGIN_MARKER_VALUE;
+  const backfill = existing.length === 0 || rebuild;
   const observationStart = backfill
     ? SRF_START
-    : existing[existing.length - 1].date;
+    : originMode
+      ? shiftDate(existing[existing.length - 1].date, -ORIGIN_OVERLAP_DAYS)
+      : existing[existing.length - 1].date;
 
   const apiKey = process.env.FRED_API_KEY;
-  if (!apiKey) throw new Error("FRED_API_KEY not set");
+  if (!apiKey && !originMode) throw new Error("FRED_API_KEY not set");
 
   const url = `${FRED_BASE}?series_id=${SRF_SERIES_ID}&api_key=${apiKey}&file_type=json&observation_start=${observationStart}`;
-  const res = await fetch(url, {
-    cache: "no-store",
-    signal: AbortSignal.timeout(15000),
-  });
-  if (!res.ok) throw new Error(`FRED ${SRF_SERIES_ID}: ${res.status}`);
-
-  const json = (await res.json()) as { observations?: FredObs[] };
+  let json: { observations?: FredObs[] };
+  if (originMode) {
+    json = { observations: await fetchOriginObservations(SRF_SERIES_ID, observationStart) };
+  } else {
+    const res = await fetch(url, {
+      cache: "no-store",
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!res.ok) throw new Error(`FRED ${SRF_SERIES_ID}: ${res.status}`);
+    json = (await res.json()) as { observations?: FredObs[] };
+  }
   const observations = json.observations ?? [];
 
-  const merged = new Map<string, SrfPoint>(existing.map((p) => [p.date, p]));
+  const merged = new Map<string, SrfPoint>((rebuild ? [] : existing).map((p) => [p.date, p]));
   const before = merged.size;
 
   for (const o of observations) {
@@ -117,15 +138,29 @@ export async function collectSrf(): Promise<SrfCollectResult> {
     };
   }
 
+  // 재구축 결과가 저장분보다 크게 짧으면(응답이 잘렸을 수 있다) 저장하지 않고 에러로 남긴다.
+  // 정상이면 원자료에 없는 앞쪽 구간만큼만 짧아진다(SRF: 2000-01-03 ~ 2000-07-06, 134일).
+  if (rebuild && series.length < existing.length * 0.9) {
+    throw new Error(`원출처 재구축 결과 ${series.length}건 — 저장된 ${existing.length}건보다 크게 적어 저장하지 않음`);
+  }
   await redis.set(SRF_KEY, series);
+  if (rebuild) await redis.set(SRF_KEY_ORIGIN_MARKER, ORIGIN_MARKER_VALUE);
 
   const latest = series[series.length - 1];
   return {
     backfill,
     observationStart,
-    added: series.length - before,
+    // 재구축이면 저장분 전체를 바꾼 것이라 '새로 생긴 날'은 이전 저장분 대비로 센다
+    added: series.length - (rebuild ? existing.length : before),
     total: series.length,
     latestDate: latest.date,
     latestUsage: latest.usageBillions,
   };
+}
+
+/** YYYY-MM-DD 를 days 만큼 옮긴다 */
+function shiftDate(date: string, days: number): string {
+  const d = new Date(`${date}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
 }

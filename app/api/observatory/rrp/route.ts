@@ -23,14 +23,14 @@ export interface RrpResponse {
   attribution: string;
   /** 발동 비율 — 각 시점에 같은 판정 함수를 적용 (관측소 작업 규칙 4) */
   firing: FiringStats;
-  /** 십억 달러 단위 (FRED 원단위 그대로 — 변환 없음) */
+  /** 십억 달러 단위 (뉴욕 연은 운영 결과의 달러를 십억 달러로 — 미션 6) */
   series: RrpPoint[];
   latest: RrpPoint | null;
   previous: RrpPoint | null;
   status: ObservatoryStatus;
   /** 최신값이 2022년 정점 대비 몇 % 인지 */
   pctOfPeak: number | null;
-  /** 최신 기준일이 RRP_STALE_DAYS 보다 오래됐는지 (= FRED 갱신이 막힌 상태) */
+  /** 최신 기준일이 RRP_STALE_DAYS 보다 오래됐는지 (= 원출처 갱신이 막힌 상태) */
   dataDelayed: boolean;
   /** 최신 기준일이 며칠 전인지 */
   daysSinceLatest: number | null;
@@ -74,8 +74,7 @@ export async function GET() {
     const dataDelayed = daysSinceLatest !== null && daysSinceLatest > RRP_STALE_DAYS;
 
     const body: RrpResponse = {
-      // 이 값은 FRED API 로 받는다(미전환) — FRED API 이용 약관의 고지를 함께 싣는다
-      attribution: nyFedAttribution() + " This product uses the FRED® API but is not endorsed or certified by the Federal Reserve Bank of St. Louis. FRED® API Terms of Use: https://fred.stlouisfed.org/docs/api/terms_of_use.html",
+      attribution: nyFedAttribution(),
       firing: tailFiringStats(series.map((p) => p.date), series, (t) => evaluateRrp(t).status),
       series,
       latest: verdict.latest,

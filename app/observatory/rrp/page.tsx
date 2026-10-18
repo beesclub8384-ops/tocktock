@@ -1,4 +1,6 @@
 import { ObservatoryBreadcrumb } from "../breadcrumb";
+import { displaySeriesId } from "@/lib/observatory-origin";
+import { isOriginSource } from "@/lib/observatory-source-config";
 import { CriteriaNote } from "../criteria-note";
 import { LimitsNote } from "../limits-note";
 import { FredNotice } from "../source-notices";
@@ -110,7 +112,7 @@ export default async function RrpPage() {
           곳 — 잔액이 마르면 다음은 은행 지급준비금 본체가 마릅니다.
         </p>
         <p className="text-xs text-zinc-400 mt-1">
-          출처: 뉴욕 연방준비은행(Federal Reserve Bank of New York), FRED 경유, 시리즈 {data.seriesId} ·
+          출처: 뉴욕 연방준비은행(Federal Reserve Bank of New York) {displaySeriesId(data.seriesId, isOriginSource(data.seriesId))} ·
           일간(영업일)
         </p>
         <p className="text-xs text-zinc-400 mt-1">
@@ -118,10 +120,10 @@ export default async function RrpPage() {
         </p>
       </header>
 
-      {/* 데이터 지연 알림 — FRED 갱신이 막혀 마지막 성공값을 그대로 보여주는 상태 */}
+      {/* 데이터 지연 알림 — 원출처 갱신이 막혀 마지막 성공값을 그대로 보여주는 상태 */}
       {data.dataDelayed && (
         <div className="mb-6 rounded-lg border border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
-          <strong>데이터 지연</strong> — FRED에서 새 값을 받지 못하고 있습니다.
+          <strong>데이터 지연</strong> — 뉴욕 연은에서 새 값을 받지 못하고 있습니다.
           아래 숫자는 마지막으로 받아둔 {latest ? formatDate(latest.date) : "—"}{" "}
           기준값이며, {data.daysSinceLatest}일 전 값입니다.
         </div>
@@ -327,7 +329,7 @@ export default async function RrpPage() {
           <div className="mb-2 text-xs"><FiringRateLine stats={data.firing} unit="영업일" /><p className="text-zinc-500">이 기준은 역레포 창구가 상시로 돈을 받는 지금의 제도를 전제로 정했습니다. 그런 창구가 없던 2013년 이전에는 역레포가 가끔만 열렸고 잔액도 최대 26십억 달러였습니다. 그 기간까지 세면 경보 비율이 크게 나옵니다.</p></div>
           <LimitsNote
             limits="잔액이 줄어든 이유가 시장의 여윳돈이 말라서인지, 같은 돈이 단기 국채 같은 다른 곳으로 옮겨 가서인지는 이 숫자만으로 구분할 수 없습니다."
-            timing="뉴욕 연은이 그날 역레포 결과를 내면 FRED에 같은 날 올라옵니다. 이 사이트는 평일 한국 시각 밤 10시에 수집합니다(미 동부 시각으로 서머타임 때 오전 9시, 11~3월에는 오전 8시). 그래서 보통 다음 평일 밤에 반영됩니다."
+            timing="뉴욕 연은이 그날 역레포 결과를 공개하고, 이 사이트는 그 결과를 뉴욕 연은에서 직접 받아 평일 한국 시각 밤 10시에 수집합니다(미 동부 시각으로 서머타임 때 오전 9시, 11~3월에는 오전 8시). 그래서 보통 다음 평일 밤에 반영됩니다."
           />
 
           <CriteriaNote>잔액이 100십억 달러를 넘으면 정상, 10십억 달러 미만이면 경보, 그 사이는 주의입니다.</CriteriaNote>
