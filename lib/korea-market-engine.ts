@@ -34,6 +34,8 @@ export interface BondYieldResult {
   source: string;         // "OECD DSD_STES@DF_FINMARK KOR.M.IRLT" 또는 "FRED IRLTLT01KRM156N"
   /** 어디서 받았나 (미션 12) — 화면의 출처 표기·FRED 고지가 이것을 본다. 예전 캐시에는 없음(= fred) */
   origin?: "oecd" | "fred";
+  /** OECD 를 못 받아 대신 쓴 경우 그 이유 (화면에 쓰지 않음, 진단용 — 미션 12 배포 확인) */
+  fallbackReason?: string;
   fetchedAt: string;
 }
 
@@ -126,7 +128,7 @@ async function fetchKoreanBondYieldOecd(): Promise<BondYieldResult> {
     headers: { Accept: "application/vnd.sdmx.data+csv; charset=utf-8", "User-Agent": "TockTock/1.0 (https://tocktock.vercel.app)" },
     signal: AbortSignal.timeout(10000),
   });
-  if (!r.ok) throw new Error(`OECD fetch failed: ${r.status}`);
+  if (!r.ok) throw new Error(`OECD fetch failed: ${r.status} ${(await r.text().catch(() => "")).slice(0, 160)}`);
   const lines = (await r.text()).trim().split(/\r?\n/);
   const head = lines[0].split(",");
   const iT = head.indexOf("TIME_PERIOD");
@@ -164,19 +166,31 @@ export async function fetchKoreanBondYield(): Promise<BondYieldResult> {
     } catch (e) {
       // 조용히 넘어가지 않게 로그를 남기고, 장애 동안 요청마다 OECD 를 다시 두드리지 않게 마지막 값을 1시간만 캐시한다
       // (미션 12 독립 검증 지적 3). 화면에는 그 값의 기준월이 그대로 나온다
-      console.error("korea-market: OECD 한국 10년물 수집 실패 — 마지막 값 사용", e);
+      console.error("korea-market: OECD 한국 10년물 수집 실패 — 마지막 값 또는 FRED 사용", e);
+      const reason = e instanceof Error ? e.message : String(e);
       const last = await redis.get<BondYieldResult>(REDIS_KEYS.bondYieldLastGood);
       if (last && last.yieldPct != null) {
-        await redis.set(REDIS_KEYS.bondYield, last, { ex: 3600 });
-        return last;
+        await redis.set(REDIS_KEYS.bondYield, { ...last, fallbackReason: reason }, { ex: 3600 });
+        return { ...last, fallbackReason: reason };
       }
-      throw e;
+      // 마지막 OECD 값도 없으면 예전처럼 FRED 로 받는다(origin "fred" → 화면이 FRED 고지를 띄움). 1시간 뒤 OECD 를 다시 시도.
+      // 배포 확인 때 Vercel 서버에서 OECD 가 계속 500 을 돌려줘서 넣은 안전장치 (로컬에서는 200)
+      const fred = { ...(await fetchKoreanBondYieldFred()), fallbackReason: reason };
+      await redis.set(REDIS_KEYS.bondYield, fred, { ex: 3600 });
+      return fred;
     }
     await redis.set(REDIS_KEYS.bondYield, result, { ex: CACHE_TTL.bondYield });
     await redis.set(REDIS_KEYS.bondYieldLastGood, result);
     return result;
   }
 
+  const result = await fetchKoreanBondYieldFred();
+  await redis.set(REDIS_KEYS.bondYield, result, { ex: CACHE_TTL.bondYield });
+  return result;
+}
+
+// ── FRED: 한국 10년물 (SITE_DATA_SOURCE=fred 이거나 OECD 를 못 받았을 때) ──
+async function fetchKoreanBondYieldFred(): Promise<BondYieldResult> {
   const apiKey = process.env.FRED_API_KEY;
   if (!apiKey) throw new Error("FRED_API_KEY not set");
 
@@ -195,7 +209,6 @@ export async function fetchKoreanBondYield(): Promise<BondYieldResult> {
     origin: "fred",
     fetchedAt: new Date().toISOString(),
   };
-  await redis.set(REDIS_KEYS.bondYield, result, { ex: CACHE_TTL.bondYield });
   return result;
 }
 
