@@ -1495,3 +1495,6 @@ FRED 약관은 notes 에 "Copyright" 가 있으면 저작권 시리즈라고 하
 - 관측소 cron(인증 없이 401): 200·11.1초(내부 10.7초)·errors 없음·production. 관측소 20개 API 판정·발동 통계: 미션 10 배포 뒤와 차이 0.
 - 화면(배포): `/global-indicators`·`/liquidity/us`·`/liquidity/us/backtest`·`/inflation` 390px 가로 스크롤 없음, "불러오는 중" 잔류 없음, 수동 타일 라벨·모달 실시간 값·변동성 계산값 표시.
 
+
+### 23-8. 주간 금리 글 워크플로 중지 (2026-10-19)
+- `Weekly Macro Article` 의 출력(`posts/fed-rate/`, `data/fed-news.json`)을 읽는 페이지·메뉴가 없어(`lib/posts.ts` 는 `/economics` 에서 `economics` 분류만 읽음) `gh workflow disable` 로 중지함(상태 `disabled_manually`, 파일·비밀키는 그대로, 다시 켜기 `gh workflow enable "Weekly Macro Article"`). 키 교체·삭제는 여전히 사람이 정할 항목(27번).

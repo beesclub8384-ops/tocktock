@@ -166,7 +166,7 @@
 - **NFCI**: 시카고 연은 서면 허락을 구할지(안 구하면 화면에서 뺄지 — 점수가 바뀜).
 - **한국 10년물**: 대체 출처 — 한국은행 ECOS API 키를 발급할지, OECD 이용 조건을 직접 확인할지.
 - **이용 약관 페이지**: 남은 FRED 사용(NFCI·한국 10년물, TED 는 API 응답에만) 때문에 필요한지.
-- **ANTHROPIC_API_KEY**: GitHub 키 교체 또는 주간 글 워크플로 중지(아래 3-1), Vercel 키 유효성 확인(결정 로그 27번).
+- **ANTHROPIC_API_KEY**: 주간 글 워크플로는 화면이 없어 중지함(2026-10-19, 아래 3-1). 남은 결정은 GitHub 키를 교체할지 지울지, Vercel 키 유효성 확인(결정 로그 27번).
 - **남은 하드코딩**: `/credit`·`/ken-fisher`·`/sectors` 의 시점이 지난 문장과 예시 숫자는 편집 성격이라 건드리지 않았습니다. 숨긴 수동 타일 18개를 다시 살릴지.
 
 ### 3-0b. /global-indicators 수동 타일 검증 (미션 11, 2026-10-19)
@@ -205,7 +205,9 @@
 - Vercel 환경변수: 선물 매매 기록 분석(`/api/futures-trading`, cron `collect-market-data`)이 씁니다. 이 키가 유효한지는 확인하지 않았습니다(확인하려면 유료 호출이 필요).
 - 로컬 `.env.local`: 작업 보조 스크립트들이 씁니다.
 
-**워크플로를 먼저 멈추려면** (키를 정하기 전까지 매주 실패하지 않게)
+**주간 글 워크플로는 화면이 없어 중지함(2026-10-19)** — 출력(`posts/fed-rate/`, `data/fed-news.json`)을 읽는 페이지·메뉴가 없음을 확인(`lib/posts.ts` 를 부르는 곳은 `/economics` 뿐이고 `economics` 분류만 읽음). `gh workflow disable "Weekly Macro Article"` 로 껐고 상태는 `disabled_manually`. 워크플로 파일과 비밀키는 그대로입니다. **다시 켜는 방법**: `gh workflow enable "Weekly Macro Article"` 또는 아래 화면 순서의 **Enable workflow**.
+
+**워크플로를 멈추는 화면 순서** (참고)
 1. GitHub 에서 저장소를 열고 위쪽의 **Actions** 탭을 누릅니다.
 2. 왼쪽 목록에서 **Weekly Macro Article** 을 누릅니다.
 3. 오른쪽 위의 **…**(점 세 개) 메뉴에서 **Disable workflow** 를 누릅니다. 다시 켤 때는 같은 화면의 **Enable workflow**.
@@ -222,7 +224,7 @@
 - [x] ~~관측소의 FRED 사용~~ (미션 6에서 없앰)
 - [x] ~~관측소 밖 FRED 사용 처리~~ (미션 8에서 원출처로 옮김)
 - [ ] 남은 FRED: NFCI(시카고 연은 서면 허락 여부), 한국 10년물(대체 출처·한국은행 키) 결정 (TED 는 점수·카드에서 빠짐)
-- [ ] GitHub 비밀키 ANTHROPIC_API_KEY 무효(주간 금리 글 예약 실행 실패) — 교체 또는 워크플로 중지 결정
+- [ ] GitHub 비밀키 ANTHROPIC_API_KEY 무효 — 주간 글 워크플로는 중지함(2026-10-19, 다시 켜기 `gh workflow enable`). 키를 교체할지 지울지 결정
 - [ ] 숨긴 수동 타일 18개를 공식 출처로 다시 살릴지 결정(3-0b)
 - [ ] Vercel ANTHROPIC_API_KEY 유효성(선물 분석, 마지막 결과 2026-06-04) 확인
 - [ ] 관측소 밖 하드코딩 전수 점검 결과 검토(결정 로그 8장 26번, `docs/observatory-audit/m10-hardcode-audit.md`)
