@@ -15,6 +15,7 @@ import {
   type ObservatoryStatus,
   type ReservesPoint,
   tailFiringStats,
+  FIRING_REGIME_START,
   type FiringStats,
 } from "@/lib/observatory-constants";
 
@@ -22,7 +23,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 export interface ReservesResponse {
-  /** 발동 비율 — 각 시점에 같은 판정 함수를 적용 (관측소 작업 규칙 4) */
+  /** 발동 비율 — 각 시점에 같은 판정 함수를 적용 (관측소 작업 규칙 4). 제도 시작 전 구간은 뺀다(FIRING_REGIME_START, 미션 7) */
   firing: FiringStats;
   /** 십억 달러 단위 (수집 단계에서 변환 완료 — 여기서 재변환하지 않는다) */
   series: ReservesPoint[];
@@ -77,7 +78,7 @@ export async function GET() {
       daysSinceLatest !== null && daysSinceLatest > RESERVES_STALE_DAYS;
 
     const body: ReservesResponse = {
-      firing: tailFiringStats(series.map((p) => p.date), series, (t) => evaluateReserves(t).status),
+      firing: tailFiringStats(series.map((p) => p.date), series, (t) => evaluateReserves(t).status, FIRING_REGIME_START.reserves),
       series,
       latest: verdict.latest,
       previous: verdict.previous,

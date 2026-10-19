@@ -10,6 +10,7 @@ import {
   type ObservatoryStatus,
   type SrfPoint,
   tailFiringStats,
+  FIRING_REGIME_START,
   type FiringStats,
 } from "@/lib/observatory-constants";
 
@@ -19,7 +20,7 @@ export const maxDuration = 60;
 export interface SrfResponse {
   /** 뉴욕 연은 이용 약관이 요구하는 출처 표기 (app/observatory/source-notices.tsx) */
   attribution: string;
-  /** 발동 비율 — 각 시점에 같은 판정 함수를 적용 (관측소 작업 규칙 4) */
+  /** 발동 비율 — 각 시점에 같은 판정 함수를 적용 (관측소 작업 규칙 4). 제도 시작 전 구간은 뺀다(FIRING_REGIME_START, 미션 7) */
   firing: FiringStats;
   series: SrfPoint[];
   latest: SrfPoint | null;
@@ -56,7 +57,7 @@ export async function GET() {
 
     const body: SrfResponse = {
       attribution: nyFedAttribution(),
-      firing: tailFiringStats(series.map((p) => p.date), series, (t) => evaluateSrf(t).status),
+      firing: tailFiringStats(series.map((p) => p.date), series, (t) => evaluateSrf(t).status, FIRING_REGIME_START.srf),
       series,
       latest: verdict.latest,
       status: verdict.status,

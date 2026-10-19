@@ -2396,10 +2396,53 @@ const TAIL_FOR_FIXED_RULES = 30;
 export function tailFiringStats<T>(
   labels: string[],
   series: T[],
-  statusOf: (tail: T[]) => ObservatoryStatus | null
+  statusOf: (tail: T[]) => ObservatoryStatus | null,
+  /** 이 날짜(라벨) 앞 시점은 발동 비율에서 뺀다 — FIRING_REGIME_START (미션 7). 판정 함수의 입력은 그대로 */
+  fromLabel?: string
 ): FiringStats {
   return tallyFiring(
     labels,
-    series.map((_, i) => statusOf(series.slice(Math.max(0, i + 1 - TAIL_FOR_FIXED_RULES), i + 1)))
+    series.map((_, i) =>
+      fromLabel !== undefined && labels[i] < fromLabel
+        ? null
+        : statusOf(series.slice(Math.max(0, i + 1 - TAIL_FOR_FIXED_RULES), i + 1))
+    )
   );
 }
+
+/* ────────────────────────────────────────────────────────────
+ * 제도 변경 전 구간을 발동 비율에서 빼는 날짜 (2026-10-19 미션 7, 결정 로그 19장)
+ *
+ * 규칙(계산 전에 선언, 한 번만 적용): "제도 변경 전 구간은 값은 그대로 보여주되 발동 비율 계산과 판정 이력에서
+ * 제외한다." 지표가 재려는 장치·제도가 시작된 날을 공식 문서 원문으로 확인한 지표만, 날짜 하나씩.
+ * 값·차트·현재 판정·임계값은 바꾸지 않는다. 결과가 나빠도 날짜를 옮기지 않는다.
+ * ──────────────────────────────────────────────────────────── */
+export const FIRING_REGIME_START = {
+  /**
+   * 상설 레포 창구(SRF) 설치. 연준 2021-07-28 보도자료
+   * https://www.federalreserve.gov/newsevents/pressreleases/monetary20210728b.htm —
+   * "The Federal Open Market Committee on Wednesday announced the establishment of two standing repurchase
+   * agreement (repo) facilities—a domestic standing repo facility (SRF) and …"
+   * 그 전 레포는 준비금이 부족하던 시절의 정기 임시 공개시장조작이라 SRF 사용과 뜻이 다르다.
+   * 발표일을 쓴다(뉴욕 연은 운영 조건 발효는 다음 날 2021-07-29. 차이 1영업일, 그날 사용 0 — 결정 로그 19-6).
+   */
+  srf: "2021-07-28",
+  /**
+   * 익일물 고정금리 역레포(ON RRP) 운영 시작. 뉴욕 연은 2013-09-20 성명
+   * https://www.newyorkfed.org/markets/opolicy/operating_policy_130920 —
+   * "the Committee authorized the Desk to conduct a series of daily overnight, fixed-rate RRP operations
+   * beginning the week of September 23, 2013"
+   * 그 전 역레포는 가끔 열린 임시 조작이다. 다만 이날부터의 운영도 처음에는 "limited technical exercise"(기관당
+   * 5억 달러 한도)였다 — 한계로 페이지에 적는다(미션 7 독립 검증 지적 1).
+   */
+  rrp: "2013-09-23",
+  /**
+   * 지급준비금 이자 지급 시작. 연준 2008-10-06 보도자료
+   * https://www.federalreserve.gov/newsevents/pressreleases/monetary20081006a.htm —
+   * "The Federal Reserve Board on Monday announced that it will begin to pay interest on depository
+   * institutions' required and excess reserve balances." / "The revisions to Regulation D and the other
+   * changes will take effect on Thursday, October 9, 2008."
+   * 그 전에는 준비금을 일부러 적게(수십억 달러) 두는 제도였다.
+   */
+  reserves: "2008-10-09",
+} as const;

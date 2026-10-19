@@ -12,6 +12,7 @@ import {
   type ObservatoryStatus,
   type RrpPoint,
   tailFiringStats,
+  FIRING_REGIME_START,
   type FiringStats,
 } from "@/lib/observatory-constants";
 
@@ -21,7 +22,7 @@ export const maxDuration = 60;
 export interface RrpResponse {
   /** 뉴욕 연은 이용 약관이 요구하는 출처 표기 (app/observatory/source-notices.tsx) */
   attribution: string;
-  /** 발동 비율 — 각 시점에 같은 판정 함수를 적용 (관측소 작업 규칙 4) */
+  /** 발동 비율 — 각 시점에 같은 판정 함수를 적용 (관측소 작업 규칙 4). 제도 시작 전 구간은 뺀다(FIRING_REGIME_START, 미션 7) */
   firing: FiringStats;
   /** 십억 달러 단위 (뉴욕 연은 운영 결과의 달러를 십억 달러로 — 미션 6) */
   series: RrpPoint[];
@@ -75,7 +76,7 @@ export async function GET() {
 
     const body: RrpResponse = {
       attribution: nyFedAttribution(),
-      firing: tailFiringStats(series.map((p) => p.date), series, (t) => evaluateRrp(t).status),
+      firing: tailFiringStats(series.map((p) => p.date), series, (t) => evaluateRrp(t).status, FIRING_REGIME_START.rrp),
       series,
       latest: verdict.latest,
       previous: verdict.previous,

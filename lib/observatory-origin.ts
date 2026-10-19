@@ -32,7 +32,7 @@ export interface OriginObs {
   value: string;
 }
 
-type FedRelease = "H41" | "H8" | "CHGDEL" | "H15" | "Z1" | "PRATES";
+export type FedRelease = "H41" | "H8" | "CHGDEL" | "H15" | "Z1" | "PRATES";
 
 interface FedMapping {
   rel: FedRelease;
@@ -395,9 +395,9 @@ export async function fetchOriginObservations(fredSeriesId: string, observationS
  * cron 시작 때 부르면 연준 발표 묶음 6개를 동시에 받기 시작한다. 각 수집기는 같은 약속(promise)을 기다리므로
  * 차례로 받을 때보다 빨리 끝난다. 결과는 기다리지 않는다(실패는 각 수집기에서 errors 로 드러난다).
  */
-export function warmOriginReleases(isOrigin: (fredId: string) => boolean): void {
+export function warmOriginReleases(isOrigin: (fredId: string) => boolean, skip: FedRelease[] = []): void {
   const rels = new Set<FedRelease>();
-  for (const [id, m] of Object.entries(FED_MAPPING)) if (isOrigin(id)) rels.add(m.rel);
+  for (const [id, m] of Object.entries(FED_MAPPING)) if (isOrigin(id) && !skip.includes(m.rel)) rels.add(m.rel);
   for (const rel of rels) loadRelease(rel).catch(() => undefined);
 }
 
