@@ -13,6 +13,9 @@ import {
   REDIS_KEYS,
   SUPERINVESTOR_TTL,
   MIN_ADD_PERCENT,
+  MIN_ACTIVITIES,
+  MIN_MANAGERS,
+  MIN_CONSENSUS,
 } from "@/lib/types/superinvestor";
 
 const yahooFinance = new YahooFinance();
@@ -350,6 +353,27 @@ async function saveData(data: SuperinvestorStore): Promise<void> {
   await redis.set(REDIS_KEYS.DATA, data, { ex: SUPERINVESTOR_TTL });
 }
 
+// 수집 결과가 최소 기준에 못 미치는 항목마다 사유를 돌려준다. 정상이면 빈 배열.
+// 파싱이 깨져 0건이 나와도 에러 없이 기존 데이터를 덮어쓰는 무음 실패를 막는다.
+export function validateCollection({
+  activityCount,
+  managerCount,
+  consensusCount,
+}: {
+  activityCount: number;
+  managerCount: number;
+  consensusCount: number;
+}): string[] {
+  const reasons: string[] = [];
+  if (activityCount < MIN_ACTIVITIES)
+    reasons.push(`활동 ${activityCount}건 < 최소 ${MIN_ACTIVITIES}건`);
+  if (managerCount < MIN_MANAGERS)
+    reasons.push(`투자자 ${managerCount}명 < 최소 ${MIN_MANAGERS}명`);
+  if (consensusCount < MIN_CONSENSUS)
+    reasons.push(`동시 매수 ${consensusCount}개 < 최소 ${MIN_CONSENSUS}개`);
+  return reasons;
+}
+
 // ─── 전체 수집 파이프라인 ───
 
 // 투자자 수 기준으로 가장 많은 기간을 "기준 분기"로 고른다.
@@ -574,6 +598,16 @@ export async function collectAll(
   };
 
   if (save) {
+    // 활동 수는 분기 필터 전 전체 기준. 미달이면 저장하지 않고 실패로 올려 기존 Redis 데이터를 지킨다
+    const reasons = validateCollection({
+      activityCount: allActivities.length,
+      managerCount: managers.length,
+      consensusCount: consensus.length,
+    });
+    if (reasons.length > 0) {
+      console.error(`[superinvestor] 수집 결과 이상, 저장 안 함: ${reasons.join(", ")}`);
+      throw new Error("수집 결과 이상, 저장 안 함: " + reasons.join(", "));
+    }
     await saveData(store);
     console.log("[superinvestor] 저장 완료");
   }

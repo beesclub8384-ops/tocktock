@@ -82,7 +82,14 @@ export const REDIS_KEYS = {
   LOCK: "lock:cron:superinvestor-scan",
 } as const;
 
-export const SUPERINVESTOR_TTL = 604800; // 7일
+// 30일 — 수집이 3번 연속 실패해도 지난 데이터 유지. 데이터 시각은 화면의 수집 시각으로 확인
+export const SUPERINVESTOR_TTL = 2592000;
+
+// 수집 결과 최소 기준. 미달이면 Dataroma 구조 변경 등으로 파싱이 깨진 것으로 보고 저장하지 않는다.
+// 근거: 2026-10 기준 활동 약 721건(분기 필터 전), 투자자 83명, 동시 매수 51개
+export const MIN_ACTIVITIES = 100;
+export const MIN_MANAGERS = 40;
+export const MIN_CONSENSUS = 5;
 
 // Add 를 동시 매수로 인정하는 최소 변화율 (단위: 보유 주식 수 변화율 %)
 // 예: "Add 0.22%" 는 사실상 비중 유지라 제외
