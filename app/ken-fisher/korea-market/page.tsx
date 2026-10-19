@@ -103,7 +103,7 @@ export default function KoreaMarketPage() {
           <h2 className="text-lg font-bold">시장 매력도</h2>
           {market && (
             <span className="text-xs text-muted-foreground">
-              한국 10년물 {market.bond.yieldPct.toFixed(2)}% (FRED, {market.bond.asOfDate})
+              한국 10년물 {market.bond.yieldPct.toFixed(2)}% ({market.bond.origin === "oecd" ? "OECD" : "FRED"}, {market.bond.asOfDate})
             </span>
           )}
         </div>
@@ -154,22 +154,31 @@ export default function KoreaMarketPage() {
           <li>이 페이지의 모든 결과는 매수/매도 추천이 아닙니다.</li>
           <li>이익수익률(1/PER) 한 가지 지표만으로 투자 결정을 내려서는 안 됩니다.</li>
           <li>한국 시장 평균 PER은 시가총액 상위 30개 종목의 가중평균이며, 전체 시장과 차이가 있을 수 있습니다.</li>
-          <li>한국 10년물 국채 금리는 FRED(월별)이라 실시간 시세와 약간의 시차가 있습니다.</li>
+          <li>한국 10년물 국채 금리는 {market?.bond.origin === "oecd" ? "OECD 월별 자료" : "FRED(월별)"}라 실시간 시세와 약간의 시차가 있습니다.</li>
           <li>각 종목별로 <Link href="/ken-fisher/dcf-calculator" className="underline hover:text-foreground">DCF 계산기</Link> + 개별 산업/재무 분석 병행 필수.</li>
           <li>모든 투자 판단의 책임은 투자자 본인에게 있습니다.</li>
         </ul>
       </section>
 
-      {/* FRED 고지 — 한국 10년물은 아직 FRED 로 받는다 (OECD 이용 조건 미확인, 미션 8 결정 로그 20장) */}
-      <SiteSourceNotice
-        className="mt-4"
-        fredCitations={[
-          "Organization for Economic Co-operation and Development, Interest Rates: Long-Term Government Bond Yields: 10-Year: Main (Including Benchmark) for Korea [IRLTLT01KRM156N], retrieved from FRED",
-        ]}
-      />
+      {/* 출처 표기 — 한국 10년물은 미션 12부터 OECD SDMX API 에서 받는다(OECD 이용 약관 'Permitted Use' 가 요구하는
+          인용 형식 "OECD (year), (dataset name), (data source) URL (accessed on (date))"). SITE_DATA_SOURCE=fred 로 되돌리면 FRED 고지 */}
+      {market?.bond.origin === "oecd" && (
+        <SiteSourceNotice
+          className="mt-4"
+          origin={`한국 10년물 국채 금리 — OECD (${market.bond.fetchedAt.slice(0, 4)}), Financial market, OECD Data Explorer, https://data-explorer.oecd.org/vis?df[ds]=dsDisseminateFinalDMZ&df[id]=DSD_STES%40DF_FINMARK&df[ag]=OECD.SDD.STES (accessed on ${market.bond.fetchedAt.slice(0, 10)})`}
+        />
+      )}
+      {market && market.bond.origin !== "oecd" && (
+        <SiteSourceNotice
+          className="mt-4"
+          fredCitations={[
+            "Organization for Economic Co-operation and Development, Interest Rates: Long-Term Government Bond Yields: 10-Year: Main (Including Benchmark) for Korea [IRLTLT01KRM156N], retrieved from FRED",
+          ]}
+        />
+      )}
 
       {/* 보는 법 모달 */}
-      {showGuide && <GuideModal onClose={() => setShowGuide(false)} />}
+      {showGuide && <GuideModal onClose={() => setShowGuide(false)} bondOrigin={market?.bond.origin} />}
     </div>
   );
 }
@@ -534,7 +543,7 @@ function ScreeningSection() {
 }
 
 // ── 보는 법 모달 ──
-function GuideModal({ onClose }: { onClose: () => void }) {
+function GuideModal({ onClose, bondOrigin }: { onClose: () => void; bondOrigin?: "oecd" | "fred" }) {
   const { position, handleMouseDown } = useDraggable();
   const { size, handleResizeMouseDown } = useResizable();
 
@@ -603,7 +612,8 @@ function GuideModal({ onClose }: { onClose: () => void }) {
                 <strong className="text-foreground">시장 평균 PER</strong>: 코스피/코스닥 시가총액 상위 30개의 시총 가중평균. 적자·이상치 제외.
               </div>
               <div className="rounded-lg border border-border bg-muted/30 p-3">
-                <strong className="text-foreground">한국 10년물 국채</strong>: FRED의 IRLTLT01KRM156N (월별 갱신).
+                <strong className="text-foreground">한국 10년물 국채</strong>:{" "}
+                {bondOrigin === "oecd" ? "OECD 장기금리(Financial market, KOR.M.IRLT, 월별 갱신)." : "FRED의 IRLTLT01KRM156N (월별 갱신)."}
               </div>
             </div>
           </section>

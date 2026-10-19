@@ -20,11 +20,13 @@
  *  - BEA NIPA 월별 파일: PCEPI(DPCERG), PCEPILFE(DPCCRG)
  *  - 뉴욕 연은 Markets API: RRPONTSYD(역레포 운영 결과), SOFR
  *  - 발표 일정: BLS 일정표(ics), BEA 일정표(ics), 인구조사국 경제지표 일정표 — FRED release/dates 대신
+ *  - OECD SDMX API(키 없음): IRLTLT01KRM156N(한국 장기금리 10년물, OECD.SDD.STES DSD_STES@DF_FINMARK KOR.M.IRLT) — 미션 12.
+ *    OECD 이용 약관 'Permitted Use'(출처 표기 조건으로 재배포 허용), FRED 와 2000-10~2026-09 312개월 불일치 0 (결정 로그 24-3)
  *
  * 전환하지 않은 시리즈 (FRED 그대로, 이유는 결정 로그 20장·사람이 결정할 항목):
- *  - NFCI (시카고 연은): 시카고 연은 법적 고지가 재게시·배포에 서면 허락을 요구한다.
+ *  - NFCI (시카고 연은): 시카고 연은 법적 고지가 재게시·배포에 서면 허락을 요구한다. 미션 12부터 기본으로 받지도 쓰지도
+ *    않는다(lib/liquidity-license.ts, 되돌리기 LIQUIDITY_NFCI=on). SITE_DATA_SOURCE=fred 와는 따로 움직인다.
  *  - TEDRATE: ICE LIBOR 로 계산된 FRED 자체 시리즈(2022-01 중단). 허락 없이 받을 원출처가 없다.
- *  - IRLTLT01KRM156N (OECD): OECD 이용 조건 원문을 이 환경에서 열지 못했고(403), 원자료는 한국은행 자료다.
  */
 
 /** 원출처에서 받는 FRED 시리즈 ID */
@@ -46,6 +48,7 @@ export const SITE_ORIGIN_SERIES = new Set<string>([
   "PCEPILFE",
   "RRPONTSYD",
   "SOFR",
+  "IRLTLT01KRM156N",
 ]);
 
 /** 사이트 전체 스위치: SITE_DATA_SOURCE=fred 면 모두 FRED */

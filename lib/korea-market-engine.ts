@@ -12,6 +12,7 @@
  */
 
 import { redis } from "./redis";
+import { isSiteOriginSeries } from "./site-source-config";
 import { fetchKoreanStockPrice } from "./kis-client";
 import {
   KOSPI_TOP,
@@ -30,7 +31,9 @@ export type Verdict = "attractive" | "neutral" | "unattractive";
 export interface BondYieldResult {
   yieldPct: number;       // 4.3 = 4.3%
   asOfDate: string;       // "2026-03-01"
-  source: string;         // "FRED IRLTLT01KRM156N"
+  source: string;         // "OECD DSD_STES@DF_FINMARK KOR.M.IRLT" 또는 "FRED IRLTLT01KRM156N"
+  /** 어디서 받았나 (미션 12) — 화면의 출처 표기·FRED 고지가 이것을 본다. 예전 캐시에는 없음(= fred) */
+  origin?: "oecd" | "fred";
   fetchedAt: string;
 }
 
@@ -109,10 +112,70 @@ function classifyVerdict(spreadPct: number | null): Verdict | null {
   return "unattractive";
 }
 
-// ── FRED: 한국 10년물 ──
+// ── OECD SDMX API: 한국 10년물 (미션 12, 키 없음) ──
+// FRED IRLTLT01KRM156N 은 이 OECD 시리즈(Financial market, KOR.M.IRLT, 월평균 %)를 그대로 옮긴 것이다 —
+// 2000-10~2026-09 312개월 값이 모두 같음(결정 로그 24-3). 날짜는 FRED 와 같게 달 첫날("2026-09-01")로 둔다.
+const OECD_KOR_LT_URL =
+  "https://sdmx.oecd.org/public/rest/data/OECD.SDD.STES,DSD_STES@DF_FINMARK,/KOR.M.IRLT.PA.....";
+
+async function fetchKoreanBondYieldOecd(): Promise<BondYieldResult> {
+  const start = new Date();
+  start.setUTCMonth(start.getUTCMonth() - 24);
+  const startPeriod = start.toISOString().slice(0, 7);
+  const r = await fetch(`${OECD_KOR_LT_URL}?startPeriod=${startPeriod}`, {
+    headers: { Accept: "application/vnd.sdmx.data+csv; charset=utf-8", "User-Agent": "TockTock/1.0 (https://tocktock.vercel.app)" },
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!r.ok) throw new Error(`OECD fetch failed: ${r.status}`);
+  const lines = (await r.text()).trim().split(/\r?\n/);
+  const head = lines[0].split(",");
+  const iT = head.indexOf("TIME_PERIOD");
+  const iV = head.indexOf("OBS_VALUE");
+  if (iT < 0 || iV < 0) throw new Error("OECD CSV: TIME_PERIOD/OBS_VALUE 열이 없습니다");
+  const rows = lines
+    .slice(1)
+    .map((l) => l.split(","))
+    .filter((c) => /^\d{4}-\d{2}$/.test(c[iT]) && c[iV] !== "" && Number.isFinite(parseFloat(c[iV])))
+    .sort((a, b) => (a[iT] < b[iT] ? 1 : -1));
+  if (rows.length === 0) throw new Error("OECD returned no usable observation");
+  return {
+    yieldPct: parseFloat(rows[0][iV]),
+    asOfDate: `${rows[0][iT]}-01`,
+    source: "OECD Financial market (DSD_STES@DF_FINMARK) KOR.M.IRLT — Long-term interest rates, monthly",
+    origin: "oecd",
+    fetchedAt: new Date().toISOString(),
+  };
+}
+
+// ── 한국 10년물: 기본은 OECD 원출처, SITE_DATA_SOURCE=fred 면 FRED (lib/site-source-config.ts) ──
 export async function fetchKoreanBondYield(): Promise<BondYieldResult> {
   const cached = await redis.get<BondYieldResult>(REDIS_KEYS.bondYield);
   if (cached && cached.yieldPct != null) return cached;
+
+  if (isSiteOriginSeries("IRLTLT01KRM156N")) {
+    // OECD API 는 가끔 500 을 돌려준다(미션 12 시험 중 1회) — 한 번 다시 시도하고, 그래도 실패하면 마지막으로 받은 값을
+    // 그 기준월 그대로 쓴다(기한 없는 키). 마지막 값도 없으면 에러를 던진다
+    let result: BondYieldResult;
+    try {
+      result = await fetchKoreanBondYieldOecd().catch(async () => {
+        await new Promise((res) => setTimeout(res, 1500));
+        return fetchKoreanBondYieldOecd();
+      });
+    } catch (e) {
+      // 조용히 넘어가지 않게 로그를 남기고, 장애 동안 요청마다 OECD 를 다시 두드리지 않게 마지막 값을 1시간만 캐시한다
+      // (미션 12 독립 검증 지적 3). 화면에는 그 값의 기준월이 그대로 나온다
+      console.error("korea-market: OECD 한국 10년물 수집 실패 — 마지막 값 사용", e);
+      const last = await redis.get<BondYieldResult>(REDIS_KEYS.bondYieldLastGood);
+      if (last && last.yieldPct != null) {
+        await redis.set(REDIS_KEYS.bondYield, last, { ex: 3600 });
+        return last;
+      }
+      throw e;
+    }
+    await redis.set(REDIS_KEYS.bondYield, result, { ex: CACHE_TTL.bondYield });
+    await redis.set(REDIS_KEYS.bondYieldLastGood, result);
+    return result;
+  }
 
   const apiKey = process.env.FRED_API_KEY;
   if (!apiKey) throw new Error("FRED_API_KEY not set");
@@ -129,6 +192,7 @@ export async function fetchKoreanBondYield(): Promise<BondYieldResult> {
     yieldPct: parseFloat(obs.value),
     asOfDate: obs.date,
     source: "FRED IRLTLT01KRM156N (Long-term gov bond yield Korea, monthly)",
+    origin: "fred",
     fetchedAt: new Date().toISOString(),
   };
   await redis.set(REDIS_KEYS.bondYield, result, { ex: CACHE_TTL.bondYield });

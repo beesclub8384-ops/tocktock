@@ -64,4 +64,6 @@ export interface ExcludedComponent {
   name: string;
   lastDate: string | null;
   reason: string;
+  /** 점수 아래 한 줄 표시용 짧은 사유 (미션 12: "중단", "재게시 허락 필요", "낡은 값") */
+  short?: string;
 }

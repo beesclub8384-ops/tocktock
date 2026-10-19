@@ -87,6 +87,8 @@ interface BacktestData {
   /** 낡은 입력 규칙 (미션 9) */
   monthsWithExcluded?: number;
   excludedCounts?: Record<string, number>;
+  /** 재게시 허락이 없어 모든 달에서 뺀 구성 요소 (미션 12: NFCI) */
+  licenseExcluded?: { id: string; name: string; reason: string }[];
   /** FRED 로 받는 시리즈와 출처 표기 (미션 8) */
   fredSeries?: string[];
   fredCitations?: string[];
@@ -158,8 +160,10 @@ function ChanceNote({ points, isHigh, groups }: { points: BacktestPoint[]; isHig
     </>
   ) : (
     <>
-      {groups}의 1~6개월 뒤 QQQ 상승 비율 차이를 정확검정(Fisher)으로 보면 일부 기간은 우연으로 보기 어렵습니다(가장 작은
-      p-값 {c.pMin.toFixed(3)}, 표본 {c.nMin}~{c.nMax}개월). 다만 기간이 겹쳐 실제 독립 표본은 더 적습니다.
+      {/* 미션 12(결정 로그 24-1, 결과 보기 전에 정함): 작게 나와도 예측력을 주장하지 않고 다수 비교·겹치는 기간을 함께 적는다 */}
+      {groups}의 1~6개월 뒤 QQQ 상승 비율 차이를 정확검정(Fisher)으로 보면 일부 기간은 p-값이 0.05보다 작습니다(가장 작은
+      p-값 {c.pMin.toFixed(3)}, 표본 {c.nMin}~{c.nMax}개월). 다만 여섯 기간을 따로 비교했기 때문에 그중 하나쯤은 우연으로도
+      작게 나올 수 있고, 기간이 겹쳐 실제 독립 표본은 더 적습니다. 그래서 이 결과를 예측력의 근거로 보지는 않습니다.
     </>
   );
 }
@@ -553,11 +557,17 @@ export default function BacktestPage() {
             <p className="mt-0.5 text-xs text-muted-foreground">
               마지막 업데이트: {formatKST(data.fetchedAt)}
             </p>
+            {/* 재게시 허락이 없어 모든 달에서 뺀 지표 (미션 12) */}
+            {data.licenseExcluded?.map((e) => (
+              <p key={e.id} className="mt-1 text-xs text-muted-foreground">
+                {e.name}: {e.reason} 모든 달을 이 지표 없이 계산했습니다.
+              </p>
+            ))}
             {/* 낡은 입력 안내 (미션 9) — 각 달 말일 시점에서 낡은 구성 요소는 그 달 점수에서 뺐습니다 */}
             {data.monthsWithExcluded != null && data.monthsWithExcluded > 0 && (
               <p className="mt-1 text-xs text-muted-foreground">
                 각 달 말일 시점에서 마지막 관측일이 갱신 주기의 3배보다 오래된 지표는 그 달 점수에서 빼고 남은 지표로
-                계산했습니다(6개 중 일부를 뺀 달 {data.monthsWithExcluded}개월:{" "}
+                계산했습니다({6 - (data.licenseExcluded?.length ?? 0)}개 중 일부를 뺀 달 {data.monthsWithExcluded}개월:{" "}
                 {Object.entries(data.excludedCounts ?? {})
                   .map(([k, n]) => `${BT_COMPONENT_NAMES[k] ?? k} ${n}개월`)
                   .join(", ")}
@@ -624,6 +634,21 @@ export default function BacktestPage() {
               <li>
                 매달의 1~6개월 뒤 수익률을 쓰므로 기간이 겹칩니다. 실제로 서로 독립인 표본은 개월 수보다 적습니다.
               </li>
+              {/* 미션 12 독립 검증 지적 1·2: 예전부터 있던 방법의 한계를 밝힌다(계산 방법은 바꾸지 않음) */}
+              <li>
+                M2 처럼 다음 달에 발표되는 지표도 그달 점수에 그달 값을 씁니다. 발표 시차와 나중의 수정은 반영하지 않았습니다.
+              </li>
+              {(() => {
+                const [y0, m0] = data.periodStart.split("-").map(Number);
+                const [y1, m1] = data.periodEnd.split("-").map(Number);
+                const missing = (y1 - y0) * 12 + (m1 - m0) + 1 - data.totalMonths;
+                return missing > 0 ? (
+                  <li>
+                    분석 기간 중 {missing}개월은 구리·금 월간 가격을 받지 못해 빠져 있습니다. 3개월 전 점수가 없는 달은 국면을
+                    상승 쪽(바닥 탈출·상승 지속)으로 분류합니다.
+                  </li>
+                ) : null;
+              })()}
               <li>본 분석은 참고용이며, 투자 조언이 아닙니다.</li>
             </ul>
           </section>
@@ -632,7 +657,7 @@ export default function BacktestPage() {
             본 페이지의 모든 지표와 분석은 참고용이며, 투자 권유가 아닙니다.
           </p>
 
-          {/* 출처 표기 — 원출처로 받는 시리즈와 아직 FRED 로 받는 시리즈(NFCI·TED 스프레드) (미션 8) */}
+          {/* 출처 표기 — 원출처로 받는 시리즈와 아직 FRED 로 받는 시리즈(TED 스프레드; NFCI 는 미션 12에서 뺌) (미션 8) */}
           <SiteSourceNotice
             className="mt-4"
             origin={

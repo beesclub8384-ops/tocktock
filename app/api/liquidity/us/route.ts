@@ -5,13 +5,15 @@ import { isSiteOriginSeries } from "@/lib/site-source-config";
 import { siteObservations } from "@/lib/site-origin";
 import { liquiditySources } from "@/lib/liquidity-sources";
 import { isStale, lastOnOrBefore, staleReason, type Cadence, type ExcludedComponent } from "@/lib/liquidity-staleness";
+import { nfciEnabled, NFCI_NAME, NFCI_SHORT_REASON, NFCI_EXCLUSION_REASON } from "@/lib/liquidity-license";
 
 export const maxDuration = 60;
 
 const FRED_BASE = "https://api.stlouisfed.org/fred/series/observations";
 // v6 (미션 8): 원출처 전환 — v5 에는 FRED 로 받은 값이 들어 있어 키를 바꿨다(v5 는 TTL 24시간으로 저절로 사라진다)
 // v7 (미션 9): 낡은 입력 규칙으로 점수와 응답 모양이 바뀌어 키를 바꿨다(v6 은 TTL 24시간)
-const CACHE_KEY = "liquidity:us:v7";
+// v8 (미션 12): NFCI 제외(재게시 허락, lib/liquidity-license.ts) — v7 에는 NFCI 값이 들어 있다(v7 은 TTL 24시간)
+const CACHE_KEY = "liquidity:us:v8";
 const CACHE_TTL = 86400;
 
 interface FredObs {
@@ -34,7 +36,7 @@ async function fetchFredSeries(
 
 /**
  * 시리즈 받기 (미션 8): 원출처로 전환한 시리즈(WALCL·WTREGEN 연준 H.4.1, M2SL 연준 H.6, T10Y2Y 연준 H.15 계산,
- * RRPONTSYD 뉴욕 연은)는 원출처에서 FRED 와 같은 행으로 받고, 나머지(NFCI·TEDRATE)는 FRED 그대로다.
+ * RRPONTSYD 뉴욕 연은)는 원출처에서 FRED 와 같은 행으로 받고, 나머지(TEDRATE, 되돌렸을 때의 NFCI)는 FRED 그대로다.
  * 스위치: lib/site-source-config.ts (SITE_DATA_SOURCE=fred 면 모두 FRED)
  */
 async function fetchSeries(seriesId: string, limit: number): Promise<FredObs[]> {
@@ -140,7 +142,8 @@ export interface IndicatorResult {
 export interface LiquidityResponse {
   finalScore: number;
   macroScore: number;
-  marketScore: number;
+  /** 묶음의 지표가 모두 빠지면 null (미션 12: 마켓 유동성은 TED 낡음 + NFCI 제외로 빈다) */
+  marketScore: number | null;
   subtitle: string;
   indicators: IndicatorResult[];
   regime: RegimeType;
@@ -169,7 +172,8 @@ async function computeLiquidity(): Promise<LiquidityResponse> {
       fetchSeries("WTREGEN", 530),
       fetchSeries("M2SL", 132),
       fetchSeries("T10Y2Y", 2600),
-      fetchSeries("NFCI", 530),
+      // NFCI 는 재게시 허락이 없는 동안 받지 않는다 (미션 12, lib/liquidity-license.ts)
+      nfciEnabled() ? fetchSeries("NFCI", 530) : Promise.resolve([] as FredObs[]),
     ]);
 
   // TEDRATE may be discontinued — graceful fallback
@@ -328,14 +332,20 @@ async function computeLiquidity(): Promise<LiquidityResponse> {
   const asOf = new Date().toISOString().slice(0, 10);
   const older = (a?: string, b?: string) => (!a || !b ? undefined : a < b ? a : b);
   const sortedDates = (obs: FredObs[]) => obs.map((o) => o.date).sort();
-  const COMPONENTS: { id: string; name: string; group: "macro" | "market"; cadence: Cadence; dates: string[]; note?: string }[] = [
+  const COMPONENTS: { id: string; name: string; group: "macro" | "market"; cadence: Cadence; dates: string[]; note?: string; short?: string }[] = [
     { id: "net-liquidity", name: "연준 순유동성", group: "macro", cadence: "weekly", dates: [] }, // 날짜는 lastAt 이 WALCL·WTREGEN 으로 따로 본다
     { id: "m2-growth", name: "M2 통화량 증가율", group: "macro", cadence: "monthly", dates: sortedDates(m2Obs) },
     { id: "t10y2y", name: "장단기 금리차", group: "macro", cadence: "bday", dates: sortedDates(t10y2yObs) },
     { id: "copper-gold", name: "구리/금 비율", group: "macro", cadence: "bday", dates: cuAuDates },
-    { id: "ted-spread", name: "테드 스프레드", group: "market", cadence: "bday", dates: sortedDates(tedObs), note: "FRED 가 2022년 1월에 이 시리즈 갱신을 멈췄습니다(3개월 LIBOR 자료 제거)." },
-    { id: "nfci", name: "NFCI (금융상황지수)", group: "market", cadence: "weekly", dates: sortedDates(nfciObs) },
+    { id: "ted-spread", name: "테드 스프레드", group: "market", cadence: "bday", dates: sortedDates(tedObs), note: "FRED 가 2022년 1월에 이 시리즈 갱신을 멈췄습니다(3개월 LIBOR 자료 제거).", short: "중단" },
+    ...(nfciEnabled()
+      ? [{ id: "nfci", name: NFCI_NAME, group: "market" as const, cadence: "weekly" as const, dates: sortedDates(nfciObs) }]
+      : []),
   ];
+  // 재게시 허락이 없어 뺀 구성 요소 (미션 12) — 구성 요소 수(componentsTotal)에는 넣고, 계산에서는 처음부터 뺀다
+  const licenseExcluded: ExcludedComponent[] = nfciEnabled()
+    ? []
+    : [{ id: "nfci", name: NFCI_NAME, lastDate: null, reason: NFCI_EXCLUSION_REASON, short: NFCI_SHORT_REASON }];
   const walclDates = sortedDates(walclObs);
   const tgaDates = sortedDates(tgaObs);
   const lastAt = (c: (typeof COMPONENTS)[number], at: string): string | null =>
@@ -343,7 +353,7 @@ async function computeLiquidity(): Promise<LiquidityResponse> {
   const staleNow = new Map(COMPONENTS.map((c) => [c.id, isStale(lastAt(c, asOf), asOf, c.cadence)]));
   const excluded: ExcludedComponent[] = COMPONENTS.filter((c) => staleNow.get(c.id)).map((c) => {
     const last = lastAt(c, asOf);
-    return { id: c.id, name: c.name, lastDate: last, reason: `${staleReason(last, c.cadence)}${c.note ? " " + c.note : ""}` };
+    return { id: c.id, name: c.name, lastDate: last, reason: `${staleReason(last, c.cadence)}${c.note ? " " + c.note : ""}`, short: c.short ?? "낡은 값" };
   });
 
   const combinedById: Record<string, number> = {
@@ -367,11 +377,12 @@ async function computeLiquidity(): Promise<LiquidityResponse> {
 
   // For display purposes
   const macroScore = avgOf(macroIds, combinedById, staleNow) ?? 50;
-  const marketScore = avgOf(marketIds, combinedById, staleNow) ?? 50;
+  // 마켓 묶음이 비면 null — 화면은 "이 묶음의 지표가 없어 점수에 반영하지 않았습니다" (미션 12, 예전에는 50 으로 채웠다)
+  const marketScore = avgOf(marketIds, combinedById, staleNow);
 
   /* ── 5. Regime classification ──
    * 미션 11: regimeSignal·지표 description 의 반등·매수 신호 문구를 지웠다(백테스트가 우연과 구분되지 않음, 결정 로그 22-4·23-3).
-   * 점수 계산은 그대로. 응답 캐시(liquidity:us:v7, 24시간)가 바뀌면 새 문구가 나온다 */
+   * 점수 계산은 그대로. 응답 캐시(당시 liquidity:us:v7, 24시간)가 바뀌면 새 문구가 나온다 */
 
   const computePastScore = (): number | null => {
     const pNl =
@@ -396,7 +407,7 @@ async function computeLiquidity(): Promise<LiquidityResponse> {
       pM2 == null ||
       pT10 == null ||
       pCuAu == null ||
-      pNf == null
+      (nfciEnabled() && pNf == null)
     )
       return null;
 
@@ -406,7 +417,7 @@ async function computeLiquidity(): Promise<LiquidityResponse> {
     const pCuAuL = calcScore(pCuAu, cuAuHistory, false);
     const pTedL =
       pTed != null ? calcScore(pTed, tedValues, true) : 50;
-    const pNfL = calcScore(pNf, nfciValues, true);
+    const pNfL = pNf != null ? calcScore(pNf, nfciValues, true) : 50;
 
     const pNlM = momScore(nlMomH, 13, false);
     const pM2M = momScore(m2MomH, 3, false);
@@ -531,28 +542,31 @@ async function computeLiquidity(): Promise<LiquidityResponse> {
       stale: staleNow.get("ted-spread") ?? false,
       lastDate: lastAt(COMPONENTS.find((c) => c.id === "ted-spread")!, asOf),
     },
-    {
-      id: "nfci",
-      name: "NFCI (금융상황지수)",
-      value: Math.round(nfciLatest * 1000) / 1000,
-      score: r10(nfciScore),
-      levelScore: r10(nfciLevel),
-      momentumScore: r10(nfciMom),
-      combinedScore: r10(nfciScore),
-      unit: "",
-      description:
-        "시카고 연준 금융상황지수 (선행성은 이 사이트에서 통계적으로 확인되지 않음)",
-      category: "market",
-      inverted: true,
-      stale: staleNow.get("nfci") ?? false,
-      lastDate: lastAt(COMPONENTS.find((c) => c.id === "nfci")!, asOf),
-    },
+    // NFCI 는 허락이 없는 동안 응답에 넣지 않는다 (미션 12)
+    ...(nfciEnabled() ? [
+      {
+        id: "nfci",
+        name: NFCI_NAME,
+        value: Math.round(nfciLatest * 1000) / 1000,
+        score: r10(nfciScore),
+        levelScore: r10(nfciLevel),
+        momentumScore: r10(nfciMom),
+        combinedScore: r10(nfciScore),
+        unit: "",
+        description:
+          "시카고 연준 금융상황지수 (선행성은 이 사이트에서 통계적으로 확인되지 않음)",
+        category: "market" as const,
+        inverted: true,
+        stale: staleNow.get("nfci") ?? false,
+        lastDate: lastAt(COMPONENTS.find((c) => c.id === "nfci")!, asOf),
+      },
+    ] : []),
   ];
 
   return {
     finalScore: r10(finalScore),
     macroScore: r10(macroScore),
-    marketScore: r10(marketScore),
+    marketScore: marketScore == null ? null : r10(marketScore),
     subtitle:
       "연준 유동성·크레딧·시장 상황을 종합한 나스닥 4~6개월 선행 지표",
     indicators,
@@ -561,10 +575,10 @@ async function computeLiquidity(): Promise<LiquidityResponse> {
     regimeColor,
     regimeSignal,
     scoreChange3m,
-    componentsTotal: COMPONENTS.length,
+    componentsTotal: COMPONENTS.length + licenseExcluded.length,
     componentsUsed: COMPONENTS.length - excluded.length,
-    excluded,
-    ...liquiditySources(["WALCL", "RRPONTSYD", "WTREGEN", "M2SL", "T10Y2Y", "NFCI", "TEDRATE"]),
+    excluded: [...excluded, ...licenseExcluded],
+    ...liquiditySources(["WALCL", "RRPONTSYD", "WTREGEN", "M2SL", "T10Y2Y", ...(nfciEnabled() ? ["NFCI"] : []), "TEDRATE"]),
     fetchedAt: new Date().toISOString(),
   };
 }

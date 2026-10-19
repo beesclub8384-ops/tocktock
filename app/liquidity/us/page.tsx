@@ -30,7 +30,8 @@ type RegimeType = "RECOVERY" | "EXPANSION" | "SLOWDOWN" | "CONTRACTION";
 interface LiquidityData {
   finalScore: number;
   macroScore: number;
-  marketScore: number;
+  /** 묶음의 지표가 모두 빠지면 null (미션 12) */
+  marketScore: number | null;
   subtitle: string;
   indicators: IndicatorResult[];
   regime: RegimeType;
@@ -41,7 +42,7 @@ interface LiquidityData {
   /** 낡은 입력 규칙 (미션 9) */
   componentsTotal?: number;
   componentsUsed?: number;
-  excluded?: { id: string; name: string; lastDate: string | null; reason: string }[];
+  excluded?: { id: string; name: string; lastDate: string | null; reason: string; short?: string }[];
   /** FRED 로 받는 시리즈와 출처 표기 (미션 8) */
   fredSeries?: string[];
   fredCitations?: string[];
@@ -323,13 +324,13 @@ function IndicatorCard({ ind, onGuideOpen }: { ind: IndicatorResult; onGuideOpen
   );
 }
 
-function GuideAccordion() {
+function GuideAccordion({ hidden }: { hidden: Set<string> }) {
   const [openId, setOpenId] = useState<string | null>(null);
   return (
     <section className="mt-10">
       <h2 className="text-lg font-bold mb-4">지표 설명</h2>
       <div className="flex flex-col gap-2">
-        {Object.entries(GUIDE_DATA).map(([id, { title, body }]) => (
+        {Object.entries(GUIDE_DATA).filter(([id]) => !hidden.has(id)).map(([id, { title, body }]) => (
           <div key={id} className="rounded-lg border bg-card overflow-hidden">
             <button
               onClick={() => setOpenId(openId === id ? null : id)}
@@ -528,7 +529,7 @@ function NetLiquidityGuideModal({ onClose }: { onClose: () => void }) {
             돈이 풀리면 → 기업들이 대출을 받고 → 투자를 하고 → 실적이 좋아지고 → 그때서야 주가가 반응해요.
             <strong className="text-foreground"> 이 과정이 4~6개월 걸린다는 설명이에요.</strong>
           </p>
-          {/* 미션 11: 선행성 주장은 이 사이트 백테스트(Fisher 최소 p 0.0895·0.46)로 뒷받침되지 않는다 */}
+          {/* 미션 11: 선행성 주장은 이 사이트 백테스트(Fisher 최소 p 미션 11 0.0895·0.46, 미션 12 NFCI 제외 뒤 0.0674·0.40)로 뒷받침되지 않는다 */}
           <p className="mt-2 text-xs leading-relaxed text-amber-500/90">
             다만 이 &ldquo;4~6개월&rdquo;은 설명을 위한 이야기이고, 이 사이트는 개별 지표의 선행성을 따로 검정하지 않았고, 종합 점수 검정에서도 우연과 구분되지 않았습니다.
           </p>
@@ -1197,6 +1198,9 @@ const GUIDE_MODALS: Record<string, React.ComponentType<GuideModalProps>> = {
   "nfci": NfciGuideModal,
 };
 
+/** 묶음의 지표가 모두 빠졌을 때 안내 (미션 12) */
+const EMPTY_GROUP_NOTE = "이 묶음의 지표가 없어 점수에 반영하지 않았습니다.";
+
 /** 화면에 카드를 그리지 않는 지표 (미션 10) */
 const HIDDEN_CARDS = new Set(["ted-spread"]);
 
@@ -1270,12 +1274,14 @@ export default function UsLiquidityPage() {
           {/* 종합 점수 */}
           <ScoreGauge score={data.finalScore} />
 
-          {/* 낡은 입력 안내 (미션 9) */}
+          {/* 낡은 입력 안내 (미션 9) + 재게시 허락이 없어 뺀 지표 (미션 12) */}
           {data.componentsTotal != null && data.componentsUsed != null && (
             <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-xs leading-relaxed text-muted-foreground">
               <p>
                 {data.componentsTotal}개 중 {data.componentsUsed}개 지표로 계산했습니다.
                 {(data.excluded?.length ?? 0) === 0 && " 모든 지표가 최근 자료입니다."}
+                {(data.excluded?.length ?? 0) > 0 &&
+                  ` 제외: ${data.excluded!.map((e) => (e.short ? `${e.name.replace(/\s*\(.*\)$/, "")}(${e.short})` : e.name)).join(", ")}`}
               </p>
               {data.excluded?.map((e) => (
                 <p key={e.id} className="mt-1">
@@ -1288,7 +1294,14 @@ export default function UsLiquidityPage() {
           {/* 하위 점수 */}
           <div className="grid grid-cols-2 gap-3 mt-4">
             <SubScore label="거시 유동성" score={data.macroScore} />
-            <SubScore label="마켓 유동성" score={data.marketScore} />
+            {data.marketScore != null ? (
+              <SubScore label="마켓 유동성" score={data.marketScore} />
+            ) : (
+              <div className="rounded-lg border bg-card p-4">
+                <p className="text-xs text-muted-foreground mb-1">마켓 유동성</p>
+                <p className="text-xs leading-relaxed text-muted-foreground">{EMPTY_GROUP_NOTE}</p>
+              </div>
+            )}
           </div>
 
           {/* 국면 카드 */}
@@ -1307,11 +1320,15 @@ export default function UsLiquidityPage() {
           {/* 마켓 유동성 지표 */}
           <section className="mt-10">
             <h2 className="text-lg font-bold mb-4">마켓 유동성</h2>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {marketIndicators.map((ind) => (
-                <IndicatorCard key={ind.id} ind={ind} onGuideOpen={ind.id in GUIDE_MODALS ? () => setOpenGuide(ind.id) : undefined} />
-              ))}
-            </div>
+            {marketIndicators.length === 0 ? (
+              <p className="rounded-lg border bg-card px-4 py-3 text-sm text-muted-foreground">{EMPTY_GROUP_NOTE}</p>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {marketIndicators.map((ind) => (
+                  <IndicatorCard key={ind.id} ind={ind} onGuideOpen={ind.id in GUIDE_MODALS ? () => setOpenGuide(ind.id) : undefined} />
+                ))}
+              </div>
+            )}
           </section>
 
           {/* 점수 해석 기준 */}
@@ -1365,7 +1382,8 @@ export default function UsLiquidityPage() {
           </section>
 
           {/* 지표 설명 아코디언 */}
-          <GuideAccordion />
+          {/* NFCI 는 API 가 주지 않으면(재게시 허락 없음, 미션 12) 설명도 뺀다 */}
+          <GuideAccordion hidden={new Set(data.indicators.some((i) => i.id === "nfci") ? [] : ["nfci"])} />
 
           <div className="mt-10 text-center">
             <Link
@@ -1380,7 +1398,7 @@ export default function UsLiquidityPage() {
             본 페이지의 모든 지표와 점수는 참고용이며, 투자 권유가 아닙니다.
           </p>
 
-          {/* 출처 표기 — 원출처로 받는 시리즈와 아직 FRED 로 받는 시리즈(NFCI·TED 스프레드) (미션 8) */}
+          {/* 출처 표기 — 원출처로 받는 시리즈와 아직 FRED 로 받는 시리즈(TED 스프레드; NFCI 는 미션 12에서 뺌) (미션 8) */}
           <SiteSourceNotice
             className="mt-4"
             origin={

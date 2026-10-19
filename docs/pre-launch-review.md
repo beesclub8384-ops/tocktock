@@ -73,7 +73,7 @@
 | BEA(NIPA 월별 파일·발표 일정표, 미션 8) | https://www.bea.gov/about/policies-and-information/linking | 가능 | "the information posted on the BEA Web site is in the public domain and may be used or reproduced without specific permission. A citation such as "Source: U.S. Bureau of Economic Analysis" would be appreciated." | — |
 | 인구조사국(경제지표 일정표, 미션 8) | https://www.census.gov/economic-indicators/calendar-listview.html | 가능(날짜만) | 미국 정부 저작물, 발표 날짜(사실)만 씀 | 명시적 재사용 문장 |
 | 시카고 연은(NFCI, 미션 8 조사) | https://www.chicagofed.org/utilities/legal-notices | **서면 허락 필요** | "If you wish to utilize … copyrighted materials in any other way, such as republication or distribution, you must … obtain its written permission" → 원출처로 옮기지 않고 FRED 유지 | — |
-| OECD(한국 10년물, 미션 8 조사) | https://www.oecd.org/en/about/terms-conditions.html | 확인 못함 | 이 환경에서 403 으로 열리지 않음. 원자료는 한국은행 | 이용 조건 원문 |
+| OECD(한국 10년물, 미션 8 조사 → 미션 12 원문 확인) | https://www.oecd.org/en/about/terms-conditions.html | **출처 표기 조건으로 재배포 허용**(제3자 권리 예외) | "Except where additional restrictions apply as stated above, you can extract from, download, copy, adapt, print, distribute, share and embed Data for any purpose, even for commercial use. You must give appropriate credit to the OECD …" (3. Data → Permitted Use). curl·WebFetch 는 403, 실제 브라우저로 열림. 데이터 탐색기의 'source' 탭(제3자 권리 확인 자리)은 봇 확인 화면이라 열지 못함 | OECD 인용 형식 표기 |
 | 뉴욕 연은(사이트·Markets API·딜러 통계) | https://www.newyorkfed.org/privacy/termsofuse | 가능(조건) | 정해진 출처 표기("© [연도] Federal Reserve Bank of New York…")를 둬야 함. SOFR는 별도 고지문과 DTCC 문구 필수(FRED로 받아도 같음). 바꾼 내용 표시, 보증 암시 금지 → 관측소 모든 페이지 하단과 해당 API에 넣음 | — |
 
 ### FRED 상세 (미션 8 기준)
@@ -83,14 +83,15 @@
 - **관측소는 FRED 를 쓰지 않습니다.** 관측소가 쓰던 FRED 시리즈 18개 중 16개를 원출처로 바꿨습니다(미션 5: 연준 이사회 13·SOFR, 전 기간 불일치 0 / 미션 6: 역레포·레포, 차이 원인을 모두 설명하고 전환). 나머지 2개(SP500·NASDAQCOM)는 수집을 끄고 지웠습니다.
 - FRED 고지는 관측소 어디에도 나오지 않습니다(FRED 값이 없으므로).
 
-- **관측소 밖도 미션 8에서 원출처로 옮겼습니다.** FRED 값이 남은 화면은 둘입니다: `/liquidity/us`·백테스트(NFCI, TED 스프레드 — TED 는 미션 9 부터 점수 계산에서 빠짐)와 `/ken-fisher/korea-market`(한국 10년물). 그 화면에만 FRED 고지와 FRED 경유 출처를 둡니다(아래 표).
+- **관측소 밖도 미션 8에서 원출처로 옮겼습니다.** 미션 12 뒤 FRED 를 부르는 곳은 **`/liquidity/us`·백테스트의 TED 스프레드(TEDRATE) 하나**입니다(점수에서는 미션 9 부터 낡은 입력으로 빠지지만, 백테스트 2016-10~2021 달 점수와 API 응답 값에 쓰임). NFCI 는 미션 12에서 받지도 쓰지도 않게 했고(재게시 허락 없음), 한국 10년물은 OECD SDMX API 로 옮겼습니다. FRED 고지는 유동성 두 화면에만 남습니다(아래 표).
 
 **확인하지 못한 것**
-- 남은 세 시리즈를 지금처럼 고지만 두고 써도 되는지(법적 판단).
+- TED 스프레드를 지금처럼 고지만 두고 써도 되는지(법적 판단). OECD 데이터 탐색기의 'source' 탭(제3자 권리 여부)을 열지 못한 것.
 
 **사람이 할 일**
-- 남은 세 시리즈: 서면 허락을 구할지, 화면에서 뺄지(점수 계산이 바뀜), 한국은행 ECOS 키를 발급할지.
-- 사이트 이용 약관 페이지 결정. 세 시리즈를 빼거나 바꾸면 FRED 때문에 필요한 이유는 사라질 수 있습니다.
+- NFCI: 시카고 연은 서면 허락을 받으면 `LIQUIDITY_NFCI=on` 으로 다시 켤 수 있습니다.
+- TED 스프레드: API 응답·백테스트에서도 뺄지(빼면 백테스트 2016~2021 점수가 바뀜).
+- 사이트 이용 약관 페이지 결정. TED 하나만 남아 FRED 때문에 필요한 이유는 TED 를 빼면 사라집니다.
 
 ### 사이트 전체 FRED 사용처 — 미션 8 전환 결과 (2026-10-19)
 
@@ -99,16 +100,17 @@
 | 1 | `/api/global-indicators` | DGS2·DFII10·T10Y2Y, WALCL, CPIAUCSL·PAYEMS, PCEPI | **전환** | 연준 이사회 H.15(T10Y2Y 는 10년물−2년물 계산)·H.4.1, BLS 시계열 파일, BEA NIPA |
 | 2 | `/global-indicators` 고정값·링크 | BAMLH0A0HYM2 등 | **ICE 값 화면에서 제거("준비 중")**, FRED 링크는 원출처 링크로 | 나머지 고정값은 손으로 넣은 숫자(FRED API 아님) |
 | 3·4 | `/liquidity/us`, `/backtest` | WALCL·WTREGEN, M2SL, T10Y2Y, RRPONTSYD | **전환** | H.4.1·H.6·H.15, 뉴욕 연은 |
-| 3·4 | 같은 곳 | **NFCI, TEDRATE** | **미전환** | 시카고 연은 재게시 서면 허락 필요 / TED 는 원출처 없음 → FRED 고지. **TED 는 미션 9 낡은 입력 규칙으로 점수 계산에서 빠짐**(2022-01-21 뒤 갱신 없음, 카드에는 "계산에서 뺐습니다" 표시와 함께 남음) |
+| 3·4 | 같은 곳 | **NFCI** | **제외(미션 12)** | 시카고 연은 재게시 서면 허락 필요 → 받지 않고 점수·카드·모달·API·백테스트에서 뺌. 되돌리기 `LIQUIDITY_NFCI=on`(lib/liquidity-license.ts) |
+| 3·4 | 같은 곳 | **TEDRATE** | **미전환** | 원출처 없음 → FRED 고지. 미션 9 낡은 입력 규칙으로 현재 점수에서 빠지고 카드도 숨김(미션 10). 백테스트 2016-10~2021 달 점수와 API 응답 값에는 쓰임 |
 | 5 | `/inflation` (+ cron) | CPIAUCSL·CPILFESL, PCEPILFE | **전환** | BLS, BEA |
-| 6 | `/ken-fisher/korea-market` | **IRLTLT01KRM156N** | **미전환** | OECD 조건 원문 미확인(403), 한국은행 키 필요 → FRED 고지 |
+| 6 | `/ken-fisher/korea-market` | IRLTLT01KRM156N | **전환(미션 12)** | OECD SDMX API(키 없음, KOR.M.IRLT) — FRED 와 312개월 불일치 0, OECD 인용 형식 표기(결정 로그 24-3) |
 | 7 | `/calendar`·일정 팝업 | 발표일 6종 | **전환** | BLS·BEA 일정표(ics), 인구조사국 일정표 |
 | 8 | `/reports` | CPI 발표일 | **전환** | BLS 일정표 |
 | 9 | `/api/treasury-market-reaction` | SOFR | **전환** | 뉴욕 연은(응답에 출처 표기·SOFR 고지문) |
 | 10 | GitHub Actions 수집·글 생성 | DFF·DGS10·DGS2 | **전환** | 연준 이사회 H.15(새 비밀키 없음, Redis 없이) |
 | 11 | 관측소 휴면 경로 | — | 그대로 | `OBSERVATORY_SOURCE=fred` 일 때만 |
 
-- 되돌리기: 환경변수 `SITE_DATA_SOURCE=fred` 하나(lib/site-source-config.ts). 대조·전후 비교는 결정 로그 20-3·20-5.
+- 되돌리기: 환경변수 `SITE_DATA_SOURCE=fred` 하나(lib/site-source-config.ts) — 전환한 시리즈(미션 12의 한국 10년물 포함)와 발표 일정을 모두 FRED 에서 받고, 각 화면이 API 의 출처 정보를 보고 FRED 고지를 띄웁니다. NFCI 는 이 스위치와 따로 `LIQUIDITY_NFCI=on` 일 때만 들어갑니다(SITE_DATA_SOURCE=fred 만으로는 NFCI 가 돌아오지 않음). 관측소는 `OBSERVATORY_SOURCE=fred`(lib/observatory-source-config.ts)로 따로 되돌리며, 지금 관측소에는 FRED 값과 FRED 고지가 없습니다. 대조·전후 비교는 결정 로그 20-3·20-5·24장.
 
 ### 사이트 전체 FRED 사용처 (미션 7 전수 조사, 2026-10-19 — 미션 8 전 상태, 기록용)
 
@@ -151,7 +153,7 @@
 
 되돌릴 수 없거나 법·비용이 걸린 일이라 이번에도 하지 않았습니다.
 
-1. **남은 FRED 사용**(미션 9 정정): ① **NFCI**(`/liquidity/us`, 백테스트) — 시카고 연은 서면 허락을 구할지(안 구하면 화면에서 뺄지 — 점수가 바뀜). ② **한국 10년물**(`/ken-fisher/korea-market`) — 대체 출처: 한국은행 ECOS API 키를 발급할지(새 키), OECD 이용 조건을 직접 확인할지. ③ **TED 스프레드** — 점수 계산에서 빠졌고(낡은 입력, 미션 9) 카드도 화면에서 뺐음(미션 10). API 응답에서도 뺄지. ④ 남은 FRED 사용 때문에 **이용 약관 페이지가 필요한지**(FRED API 약관의 동의 문장). 나머지는 원출처로 옮겼고 ICE 하이일드 값은 화면에서 뺐습니다(2장 '미션 8 전환 결과', 결정 로그 20·21장).
+1. **남은 FRED 사용**(미션 12 갱신): ① **NFCI** — 미션 12에서 점수·화면·API·백테스트에서 뺐습니다. 시카고 연은 서면 허락을 받으면 `LIQUIDITY_NFCI=on` 으로 다시 켤 수 있습니다. ② **한국 10년물** — 미션 12에서 OECD SDMX API(키 없음)로 옮겼습니다. 한국은행 ECOS 키는 발급하지 않았고, 일간 값이 필요해지면 키를 받아 다시 정할 수 있습니다. ③ **TED 스프레드** — 점수 계산에서 빠졌고(낡은 입력, 미션 9) 카드도 화면에서 뺐음(미션 10). API 응답에서도 뺄지. ④ 남은 FRED 사용 때문에 **이용 약관 페이지가 필요한지**(FRED API 약관의 동의 문장). 나머지는 원출처로 옮겼고 ICE 하이일드 값은 화면에서 뺐습니다(2장 '미션 8 전환 결과', 결정 로그 20·21장).
 2. ~~S&P 500·나스닥 지수~~: 미션 4에서 화면에서 빼고, 미션 5에서 수집을 끄고 Redis 키를 지웠습니다.
 3. **사이트 공개 시점과 tocktock.kr 도메인**: 이 PC에서는 tocktock.kr의 DNS 조회가 실패합니다(vercel.app 주소는 정상). 도메인 상태를 확인해야 합니다.
 4. **저장소 공개 여부**: 공개하면 커밋 메시지의 도구 표기 줄이 보일 수 있습니다.
@@ -162,10 +164,10 @@
 9. **법·규제 검토**: 모든 페이지에 "투자 권유가 아닙니다"가 있지만 법률 검토는 하지 않았습니다. 특히 1·2·7번은 법적 판단입니다.
 10. **관측소 밖 문구 수정 여부**: 5장의 목록.
 
-### 3-0. 사람이 결정할 항목 요약 (미션 11 기준)
-- **NFCI**: 시카고 연은 서면 허락을 구할지(안 구하면 화면에서 뺄지 — 점수가 바뀜).
-- **한국 10년물**: 대체 출처 — 한국은행 ECOS API 키를 발급할지, OECD 이용 조건을 직접 확인할지.
-- **이용 약관 페이지**: 남은 FRED 사용(NFCI·한국 10년물, TED 는 API 응답에만) 때문에 필요한지.
+### 3-0. 사람이 결정할 항목 요약 (미션 12 기준)
+- **NFCI**: 지금 점수·화면·API·백테스트에서 뺀 상태입니다(미션 12). 시카고 연은 서면 허락을 받으면 `LIQUIDITY_NFCI=on` 으로 다시 켤 수 있습니다(되돌리면 점수·백테스트가 미션 11 값으로 돌아갑니다).
+- **한국 10년물**: OECD SDMX API(키 없음)로 옮겼습니다(미션 12). 한국은행 ECOS 키는 발급하지 않았습니다 — 키를 받으면 일간 값으로 다시 정할 수 있습니다. OECD 데이터 탐색기 'source' 탭(제3자 권리 표시)은 열지 못해 사람이 한 번 확인하면 좋습니다.
+- **이용 약관 페이지**: 남은 FRED 사용은 유동성 두 화면의 TED 스프레드 하나입니다. TED 를 빼면 FRED 때문에 필요한 이유는 사라집니다.
 - **ANTHROPIC_API_KEY**: 주간 글 워크플로는 화면이 없어 중지함(2026-10-19, 아래 3-1). 남은 결정은 GitHub 키를 교체할지 지울지, Vercel 키 유효성 확인(결정 로그 27번).
 - **남은 하드코딩**: `/credit`·`/ken-fisher`·`/sectors` 의 시점이 지난 문장과 예시 숫자는 편집 성격이라 건드리지 않았습니다. 숨긴 수동 타일 18개를 다시 살릴지.
 
@@ -223,7 +225,9 @@
 
 - [x] ~~관측소의 FRED 사용~~ (미션 6에서 없앰)
 - [x] ~~관측소 밖 FRED 사용 처리~~ (미션 8에서 원출처로 옮김)
-- [ ] 남은 FRED: NFCI(시카고 연은 서면 허락 여부), 한국 10년물(대체 출처·한국은행 키) 결정 (TED 는 점수·카드에서 빠짐)
+- [x] ~~NFCI~~ (미션 12에서 뺌 — 허락을 받으면 `LIQUIDITY_NFCI=on`)
+- [x] ~~한국 10년물 대체 출처~~ (미션 12에서 OECD SDMX API 로 옮김, 키 없음)
+- [ ] 남은 FRED: TED 스프레드(유동성 API 응답·백테스트) — 뺄지 결정
 - [ ] GitHub 비밀키 ANTHROPIC_API_KEY 무효 — 주간 글 워크플로는 중지함(2026-10-19, 다시 켜기 `gh workflow enable`). 키를 교체할지 지울지 결정
 - [ ] 숨긴 수동 타일 18개를 공식 출처로 다시 살릴지 결정(3-0b)
 - [ ] Vercel ANTHROPIC_API_KEY 유효성(선물 분석, 마지막 결과 2026-06-04) 확인

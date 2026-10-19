@@ -118,7 +118,10 @@ export const KOSDAQ_TOP: KoreaStock[] = [
 ];
 
 export const REDIS_KEYS = {
-  bondYield: "korea-market:bond-yield",
+  // v2 (미션 12): 출처를 FRED → OECD 로 바꿔 응답에 origin 이 생겼다(예전 키는 24시간 TTL 로 사라진다)
+  bondYield: "korea-market:bond-yield:v2",
+  // 마지막으로 받은 OECD 값 (기한 없음) — OECD API 가 실패할 때 대신 쓴다 (미션 12)
+  bondYieldLastGood: "korea-market:bond-yield:last-good",
   marketAvg: (m: "kospi" | "kosdaq") => `korea-market:avg:${m}`,
   stock: (sym: string) => `korea-market:stock:${sym.toUpperCase()}`,
   screening: (m: "kospi" | "kosdaq") => `korea-market:screening:${m}`,

@@ -7,6 +7,7 @@ import { isSiteOriginSeries } from "@/lib/site-source-config";
 import { siteObservations } from "@/lib/site-origin";
 import { liquiditySources } from "@/lib/liquidity-sources";
 import { isStale, lastOnOrBefore, type Cadence } from "@/lib/liquidity-staleness";
+import { nfciEnabled, NFCI_NAME, NFCI_EXCLUSION_REASON } from "@/lib/liquidity-license";
 
 
 const FRED_BASE = "https://api.stlouisfed.org/fred/series/observations";
@@ -15,7 +16,8 @@ const FRED_BASE = "https://api.stlouisfed.org/fred/series/observations";
  * 저장 키 (미션 11): 마지막으로 계산에 성공한 결과. 기한 없음 — cron 이 실패하면 이전 값이 남는다.
  * 예전 방식(요청 때 계산 + liquidity:us:backtest:v7 24시간 캐시)은 캐시가 비면 첫 방문자가 전체 계산(약 4초+)을 일으켰다.
  */
-export const BACKTEST_STORE_KEY = "liquidity:us:backtest:stored";
+// 미션 12: NFCI 제외로 결과가 바뀌어 키를 바꿨다(예전 키 liquidity:us:backtest:stored 에는 NFCI 를 넣은 결과가 남아 있다)
+export const BACKTEST_STORE_KEY = "liquidity:us:backtest:stored:v2";
 
 export interface StoredBacktest {
   data: BacktestResponse;
@@ -86,6 +88,8 @@ export interface BacktestResponse {
   /** 낡은 입력 규칙 (미션 9): 구성 요소 6개 중 일부를 뺀 달 수와 빠진 지표별 달 수 */
   monthsWithExcluded: number;
   excludedCounts: Record<string, number>;
+  /** 재게시 허락이 없어 모든 달에서 처음부터 뺀 구성 요소 (미션 12: NFCI) */
+  licenseExcluded: { id: string; name: string; reason: string }[];
   /** FRED 로 받는 시리즈와 FRED 경유 출처 표기 (미션 8) */
   fredSeries: string[];
   fredCitations: string[];
@@ -137,7 +141,7 @@ async function fetchFredMonthly(
 
 /**
  * 월별 시리즈 받기 (미션 8): 원출처로 전환한 시리즈는 원출처에서 FRED 의 frequency=m·aggregation_method=eop 와 같은 방식
- * (달마다 마지막 유효값)으로 만들고, NFCI·TEDRATE 는 FRED 그대로다. 스위치: lib/site-source-config.ts
+ * (달마다 마지막 유효값)으로 만들고, TEDRATE(와 되돌렸을 때의 NFCI)는 FRED 그대로다. 스위치: lib/site-source-config.ts
  */
 async function fetchMonthly(seriesId: string, startDate: string): Promise<{ date: string; value: number }[]> {
   if (!isSiteOriginSeries(seriesId)) return fetchFredMonthly(seriesId, startDate);
@@ -230,7 +234,8 @@ export async function computeBacktest(): Promise<BacktestResponse> {
       fetchMonthly("WTREGEN", start),
       fetchMonthly("M2SL", start),
       fetchMonthly("T10Y2Y", start),
-      fetchMonthly("NFCI", start),
+      // NFCI 는 재게시 허락이 없는 동안 받지 않는다 (미션 12, lib/liquidity-license.ts)
+      nfciEnabled() ? fetchMonthly("NFCI", start) : Promise.resolve([] as { date: string; value: number }[]),
     ]);
 
   // TEDRATE — may fail or have limited data
@@ -251,7 +256,7 @@ export async function computeBacktest(): Promise<BacktestResponse> {
     fetchNativeDates("WTREGEN", start),
     fetchNativeDates("M2SL", start),
     fetchNativeDates("T10Y2Y", start),
-    fetchNativeDates("NFCI", start),
+    nfciEnabled() ? fetchNativeDates("NFCI", start) : Promise.resolve([] as string[]),
   ]);
 
   // Yahoo Finance: Copper, Gold, QQQ (monthly)
@@ -354,12 +359,12 @@ export async function computeBacktest(): Promise<BacktestResponse> {
     const nf = nfciMap.get(month);
     const cuAu = cuAuMap.get(month);
 
-    // Need at least net liq, M2, T10Y2Y, NFCI, copper/gold
+    // Need at least net liq, M2, T10Y2Y, copper/gold (+ NFCI 를 쓸 때만 NFCI — 미션 12)
     if (
       nl == null ||
       mg == null ||
       t10 == null ||
-      nf == null ||
+      (nfciEnabled() && nf == null) ||
       cuAu == null
     )
       continue;
@@ -399,7 +404,7 @@ export async function computeBacktest(): Promise<BacktestResponse> {
     const t10S = calc(t10, t10Hist, false);
     const cuAuS = calc(cuAu, cuAuHist, false);
     const tedS = ted != null ? calc(ted, tedHist, true) : 50;
-    const nfS = calc(nf, nfHist, true);
+    const nfS = nf != null ? calc(nf, nfHist, true) : 50;
 
     // Momentum scores (3-month change percentile)
     const momCalc = (
@@ -420,7 +425,7 @@ export async function computeBacktest(): Promise<BacktestResponse> {
     const cuAuMomS = momCalc(cuAuMap, cuAu, false);
     const tedMomS =
       ted != null ? momCalc(tedMap, ted, true) : 50;
-    const nfMomS = momCalc(nfciMap, nf, true);
+    const nfMomS = nf != null ? momCalc(nfciMap, nf, true) : 50;
 
     // Combined — per-indicator weights
     // Momentum-dominant: net liq, M2, T10Y2Y (mom 60% + level 40%)
@@ -433,7 +438,8 @@ export async function computeBacktest(): Promise<BacktestResponse> {
     const nfC = nfS * 0.6 + nfMomS * 0.4;
 
     // Final = 낡지 않은 구성 요소의 단순 평균 (예전: TED 가 없는 달도 50 으로 채워 6개 평균)
-    const parts: [string, number][] = [["nl", nlC], ["mg", mgC], ["t10", t10C], ["cuAu", cuAuC], ["ted", tedC], ["nf", nfC]];
+    // 미션 12: NFCI 는 허락이 없는 동안 구성 요소에서 처음부터 뺀다(낡은 입력 집계 excludedCounts 에는 넣지 않음)
+    const parts: [string, number][] = [["nl", nlC], ["mg", mgC], ["t10", t10C], ["cuAu", cuAuC], ["ted", tedC], ...(nfciEnabled() ? [["nf", nfC] as [string, number]] : [])];
     const usedParts = parts.filter(([k]) => fresh(k));
     if (usedParts.length === 0) continue;
     for (const [k] of parts) if (!fresh(k)) excludedCounts[k] = (excludedCounts[k] ?? 0) + 1;
@@ -644,7 +650,8 @@ export async function computeBacktest(): Promise<BacktestResponse> {
     totalMonths: validPts.length,
     monthsWithExcluded,
     excludedCounts,
-    ...liquiditySources(["WALCL", "RRPONTSYD", "WTREGEN", "M2SL", "T10Y2Y", "NFCI", "TEDRATE"]),
+    licenseExcluded: nfciEnabled() ? [] : [{ id: "nf", name: NFCI_NAME, reason: NFCI_EXCLUSION_REASON }],
+    ...liquiditySources(["WALCL", "RRPONTSYD", "WTREGEN", "M2SL", "T10Y2Y", ...(nfciEnabled() ? ["NFCI"] : []), "TEDRATE"]),
     fetchedAt: new Date().toISOString(),
   };
 }
