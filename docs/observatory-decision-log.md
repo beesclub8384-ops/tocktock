@@ -1498,3 +1498,11 @@ FRED 약관은 notes 에 "Copyright" 가 있으면 저작권 시리즈라고 하
 
 ### 23-8. 주간 금리 글 워크플로 중지 (2026-10-19)
 - `Weekly Macro Article` 의 출력(`posts/fed-rate/`, `data/fed-news.json`)을 읽는 페이지·메뉴가 없어(`lib/posts.ts` 는 `/economics` 에서 `economics` 분류만 읽음) `gh workflow disable` 로 중지함(상태 `disabled_manually`, 파일·비밀키는 그대로, 다시 켜기 `gh workflow enable "Weekly Macro Article"`). 키 교체·삭제는 여전히 사람이 정할 항목(27번).
+
+## 24. 미션 12 — NFCI 제외(재게시 허락) · 한국 10년물 대체 출처 확인 · 사이트의 FRED 잔여 정리 (2026-10-19)
+
+### 24-1. NFCI 제외 규칙 (결과 계산 전에 선언, 2026-10-19)
+- NFCI 는 시카고 연은이 재게시에 서면 허락을 요구하는 시리즈입니다. FRED 시리즈 페이지(fred.stlouisfed.org/series/NFCI) 저작권 표시 원문: "Data in this graph are copyrighted. Please review the copyright information in the series notes before sharing." (태그 "Copyrighted: Citation Required"). 시카고 연은 법적 고지 원문(20장): "If you wish to utilize Federal Reserve Bank of Chicago copyrighted materials in any other way, such as republication or distribution, you must contact the Federal Reserve Bank of Chicago and obtain its written permission to do so."
+- 규칙: 허락이 없는 동안 NFCI 를 `/liquidity/us` 점수·카드·모달·API 응답과 백테스트에서 제외합니다. 수집 코드는 지우지 않고, 설정 한 곳에서 되돌립니다.
+- 이 규칙은 한 번만 적용하고, 결과를 보고 조정하지 않습니다. 결과가 우연과 구분되지 않으면 그대로 밝히고, 우연과 구분되는 것처럼 나와도 예측력을 주장하지 않고 다수 비교와 겹치는 기간의 한계를 함께 적습니다.
+- 계산 방식은 그대로입니다: 남은 구성 요소의 단순 평균(21-1 낡은 입력 규칙과 같은 방식), 백테스트는 각 달 말일 시점까지의 관측만 사용.
