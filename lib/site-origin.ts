@@ -157,7 +157,7 @@ function parseBea(text: string, codes: Set<string>): Map<string, OriginObs[]> {
 const FLAT: Record<string, FlatDef> = {
   "bls-cu-allitems": {
     url: "https://download.bls.gov/pub/time.series/cu/cu.data.1.AllItems",
-    codes: ["CUSR0000SA0"],
+    codes: ["CUSR0000SA0", "CUUR0000SA0"],
     parse: parseBls,
   },
   "bls-cu-special": {
@@ -179,6 +179,8 @@ const FLAT: Record<string, FlatDef> = {
 
 const FLAT_SERIES: Record<string, { file: keyof typeof FLAT; code: string }> = {
   CPIAUCSL: { file: "bls-cu-allitems", code: "CUSR0000SA0" },
+  // 비조정(NSA) — BLS 가 공표하는 헤드라인 12개월 변동률의 기준 (미션 10, FRED CPIAUCNS 와 1,364개월 불일치 0)
+  CPIAUCNS: { file: "bls-cu-allitems", code: "CUUR0000SA0" },
   CPILFESL: { file: "bls-cu-special", code: "CUSR0000SA0L1E" },
   PAYEMS: { file: "bls-ce-nonfarm", code: "CES0000000001" },
   PCEPI: { file: "bea-nipa-monthly", code: "DPCERG" },
@@ -256,6 +258,7 @@ const GRID: Record<string, Grid> = {
   ...Object.fromEntries(Object.entries(FED_SITE).map(([id, d]) => [id, d.grid])),
   T10Y2Y: "D5",
   CPIAUCSL: "M",
+  CPIAUCNS: "M",
   CPILFESL: "M",
   PAYEMS: "M",
   PCEPI: "M",
@@ -427,6 +430,7 @@ export const SITE_SOURCE_LABEL: Record<string, string> = {
   T10Y2Y: "연준 이사회 H.15(10년물−2년물 계산)",
   M2SL: "연준 이사회 H.6",
   CPIAUCSL: "미국 노동통계국(BLS)",
+  CPIAUCNS: "미국 노동통계국(BLS)",
   CPILFESL: "미국 노동통계국(BLS)",
   PAYEMS: "미국 노동통계국(BLS)",
   PCEPI: "미국 경제분석국(BEA)",

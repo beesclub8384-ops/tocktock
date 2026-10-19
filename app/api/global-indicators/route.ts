@@ -5,7 +5,7 @@ import type { LiveIndicatorData } from "@/lib/types/global-indicators";
 import { isSiteOriginSeries } from "@/lib/site-source-config";
 
 /** 이 API 가 쓰는 시리즈 (원출처: 연준 이사회 H.15·H.4.1, BLS, BEA — 미션 8) */
-const FRED_IDS = ["DGS2", "T10Y2Y", "DFII10", "WALCL", "CPIAUCSL", "PCEPI", "PAYEMS"];
+const FRED_IDS = ["DGS2", "T10Y2Y", "DFII10", "WALCL", "CPIAUCNS", "PCEPI", "PAYEMS"];
 
 // 미션 8: 원출처 수집은 Redis(ETag 보관)와 no-store 요청을 써서 빌드 때 정적으로 만들 수 없다(만들면 원출처 7개가
 // null 로 굳는다 — 2026-10-19 빌드에서 확인). 그래서 요청 때 실행하고, 예전 ISR 1시간 캐시는 CDN 캐시 헤더로 대신한다.
@@ -38,14 +38,16 @@ async function fetchWalcl(): Promise<LiveIndicatorData> {
 }
 
 async function fetchCpi(): Promise<LiveIndicatorData> {
-  const obs = await fetchFredLatest("CPIAUCSL", 16);
+  // 비조정 CPI-U(BLS CUUR0000SA0 = FRED CPIAUCNS): BLS 가 공표하는 헤드라인 12개월 변동률("before seasonal adjustment")과
+  // 같은 정의 (미션 10 — 예전에는 계절조정 CPIAUCSL. 2026-09 은 둘 다 반올림 3.7%: 비조정 3.738%, 계절조정 3.717%)
+  const obs = await fetchFredLatest("CPIAUCNS", 16);
   const yoy = calcYoY(obs);
   return {
     id: "cpi",
     value: yoy !== null ? Math.round(yoy * 10) / 10 : null,
     change: null,
     unit: "%yoy",
-    label: obs[0] ? `${ym(obs[0].date)}, 전년 동월 대비` : undefined,
+    label: obs[0] ? `${ym(obs[0].date)}, 전년 동월 대비(계절조정 전)` : undefined,
   };
 }
 

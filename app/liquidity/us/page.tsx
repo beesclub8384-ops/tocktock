@@ -48,6 +48,31 @@ interface LiquidityData {
   fetchedAt: string;
 }
 
+/* ── 백테스트 요약 (미션 10: 고정 수익률 숫자 대신 /api/liquidity/us/backtest 값을 쓴다) ── */
+
+interface BacktestSummary {
+  buckets: { label: string; count: number; avg6m: number }[];
+  regimeStats: Record<RegimeType, { count: number; avg6m: number; winRate6m: number }>;
+  periodStart: string;
+  periodEnd: string;
+  totalMonths: number;
+  fetchedAt: string;
+}
+
+const pct = (v: number | undefined) => (v == null ? "—" : `${v > 0 ? "+" : ""}${v.toFixed(1)}%`);
+const ymDot = (ym: string) => ym.replace("-", ".");
+
+/** "백테스트 기준(2016.10~2026.08, 102개월, 2026-10-19 계산)" */
+function btBasis(bt: BacktestSummary | null): string {
+  if (!bt) return "백테스트 값을 불러오는 중이거나 불러오지 못했습니다";
+  return `백테스트 기준(${ymDot(bt.periodStart)}~${ymDot(bt.periodEnd)}, ${bt.totalMonths}개월, ${bt.fetchedAt.slice(0, 10)} 계산)`;
+}
+
+/** 버킷 라벨에 들어 있는 구간 표시로 찾는다 ("유동성 풍부 (75+)" 등) */
+function bucketOf(bt: BacktestSummary | null, key: string) {
+  return bt?.buckets.find((b) => b.label.includes(key));
+}
+
 /* ── 점수 해석 ── */
 
 function getScoreInfo(score: number) {
@@ -175,7 +200,8 @@ const REGIME_QUADRANTS: { type: RegimeType; label: string; desc: string }[] = [
   { type: "CONTRACTION", label: "하락 지속", desc: "점수 낮고 하락 중" },
 ];
 
-function RegimeCard({ data }: { data: LiquidityData }) {
+function RegimeCard({ data, bt }: { data: LiquidityData; bt: BacktestSummary | null }) {
+  const rs = bt?.regimeStats[data.regime];
   const style = REGIME_STYLES[data.regime];
   return (
     <div className="rounded-xl border bg-card p-6 sm:p-8 mt-4">
@@ -196,10 +222,12 @@ function RegimeCard({ data }: { data: LiquidityData }) {
         </div>
       </div>
       <p className="text-sm text-muted-foreground mb-4">
-        {data.regime === "RECOVERY" && "유동성 개선 중 — 과거 평균 6개월 +10.2% 수익률 구간"}
-        {data.regime === "EXPANSION" && "유동성 양호 — 과거 평균 6개월 +12.0% 수익률 구간, 승률 90.9%"}
-        {data.regime === "SLOWDOWN" && "유동성 둔화 중 — 과거 평균 6개월 +5.6% 수익률 구간, 주의"}
-        {data.regime === "CONTRACTION" && "유동성 악화 중 — 과거 평균 6개월 +9.8% 수익률이나 변동성 높음"}
+        {/* 숫자는 백테스트 API 의 국면별 통계 (미션 10 — 예전 고정값 +10.2%·+12.0%/90.9%·+5.6%·+9.8% 는 API 와 달랐다) */}
+        {data.regime === "RECOVERY" && `유동성 개선 중 — 과거 평균 6개월 ${pct(rs?.avg6m)} 수익률 구간`}
+        {data.regime === "EXPANSION" && `유동성 양호 — 과거 평균 6개월 ${pct(rs?.avg6m)} 수익률 구간, 승률 ${rs ? rs.winRate6m.toFixed(1) : "—"}%`}
+        {data.regime === "SLOWDOWN" && `유동성 둔화 중 — 과거 평균 6개월 ${pct(rs?.avg6m)} 수익률 구간, 주의`}
+        {data.regime === "CONTRACTION" && `유동성 악화 중 — 과거 평균 6개월 ${pct(rs?.avg6m)} 수익률이나 변동성 높음`}
+        <span className="block text-[11px] mt-1">{btBasis(bt)}{rs ? `, 이 국면 ${rs.count}개월` : ""}</span>
       </p>
       {data.scoreChange3m != null && (
         <p className="text-sm mb-4">
@@ -979,7 +1007,8 @@ function TedSpreadGuideModal({ onClose }: { onClose: () => void }) {
               <p>→ 이후 2009년 대반등</p>
             </div>
             <div className="rounded-lg border border-border bg-muted/30 p-4 text-sm leading-relaxed text-muted-foreground space-y-1">
-              <p><strong className="text-foreground">현재 (2026년 3월):</strong> 0.09%</p>
+              {/* 미션 10: 예전 "현재 (2026년 3월): 0.09%"는 틀림 — FRED TEDRATE 는 2022-01-21(0.09%)을 마지막으로 갱신이 멈췄다 */}
+              <p><strong className="text-foreground">마지막 값 (2022년 1월 21일):</strong> 0.09% — 이 시리즈는 2022년 1월에 갱신이 멈췄습니다.</p>
               <p>→ 역사적 최저 수준</p>
               <p>→ 은행들이 서로를 완전히 신뢰하는 상태</p>
             </div>
@@ -1132,6 +1161,9 @@ const GUIDE_MODALS: Record<string, React.ComponentType<{ onClose: () => void }>>
   "nfci": NfciGuideModal,
 };
 
+/** 화면에 카드를 그리지 않는 지표 (미션 10) */
+const HIDDEN_CARDS = new Set(["ted-spread"]);
+
 /* ── 메인 페이지 ── */
 
 export default function UsLiquidityPage() {
@@ -1139,6 +1171,7 @@ export default function UsLiquidityPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [openGuide, setOpenGuide] = useState<string | null>(null);
+  const [bt, setBt] = useState<BacktestSummary | null>(null);
 
   useEffect(() => {
     fetch("/api/liquidity/us")
@@ -1149,10 +1182,17 @@ export default function UsLiquidityPage() {
       .then((d: LiquidityData) => setData(d))
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
+    // 구간·국면별 과거 수익률 (미션 10). 실패해도 본문은 그대로 보이고 숫자 자리만 "—"
+    fetch("/api/liquidity/us/backtest")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: BacktestSummary | null) => setBt(d))
+      .catch(() => setBt(null));
   }, []);
 
   const macroIndicators = data?.indicators.filter((i) => i.category === "macro") ?? [];
-  const marketIndicators = data?.indicators.filter((i) => i.category === "market") ?? [];
+  // TED 스프레드는 2022-01 에 갱신이 멈춘 시리즈라 카드를 화면에서 뺀다(미션 10). API·점수 계산 코드는 그대로이고,
+  // 점수에서는 미션 9 낡은 입력 규칙으로 이미 빠져 있어 점수·국면은 바뀌지 않는다. 빠진 사유는 점수 아래 안내에 남는다
+  const marketIndicators = data?.indicators.filter((i) => i.category === "market" && !HIDDEN_CARDS.has(i.id)) ?? [];
 
   return (
     <main className="max-w-4xl mx-auto px-4 py-12 sm:px-8 sm:py-20">
@@ -1216,7 +1256,7 @@ export default function UsLiquidityPage() {
           </div>
 
           {/* 국면 카드 */}
-          <RegimeCard data={data} />
+          <RegimeCard data={data} bt={bt} />
 
           {/* 거시 유동성 지표 */}
           <section className="mt-10">
@@ -1240,27 +1280,29 @@ export default function UsLiquidityPage() {
 
           {/* 점수 해석 기준 */}
           <section className="mt-10 rounded-xl border-l-4 border-blue-500 bg-blue-500/10 px-5 py-4">
-            <p className="text-sm font-semibold text-blue-400 mb-3">점수 구간별 6개월 기대 수익률</p>
+            <p className="text-sm font-semibold text-blue-400 mb-1">점수 구간별 6개월 기대 수익률</p>
+            {/* 숫자는 백테스트 API 의 구간별 통계 (미션 10 — 예전 고정값 +15.7%·+9.1%·+10.0% 는 API 와 달랐다) */}
+            <p className="text-[11px] text-muted-foreground mb-3">{btBasis(bt)}</p>
             <div className="flex flex-col gap-2 text-sm">
               <div className="flex items-start gap-2">
                 <span className="w-3 h-3 rounded-full shrink-0 mt-1" style={{ backgroundColor: "#16a34a" }} />
                 <div>
                   <span className="font-semibold">75+ 강한 상승 기대</span>
-                  <span className="text-muted-foreground ml-2">과거 데이터 기준 6개월 뒤 평균 +15.7% 수익률 구간</span>
+                  <span className="text-muted-foreground ml-2">과거 데이터 기준 6개월 뒤 평균 {pct(bucketOf(bt, "75+")?.avg6m)} 수익률 구간({bucketOf(bt, "75+")?.count ?? "—"}개월)</span>
                 </div>
               </div>
               <div className="flex items-start gap-2">
                 <span className="w-3 h-3 rounded-full shrink-0 mt-1" style={{ backgroundColor: "#3b82f6" }} />
                 <div>
                   <span className="font-semibold">50~75 보통 상승 기대</span>
-                  <span className="text-muted-foreground ml-2">과거 데이터 기준 6개월 뒤 평균 +9.1% 수익률 구간</span>
+                  <span className="text-muted-foreground ml-2">과거 데이터 기준 6개월 뒤 평균 {pct(bucketOf(bt, "50~75")?.avg6m)} 수익률 구간({bucketOf(bt, "50~75")?.count ?? "—"}개월)</span>
                 </div>
               </div>
               <div className="flex items-start gap-2">
                 <span className="w-3 h-3 rounded-full shrink-0 mt-1" style={{ backgroundColor: "#ca8a04" }} />
                 <div>
                   <span className="font-semibold">25~50 약한 상승 기대</span>
-                  <span className="text-muted-foreground ml-2">과거 데이터 기준 6개월 뒤 평균 +10.0% 수익률 구간</span>
+                  <span className="text-muted-foreground ml-2">과거 데이터 기준 6개월 뒤 평균 {pct(bucketOf(bt, "25~50")?.avg6m)} 수익률 구간({bucketOf(bt, "25~50")?.count ?? "—"}개월)</span>
                 </div>
               </div>
               <div className="flex items-start gap-2">
@@ -1268,7 +1310,7 @@ export default function UsLiquidityPage() {
                 <div>
                   <span className="font-semibold">25 이하 위험 구간</span>
                   {/* 미션 9: 낡은 입력(TED)을 빼면서 백테스트의 25 이하 구간이 1개월→5개월이 되어 "과거 사례 없음"이 틀린 문장이 됐다 */}
-                  <span className="text-muted-foreground ml-2">데이터 부족 구간. 과거 사례가 매우 적어 보수적 접근 필요</span>
+                  <span className="text-muted-foreground ml-2">데이터 부족 구간. 과거 사례가 매우 적어 보수적 접근 필요({bucketOf(bt, "25 이하")?.count ?? "—"}개월)</span>
                 </div>
               </div>
             </div>
@@ -1277,9 +1319,11 @@ export default function UsLiquidityPage() {
           {/* 안내 문구 */}
           <section className="mt-6 rounded-xl bg-blue-500/5 border border-blue-500/20 px-5 py-4">
             <p className="text-sm text-muted-foreground leading-relaxed">
+              {/* 미션 10(독립 검증 지적 3): 예전 "유동성 점수가 높을 때 6개월 뒤 평균 수익률이 높았다는 통계적 경향을
+                  보여줍니다"는 구간별 평균(25~50 이 50~75 보다 높음)과 검정 결과(우연과 구분 안 됨)에 맞지 않아 고쳤다 */}
               이 지표는 나스닥 방향(상승/하락)을 예측하지 않습니다.
-              과거 10년 데이터 기준으로 유동성 점수가 높을 때
-              6개월 뒤 평균 수익률이 높았다는 통계적 경향을 보여줍니다.
+              과거 10년 데이터로 점수 구간별 6개월 뒤 평균 수익률을 보여 드리지만,
+              구간 사이의 차이는 우연과 구분되지 않습니다(백테스트 페이지 참고).
               투자 결과를 보장하지 않습니다.
             </p>
           </section>

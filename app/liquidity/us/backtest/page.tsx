@@ -20,6 +20,8 @@ import {
 interface BacktestPoint {
   date: string;
   score: number;
+  /** API 가 주는 국면 (국면 정확도의 우연 검정에 쓴다, 미션 10) */
+  regime: RegimeType;
   qqq1m: number | null;
   qqq2m: number | null;
   qqq3m: number | null;
@@ -104,7 +106,65 @@ function formatYM(ym: string) {
 
 /* ── 컴포넌트 ── */
 
-function AccuracyCard({ accuracy }: { accuracy: AccuracyObj }) {
+/* ── 우연과 구분되는지 (미션 10, 독립 검증 지적 1로 고침) ──
+ * 기간(1~6개월)마다 "점수가 높은 달(또는 상승 국면)"과 "낮은 달(하락 국면)"의 QQQ 상승 비율이 다른지를 Fisher 정확검정
+ * (양쪽)으로 본다. 맞힌 비율을 50% 와 비교하면 안 된다 — QQQ 가 대부분 올라서(6개월 뒤 약 83%) 예측력이 없어도 50% 와
+ * 달라 보일 수 있기 때문. 매달 1~6개월 뒤 수익률을 써서 기간이 겹치므로 실제 독립 표본은 더 적다(p-값도 낙관적인 쪽). */
+function logFact(m: number): number {
+  let x = 0;
+  for (let i = 2; i <= m; i++) x += Math.log(i);
+  return x;
+}
+
+/** 2×2 표 [a b; c d] 의 양쪽 Fisher 정확검정 p-값 */
+function fisherTwoSided(a: number, b: number, c: number, d: number): number {
+  const r1 = a + b;
+  const c1 = a + c;
+  const n = a + b + c + d;
+  const hyp = (x: number) =>
+    Math.exp(logFact(c1) - logFact(x) - logFact(c1 - x) + logFact(n - c1) - logFact(r1 - x) - logFact(n - c1 - r1 + x) - (logFact(n) - logFact(r1) - logFact(n - r1)));
+  const p0 = hyp(a);
+  let p = 0;
+  for (let x = Math.max(0, r1 - (n - c1)); x <= Math.min(r1, c1); x++) if (hyp(x) <= p0 * (1 + 1e-9)) p += hyp(x);
+  return Math.min(1, p);
+}
+
+function chanceSummary(points: BacktestPoint[], isHigh: (p: BacktestPoint) => boolean) {
+  const keys = ["qqq1m", "qqq2m", "qqq3m", "qqq4m", "qqq5m", "qqq6m"] as const;
+  const rows = keys.map((k) => {
+    const valid = points.filter((p) => p[k] != null);
+    const hi = valid.filter(isHigh);
+    const lo = valid.filter((p) => !isHigh(p));
+    const hiUp = hi.filter((p) => p[k]! > 0).length;
+    const loUp = lo.filter((p) => p[k]! > 0).length;
+    return { n: valid.length, p: fisherTwoSided(hiUp, hi.length - hiUp, loUp, lo.length - loUp) };
+  });
+  return {
+    nMin: Math.min(...rows.map((r) => r.n)),
+    nMax: Math.max(...rows.map((r) => r.n)),
+    pMin: Math.min(...rows.map((r) => r.p)),
+  };
+}
+
+/** "이상"이라고 쓰므로 내림 (0.2276 → 0.22) */
+const floor2 = (v: number) => (Math.floor(v * 100) / 100).toFixed(2);
+
+function ChanceNote({ points, isHigh, groups }: { points: BacktestPoint[]; isHigh: (p: BacktestPoint) => boolean; groups: string }) {
+  const c = chanceSummary(points, isHigh);
+  return c.pMin >= 0.05 ? (
+    <>
+      {groups}의 1~6개월 뒤 QQQ 상승 비율 차이를 정확검정(Fisher)으로 보면, 우연으로도 나올 수 있는 수준입니다(기간별 표본{" "}
+      {c.nMin}~{c.nMax}개월, p-값 {floor2(c.pMin)} 이상 — p-값이 0.05보다 크면 보통 우연과 구분되지 않는다고 봅니다).
+    </>
+  ) : (
+    <>
+      {groups}의 1~6개월 뒤 QQQ 상승 비율 차이를 정확검정(Fisher)으로 보면 일부 기간은 우연으로 보기 어렵습니다(가장 작은
+      p-값 {c.pMin.toFixed(3)}, 표본 {c.nMin}~{c.nMax}개월). 다만 기간이 겹쳐 실제 독립 표본은 더 적습니다.
+    </>
+  );
+}
+
+function AccuracyCard({ accuracy, points }: { accuracy: AccuracyObj; points: BacktestPoint[] }) {
   const getColor = (v: number) =>
     v >= 60 ? "#16a34a" : v >= 50 ? "#ca8a04" : "#dc2626";
 
@@ -151,9 +211,11 @@ function AccuracyCard({ accuracy }: { accuracy: AccuracyObj }) {
         점수 50점 이상일 때 QQQ 상승 + 점수 50점 미만일 때 QQQ 하락 비율의
         평균
       </p>
+      {/* 미션 10: 예전 문구 "방향 일치율은 52% 수준으로 통계적 의미가 낮습니다. 이 지표의 핵심은 아래 구간별 수익률 차이입니다."는
+          숫자(실제 54.7%)가 틀렸고, 구간별 차이도 검정에서 우연과 구분되지 않아 고쳤다 (결정 로그 22-4) */}
       <p className="mt-2 text-xs text-amber-400/80">
-        방향 일치율은 52% 수준으로 통계적 의미가 낮습니다.
-        이 지표의 핵심은 아래 구간별 수익률 차이입니다.
+        <ChanceNote points={points} isHigh={(p) => p.score >= 50} groups="점수 50 이상인 달과 미만인 달" /> 아래
+        구간별 수익률 차이도 구간마다 표본이 적어 우연과 구분하기 어렵습니다.
       </p>
     </div>
   );
@@ -170,7 +232,7 @@ function BucketTable({ buckets }: { buckets: BucketStats[] }) {
   return (
     <div className="rounded-xl border bg-card overflow-hidden">
       <div className="px-6 py-4 border-b">
-        <p className="font-semibold">★ 핵심: 유동성 구간별 나스닥 평균 수익률</p>
+        <p className="font-semibold">유동성 구간별 나스닥 평균 수익률</p>
       </div>
       {/* contain:inline-size — 표의 최소 폭이 페이지 전체를 넓히지 않고 이 영역 안에서만 가로로 스크롤되게 (미션 9, 모바일 390px) */}
       <div className="overflow-x-auto [contain:inline-size]">
@@ -241,9 +303,11 @@ const REGIME_META: { type: RegimeType; label: string; color: string }[] = [
 function RegimeTable({
   regimeStats,
   regimeAccuracy,
+  points,
 }: {
   regimeStats: Record<RegimeType, RegimeStat>;
   regimeAccuracy: AccuracyObj;
+  points: BacktestPoint[];
 }) {
   const fmtReturn = (v: number) => (
     <span style={{ color: v >= 0 ? "#16a34a" : "#dc2626" }}>
@@ -335,6 +399,13 @@ function RegimeTable({
           </span>{" "}
           (4개월 {regimeAccuracy.month4}% · 5개월{" "}
           {regimeAccuracy.month5}% · 6개월 {regimeAccuracy.month6}%)
+        </p>
+        <p className="mt-1 text-xs text-amber-400/80">
+          <ChanceNote
+            points={points}
+            isHigh={(p) => p.regime === "RECOVERY" || p.regime === "EXPANSION"}
+            groups="상승 국면(바닥 탈출·상승 지속)과 하락 국면(고점 경고·하락 지속)"
+          />
         </p>
       </div>
     </div>
@@ -469,7 +540,8 @@ export default function BacktestPage() {
           미국 유동성 지표 백테스트
         </h1>
         <p className="mt-2 text-muted-foreground">
-          유동성 점수 구간별 나스닥 실제 수익률 검증 (2015~2025)
+          {/* 미션 10: 예전 "(2015~2025)"는 실제 분석 기간(아래 줄, API 값)과 달라 고쳤다 */}
+          유동성 점수 구간별 나스닥 실제 수익률 검증 (최근 10년)
         </p>
         {data && (
           <>
@@ -529,11 +601,12 @@ export default function BacktestPage() {
       {/* 데이터 */}
       {data && !loading && !error && (
         <div className="flex flex-col gap-6">
-          <AccuracyCard accuracy={data.accuracy} />
+          <AccuracyCard accuracy={data.accuracy} points={data.points} />
           <BucketTable buckets={data.buckets} />
           <RegimeTable
             regimeStats={data.regimeStats}
             regimeAccuracy={data.regimeAccuracy}
+            points={data.points}
           />
           <BacktestChart points={data.points} />
 
@@ -546,6 +619,9 @@ export default function BacktestPage() {
               <li>과거 성과는 미래 수익을 보장하지 않습니다.</li>
               <li>
                 유동성 지표 외에도 시장에 영향을 미치는 요인은 다양합니다.
+              </li>
+              <li>
+                매달의 1~6개월 뒤 수익률을 쓰므로 기간이 겹칩니다. 실제로 서로 독립인 표본은 개월 수보다 적습니다.
               </li>
               <li>본 분석은 참고용이며, 투자 조언이 아닙니다.</li>
             </ul>

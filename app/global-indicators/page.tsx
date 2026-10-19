@@ -87,9 +87,13 @@ const INITIAL_CATEGORIES: { name: string; items: Indicator[] }[] = [
     items: [
       { id: "us10y", ticker: "US10Y", name: "미국 10년물 국채 수익률", value: "4.52", unit: "%", change: "▲ +0.04", stars: 5, size: "xl", status: "warn", category: "금리" },
       { id: "us02y", ticker: "US02Y", name: "미국 2년물 국채 수익률", value: "4.28", unit: "%", change: "▲ +0.02", stars: 5, size: "xl", status: "warn", category: "금리" },
-      { id: "t10y2y", ticker: "T10Y2Y", name: "장단기 금리 스프레드", value: "+0.24", unit: "%p", change: "역전 해소 중", stars: 5, size: "xl", status: "ok2", category: "금리" },
+      // change: 연준 이사회 H.15 의 10년물−2년물은 2024-09-05(−0.02)가 마지막 마이너스이고 그 뒤 계속 플러스(2026-10 기준) →
+      // "역전 해소 중"(진행형)은 사실과 달라 고쳤다 (미션 10)
+      { id: "t10y2y", ticker: "T10Y2Y", name: "장단기 금리 스프레드", value: "+0.24", unit: "%p", change: "역전 해소(2024-09~)", stars: 5, size: "xl", status: "ok2", category: "금리" },
       { id: "tips", ticker: "DFII10", name: "실질금리", value: "2.08", unit: "%", change: "▲ +0.01", stars: 4, size: "lg", status: "warn", category: "금리" },
-      { id: "walcl", ticker: "WALCL", name: "연준 대차대조표", value: "6.84", unit: "조$", change: "QT 진행 중", stars: 4, size: "lg", status: "neutral", category: "금리" },
+      // change: 연준은 2025-10-29 FOMC 성명에서 "The Committee decided to conclude the reduction of its aggregate securities holdings on
+      // December 1." 라고 정했다 → "QT 진행 중"(미션 10 전 문구)은 사실과 달라 고쳤다
+      { id: "walcl", ticker: "WALCL", name: "연준 대차대조표", value: "6.84", unit: "조$", change: "QT 종료(2025-12-01)", stars: 4, size: "lg", status: "neutral", category: "금리" },
       { id: "buffett_rate", ticker: "EY/10Y", name: "이익수익률 비교", value: "4.2", unit: "vs 4.5%", change: "채권 우위", stars: 4, size: "lg", status: "neutral2", category: "금리" },
     ],
   },
