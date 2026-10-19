@@ -51,6 +51,7 @@ interface LiquidityData {
 /* ── 백테스트 요약 (미션 10: 고정 수익률 숫자 대신 /api/liquidity/us/backtest 값을 쓴다) ── */
 
 interface BacktestSummary {
+  points?: { regime: RegimeType; qqq6m: number | null }[];
   buckets: { label: string; count: number; avg6m: number }[];
   regimeStats: Record<RegimeType, { count: number; avg6m: number; winRate6m: number }>;
   periodStart: string;
@@ -66,6 +67,14 @@ const ymDot = (ym: string) => ym.replace("-", ".");
 function btBasis(bt: BacktestSummary | null): string {
   if (!bt) return "백테스트 값을 불러오는 중이거나 불러오지 못했습니다";
   return `백테스트 기준(${ymDot(bt.periodStart)}~${ymDot(bt.periodEnd)}, ${bt.totalMonths}개월, ${bt.fetchedAt.slice(0, 10)} 계산)`;
+}
+
+/** 6개월 뒤 수익률의 표준편차(%p) — 국면별·전체 (미션 11: 예전 고정 판단 "변동성 높음"을 계산값으로) */
+function std6m(bt: BacktestSummary | null, regime?: RegimeType): number | null {
+  const v = (bt?.points ?? []).filter((p) => (regime ? p.regime === regime : true) && p.qqq6m != null).map((p) => p.qqq6m!);
+  if (v.length < 2) return null;
+  const m = v.reduce((a, b) => a + b, 0) / v.length;
+  return Math.sqrt(v.reduce((a, b) => a + (b - m) ** 2, 0) / (v.length - 1));
 }
 
 /** 버킷 라벨에 들어 있는 구간 표시로 찾는다 ("유동성 풍부 (75+)" 등) */
@@ -94,7 +103,7 @@ function getBarColor(score: number) {
 const GUIDE_DATA: Record<string, { title: string; body: string }> = {
   "net-liquidity": {
     title: "연준 순유동성이란?",
-    body: "연준의 총자산(WALCL)에서 역레포(RRPONTSYD)와 재무부 일반계좌(TGA)를 뺀 값입니다. 시중에 실제로 돌아다니는 돈의 양을 나타냅니다. 이 값이 늘면 주식시장에 유리하고, 줄면 불리합니다. 변화 추세가 4~6개월 뒤 나스닥과 상관관계를 보입니다.",
+    body: "연준의 총자산(WALCL)에서 역레포(RRPONTSYD)와 재무부 일반계좌(TGA)를 뺀 값입니다. 시중에 실제로 돌아다니는 돈의 양을 나타냅니다. 이 값이 늘면 주식시장에 유리하고, 줄면 불리합니다. 변화 추세가 4~6개월 뒤 나스닥과 관계가 있다는 설명이 있지만, 이 사이트는 개별 지표의 선행성을 따로 검정하지 않았고, 종합 점수 검정에서도 우연과 구분되지 않았습니다.",
   },
   "m2-growth": {
     title: "M2 통화량 증가율이란?",
@@ -102,19 +111,19 @@ const GUIDE_DATA: Record<string, { title: string; body: string }> = {
   },
   "t10y2y": {
     title: "장단기 금리차란?",
-    body: "10년 국채 금리에서 2년 국채 금리를 뺀 값입니다. 이 값이 마이너스(역전)가 되면 경기침체 신호로 알려져 있습니다. 역전이 해소되면서 정상화될 때 나스닥이 반등하는 경향이 있어, 4~6개월 선행 지표로 활용됩니다.",
+    body: "10년 국채 금리에서 2년 국채 금리를 뺀 값입니다. 이 값이 마이너스(역전)가 되면 경기침체 신호로 알려져 있습니다. 역전이 해소되며 정상화될 때 나스닥이 반등한다는 설명으로 4~6개월 선행 지표라고들 하지만, 이 사이트는 개별 지표의 선행성을 따로 검정하지 않았고, 종합 점수 검정에서도 우연과 구분되지 않았습니다.",
   },
   "copper-gold": {
     title: "구리/금 비율이란?",
-    body: "구리(경기 민감 원자재) 가격을 금(안전자산) 가격으로 나눈 비율입니다. 구리가 강하면 경기 낙관, 금이 강하면 경기 비관을 반영합니다. 이 비율이 낮을 때(비관이 극심할 때) 역설적으로 4~6개월 후 나스닥이 반등하는 패턴이 관찰됩니다.",
+    body: "구리(경기 민감 원자재) 가격을 금(안전자산) 가격으로 나눈 비율입니다. 구리가 강하면 경기 낙관, 금이 강하면 경기 비관을 반영합니다. 이 비율이 낮을 때(비관이 극심할 때) 역설적으로 4~6개월 후 나스닥이 반등한다는 설명이 있지만, 이 사이트는 개별 지표의 선행성을 따로 검정하지 않았고, 종합 점수 검정에서도 우연과 구분되지 않았습니다.",
   },
   "ted-spread": {
     title: "테드 스프레드란?",
-    body: "3개월 LIBOR와 3개월 미국 국채 수익률의 차이입니다. 은행 간 대출에서 체감하는 위험 수준을 나타냅니다. 스프레드가 높으면 금융 시스템의 스트레스가 크다는 뜻이지만, 역사적으로 이런 공포가 극심한 시점에서 4~6개월 후 시장이 반등하는 경향이 있습니다.",
+    body: "3개월 LIBOR와 3개월 미국 국채 수익률의 차이입니다. 은행 간 대출에서 체감하는 위험 수준을 나타냅니다. 스프레드가 높으면 금융 시스템의 스트레스가 크다는 뜻입니다. 이런 공포가 극심한 때로부터 4~6개월 뒤 시장이 반등한다는 설명이 있지만, 이 사이트는 개별 지표의 선행성을 따로 검정하지 않았고, 종합 점수 검정에서도 우연과 구분되지 않았습니다.",
   },
   nfci: {
     title: "NFCI (금융상황지수)란?",
-    body: "시카고 연준이 매주 발표하는 종합 금융상황 지표입니다. 105개의 금융 변수(금리, 스프레드, 레버리지 등)를 종합합니다. 양수이면 금융환경이 긴축적, 0 이하이면 완화적입니다. 절대 수준이 높을수록(긴축적일수록) 향후 반등 가능성이 높아지는 역발상 지표입니다.",
+    body: "시카고 연준이 매주 발표하는 종합 금융상황 지표입니다. 105개의 금융 변수(금리, 스프레드, 레버리지 등)를 종합합니다. 양수이면 금융환경이 긴축적, 0 이하이면 완화적입니다. 절대 수준이 높을수록(긴축적일수록) 향후 반등 가능성이 높아지는 역발상 지표라는 설명이 있지만, 이 사이트는 개별 지표의 선행성을 따로 검정하지 않았고, 종합 점수 검정에서도 우연과 구분되지 않았습니다. 이 사이트 점수는 NFCI 가 높을수록 낮게 매깁니다.",
   },
 };
 
@@ -226,7 +235,9 @@ function RegimeCard({ data, bt }: { data: LiquidityData; bt: BacktestSummary | n
         {data.regime === "RECOVERY" && `유동성 개선 중 — 과거 평균 6개월 ${pct(rs?.avg6m)} 수익률 구간`}
         {data.regime === "EXPANSION" && `유동성 양호 — 과거 평균 6개월 ${pct(rs?.avg6m)} 수익률 구간, 승률 ${rs ? rs.winRate6m.toFixed(1) : "—"}%`}
         {data.regime === "SLOWDOWN" && `유동성 둔화 중 — 과거 평균 6개월 ${pct(rs?.avg6m)} 수익률 구간, 주의`}
-        {data.regime === "CONTRACTION" && `유동성 악화 중 — 과거 평균 6개월 ${pct(rs?.avg6m)} 수익률이나 변동성 높음`}
+        {/* 미션 11: "변동성 높음"은 고정 판단이라 계산값으로 바꿨다(하락 지속 12.7%p 는 전체 12.3%p 보다 조금 높고 고점 경고 16.6%p 보다 낮음) */}
+        {data.regime === "CONTRACTION" &&
+          `유동성 악화 중 — 과거 평균 6개월 ${pct(rs?.avg6m)} 수익률, 6개월 수익률 표준편차 ${std6m(bt, "CONTRACTION")?.toFixed(1) ?? "—"}%p(전체 ${std6m(bt)?.toFixed(1) ?? "—"}%p)`}
         <span className="block text-[11px] mt-1">{btBasis(bt)}{rs ? `, 이 국면 ${rs.count}개월` : ""}</span>
       </p>
       {data.scoreChange3m != null && (
@@ -340,6 +351,15 @@ function GuideAccordion() {
 }
 
 /* ── 연준 순유동성 보는 법 모달 ── */
+
+/** 모달에 넘기는 실시간 값 (미션 11: 모달 속 "현재" 숫자를 API 값과 기준일로) */
+interface GuideModalProps {
+  onClose: () => void;
+  live?: {
+    copperGold?: { value: number; levelScore: number; lastDate: string | null };
+    nfci?: { value: number; lastDate: string | null };
+  };
+}
 
 function NetLiquidityGuideModal({ onClose }: { onClose: () => void }) {
   const { position, handleMouseDown } = useDraggable();
@@ -498,7 +518,7 @@ function NetLiquidityGuideModal({ onClose }: { onClose: () => void }) {
 
         {/* 섹션7: 왜 4~6개월 선행인가 */}
         <section className="mb-6">
-          <h3 className="mb-2 text-base font-semibold">왜 지금 변화가 4~6개월 뒤 나스닥에 영향을 주나요?</h3>
+          <h3 className="mb-2 text-base font-semibold">왜 &ldquo;4~6개월 뒤 나스닥에 영향&rdquo;이라고들 하나요?</h3>
           <div className="rounded-lg border border-border bg-muted/30 p-4 text-sm leading-relaxed text-muted-foreground space-y-2">
             <p>봄에 씨앗을 심으면 (연준이 돈을 풀기 시작)</p>
             <p>씨앗이 발아하고 자라는 데 시간이 걸려요.</p>
@@ -506,7 +526,11 @@ function NetLiquidityGuideModal({ onClose }: { onClose: () => void }) {
           </div>
           <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
             돈이 풀리면 → 기업들이 대출을 받고 → 투자를 하고 → 실적이 좋아지고 → 그때서야 주가가 반응해요.
-            <strong className="text-foreground"> 이 과정이 4~6개월 걸려요.</strong>
+            <strong className="text-foreground"> 이 과정이 4~6개월 걸린다는 설명이에요.</strong>
+          </p>
+          {/* 미션 11: 선행성 주장은 이 사이트 백테스트(Fisher 최소 p 0.0895·0.46)로 뒷받침되지 않는다 */}
+          <p className="mt-2 text-xs leading-relaxed text-amber-500/90">
+            다만 이 &ldquo;4~6개월&rdquo;은 설명을 위한 이야기이고, 이 사이트는 개별 지표의 선행성을 따로 검정하지 않았고, 종합 점수 검정에서도 우연과 구분되지 않았습니다.
           </p>
         </section>
 
@@ -696,9 +720,10 @@ function M2GrowthGuideModal({ onClose }: { onClose: () => void }) {
 
         {/* 섹션7: 왜 4~6개월 선행 */}
         <section className="mb-6">
-          <h3 className="mb-2 text-base font-semibold">왜 4~6개월 선행인가요?</h3>
+          <h3 className="mb-2 text-base font-semibold">왜 &ldquo;4~6개월 선행&rdquo;이라고들 하나요?</h3>
           <p className="text-sm leading-relaxed text-muted-foreground">
-            M2가 늘어나면 → 사람들이 쓸 돈이 많아지고 → 기업 실적이 좋아지고 → <strong className="text-foreground">4~6개월 뒤 주가에 반영</strong>돼요.
+            M2가 늘어나면 → 사람들이 쓸 돈이 많아지고 → 기업 실적이 좋아지고 → <strong className="text-foreground">4~6개월 뒤 주가에 반영</strong>된다는 설명이에요.
+            다만 이 사이트는 개별 지표의 선행성을 따로 검정하지 않았고, 종합 점수 검정에서도 우연과 구분되지 않았습니다.
           </p>
         </section>
 
@@ -820,7 +845,7 @@ function T10Y2YGuideModal({ onClose }: { onClose: () => void }) {
             <div className="flex flex-col gap-1.5">
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: "#16a34a" }} />
-                <span><strong className="text-foreground">역전이 풀리는 중</strong> (음수 → 양수로 회복) → 나스닥 반등 신호</span>
+                <span><strong className="text-foreground">역전이 풀리는 중</strong> (음수 → 양수로 회복) → 나스닥 반등 신호로 보는 설명(검정되지 않음)</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: "#dc2626" }} />
@@ -838,7 +863,7 @@ function T10Y2YGuideModal({ onClose }: { onClose: () => void }) {
 
 /* ── 구리/금 비율 보는 법 모달 ── */
 
-function CopperGoldGuideModal({ onClose }: { onClose: () => void }) {
+function CopperGoldGuideModal({ onClose, live }: GuideModalProps) {
   const { position, handleMouseDown } = useDraggable();
   const { size, handleResizeMouseDown } = useResizable();
 
@@ -865,7 +890,7 @@ function CopperGoldGuideModal({ onClose }: { onClose: () => void }) {
 
         <section className="mb-6">
           <p className="text-sm leading-relaxed text-muted-foreground">
-            경기 낙관(구리)과 경기 비관(금)의 싸움. 비율이 낮을수록 역설적으로 반등 신호입니다.
+            경기 낙관(구리)과 경기 비관(금)의 싸움. 비율이 낮을수록 역설적으로 반등 신호라는 설명이 있습니다(이 사이트에서 검정되지 않음).
           </p>
         </section>
 
@@ -897,7 +922,7 @@ function CopperGoldGuideModal({ onClose }: { onClose: () => void }) {
             <p>이 지표는 다른 지표들과 반대로 작동해요.</p>
             <p>비율이 낮다 = 시장이 이미 많이 불안하고 빠진 상태</p>
             <p>= 바닥일 가능성이 높음</p>
-            <p>= <strong className="text-foreground">6개월 뒤 반등 가능성 높음</strong></p>
+            <p>= <strong className="text-foreground">6개월 뒤 반등을 기대하는 해석</strong> (이 사이트는 개별 지표의 선행성을 따로 검정하지 않았고, 종합 점수 검정에서도 우연과 구분되지 않았습니다)</p>
           </div>
           <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
             비유: 모든 사람이 겁먹고 팔 때가 사실 살 때인 것처럼요.
@@ -911,7 +936,7 @@ function CopperGoldGuideModal({ onClose }: { onClose: () => void }) {
           <div className="rounded-lg border border-border bg-muted/30 p-4 text-sm leading-relaxed text-muted-foreground space-y-2">
             <p><strong className="text-foreground">2020년 3월 코로나 바닥:</strong></p>
             <p>구리/금 비율 역사적 최저</p>
-            <p>→ 6개월 뒤 나스닥 역사상 최대 반등</p>
+            <p>→ 그 뒤 6개월 동안 나스닥이 크게 올랐던 사례(사례 하나일 뿐, 통계적으로 확인된 규칙은 아닙니다)</p>
           </div>
         </section>
 
@@ -923,14 +948,20 @@ function CopperGoldGuideModal({ onClose }: { onClose: () => void }) {
             <div className="flex flex-col gap-1.5">
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: "#16a34a" }} />
-                <span><strong className="text-foreground">비율이 역사적으로 낮은 상태</strong> → 역설적으로 높은 점수 (반등 기대)</span>
+                {/* 미션 11 독립 검증 지적 1: 예전 설명("낮은 상태 → 높은 점수")은 코드와 반대였다 — API 는 비율이 낮을수록 낮은 점수(백분위) */}
+                <span><strong className="text-foreground">비율이 역사적으로 낮은 상태</strong> → 낮은 점수 (이 사이트 점수는 최근 10년 백분위)</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: "#dc2626" }} />
-                <span><strong className="text-foreground">비율이 역사적으로 높은 상태</strong> → 낮은 점수 (고점 주의)</span>
+                <span><strong className="text-foreground">비율이 역사적으로 높은 상태</strong> → 높은 점수</span>
               </div>
             </div>
-            <p className="mt-2 text-xs text-muted-foreground/70">현재 구리/금 비율이 매우 낮은 상태 (11점대) → 역사적으로 강한 반등이 나왔던 구간</p>
+            {/* 미션 11: 예전 고정 문구 "현재 구리/금 비율이 매우 낮은 상태 (11점대) → 역사적으로 강한 반등이 나왔던 구간"을 API 값으로 */}
+            {live?.copperGold && (
+              <p className="mt-2 text-xs text-muted-foreground/70">
+                현재 구리/금 비율 {live.copperGold.value} — 최근 10년 값 가운데 아래에서 {live.copperGold.levelScore}% 위치(레벨 점수 {live.copperGold.levelScore}점, {live.copperGold.lastDate ?? "날짜 없음"} 기준)
+              </p>
+            )}
           </div>
         </section>
       </div>
@@ -992,7 +1023,7 @@ function TedSpreadGuideModal({ onClose }: { onClose: () => void }) {
           <div className="text-sm leading-relaxed text-muted-foreground space-y-2">
             <p>높을수록 금융 시스템이 불안한 상태예요.</p>
             <p>근데 <strong className="text-foreground">불안이 극에 달했을 때가 오히려 바닥</strong>이에요.</p>
-            <p>테드 스프레드가 매우 높았던 이후 5개월 뒤 나스닥이 반등하는 경향이 있어요.</p>
+            <p>테드 스프레드가 매우 높았던 이후 5개월 뒤 나스닥이 반등했다는 설명이 있지만, 이 사이트는 개별 지표의 선행성을 따로 검정하지 않았고, 종합 점수 검정에서도 우연과 구분되지 않았습니다.</p>
           </div>
         </section>
 
@@ -1004,7 +1035,7 @@ function TedSpreadGuideModal({ onClose }: { onClose: () => void }) {
             <div className="rounded-lg border border-border bg-muted/30 p-4 text-sm leading-relaxed text-muted-foreground space-y-1">
               <p><strong className="text-foreground">2008년 금융위기:</strong> 테드 스프레드 4.6%까지 폭등</p>
               <p>→ 은행들이 서로를 전혀 못 믿는 상태</p>
-              <p>→ 이후 2009년 대반등</p>
+              <p>→ 이후 2009년 대반등(사례일 뿐, 이 사이트에서 검정되지 않음)</p>
             </div>
             <div className="rounded-lg border border-border bg-muted/30 p-4 text-sm leading-relaxed text-muted-foreground space-y-1">
               {/* 미션 10: 예전 "현재 (2026년 3월): 0.09%"는 틀림 — FRED TEDRATE 는 2022-01-21(0.09%)을 마지막으로 갱신이 멈췄다 */}
@@ -1030,7 +1061,7 @@ function TedSpreadGuideModal({ onClose }: { onClose: () => void }) {
                 <span><strong className="text-foreground">높을수록</strong> → 금융 불안 → 낮은 점수</span>
               </div>
             </div>
-            <p className="mt-2 text-xs text-muted-foreground/70">단, 극단적으로 높으면 오히려 반등 신호일 수 있어요.</p>
+            <p className="mt-2 text-xs text-muted-foreground/70">단, 극단적으로 높으면 오히려 반등 신호라는 설명도 있지만, 이 사이트에서 검정되지 않았습니다.</p>
           </div>
         </section>
       </div>
@@ -1042,7 +1073,7 @@ function TedSpreadGuideModal({ onClose }: { onClose: () => void }) {
 
 /* ── NFCI 보는 법 모달 ── */
 
-function NfciGuideModal({ onClose }: { onClose: () => void }) {
+function NfciGuideModal({ onClose, live }: GuideModalProps) {
   const { position, handleMouseDown } = useDraggable();
   const { size, handleResizeMouseDown } = useResizable();
 
@@ -1122,7 +1153,12 @@ function NfciGuideModal({ onClose }: { onClose: () => void }) {
           <div className="mt-3 text-sm leading-relaxed text-muted-foreground space-y-1">
             <p><strong className="text-foreground">2020년 3월 코로나:</strong> +1.27 (매우 불건강)</p>
             <p><strong className="text-foreground">2021년 중반:</strong> -0.8 (매우 건강)</p>
-            <p><strong className="text-foreground">현재:</strong> -0.514 (건강한 상태)</p>
+            {/* 미션 11: 예전 고정값 "현재: -0.514"를 API 값과 기준일로. NFCI 는 음수면 평균보다 완화적(시카고 연은 정의) */}
+            {live?.nfci && (
+              <p>
+                <strong className="text-foreground">현재:</strong> {live.nfci.value} ({live.nfci.value < 0 ? "건강한 상태" : "불건강한 상태"}, {live.nfci.lastDate ?? "날짜 없음"} 기준)
+              </p>
+            )}
           </div>
         </section>
 
@@ -1152,7 +1188,7 @@ function NfciGuideModal({ onClose }: { onClose: () => void }) {
 
 /* ── 지표 ID → 모달 매핑 ── */
 
-const GUIDE_MODALS: Record<string, React.ComponentType<{ onClose: () => void }>> = {
+const GUIDE_MODALS: Record<string, React.ComponentType<GuideModalProps>> = {
   "net-liquidity": NetLiquidityGuideModal,
   "m2-growth": M2GrowthGuideModal,
   "t10y2y": T10Y2YGuideModal,
@@ -1361,7 +1397,17 @@ export default function UsLiquidityPage() {
       {/* 보는 법 모달 */}
       {openGuide && GUIDE_MODALS[openGuide] && (() => {
         const Modal = GUIDE_MODALS[openGuide];
-        return <Modal onClose={() => setOpenGuide(null)} />;
+        const cg = data?.indicators.find((i) => i.id === "copper-gold");
+        const nf = data?.indicators.find((i) => i.id === "nfci");
+        return (
+          <Modal
+            onClose={() => setOpenGuide(null)}
+            live={{
+              copperGold: cg ? { value: cg.value, levelScore: cg.levelScore, lastDate: cg.lastDate ?? null } : undefined,
+              nfci: nf ? { value: nf.value, lastDate: nf.lastDate ?? null } : undefined,
+            }}
+          />
+        );
       })()}
     </main>
   );

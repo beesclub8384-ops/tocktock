@@ -52,14 +52,24 @@ function shiftMonth(ymd: string, n: number): string {
  *  13개월 전과 비교했다 — 결정 로그 21-3.) 12개월 전 달 값이 없으면 null.
  */
 export function calcYoY(observations: FredObservation[]): number | null {
-  if (observations.length === 0) return null;
-  const latestObs = observations[0];
-  const ago = observations.find((o) => o.date === shiftMonth(latestObs.date, -12));
-  if (!ago) return null;
-  const latest = parseFloat(latestObs.value);
-  const yearAgo = parseFloat(ago.value);
-  if (isNaN(latest) || isNaN(yearAgo) || yearAgo === 0) return null;
-  return ((latest - yearAgo) / yearAgo) * 100;
+  return calcYoYWithDate(observations)?.value ?? null;
+}
+
+/**
+ * 전년 동월 대비 % 와 그 기준월 — 최신 달부터 거슬러 올라가며 "그 달과 12개월 전 같은 달"이 모두 있는 첫 달을 쓴다.
+ * 미션 11: BLS 는 2025년 10월 CPI 를 수집하지 못해("-") 2026년 10월의 전년 동월 대비는 계산할 수 없다. 이때 빈 값 대신
+ * 계산 가능한 가장 최근 달(9월)의 값을 기준월과 함께 보여 준다(라벨에 그 달이 적힌다).
+ */
+export function calcYoYWithDate(observations: FredObservation[]): { value: number; date: string } | null {
+  for (const o of observations) {
+    const ago = observations.find((x) => x.date === shiftMonth(o.date, -12));
+    if (!ago) continue;
+    const cur = parseFloat(o.value);
+    const yearAgo = parseFloat(ago.value);
+    if (isNaN(cur) || isNaN(yearAgo) || yearAgo === 0) continue;
+    return { value: ((cur - yearAgo) / yearAgo) * 100, date: o.date };
+  }
+  return null;
 }
 
 /** 전월 대비 차이 — 최신 관측월과 바로 앞 달을 날짜로 찾아 비교한다(앞 달 값이 없으면 null, 미션 9) */

@@ -518,8 +518,9 @@ export default function BacktestPage() {
 
   useEffect(() => {
     fetch("/api/liquidity/us/backtest")
-      .then((r) => {
-        if (!r.ok) throw new Error("API 오류");
+      .then(async (r) => {
+        // 저장값이 아직 없으면(503) API 가 주는 안내 문장을 그대로 보여 준다 (미션 11)
+        if (!r.ok) throw new Error(((await r.json().catch(() => null)) as { error?: string } | null)?.error ?? "API 오류");
         return r.json();
       })
       .then((d: BacktestData) => setData(d))

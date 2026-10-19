@@ -24,6 +24,14 @@ interface Indicator {
   manual?: boolean;
   /** 값을 화면에 싣지 않고 "준비 중"으로 보여 준다 (아래 PENDING_IDS) */
   pending?: boolean;
+  /** 화면에 그리지 않는다 (아래 HIDDEN_MANUAL_IDS, 미션 11) */
+  hidden?: boolean;
+  /** 실시간 값을 받지 못함 (미션 11) — 고정값 대신 안내를 보여 준다 */
+  failed?: boolean;
+  /** 받지 못했을 때 마지막으로 받은 값과 그 기준일 */
+  lastGood?: string;
+  /** 수동 값의 기준일·출처 (모달에도 보인다) */
+  basis?: string;
 }
 
 const MANUAL_IDS = new Set([
@@ -38,6 +46,28 @@ const MANUAL_IDS = new Set([
  * 사전 서면 승인 필요). 승인 없이 공개 화면에 실을 수 없어 값 연결을 끊고 숫자도 코드에서 비웠다(번들로 공개되므로). 지표 정의는 남겼다.
  */
 const PENDING_IDS = new Set(["hy"]);
+
+/**
+ * 화면에서 숨기는 수동 타일 (미션 11, 2026-10-19 공식 출처 검증 — docs/pre-launch-review.md '수동 타일 검증').
+ * 공식 출처로 최신 값과 기준일(6개월 이내)을 확인한 cc(연준 이사회)·jolts(BLS)만 남기고, 확인하지 못했거나(유료·비공식
+ * 출처, 원문을 열지 못함) 낡았거나 정의가 맞지 않는 18개는 숨긴다. 지표 정의와 설명은 코드에 남겼다.
+ */
+const HIDDEN_MANUAL_IDS = new Set([
+  "buffett_rate", "swap", "move", "pcr", "cds", "auto", "crb", "cape", "buffett", "em_cape",
+  "debt", "m2", "gold_reserve", "dollar_share", "pmi", "sp200", "revision", "bdi",
+]);
+
+/**
+ * 실시간 타일 중 API 가 변화값·기준 라벨을 주지 않을 때 보여 줄 고정 설명 (근거를 확인한 문구만 — 미션 10).
+ * 나머지 실시간 타일은 옛 고정 변화 문구("▲ +0.04" 등)로 돌아가지 않고 빈칸으로 둔다 (미션 11)
+ */
+const LIVE_NOTES: Record<string, string> = {};
+
+/** 실시간 값을 받는 타일 — 처음에는 고정값 대신 "불러오는 중"을 보여 주고, 못 받으면 안내를 보여 준다 (미션 11) */
+const LIVE_IDS = new Set([
+  "us10y", "us02y", "t10y2y", "tips", "walcl", "cpi", "pce", "nfp",
+  "dxy", "usdkrw", "usdjpy", "vix", "wti", "gold", "copper",
+]);
 
 interface ReadingGuide {
   icon: string;
@@ -121,7 +151,9 @@ const INITIAL_CATEGORIES: { name: string; items: Indicator[] }[] = [
       // 지표 정의(이름·중요도·크기·분류)는 남기고, 예전 고정값은 git 기록에만 있다. ICE 승인을 받으면 값을 다시 넣고 PENDING_IDS 에서 뺀다
       { id: "hy", ticker: "HY SPREAD", name: "하이일드 스프레드", value: "", unit: "%", change: "", stars: 5, size: "xl", status: "neutral2", category: "신용리스크" },
       { id: "cds", ticker: "KR CDS", name: "한국 CDS", value: "38", unit: "bp", change: "▲ +2", stars: 4, size: "lg", status: "neutral", category: "신용리스크" },
-      { id: "cc", ticker: "CC DEL", name: "신용카드 연체율", value: "3.2", unit: "%", change: "▲ 상승 중", stars: 3, size: "sm", status: "danger2", category: "신용리스크" },
+      // 미션 11 검증: 연준 이사회 대출 연체율(계절조정, 전체 은행) 2026년 2분기 신용카드 2.85%(1분기 2.91%)
+      // federalreserve.gov/releases/chargeoff/delallsa.htm — 예전 고정값 3.2%·"▲ 상승 중"은 틀렸다
+      { id: "cc", ticker: "CC DEL", name: "신용카드 연체율", value: "2.85", unit: "%", change: "2026년 2분기 · 연준 이사회", basis: "2026년 2분기(전분기 2.91%), 연준 이사회 대출 연체율 통계(계절조정, 전체 상업은행)", stars: 3, size: "sm", status: "neutral2", category: "신용리스크" },
       { id: "auto", ticker: "AUTO", name: "자동차 할부 연체율", value: "2.8", unit: "%", change: "▲ 상승 중", stars: 3, size: "sm", status: "warn", category: "신용리스크" },
     ],
   },
@@ -157,7 +189,9 @@ const INITIAL_CATEGORIES: { name: string; items: Indicator[] }[] = [
       { id: "cpi", ticker: "CPI", name: "소비자물가지수", value: "3.0", unit: "%yoy", change: "▼ -0.2 전월비", stars: 5, size: "xl", status: "ok", category: "경제발표" },
       { id: "pce", ticker: "PCE", name: "PCE 물가지수", value: "2.6", unit: "%yoy", change: "▼ -0.1", stars: 5, size: "xl", status: "ok2", category: "경제발표" },
       { id: "nfp", ticker: "NFP", name: "비농업 고용지수", value: "143", unit: "만명", change: "전월 256만", stars: 5, size: "xl", status: "ok", category: "경제발표" },
-      { id: "jolts", ticker: "JOLTS", name: "구인건수", value: "7.6", unit: "백만", change: "구인/실업 1.1x", stars: 4, size: "lg", status: "ok", category: "경제발표" },
+      // 미션 11 검증: BLS JOLTS 2026년 8월 구인 7,079천 명(잠정) — "The number of job openings was little changed at 7.1 million in
+      // August". 구인/실업 = 7,079 / 실업자 7,031(BLS LNS13000000, 2026년 8월) = 1.0배. 예전 7.6·1.1x 는 낡았다
+      { id: "jolts", ticker: "JOLTS", name: "구인건수", value: "7.1", unit: "백만", change: "2026년 8월 · BLS", basis: "2026년 8월(잠정), BLS 구인·이직 조사. 구인/실업 1.0배(실업자 7,031천 명)", stars: 4, size: "lg", status: "neutral2", category: "경제발표" },
       { id: "pmi", ticker: "US PMI", name: "제조업 PMI", value: "52.4", unit: "index", change: "▲ 확장 구간", stars: 4, size: "lg", status: "ok2", category: "경제발표" },
     ],
   },
@@ -181,6 +215,12 @@ INITIAL_CATEGORIES.forEach((cat) =>
   cat.items.forEach((item) => {
     if (MANUAL_IDS.has(item.id)) item.manual = true;
     if (PENDING_IDS.has(item.id)) item.pending = true;
+    if (HIDDEN_MANUAL_IDS.has(item.id)) item.hidden = true;
+    if (LIVE_IDS.has(item.id)) {
+      if (item.id === "t10y2y" || item.id === "walcl") LIVE_NOTES[item.id] = item.change;
+      item.value = "…";
+      item.change = "불러오는 중입니다";
+    }
   })
 );
 
@@ -674,8 +714,9 @@ const MODAL_CONTENTS: Record<string, ModalInfo> = {
 /* ═══════════════════ 타일 컴포넌트 ═══════════════════ */
 
 function Tile({ item, onClick }: { item: Indicator; onClick: () => void }) {
-  // 값을 싣지 않는 지표는 상태 색(정상·경고 등)도 판단처럼 보이므로 중립색으로 둔다 (미션 8)
-  const bg = item.pending ? STATUS_COLORS.neutral2 : STATUS_COLORS[item.status];
+  // 상태 색: 예전에는 타일마다 고정된 판단 색(정상·경고 등)이라 값이 바뀌어도 그대로였다. 값에서 계산하는 공식 규칙이
+  // 없어 모두 중립색으로 둔다(실시간 타일 neutral, 수동·준비 중 neutral2 — 미션 11). status 값은 코드에 남김
+  const bg = item.manual || item.pending ? STATUS_COLORS.neutral2 : STATUS_COLORS.neutral;
 
   const sizeStyle: React.CSSProperties =
     item.size === "xl"
@@ -710,7 +751,12 @@ function Tile({ item, onClick }: { item: Indicator; onClick: () => void }) {
       <span style={{ fontSize: nameSize, lineHeight: 1.2 }} className="text-white/80 mt-0.5">
         {item.name}
       </span>
-      {item.change && !item.pending && (
+      {item.failed && (
+        <span style={{ fontSize: 8 }} className="text-amber-300/80 mt-0.5">
+          자료를 불러오지 못했습니다{item.lastGood ? ` · 마지막 ${item.lastGood}` : ""}
+        </span>
+      )}
+      {item.change && !item.pending && !item.failed && (
         <span style={{ fontSize: 8 }} className="text-white/40 mt-0.5">
           {item.change}
         </span>
@@ -736,6 +782,7 @@ function CategoryBlock({
   onTileClick: (item: Indicator) => void;
 }) {
   const color = CATEGORY_COLORS[name] ?? "#666";
+  if (items.length === 0) return null; // 타일을 모두 숨긴 분류는 그리지 않는다 (미션 11)
 
   return (
     <div className="relative" style={{ border: `1px solid ${color}`, borderRadius: 8, padding: 12, paddingTop: 18 }}>
@@ -802,6 +849,12 @@ function IndicatorModal({ item, onClose }: { item: Indicator; onClose: () => voi
               {!item.pending && <span className="text-white/40 text-sm">{item.unit}</span>}
             </div>
             {item.pending && <p className="text-white/50 text-xs mt-1">이 지표의 값은 지금 준비 중입니다.</p>}
+            {item.failed && (
+              <p className="text-amber-300/80 text-xs mt-1">
+                자료를 불러오지 못했습니다.{item.lastGood ? ` 마지막으로 받은 값: ${item.lastGood}` : ""}
+              </p>
+            )}
+            {item.basis && <p className="text-white/50 text-xs mt-1">기준: {item.basis}</p>}
           </div>
           <button onClick={onClose} className="text-white/40 hover:text-white text-xl leading-none p-1">
             ✕
@@ -906,22 +959,47 @@ export default function GlobalIndicatorsPage() {
             ...cat,
             items: cat.items.map((item) => {
               const live = liveMap.get(item.id);
-              if (!live || live.value === null) return item;
+              // 실시간 타일인데 값을 못 받으면 고정값을 보여 주지 않고 안내 + 마지막으로 받은 값(기준일)을 보여 준다 (미션 11)
+              if (!live || live.value === null) {
+                if (!LIVE_IDS.has(item.id)) return item;
+                return {
+                  ...item,
+                  value: "—",
+                  change: "",
+                  failed: true,
+                  lastGood: live?.lastGood
+                    ? `${formatValue(item.id, live.lastGood.value)}${live.lastGood.unit && live.lastGood.unit !== "index" ? " " + live.lastGood.unit : ""} (${live.lastGood.label ? live.lastGood.label + ", " : ""}${live.lastGood.asOf} 받음)`
+                    : undefined,
+                };
+              }
               return {
                 ...item,
                 value: formatValue(item.id, live.value),
                 unit: live.unit || item.unit,
                 // 변화값이 없으면 API 가 준 기준 설명을 쓴다. 고정 문구의 숫자("▼ -0.2 전월비" 등)가 지금 값처럼 보이지 않게 (미션 9)
-                change: formatChange(live.change) || live.label || item.change,
+                change: formatChange(live.change) || live.label || LIVE_NOTES[item.id] || "",
               };
             }),
           }))
         );
       })
-      .catch((err) => console.error("global-indicators fetch error:", err));
+      .catch((err) => {
+        console.error("global-indicators fetch error:", err);
+        // 응답 자체를 못 받으면 실시간 타일 전부 안내로 (고정값을 지금 값처럼 보이지 않게, 미션 11)
+        setCategories((prev) =>
+          prev.map((cat) => ({
+            ...cat,
+            items: cat.items.map((item) => (LIVE_IDS.has(item.id) ? { ...item, value: "—", change: "", failed: true } : item)),
+          }))
+        );
+      });
   }, []);
 
-  const cat = (name: string) => categories.find((c) => c.name === name)!;
+  // 숨긴 타일은 빼고 넘긴다 (미션 11)
+  const cat = (name: string) => {
+    const c = categories.find((x) => x.name === name)!;
+    return { ...c, items: c.items.filter((i) => !i.hidden) };
+  };
 
   return (
     <div
@@ -933,31 +1011,43 @@ export default function GlobalIndicatorsPage() {
         <CategoryBlock name="금리" items={cat("금리").items} onTileClick={setSelected} />
 
         {/* 2행: 달러&환율 | 심리&변동성 */}
+        {/* 두 분류의 타일을 모두 숨기면 행 자체를 그리지 않는다 (미션 11, 빈 간격 방지) */}
+        {(cat("달러&환율").items.length > 0 || cat("심리&변동성").items.length > 0) && (
         <div className="grid grid-cols-2 gap-3">
           <CategoryBlock name="달러&환율" items={cat("달러&환율").items} onTileClick={setSelected} />
           <CategoryBlock name="심리&변동성" items={cat("심리&변동성").items} onTileClick={setSelected} />
         </div>
+        )}
 
         {/* 3행: 신용리스크 | 원자재 */}
+        {/* 두 분류의 타일을 모두 숨기면 행 자체를 그리지 않는다 (미션 11, 빈 간격 방지) */}
+        {(cat("신용리스크").items.length > 0 || cat("원자재").items.length > 0) && (
         <div className="grid grid-cols-2 gap-3">
           <CategoryBlock name="신용리스크" items={cat("신용리스크").items} onTileClick={setSelected} />
           <CategoryBlock name="원자재" items={cat("원자재").items} onTileClick={setSelected} />
         </div>
+        )}
 
         {/* 4행: 밸류에이션 | 부채사이클 */}
+        {/* 두 분류의 타일을 모두 숨기면 행 자체를 그리지 않는다 (미션 11, 빈 간격 방지) */}
+        {(cat("밸류에이션").items.length > 0 || cat("부채사이클").items.length > 0) && (
         <div className="grid grid-cols-2 gap-3">
           <CategoryBlock name="밸류에이션" items={cat("밸류에이션").items} onTileClick={setSelected} />
           <CategoryBlock name="부채사이클" items={cat("부채사이클").items} onTileClick={setSelected} />
         </div>
+        )}
 
         {/* 5행: 경제발표 (전체 폭) */}
         <CategoryBlock name="경제발표" items={cat("경제발표").items} onTileClick={setSelected} />
 
         {/* 6행: 모멘텀&실적 | 글로벌교역 */}
+        {/* 두 분류의 타일을 모두 숨기면 행 자체를 그리지 않는다 (미션 11, 빈 간격 방지) */}
+        {(cat("모멘텀&실적").items.length > 0 || cat("글로벌교역").items.length > 0) && (
         <div className="grid grid-cols-2 gap-3">
           <CategoryBlock name="모멘텀&실적" items={cat("모멘텀&실적").items} onTileClick={setSelected} />
           <CategoryBlock name="글로벌교역" items={cat("글로벌교역").items} onTileClick={setSelected} />
         </div>
+        )}
       </div>
 
       {/* FRED 고지 — 출처를 FRED 로 되돌렸을 때만 (기본은 원출처, 미션 8). 영어 문장은 FRED API 이용 약관 문구 그대로 */}

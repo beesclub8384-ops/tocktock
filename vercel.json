@@ -45,6 +45,10 @@
       "schedule": "0 22 * * 0-4"
     },
     {
+      "path": "/api/cron/liquidity-backtest",
+      "schedule": "0 13 * * *"
+    },
+    {
       "path": "/api/cron/inflation-refresh",
       "schedule": "30 14 * * *"
     },

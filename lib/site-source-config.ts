@@ -16,7 +16,7 @@
  *  - 연준 이사회 H.15: DGS2(RIFLGFCY02_N.B), DFII10(RIFLGFCY10_XII_N.B), DGS10(RIFLGFCY10_N.B), DFF(RIFSPFF_N.D),
  *    T10Y2Y(= H.15 10년물 − 2년물을 직접 계산, 소수 둘째 자리)
  *  - 연준 이사회 H.6: M2SL(M2.M, 날짜를 달 첫날로)
- *  - BLS 시계열 파일: CPIAUCSL(CUSR0000SA0), CPIAUCNS(CUUR0000SA0, 비조정 — 미션 10), CPILFESL(CUSR0000SA0L1E), PAYEMS(CES0000000001)
+ *  - BLS 시계열 파일: CPIAUCSL(CUSR0000SA0), CPIAUCNS(CUUR0000SA0, 비조정 — 미션 10), CPILFESL(CUSR0000SA0L1E), CPILFENS(CUUR0000SA0L1E, 비조정 — 미션 11), PAYEMS(CES0000000001)
  *  - BEA NIPA 월별 파일: PCEPI(DPCERG), PCEPILFE(DPCCRG)
  *  - 뉴욕 연은 Markets API: RRPONTSYD(역레포 운영 결과), SOFR
  *  - 발표 일정: BLS 일정표(ics), BEA 일정표(ics), 인구조사국 경제지표 일정표 — FRED release/dates 대신
@@ -40,6 +40,7 @@ export const SITE_ORIGIN_SERIES = new Set<string>([
   "CPIAUCSL",
   "CPIAUCNS",
   "CPILFESL",
+  "CPILFENS",
   "PAYEMS",
   "PCEPI",
   "PCEPILFE",

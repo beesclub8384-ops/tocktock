@@ -95,27 +95,27 @@ function classifyRegime(
       regimeLabel: "바닥 탈출",
       regimeColor: "blue",
       regimeSignal:
-        "강한 매수 신호 — 역사적으로 가장 강한 반등 구간",
+        "점수가 낮지만 오르는 중 (국면별 수익률 차이는 통계적으로 확인되지 않음)",
     };
   if (score >= 50 && rising)
     return {
       regime: "EXPANSION",
       regimeLabel: "상승 지속",
       regimeColor: "green",
-      regimeSignal: "상승 지속 가능성 높음",
+      regimeSignal: "점수가 높고 오르는 중 (국면별 수익률 차이는 통계적으로 확인되지 않음)",
     };
   if (score >= 50 && !rising)
     return {
       regime: "SLOWDOWN",
       regimeLabel: "고점 경고",
       regimeColor: "orange",
-      regimeSignal: "상승 둔화, 주의 필요",
+      regimeSignal: "점수가 높지만 내리는 중 (국면별 수익률 차이는 통계적으로 확인되지 않음)",
     };
   return {
     regime: "CONTRACTION",
     regimeLabel: "하락 지속",
     regimeColor: "red",
-    regimeSignal: "하락 위험, 회피",
+    regimeSignal: "점수가 낮고 내리는 중 (국면별 수익률 차이는 통계적으로 확인되지 않음)",
   };
 }
 
@@ -369,7 +369,9 @@ async function computeLiquidity(): Promise<LiquidityResponse> {
   const macroScore = avgOf(macroIds, combinedById, staleNow) ?? 50;
   const marketScore = avgOf(marketIds, combinedById, staleNow) ?? 50;
 
-  /* ── 5. Regime classification ── */
+  /* ── 5. Regime classification ──
+   * 미션 11: regimeSignal·지표 description 의 반등·매수 신호 문구를 지웠다(백테스트가 우연과 구분되지 않음, 결정 로그 22-4·23-3).
+   * 점수 계산은 그대로. 응답 캐시(liquidity:us:v7, 24시간)가 바뀌면 새 문구가 나온다 */
 
   const computePastScore = (): number | null => {
     const pNl =
@@ -491,7 +493,7 @@ async function computeLiquidity(): Promise<LiquidityResponse> {
       combinedScore: r10(t10Score),
       unit: "%",
       description:
-        "10년-2년 금리차. 역전 해소될 때 나스닥 반등 경향",
+        "10년-2년 금리차 (선행성은 이 사이트에서 통계적으로 확인되지 않음)",
       category: "macro",
       inverted: false,
       stale: staleNow.get("t10y2y") ?? false,
@@ -507,7 +509,7 @@ async function computeLiquidity(): Promise<LiquidityResponse> {
       combinedScore: r10(cuAuScore),
       unit: "",
       description:
-        "경기 낙관(구리) vs 비관(금) 비율. 낮을수록 향후 반등 가능성",
+        "경기 낙관(구리) vs 비관(금) 비율 (선행성은 이 사이트에서 통계적으로 확인되지 않음)",
       category: "macro",
       inverted: false,
       stale: staleNow.get("copper-gold") ?? false,
@@ -523,7 +525,7 @@ async function computeLiquidity(): Promise<LiquidityResponse> {
       combinedScore: r10(tedScore),
       unit: "%",
       description:
-        "은행간 자금 경색 지표. 높을수록 향후 반등 가능성",
+        "은행간 자금 경색 지표 (2022년 1월 갱신 중단)",
       category: "market",
       inverted: true,
       stale: staleNow.get("ted-spread") ?? false,
@@ -539,7 +541,7 @@ async function computeLiquidity(): Promise<LiquidityResponse> {
       combinedScore: r10(nfciScore),
       unit: "",
       description:
-        "시카고 연준 금융상황지수. 높을수록 향후 반등 가능성",
+        "시카고 연준 금융상황지수 (선행성은 이 사이트에서 통계적으로 확인되지 않음)",
       category: "market",
       inverted: true,
       stale: staleNow.get("nfci") ?? false,

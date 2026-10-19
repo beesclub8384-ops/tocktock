@@ -162,7 +162,7 @@ const FLAT: Record<string, FlatDef> = {
   },
   "bls-cu-special": {
     url: "https://download.bls.gov/pub/time.series/cu/cu.data.20.USCommoditiesServicesSpecial",
-    codes: ["CUSR0000SA0L1E"],
+    codes: ["CUSR0000SA0L1E", "CUUR0000SA0L1E"],
     parse: parseBls,
   },
   "bls-ce-nonfarm": {
@@ -182,6 +182,8 @@ const FLAT_SERIES: Record<string, { file: keyof typeof FLAT; code: string }> = {
   // 비조정(NSA) — BLS 가 공표하는 헤드라인 12개월 변동률의 기준 (미션 10, FRED CPIAUCNS 와 1,364개월 불일치 0)
   CPIAUCNS: { file: "bls-cu-allitems", code: "CUUR0000SA0" },
   CPILFESL: { file: "bls-cu-special", code: "CUSR0000SA0L1E" },
+  // 근원 CPI 비조정 — BLS 공표 12개월 변동률 기준 (미션 11, FRED CPILFENS 와 836개월 불일치 0)
+  CPILFENS: { file: "bls-cu-special", code: "CUUR0000SA0L1E" },
   PAYEMS: { file: "bls-ce-nonfarm", code: "CES0000000001" },
   PCEPI: { file: "bea-nipa-monthly", code: "DPCERG" },
   PCEPILFE: { file: "bea-nipa-monthly", code: "DPCCRG" },
@@ -260,6 +262,7 @@ const GRID: Record<string, Grid> = {
   CPIAUCSL: "M",
   CPIAUCNS: "M",
   CPILFESL: "M",
+  CPILFENS: "M",
   PAYEMS: "M",
   PCEPI: "M",
   PCEPILFE: "M",
@@ -432,6 +435,7 @@ export const SITE_SOURCE_LABEL: Record<string, string> = {
   CPIAUCSL: "미국 노동통계국(BLS)",
   CPIAUCNS: "미국 노동통계국(BLS)",
   CPILFESL: "미국 노동통계국(BLS)",
+  CPILFENS: "미국 노동통계국(BLS)",
   PAYEMS: "미국 노동통계국(BLS)",
   PCEPI: "미국 경제분석국(BEA)",
   PCEPILFE: "미국 경제분석국(BEA)",

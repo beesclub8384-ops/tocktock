@@ -8,7 +8,8 @@ export const maxDuration = 60;
 const FRED_BASE = "https://api.stlouisfed.org/fred/series/observations";
 // 미션 8: 원출처 전환으로 키를 바꿨다(옛 키 inflation:fred:v1 에는 FRED 값이 있고 TTL 25시간으로 저절로 사라진다).
 // cron(app/api/cron/inflation-refresh)도 같은 키를 쓴다 — 그 파일의 CACHE_KEY 를 함께 고칠 것
-const CACHE_KEY = "inflation:v2";
+// v3 (미션 11): 헤드라인·근원 CPI 를 비조정(BLS 공표 기준)으로 바꿔 키를 바꿨다(v2 는 TTL 25시간)
+const CACHE_KEY = "inflation:v3";
 const CACHE_TTL = 25 * 60 * 60; // 25시간
 
 interface FredObs {
@@ -41,7 +42,12 @@ export interface InflationData {
   lastUpdated: string;
 }
 
-const SERIES = ["CPIAUCSL", "CPILFESL", "PCEPILFE"];
+/**
+ * 미션 11: CPI 두 개는 비조정(CUUR0000SA0 = CPIAUCNS, CUUR0000SA0L1E = CPILFENS) — BLS 가 공표하는 12개월 변동률
+ * ("increased 3.7 percent before seasonal adjustment", "less food and energy index rose 2.6 percent over the year")과 같은 정의.
+ * 근원 PCE 는 BEA 가 공표하는 PCE(식품·에너지 제외) 물가지수(DPCCRG, BEA 는 이 계절조정 지수로 전년 대비를 공표) 그대로.
+ */
+const SERIES = ["CPIAUCNS", "CPILFENS", "PCEPILFE"];
 
 /**
  * 전년 동월 대비 변화율 (미션 8): 원출처(CPI·근원 CPI = BLS 시계열 파일, 근원 PCE = BEA NIPA 월별 파일)에서 지수를 받아
@@ -107,8 +113,8 @@ export async function GET() {
     }
 
     const [headlineObs, coreObs, corePceObs] = await Promise.all([
-      fetchYoY("CPIAUCSL"),
-      fetchYoY("CPILFESL"),
+      fetchYoY("CPIAUCNS"),
+      fetchYoY("CPILFENS"),
       fetchYoY("PCEPILFE"),
     ]);
 

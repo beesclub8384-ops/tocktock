@@ -4,8 +4,8 @@ import { headers } from "next/headers";
 
 export const maxDuration = 60;
 
-// app/api/inflation/data/route.ts 의 CACHE_KEY 와 같아야 한다 (미션 8에서 inflation:fred:v1 → inflation:v2)
-const CACHE_KEY = "inflation:v2";
+// app/api/inflation/data/route.ts 의 CACHE_KEY 와 같아야 한다 (미션 8 inflation:fred:v1 → v2, 미션 11 v3)
+const CACHE_KEY = "inflation:v3";
 
 export async function GET(request: Request) {
   const authHeader = request.headers.get("authorization");

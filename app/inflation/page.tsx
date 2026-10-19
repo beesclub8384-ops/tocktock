@@ -139,7 +139,7 @@ export default async function InflationPage() {
         {data.source === "fred" && (
           <SiteSourceNotice
             className="mt-1"
-            fredCitations={["U.S. Bureau of Labor Statistics via FRED (CPIAUCSL, CPILFESL)", "U.S. Bureau of Economic Analysis via FRED (PCEPILFE)"]}
+            fredCitations={["U.S. Bureau of Labor Statistics via FRED (CPIAUCNS, CPILFENS)", "U.S. Bureau of Economic Analysis via FRED (PCEPILFE)"]}
           />
         )}
         <p className="text-xs text-zinc-400 mt-1">
@@ -155,21 +155,21 @@ export default async function InflationPage() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
           <LatestCard
             title="Headline CPI"
-            subtitle="전체 소비자물가 (식료품·에너지 포함)"
+            subtitle="전체 소비자물가 (식료품·에너지 포함) · 전년 동월 대비(계절조정 전)"
             value={data.latest.headline.value}
             date={data.latest.headline.date}
             prevValue={data.latest.headline.prevValue}
           />
           <LatestCard
             title="Core CPI"
-            subtitle="소비자물가 (식료품·에너지 제외)"
+            subtitle="소비자물가 (식료품·에너지 제외) · 전년 동월 대비(계절조정 전)"
             value={data.latest.core.value}
             date={data.latest.core.date}
             prevValue={data.latest.core.prevValue}
           />
           <LatestCard
             title="Core PCE"
-            subtitle="개인소비지출물가 (식료품·에너지 제외)"
+            subtitle="개인소비지출물가 (식료품·에너지 제외) · 전년 동월 대비(BEA 공표 지수)"
             value={data.latest.corePce.value}
             date={data.latest.corePce.date}
             prevValue={data.latest.corePce.prevValue}
