@@ -69,7 +69,7 @@ export function FullListSheet({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[100] flex lg:items-center lg:justify-center lg:bg-black/60 lg:p-4"
+      className="fixed inset-0 z-[250] flex lg:items-center lg:justify-center lg:bg-black/60 lg:p-4"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}

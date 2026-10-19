@@ -50,7 +50,7 @@ export function InsiderCard({ stocks }: { stocks: InsiderStock[] }) {
               임원들이 6개월간 <span style={MONO}>{first.insiderBuyCount}</span>건 자기 돈으로 매수
             </p>
             <p className="text-sm text-muted-foreground">
-              슈퍼투자자 <span style={MONO}>{first.superinvestorCount}</span>명도 같은 분기에 보유
+              슈퍼투자자 <span style={MONO}>{first.superinvestorCount}</span>명이 보유 중
             </p>
           </div>
 

@@ -16,7 +16,7 @@ export function CautionCard({
     ...(quarter.daysSince !== null
       ? [{ big: `${quarter.daysSince}일`, text: `${quarter.endLabel} 보유 현황이에요. 지금은 이미 팔았을 수도 있어요.` }]
       : []),
-    { big: "10년", text: "이들은 10년 넘게 들고 가는 사람들이에요. 단기 등락에 흔들리면 손해 봐요." },
+    { big: "일부", text: "13F에는 공매도와 현금이 나오지 않아요. 보이는 건 장바구니의 일부예요." },
     { big: "1단계", text: "거물이 봤구나, 나도 공부해 보자. 여기서 시작하는 게 올바른 쓰임이에요." },
   ];
 
