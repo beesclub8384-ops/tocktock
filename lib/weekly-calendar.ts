@@ -217,17 +217,57 @@ function indicatorEvent(name: string, date: string): CalendarEvent {
   };
 }
 
-/** 공식 일정표에서 (미션 8). 기관 하나가 실패하면 그 발표만 빠지고 콘솔에 남긴다(예전 FRED 경로와 같은 처리) */
-async function fetchOfficialIndicators(start: string, end: string): Promise<CalendarEvent[]> {
-  const { dates, errors } = await fetchOfficialReleaseDates();
+/** 일정 수집 진단 — cron 응답에 싣는다(미션 9: 예전에는 콘솔에만 남아 일정이 비어도 알 수 없었다). Redis 에는 저장하지 않는다 */
+export interface CalendarDiagnostics {
+  /** 일정표를 못 읽었거나 발표일을 하나도 찾지 못한 경우 */
+  errors: string[];
+  /** 읽었지만 앞으로의 발표일이 없는 발표(연말에 다음 해 일정이 아직 없을 때 등) */
+  warnings: string[];
+  /** 기관별로 일정표에서 읽은 발표일 수(과거 포함)와 이번 수집 범위에 들어간 일정 수 */
+  sourceCounts: Record<string, { datesRead: number; eventsInRange: number }>;
+}
+
+const RELEASE_AGENCY: Record<ReleaseKey, "BLS" | "BEA" | "인구조사국"> = {
+  cpi: "BLS",
+  jobs: "BLS",
+  ppi: "BLS",
+  gdp: "BEA",
+  pce: "BEA",
+  retail: "인구조사국",
+};
+
+/** 기관별 지표 일정 이름 (일정 cron 이 실패한 기관의 이전 일정을 남길 때 쓴다, 미션 9) */
+export function indicatorNamesByAgency(): Record<"BLS" | "BEA" | "인구조사국", string[]> {
+  const out: Record<"BLS" | "BEA" | "인구조사국", string[]> = { BLS: [], BEA: [], 인구조사국: [] };
+  for (const rel of FRED_RELEASES) out[RELEASE_AGENCY[rel.official]].push(rel.name);
+  return out;
+}
+
+/** 공식 일정표에서 (미션 8). 기관 하나가 실패하면 그 발표만 빠지고 진단(errors)에 남는다 (미션 9) */
+async function fetchOfficialIndicators(
+  start: string,
+  end: string
+): Promise<{ events: CalendarEvent[]; diagnostics: CalendarDiagnostics }> {
+  const { dates, errors, counts } = await fetchOfficialReleaseDates();
   for (const e of errors) console.error(`[weekly-calendar] ${e}`);
+  const warnings: string[] = [];
+  const sourceCounts: CalendarDiagnostics["sourceCounts"] = Object.fromEntries(
+    Object.entries(counts).map(([k, n]) => [k, { datesRead: n, eventsInRange: 0 }])
+  );
   const events: CalendarEvent[] = [];
   for (const rel of FRED_RELEASES) {
-    for (const d of dates[rel.official]) {
-      if (d >= start && d <= end) events.push(indicatorEvent(rel.name, d));
+    const all = dates[rel.official];
+    if (all.length > 0 && !all.some((d) => d >= start)) {
+      warnings.push(`${RELEASE_AGENCY[rel.official]} 일정표: ${rel.name}의 앞으로의 발표일이 없습니다(마지막 ${all[all.length - 1]}).`);
+    }
+    for (const d of all) {
+      if (d >= start && d <= end) {
+        events.push(indicatorEvent(rel.name, d));
+        sourceCounts[RELEASE_AGENCY[rel.official]].eventsInRange++;
+      }
     }
   }
-  return events;
+  return { events, diagnostics: { errors, warnings, sourceCounts } };
 }
 
 async function fetchFredIndicators(
@@ -533,18 +573,21 @@ async function fetchYahooEarnings(
 }
 
 /* ── 통합 ──────────────────────────────────────────────────── */
-export async function buildWeeklyCalendar(): Promise<WeeklyCalendarBlob> {
+export async function buildWeeklyCalendar(): Promise<WeeklyCalendarBlob & { diagnostics: CalendarDiagnostics | null }> {
   const start = kstTodayYmd();
   // 팝업·페이지 공용 데이터: 수집 범위를 넓게 (팝업은 클라이언트에서 7일로 재필터)
   //   지표/FOMC: 오늘 ~ +45일 / 실적: 오늘-7일 ~ +45일
   const end = addDaysYmd(start, 45);
   const earningsStart = addDaysYmd(start, -7);
 
-  const [fred, fomc, yahoo] = await Promise.all([
-    siteUsesOfficialSchedules() ? fetchOfficialIndicators(start, end) : fetchFredIndicators(start, end),
+  const [indicators, fomc, yahoo] = await Promise.all([
+    siteUsesOfficialSchedules()
+      ? fetchOfficialIndicators(start, end)
+      : fetchFredIndicators(start, end).then((events) => ({ events, diagnostics: null })),
     fetchFomcMeetings(start, end),
     fetchYahooEarnings(earningsStart, end),
   ]);
+  const fred = indicators.events;
 
   let events: CalendarEvent[] = [...fred, ...fomc, ...yahoo];
 
@@ -580,5 +623,6 @@ export async function buildWeeklyCalendar(): Promise<WeeklyCalendarBlob> {
     rangeStart: earningsStart,
     rangeEnd: end,
     events,
+    diagnostics: indicators.diagnostics,
   };
 }

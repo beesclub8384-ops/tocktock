@@ -907,7 +907,8 @@ export default function GlobalIndicatorsPage() {
                 ...item,
                 value: formatValue(item.id, live.value),
                 unit: live.unit || item.unit,
-                change: formatChange(live.change) || item.change,
+                // 변화값이 없으면 API 가 준 기준 설명을 쓴다. 고정 문구의 숫자("▼ -0.2 전월비" 등)가 지금 값처럼 보이지 않게 (미션 9)
+                change: formatChange(live.change) || live.label || item.change,
               };
             }),
           }))

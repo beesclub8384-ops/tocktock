@@ -3,6 +3,8 @@ export interface LiveIndicatorData {
   value: number | null;
   change: number | null;
   unit: string;
+  /** 값의 기준을 밝히는 짧은 설명(예: "2026년 9월, 전년 동월 대비"). 변화값이 없는 카드에 보인다 (미션 9) */
+  label?: string;
 }
 
 export interface GlobalIndicatorsResponse {

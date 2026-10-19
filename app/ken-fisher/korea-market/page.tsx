@@ -462,7 +462,8 @@ function ScreeningSection() {
 
       {current && (
         <div className="rounded-lg border border-border bg-card overflow-hidden">
-          <div className="overflow-x-auto">
+          {/* contain:inline-size — 표의 최소 폭이 페이지 전체를 넓히지 않고 이 영역 안에서만 가로로 스크롤되게 (미션 9, 모바일 390px) */}
+          <div className="overflow-x-auto [contain:inline-size]">
             <table className="w-full text-sm">
               <thead className="bg-muted/50">
                 <tr className="border-b border-border">

@@ -18,13 +18,17 @@ const yahooFinance = new YahooFinance();
 
 /* ── FRED fetchers (함수 이름은 그대로, 원출처 전환 시리즈는 lib/fetch-fred.ts 에서 원출처로 받는다) ── */
 
+/** "2026-09-01" → "2026년 9월" */
+const ym = (d: string) => `${d.slice(0, 4)}년 ${Number(d.slice(5, 7))}월`;
+
 async function fetchSimpleFred(
   id: string,
   seriesId: string
 ): Promise<LiveIndicatorData> {
   const obs = await fetchFredLatest(seriesId, 1);
   const val = parseFloat(obs[0].value);
-  return { id, value: val, change: null, unit: "%" };
+  // 변화값을 받지 않으므로 기준일을 붙인다 — 예전에는 화면의 고정 문구("▲ +0.02" 등)가 실제 변화처럼 보였다 (미션 9)
+  return { id, value: val, change: null, unit: "%", label: `${obs[0].date} 기준` };
 }
 
 async function fetchWalcl(): Promise<LiveIndicatorData> {
@@ -41,6 +45,7 @@ async function fetchCpi(): Promise<LiveIndicatorData> {
     value: yoy !== null ? Math.round(yoy * 10) / 10 : null,
     change: null,
     unit: "%yoy",
+    label: obs[0] ? `${ym(obs[0].date)}, 전년 동월 대비` : undefined,
   };
 }
 
@@ -52,6 +57,7 @@ async function fetchPce(): Promise<LiveIndicatorData> {
     value: yoy !== null ? Math.round(yoy * 10) / 10 : null,
     change: null,
     unit: "%yoy",
+    label: obs[0] ? `${ym(obs[0].date)}, 전년 동월 대비` : undefined,
   };
 }
 
@@ -60,7 +66,7 @@ async function fetchNfp(): Promise<LiveIndicatorData> {
   const mom = calcMoM(obs);
   // PAYEMS is in thousands; convert to 만명 (10,000s)
   const valInMan = mom !== null ? Math.round((mom / 10) * 10) / 10 : null;
-  return { id: "nfp", value: valInMan, change: null, unit: "만명" };
+  return { id: "nfp", value: valInMan, change: null, unit: "만명", label: obs[0] ? `${ym(obs[0].date)}, 전월 대비 증감` : undefined };
 }
 
 /* ── Yahoo fetchers ── */
@@ -93,7 +99,7 @@ export async function GET() {
     // FRED (8)
     fetchYahoo("us10y", "^TNX", "%"),
     fetchSimpleFred("us02y", "DGS2"),
-    fetchSimpleFred("t10y2y", "T10Y2Y"),
+    fetchSimpleFred("t10y2y", "T10Y2Y").then((d) => ({ ...d, label: undefined })), // "역전 해소 중" 같은 해석 문구는 그대로 둔다
     fetchSimpleFred("tips", "DFII10"),
     fetchWalcl(),
     fetchCpi(),

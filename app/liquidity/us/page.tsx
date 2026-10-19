@@ -20,6 +20,9 @@ interface IndicatorResult {
   description: string;
   category: "macro" | "market";
   inverted: boolean;
+  /** 낡은 입력이라 종합 점수에서 뺐는지 (미션 9) */
+  stale?: boolean;
+  lastDate?: string | null;
 }
 
 type RegimeType = "RECOVERY" | "EXPANSION" | "SLOWDOWN" | "CONTRACTION";
@@ -35,6 +38,10 @@ interface LiquidityData {
   regimeColor: string;
   regimeSignal: string;
   scoreChange3m: number | null;
+  /** 낡은 입력 규칙 (미션 9) */
+  componentsTotal?: number;
+  componentsUsed?: number;
+  excluded?: { id: string; name: string; lastDate: string | null; reason: string }[];
   /** FRED 로 받는 시리즈와 출처 표기 (미션 8) */
   fredSeries?: string[];
   fredCitations?: string[];
@@ -265,6 +272,11 @@ function IndicatorCard({ ind, onGuideOpen }: { ind: IndicatorResult; onGuideOpen
       <p className="text-[10px] text-muted-foreground/60 mt-1">
         레벨 {ind.levelScore} · 모멘텀 {ind.momentumScore}
       </p>
+      {ind.stale && (
+        <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1">
+          마지막 관측일 {ind.lastDate ?? "없음"} — 낡은 값이라 종합 점수 계산에서 뺐습니다.
+        </p>
+      )}
       {ind.inverted && (
         <p className="text-[10px] text-muted-foreground/60 mt-0.5">* 낮을수록 유동성에 유리 (점수 역산)</p>
       )}
@@ -1182,6 +1194,21 @@ export default function UsLiquidityPage() {
           {/* 종합 점수 */}
           <ScoreGauge score={data.finalScore} />
 
+          {/* 낡은 입력 안내 (미션 9) */}
+          {data.componentsTotal != null && data.componentsUsed != null && (
+            <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-xs leading-relaxed text-muted-foreground">
+              <p>
+                {data.componentsTotal}개 중 {data.componentsUsed}개 지표로 계산했습니다.
+                {(data.excluded?.length ?? 0) === 0 && " 모든 지표가 최근 자료입니다."}
+              </p>
+              {data.excluded?.map((e) => (
+                <p key={e.id} className="mt-1">
+                  빠진 지표: <span className="font-semibold text-foreground">{e.name}</span> — {e.reason}
+                </p>
+              ))}
+            </div>
+          )}
+
           {/* 하위 점수 */}
           <div className="grid grid-cols-2 gap-3 mt-4">
             <SubScore label="거시 유동성" score={data.macroScore} />
@@ -1240,7 +1267,8 @@ export default function UsLiquidityPage() {
                 <span className="w-3 h-3 rounded-full shrink-0 mt-1" style={{ backgroundColor: "#dc2626" }} />
                 <div>
                   <span className="font-semibold">25 이하 위험 구간</span>
-                  <span className="text-muted-foreground ml-2">데이터 부족 구간. 과거 사례 없음, 보수적 접근 필요</span>
+                  {/* 미션 9: 낡은 입력(TED)을 빼면서 백테스트의 25 이하 구간이 1개월→5개월이 되어 "과거 사례 없음"이 틀린 문장이 됐다 */}
+                  <span className="text-muted-foreground ml-2">데이터 부족 구간. 과거 사례가 매우 적어 보수적 접근 필요</span>
                 </div>
               </div>
             </div>

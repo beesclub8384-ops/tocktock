@@ -4,12 +4,13 @@ import YahooFinance from "yahoo-finance2";
 import { isSiteOriginSeries } from "@/lib/site-source-config";
 import { siteObservations } from "@/lib/site-origin";
 import { liquiditySources } from "@/lib/liquidity-sources";
+import { isStale, lastOnOrBefore, type Cadence } from "@/lib/liquidity-staleness";
 
 export const maxDuration = 300;
 
 const FRED_BASE = "https://api.stlouisfed.org/fred/series/observations";
 // v6 (미션 8): 원출처 전환 — v5 에는 FRED 로 받은 값이 들어 있어 키를 바꿨다(v5 는 TTL 24시간으로 저절로 사라진다)
-const CACHE_KEY = "liquidity:us:backtest:v6";
+const CACHE_KEY = "liquidity:us:backtest:v7";  // v7 (미션 9): 낡은 입력 규칙
 const CACHE_TTL = 86400;
 
 /* ── Types ── */
@@ -19,6 +20,8 @@ type RegimeType = "RECOVERY" | "EXPANSION" | "SLOWDOWN" | "CONTRACTION";
 export interface BacktestPoint {
   date: string;
   score: number;
+  /** 그 달 점수에 쓴 구성 요소 수 (낡은 입력을 뺀 뒤, 미션 9) */
+  used?: number;
   regime: RegimeType;
   qqq1m: number | null;
   qqq2m: number | null;
@@ -70,6 +73,9 @@ export interface BacktestResponse {
   periodStart: string;
   periodEnd: string;
   totalMonths: number;
+  /** 낡은 입력 규칙 (미션 9): 구성 요소 6개 중 일부를 뺀 달 수와 빠진 지표별 달 수 */
+  monthsWithExcluded: number;
+  excludedCounts: Record<string, number>;
   /** FRED 로 받는 시리즈와 FRED 경유 출처 표기 (미션 8) */
   fredSeries: string[];
   fredCitations: string[];
@@ -136,6 +142,30 @@ async function fetchMonthly(seriesId: string, startDate: string): Promise<{ date
     .map((o) => ({ date: o.date.slice(0, 7), value: parseFloat(o.value) }));
 }
 
+/**
+ * 원래 주기의 관측 날짜 목록 (낡은 입력 판단용, 미션 9). 월말 집계값만으로는 그 달 안에서 언제 마지막으로 관측됐는지 알 수
+ * 없어서 원래 주기로 한 번 더 받는다(원출처는 같은 묶음을 메모리·Redis 보관에서 다시 쓴다).
+ */
+async function fetchNativeDates(seriesId: string, startDate: string): Promise<string[]> {
+  if (isSiteOriginSeries(seriesId)) {
+    const rows = await siteObservations(seriesId, { observationStart: startDate, sortOrder: "asc" });
+    return rows.filter((o) => o.value !== ".").map((o) => o.date);
+  }
+  const apiKey = process.env.FRED_API_KEY;
+  if (!apiKey) throw new Error("FRED_API_KEY not set");
+  const params = new URLSearchParams({ series_id: seriesId, api_key: apiKey, file_type: "json", observation_start: startDate, sort_order: "asc" });
+  const res = await fetch(`${FRED_BASE}?${params}`, { signal: AbortSignal.timeout(30000) });
+  if (!res.ok) throw new Error(`FRED ${seriesId}: ${res.status}`);
+  const json = await res.json();
+  return (json.observations as { date: string; value: string }[]).filter((o) => o.value !== ".").map((o) => o.date);
+}
+
+/** "2026-09" → 그 달 말일 "2026-09-30" */
+function monthEnd(ym: string): string {
+  const [y, m] = ym.split("-").map(Number);
+  return new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
+}
+
 function percentileRank(values: number[], current: number): number {
   if (values.length === 0) return 50;
   const below = values.filter((v) => v < current).length;
@@ -195,11 +225,24 @@ async function computeBacktest(): Promise<BacktestResponse> {
 
   // TEDRATE — may fail or have limited data
   let tedData: { date: string; value: number }[] = [];
+  let tedDates: string[] = [];
   try {
     tedData = await fetchMonthly("TEDRATE", start);
   } catch {
-    /* continue without */
+    /* continue without — 값이 없으면 아래 규칙에서 낡은 입력(자료 없음)으로 빠진다 */
   }
+  // 값은 받았는데 날짜만 못 받으면 TED 가 2022년 이전까지 모든 달에서 조용히 빠지므로, 다른 시리즈처럼 실패로 둔다
+  // (실패하면 캐시된 결과 없이 500 — 미션 9 독립 검증 지적 7)
+  if (tedData.length > 0) tedDates = await fetchNativeDates("TEDRATE", start);
+
+  // 원래 주기의 관측 날짜 (낡은 입력 판단용, 미션 9)
+  const [walclDates, tgaDates, m2Dates, t10Dates, nfciDates] = await Promise.all([
+    fetchNativeDates("WALCL", start),
+    fetchNativeDates("WTREGEN", start),
+    fetchNativeDates("M2SL", start),
+    fetchNativeDates("T10Y2Y", start),
+    fetchNativeDates("NFCI", start),
+  ]);
 
   // Yahoo Finance: Copper, Gold, QQQ (monthly)
   const qqqStart = new Date();
@@ -291,6 +334,8 @@ async function computeBacktest(): Promise<BacktestResponse> {
   };
 
   const points: BacktestPoint[] = [];
+  const excludedCounts: Record<string, number> = {};
+  let monthsWithExcluded = 0;
 
   for (const month of backtestMonths) {
     const nl = netLiqMap.get(month);
@@ -310,6 +355,24 @@ async function computeBacktest(): Promise<BacktestResponse> {
       continue;
 
     const ted = tedMap.get(month); // may be null
+
+    /* 낡은 입력 (미션 9, 결정 로그 21-1): 그 달 말일 시점에서, 그날까지 관측된 원래 주기의 마지막 날짜가
+     * 갱신 주기의 3배보다 오래되면 뺀다(그 뒤 자료는 보지 않음). 구리/금은 이 백테스트가 월간 가격을 쓰므로 월간 기준.
+     * 순유동성은 WALCL·WTREGEN 중 더 오래된 날짜(역레포는 운영이 없으면 0 이 정상이라 뺀다). */
+    // 평가일은 그 달 말일, 다만 오늘보다 뒤로 가지 않게(진행 중인 달이 들어오면 일·주 시리즈가 잘못 낡음으로 빠진다 — 지적 5)
+    const todayYmd = new Date().toISOString().slice(0, 10);
+    const asOf = monthEnd(month) < todayYmd ? monthEnd(month) : todayYmd;
+    const olderOf = (a: string | null, b: string | null) => (!a || !b ? null : a < b ? a : b);
+    const cuAuDates = [...cuAuMap.keys()].filter((m) => m <= month).map((m) => `${m}-01`);
+    const lastOf: Record<string, [string | null, Cadence]> = {
+      nl: [olderOf(lastOnOrBefore(walclDates, asOf), lastOnOrBefore(tgaDates, asOf)), "weekly"],
+      mg: [lastOnOrBefore(m2Dates, asOf), "monthly"],
+      t10: [lastOnOrBefore(t10Dates, asOf), "bday"],
+      cuAu: [cuAuDates[cuAuDates.length - 1] ?? null, "monthly"],
+      ted: [lastOnOrBefore(tedDates, asOf), "bday"],
+      nf: [lastOnOrBefore(nfciDates, asOf), "weekly"],
+    };
+    const fresh = (k: string) => !isStale(lastOf[k][0], asOf, lastOf[k][1]);
 
     // Rolling lookback windows (no future data)
     const nlHist = windowValues(netLiqMap, month, LOOKBACK);
@@ -359,9 +422,13 @@ async function computeBacktest(): Promise<BacktestResponse> {
     const tedC = tedS * 0.6 + tedMomS * 0.4;
     const nfC = nfS * 0.6 + nfMomS * 0.4;
 
-    // Final = simple average of 6
-    const finalScore =
-      (nlC + mgC + t10C + cuAuC + tedC + nfC) / 6;
+    // Final = 낡지 않은 구성 요소의 단순 평균 (예전: TED 가 없는 달도 50 으로 채워 6개 평균)
+    const parts: [string, number][] = [["nl", nlC], ["mg", mgC], ["t10", t10C], ["cuAu", cuAuC], ["ted", tedC], ["nf", nfC]];
+    const usedParts = parts.filter(([k]) => fresh(k));
+    if (usedParts.length === 0) continue;
+    for (const [k] of parts) if (!fresh(k)) excludedCounts[k] = (excludedCounts[k] ?? 0) + 1;
+    if (usedParts.length < parts.length) monthsWithExcluded++;
+    const finalScore = usedParts.reduce((a, [, v]) => a + v, 0) / usedParts.length;
 
     // QQQ forward returns (1–6 months)
     const qNow = qqqMap.get(month);
@@ -373,6 +440,7 @@ async function computeBacktest(): Promise<BacktestResponse> {
     points.push({
       date: month,
       score: r1(finalScore),
+      used: usedParts.length,
       regime: "EXPANSION" as RegimeType, // classified below
       qqq1m: fwd(1),
       qqq2m: fwd(2),
@@ -564,6 +632,8 @@ async function computeBacktest(): Promise<BacktestResponse> {
     periodStart: validPts[0]?.date ?? "",
     periodEnd: validPts[validPts.length - 1]?.date ?? "",
     totalMonths: validPts.length,
+    monthsWithExcluded,
+    excludedCounts,
     ...liquiditySources(["WALCL", "RRPONTSYD", "WTREGEN", "M2SL", "T10Y2Y", "NFCI", "TEDRATE"]),
     fetchedAt: new Date().toISOString(),
   };

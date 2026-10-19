@@ -187,7 +187,28 @@ export async function generateAndSave(): Promise<string> {
   return outPath;
 }
 
-// CLI 실행: npx tsx lib/article-writer.ts
+/**
+ * 시험 실행(미션 9): 글 생성(유료 API 호출) 직전에서 멈추고, 수집한 금리와 생성 입력(프롬프트)만 출력한다.
+ * 파일을 쓰지 않고 ANTHROPIC_API_KEY 도 쓰지 않는다.
+ */
+export function dryRun(inputPath?: string): void {
+  const data = loadFedData(inputPath);
+  console.log(`[article-writer] DRY RUN — 글 생성은 하지 않습니다 (입력 출처: ${data.source ?? "fred"})`);
+  for (const s of data.fred) {
+    console.log(`  ${s.id} ${s.label}: ${s.observations.map((o) => `${o.date}=${o.value}`).join(", ") || "(없음)"}`);
+  }
+  console.log("----- 생성 입력(프롬프트) -----");
+  console.log(buildPrompt(data));
+  console.log("----- 끝 -----");
+}
+
+// CLI 실행: npx tsx lib/article-writer.ts            → 글 생성·저장
+//           npx tsx lib/article-writer.ts --dry-run [입력 파일]  → 생성 입력만 출력
 if (process.argv[1]?.includes("article-writer")) {
-  generateAndSave().catch(console.error);
+  const i = process.argv.indexOf("--dry-run");
+  if (i > 0) {
+    dryRun(process.argv[i + 1]);
+  } else {
+    generateAndSave().catch(console.error);
+  }
 }

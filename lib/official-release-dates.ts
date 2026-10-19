@@ -58,7 +58,8 @@ function assertSome(source: string, groups: Record<string, string[]>): void {
   const empty = Object.entries(groups)
     .filter(([, d]) => d.length === 0)
     .map(([k]) => k);
-  if (empty.length > 0) throw new Error(`${source}: 발표일을 하나도 찾지 못함 — ${empty.join(", ")}`);
+  // 메시지 앞머리(기관 이름)는 fetchOfficialReleaseDates 의 catch 가 붙인다 (source 는 호출 위치 표시용)
+  if (empty.length > 0) throw new Error(`발표일을 하나도 찾지 못함 — ${empty.join(", ")}`);
 }
 
 async function blsDates(): Promise<Record<"cpi" | "jobs" | "ppi", string[]>> {
@@ -100,13 +101,16 @@ async function censusRetailDates(): Promise<string[]> {
     const re = /<a[^>]*>\s*Advance Monthly Sales for Retail and Food Services\s*<\/a>\s*<\/td>\s*<td[^>]*sorttable_customkey="(\d{4})(\d{2})(\d{2})\d{4}"/g;
     for (const m of html.matchAll(re)) dates.add(`${m[1]}-${m[2]}-${m[3]}`);
   }
-  if (okPages === 0) throw new Error("인구조사국 일정표: 페이지를 하나도 받지 못함");
+  if (okPages === 0) throw new Error("페이지를 하나도 받지 못함"); // 기관 이름은 fetchOfficialReleaseDates 의 catch 가 붙인다
   assertSome("인구조사국 일정표", { retail: [...dates] });
   return [...dates].sort();
 }
 
+/** 기관별로 읽은 발표일 수 (cron 응답용, 미션 9) */
+export type AgencyCounts = Record<"BLS" | "BEA" | "인구조사국", number>;
+
 /** 발표별 공식 발표일 (오름차순). 기관 하나가 실패하면 그 기관 발표는 빈 배열이고 errors 에 남는다 */
-export async function fetchOfficialReleaseDates(): Promise<{ dates: Record<ReleaseKey, string[]>; errors: string[] }> {
+export async function fetchOfficialReleaseDates(): Promise<{ dates: Record<ReleaseKey, string[]>; errors: string[]; counts: AgencyCounts }> {
   const errors: string[] = [];
   const empty = { cpi: [], jobs: [], ppi: [], gdp: [], pce: [], retail: [] } as Record<ReleaseKey, string[]>;
   const [bls, bea, retail] = await Promise.all([
@@ -114,12 +118,20 @@ export async function fetchOfficialReleaseDates(): Promise<{ dates: Record<Relea
     beaDates().catch((e) => (errors.push(`BEA 일정표: ${e instanceof Error ? e.message : e}`), null)),
     censusRetailDates().catch((e) => (errors.push(`인구조사국 일정표: ${e instanceof Error ? e.message : e}`), null)),
   ]);
-  return { dates: { ...empty, ...(bls ?? {}), ...(bea ?? {}), retail: retail ?? [] }, errors };
+  const counts: AgencyCounts = {
+    BLS: bls ? bls.cpi.length + bls.jobs.length + bls.ppi.length : 0,
+    BEA: bea ? bea.gdp.length + bea.pce.length : 0,
+    인구조사국: retail ? retail.length : 0,
+  };
+  return { dates: { ...empty, ...(bls ?? {}), ...(bea ?? {}), retail: retail ?? [] }, errors, counts };
 }
 
 /** BLS CPI 발표일만 (리포트 수집용) */
 export async function fetchBlsCpiDates(): Promise<string[]> {
-  const { cpi } = await blsDates();
+  // 기관 이름을 붙여 리포트 오류 목록에서 어디가 실패했는지 보이게 한다 (미션 9 독립 검증 지적 3)
+  const { cpi } = await blsDates().catch((e) => {
+    throw new Error(`BLS 일정표: ${e instanceof Error ? e.message : e}`);
+  });
   if (cpi.length === 0) throw new Error("BLS 일정표에 CPI 발표일이 없음");
   return cpi;
 }

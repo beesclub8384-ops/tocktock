@@ -5,6 +5,11 @@ on:
     # 매주 토요일 한국시간 오전 9시 = UTC 0시
     - cron: '0 0 * * 6'
   workflow_dispatch: # 수동 실행 가능
+    inputs:
+      dry_run:
+        description: "시험 실행 — 금리 수집 후 글 생성 직전에서 멈추고 수집한 금리와 생성 입력만 출력(글 생성·커밋 안 함)"
+        type: boolean
+        default: false
 
 jobs:
   generate:
@@ -22,19 +27,29 @@ jobs:
 
       - run: npm ci
 
+      # 시험 실행(미션 9): 수집 결과는 임시 파일에만 쓰고, 생성 입력을 출력한 뒤 끝낸다. 유료 API 키를 넘기지 않는다
+      - name: Dry run — collect rates and print generation input
+        if: ${{ inputs.dry_run }}
+        run: |
+          npx tsx lib/news-collector.ts --out "$RUNNER_TEMP/fed-news.json"
+          npx tsx lib/article-writer.ts --dry-run "$RUNNER_TEMP/fed-news.json"
+
       # 금리는 연준 이사회 H.15 에서 받는다(미션 8). FRED_API_KEY 는 SITE_DATA_SOURCE=fred 로 되돌릴 때만 쓴다
       - name: Collect news & rate data (Fed H.15)
+        if: ${{ !inputs.dry_run }}
         run: npx tsx lib/news-collector.ts
         env:
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
 
       - name: Generate macro article
+        if: ${{ !inputs.dry_run }}
         run: npx tsx lib/article-writer.ts
         env:
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 
       - name: Commit and push
+        if: ${{ !inputs.dry_run }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"

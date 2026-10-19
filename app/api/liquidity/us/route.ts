@@ -4,12 +4,14 @@ import YahooFinance from "yahoo-finance2";
 import { isSiteOriginSeries } from "@/lib/site-source-config";
 import { siteObservations } from "@/lib/site-origin";
 import { liquiditySources } from "@/lib/liquidity-sources";
+import { isStale, lastOnOrBefore, staleReason, type Cadence, type ExcludedComponent } from "@/lib/liquidity-staleness";
 
 export const maxDuration = 60;
 
 const FRED_BASE = "https://api.stlouisfed.org/fred/series/observations";
 // v6 (미션 8): 원출처 전환 — v5 에는 FRED 로 받은 값이 들어 있어 키를 바꿨다(v5 는 TTL 24시간으로 저절로 사라진다)
-const CACHE_KEY = "liquidity:us:v6";
+// v7 (미션 9): 낡은 입력 규칙으로 점수와 응답 모양이 바뀌어 키를 바꿨다(v6 은 TTL 24시간)
+const CACHE_KEY = "liquidity:us:v7";
 const CACHE_TTL = 86400;
 
 interface FredObs {
@@ -129,6 +131,10 @@ export interface IndicatorResult {
   description: string;
   category: "macro" | "market";
   inverted: boolean;
+  /** 낡은 입력이라 종합 점수에서 뺐는지 (미션 9) */
+  stale: boolean;
+  /** 마지막 관측일 */
+  lastDate: string | null;
 }
 
 export interface LiquidityResponse {
@@ -142,6 +148,10 @@ export interface LiquidityResponse {
   regimeColor: string;
   regimeSignal: string;
   scoreChange3m: number | null;
+  /** 낡은 입력 규칙 (미션 9): 전체 구성 요소 수, 계산에 쓴 수, 뺀 지표와 사유 */
+  componentsTotal: number;
+  componentsUsed: number;
+  excluded: ExcludedComponent[];
   /** FRED 로 받는 시리즈와 FRED 경유 출처 표기 (미션 8 — 화면이 FRED 고지를 띄운다) */
   fredSeries: string[];
   fredCitations: string[];
@@ -203,10 +213,14 @@ async function computeLiquidity(): Promise<LiquidityResponse> {
     ...new Set([...cuDaily.keys(), ...auDaily.keys()]),
   ].sort();
   const cuAuHistory: number[] = [];
+  const cuAuDates: string[] = []; // 낡은 입력 판단용 (미션 9)
   for (const d of allDates) {
     const cu = cuDaily.get(d);
     const au = auDaily.get(d);
-    if (cu != null && au != null && au > 0) cuAuHistory.push(cu / au);
+    if (cu != null && au != null && au > 0) {
+      cuAuHistory.push(cu / au);
+      cuAuDates.push(d);
+    }
   }
   const cuAuLatest =
     cuAuHistory.length > 0 ? cuAuHistory[cuAuHistory.length - 1] : 0;
@@ -308,13 +322,52 @@ async function computeLiquidity(): Promise<LiquidityResponse> {
   const tedScore = tedLevel * 0.6 + tedMom * 0.4;
   const nfciScore = nfciLevel * 0.6 + nfciMom * 0.4;
 
-  // Final = simple average of all 6
-  const allScores = [nlScore, m2Score, t10Score, cuAuScore, tedScore, nfciScore];
-  const finalScore = allScores.reduce((a, b) => a + b, 0) / 6;
+  /* ── 4-1. 낡은 입력 빼기 (미션 9, 결정 로그 21-1 — lib/liquidity-staleness.ts) ──
+   * 평가일에 마지막 관측일이 갱신 주기의 3배보다 오래된 구성 요소는 빼고, 남은 결합 점수를 단순 평균한다.
+   * 순유동성은 주간 시리즈 WALCL·WTREGEN 중 더 오래된 날짜로 본다(역레포는 운영이 없으면 0 이 정상이라 판단에서 뺀다). */
+  const asOf = new Date().toISOString().slice(0, 10);
+  const older = (a?: string, b?: string) => (!a || !b ? undefined : a < b ? a : b);
+  const sortedDates = (obs: FredObs[]) => obs.map((o) => o.date).sort();
+  const COMPONENTS: { id: string; name: string; group: "macro" | "market"; cadence: Cadence; dates: string[]; note?: string }[] = [
+    { id: "net-liquidity", name: "연준 순유동성", group: "macro", cadence: "weekly", dates: [] }, // 날짜는 lastAt 이 WALCL·WTREGEN 으로 따로 본다
+    { id: "m2-growth", name: "M2 통화량 증가율", group: "macro", cadence: "monthly", dates: sortedDates(m2Obs) },
+    { id: "t10y2y", name: "장단기 금리차", group: "macro", cadence: "bday", dates: sortedDates(t10y2yObs) },
+    { id: "copper-gold", name: "구리/금 비율", group: "macro", cadence: "bday", dates: cuAuDates },
+    { id: "ted-spread", name: "테드 스프레드", group: "market", cadence: "bday", dates: sortedDates(tedObs), note: "FRED 가 2022년 1월에 이 시리즈 갱신을 멈췄습니다(3개월 LIBOR 자료 제거)." },
+    { id: "nfci", name: "NFCI (금융상황지수)", group: "market", cadence: "weekly", dates: sortedDates(nfciObs) },
+  ];
+  const walclDates = sortedDates(walclObs);
+  const tgaDates = sortedDates(tgaObs);
+  const lastAt = (c: (typeof COMPONENTS)[number], at: string): string | null =>
+    c.id === "net-liquidity" ? older(lastOnOrBefore(walclDates, at) ?? undefined, lastOnOrBefore(tgaDates, at) ?? undefined) ?? null : lastOnOrBefore(c.dates, at);
+  const staleNow = new Map(COMPONENTS.map((c) => [c.id, isStale(lastAt(c, asOf), asOf, c.cadence)]));
+  const excluded: ExcludedComponent[] = COMPONENTS.filter((c) => staleNow.get(c.id)).map((c) => {
+    const last = lastAt(c, asOf);
+    return { id: c.id, name: c.name, lastDate: last, reason: `${staleReason(last, c.cadence)}${c.note ? " " + c.note : ""}` };
+  });
+
+  const combinedById: Record<string, number> = {
+    "net-liquidity": nlScore,
+    "m2-growth": m2Score,
+    t10y2y: t10Score,
+    "copper-gold": cuAuScore,
+    "ted-spread": tedScore,
+    nfci: nfciScore,
+  };
+  const avgOf = (ids: string[], scores: Record<string, number>, stale: Map<string, boolean>): number | null => {
+    const used = ids.filter((id) => !stale.get(id));
+    return used.length === 0 ? null : used.reduce((a, id) => a + scores[id], 0) / used.length;
+  };
+  const allIds = COMPONENTS.map((c) => c.id);
+  const macroIds = COMPONENTS.filter((c) => c.group === "macro").map((c) => c.id);
+  const marketIds = COMPONENTS.filter((c) => c.group === "market").map((c) => c.id);
+
+  // Final = 낡지 않은 구성 요소의 단순 평균 (예전: 6개 전부의 평균)
+  const finalScore = avgOf(allIds, combinedById, staleNow) ?? 50;
 
   // For display purposes
-  const macroScore = (nlScore + m2Score + t10Score + cuAuScore) / 4;
-  const marketScore = (tedScore + nfciScore) / 2;
+  const macroScore = avgOf(macroIds, combinedById, staleNow) ?? 50;
+  const marketScore = avgOf(marketIds, combinedById, staleNow) ?? 50;
 
   /* ── 5. Regime classification ── */
 
@@ -372,7 +425,14 @@ async function computeLiquidity(): Promise<LiquidityResponse> {
     const pTedS = pTedL * 0.6 + pTedM * 0.4;
     const pNfS = pNfL * 0.6 + pNfM * 0.4;
 
-    return (pNlS + pM2S + pT10S + pCuAuS + pTedS + pNfS) / 6;
+    // 3개월 전(91일 전) 시점에도 같은 규칙으로 낡은 입력을 뺀다 (미션 9)
+    const pastAsOf = new Date(Date.parse(`${asOf}T00:00:00Z`) - 91 * 86_400_000).toISOString().slice(0, 10);
+    const stalePast = new Map(COMPONENTS.map((c) => [c.id, isStale(lastAt(c, pastAsOf), pastAsOf, c.cadence)]));
+    return avgOf(
+      allIds,
+      { "net-liquidity": pNlS, "m2-growth": pM2S, t10y2y: pT10S, "copper-gold": pCuAuS, "ted-spread": pTedS, nfci: pNfS },
+      stalePast
+    );
   };
 
   const pastFinal = computePastScore();
@@ -403,6 +463,8 @@ async function computeLiquidity(): Promise<LiquidityResponse> {
         "연준 대차대조표에서 역레포·재무부 계좌를 뺀 실질 유동성",
       category: "macro",
       inverted: false,
+      stale: staleNow.get("net-liquidity") ?? false,
+      lastDate: lastAt(COMPONENTS.find((c) => c.id === "net-liquidity")!, asOf),
     },
     {
       id: "m2-growth",
@@ -416,6 +478,8 @@ async function computeLiquidity(): Promise<LiquidityResponse> {
       description: "시중에 풀린 돈의 총량 변화율",
       category: "macro",
       inverted: false,
+      stale: staleNow.get("m2-growth") ?? false,
+      lastDate: lastAt(COMPONENTS.find((c) => c.id === "m2-growth")!, asOf),
     },
     {
       id: "t10y2y",
@@ -430,6 +494,8 @@ async function computeLiquidity(): Promise<LiquidityResponse> {
         "10년-2년 금리차. 역전 해소될 때 나스닥 반등 경향",
       category: "macro",
       inverted: false,
+      stale: staleNow.get("t10y2y") ?? false,
+      lastDate: lastAt(COMPONENTS.find((c) => c.id === "t10y2y")!, asOf),
     },
     {
       id: "copper-gold",
@@ -444,6 +510,8 @@ async function computeLiquidity(): Promise<LiquidityResponse> {
         "경기 낙관(구리) vs 비관(금) 비율. 낮을수록 향후 반등 가능성",
       category: "macro",
       inverted: false,
+      stale: staleNow.get("copper-gold") ?? false,
+      lastDate: lastAt(COMPONENTS.find((c) => c.id === "copper-gold")!, asOf),
     },
     {
       id: "ted-spread",
@@ -458,6 +526,8 @@ async function computeLiquidity(): Promise<LiquidityResponse> {
         "은행간 자금 경색 지표. 높을수록 향후 반등 가능성",
       category: "market",
       inverted: true,
+      stale: staleNow.get("ted-spread") ?? false,
+      lastDate: lastAt(COMPONENTS.find((c) => c.id === "ted-spread")!, asOf),
     },
     {
       id: "nfci",
@@ -472,6 +542,8 @@ async function computeLiquidity(): Promise<LiquidityResponse> {
         "시카고 연준 금융상황지수. 높을수록 향후 반등 가능성",
       category: "market",
       inverted: true,
+      stale: staleNow.get("nfci") ?? false,
+      lastDate: lastAt(COMPONENTS.find((c) => c.id === "nfci")!, asOf),
     },
   ];
 
@@ -487,6 +559,9 @@ async function computeLiquidity(): Promise<LiquidityResponse> {
     regimeColor,
     regimeSignal,
     scoreChange3m,
+    componentsTotal: COMPONENTS.length,
+    componentsUsed: COMPONENTS.length - excluded.length,
+    excluded,
     ...liquiditySources(["WALCL", "RRPONTSYD", "WTREGEN", "M2SL", "T10Y2Y", "NFCI", "TEDRATE"]),
     fetchedAt: new Date().toISOString(),
   };

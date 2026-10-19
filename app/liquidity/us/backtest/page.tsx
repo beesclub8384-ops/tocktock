@@ -63,6 +63,16 @@ type AccuracyObj = {
   month6: number;
 };
 
+/** 백테스트 구성 요소 이름 (API 의 excludedCounts 키) */
+const BT_COMPONENT_NAMES: Record<string, string> = {
+  nl: "연준 순유동성",
+  mg: "M2 통화량 증가율",
+  t10: "장단기 금리차",
+  cuAu: "구리/금 비율",
+  ted: "테드 스프레드",
+  nf: "NFCI",
+};
+
 interface BacktestData {
   points: BacktestPoint[];
   buckets: BucketStats[];
@@ -72,6 +82,9 @@ interface BacktestData {
   periodStart: string;
   periodEnd: string;
   totalMonths: number;
+  /** 낡은 입력 규칙 (미션 9) */
+  monthsWithExcluded?: number;
+  excludedCounts?: Record<string, number>;
   /** FRED 로 받는 시리즈와 출처 표기 (미션 8) */
   fredSeries?: string[];
   fredCitations?: string[];
@@ -159,7 +172,8 @@ function BucketTable({ buckets }: { buckets: BucketStats[] }) {
       <div className="px-6 py-4 border-b">
         <p className="font-semibold">★ 핵심: 유동성 구간별 나스닥 평균 수익률</p>
       </div>
-      <div className="overflow-x-auto">
+      {/* contain:inline-size — 표의 최소 폭이 페이지 전체를 넓히지 않고 이 영역 안에서만 가로로 스크롤되게 (미션 9, 모바일 390px) */}
+      <div className="overflow-x-auto [contain:inline-size]">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b text-muted-foreground">
@@ -246,7 +260,8 @@ function RegimeTable({
       <div className="px-6 py-4 border-b">
         <p className="font-semibold">국면별 나스닥 평균 수익률</p>
       </div>
-      <div className="overflow-x-auto">
+      {/* contain:inline-size — 표의 최소 폭이 페이지 전체를 넓히지 않고 이 영역 안에서만 가로로 스크롤되게 (미션 9, 모바일 390px) */}
+      <div className="overflow-x-auto [contain:inline-size]">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b text-muted-foreground">
@@ -465,6 +480,17 @@ export default function BacktestPage() {
             <p className="mt-0.5 text-xs text-muted-foreground">
               마지막 업데이트: {formatKST(data.fetchedAt)}
             </p>
+            {/* 낡은 입력 안내 (미션 9) — 각 달 말일 시점에서 낡은 구성 요소는 그 달 점수에서 뺐습니다 */}
+            {data.monthsWithExcluded != null && data.monthsWithExcluded > 0 && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                각 달 말일 시점에서 마지막 관측일이 갱신 주기의 3배보다 오래된 지표는 그 달 점수에서 빼고 남은 지표로
+                계산했습니다(6개 중 일부를 뺀 달 {data.monthsWithExcluded}개월:{" "}
+                {Object.entries(data.excludedCounts ?? {})
+                  .map(([k, n]) => `${BT_COMPONENT_NAMES[k] ?? k} ${n}개월`)
+                  .join(", ")}
+                ).
+              </p>
+            )}
           </>
         )}
       </header>

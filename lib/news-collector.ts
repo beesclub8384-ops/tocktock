@@ -250,7 +250,12 @@ export async function collectAndSave(outputPath?: string): Promise<CollectorResu
   return result;
 }
 
-// CLI 실행: npx tsx lib/news-collector.ts
+// CLI 실행: npx tsx lib/news-collector.ts [--out <파일>]
+// --out: 시험 실행(dry-run)용 — data/ 대신 지정한 파일에 쓴다(저장소 파일을 바꾸지 않게, 미션 9)
 if (process.argv[1]?.includes("news-collector")) {
-  collectAndSave().catch(console.error);
+  const i = process.argv.indexOf("--out");
+  collectAndSave(i > 0 ? process.argv[i + 1] : undefined).catch((err) => {
+    console.error(err);
+    process.exitCode = 1;
+  });
 }
