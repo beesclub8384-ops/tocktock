@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
 import { redis } from "@/lib/redis";
+import { isSiteOriginSeries } from "@/lib/site-source-config";
+import { siteObservations } from "@/lib/site-origin";
 
 export const maxDuration = 60;
 
 const FRED_BASE = "https://api.stlouisfed.org/fred/series/observations";
-const CACHE_KEY = "inflation:fred:v1";
+// 미션 8: 원출처 전환으로 키를 바꿨다(옛 키 inflation:fred:v1 에는 FRED 값이 있고 TTL 25시간으로 저절로 사라진다).
+// cron(app/api/cron/inflation-refresh)도 같은 키를 쓴다 — 그 파일의 CACHE_KEY 를 함께 고칠 것
+const CACHE_KEY = "inflation:v2";
 const CACHE_TTL = 25 * 60 * 60; // 25시간
 
 interface FredObs {
@@ -32,7 +36,23 @@ export interface InflationData {
     core: LatestEntry;
     corePce: LatestEntry;
   };
+  /** "origin" = BLS·BEA 원출처, "fred" = FRED 경유 (미션 8, 화면 출처 문장에 쓴다) */
+  source: "origin" | "fred";
   lastUpdated: string;
+}
+
+const SERIES = ["CPIAUCSL", "CPILFESL", "PCEPILFE"];
+
+/**
+ * 전년 동월 대비 변화율 (미션 8): 원출처(CPI·근원 CPI = BLS 시계열 파일, 근원 PCE = BEA NIPA 월별 파일)에서 지수를 받아
+ * FRED units=pc1 과 같은 식으로 계산한다(FRED 출력과 시리즈마다 800개 전부 같음, 결정 로그 20-3).
+ * SITE_DATA_SOURCE=fred 면 FRED 그대로.
+ */
+async function fetchYoY(seriesId: string): Promise<FredObs[]> {
+  if (isSiteOriginSeries(seriesId)) {
+    return siteObservations(seriesId, { units: "pc1", observationStart: "1960-01-01", sortOrder: "asc" });
+  }
+  return fetchFredYoY(seriesId);
 }
 
 async function fetchFredYoY(seriesId: string): Promise<FredObs[]> {
@@ -87,9 +107,9 @@ export async function GET() {
     }
 
     const [headlineObs, coreObs, corePceObs] = await Promise.all([
-      fetchFredYoY("CPIAUCSL"),
-      fetchFredYoY("CPILFESL"),
-      fetchFredYoY("PCEPILFE"),
+      fetchYoY("CPIAUCSL"),
+      fetchYoY("CPILFESL"),
+      fetchYoY("PCEPILFE"),
     ]);
 
     // 날짜 → 각 지표 값 매핑
@@ -119,6 +139,7 @@ export async function GET() {
         core: buildLatest(coreObs),
         corePce: buildLatest(corePceObs),
       },
+      source: SERIES.every((id) => isSiteOriginSeries(id)) ? "origin" : "fred",
       lastUpdated: new Date().toISOString(),
     };
 

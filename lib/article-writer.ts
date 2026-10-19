@@ -46,6 +46,8 @@ interface FredSeries {
 interface CollectorResult {
   news: NewsItem[];
   fred: FredSeries[];
+  /** "origin" = 연준 이사회 H.15 직접, "fred" = FRED 경유 (미션 8, lib/news-collector.ts) */
+  source?: "origin" | "fred";
   collectedAt: string;
 }
 
@@ -65,10 +67,10 @@ function loadFedData(filePath?: string): CollectorResult {
 // ---------------------------------------------------------------------------
 // 프롬프트 생성
 // ---------------------------------------------------------------------------
-function buildPrompt(data: CollectorResult): string {
+export function buildPrompt(data: CollectorResult): string {
   const today = new Date().toISOString().slice(0, 10);
 
-  // FRED 최신값 요약
+  // 금리 최신값 요약 (출처: 연준 이사회 H.15 — 미션 8. 예전 파일처럼 source 가 없으면 FRED)
   const fredSummary = data.fred
     .map((s) => {
       const latest = s.observations[0];
@@ -93,7 +95,7 @@ function buildPrompt(data: CollectorResult): string {
 
 ## 데이터
 
-### FRED 금리 현황 (${data.collectedAt.slice(0, 10)} 기준)
+### ${data.source === "origin" ? "금리 현황 — 출처: 연준 이사회 H.15" : "FRED 금리 현황"} (${data.collectedAt.slice(0, 10)} 기준)
 ${fredSummary}
 
 ### 최근 연준 관련 뉴스

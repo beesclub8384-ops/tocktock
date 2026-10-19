@@ -7,5 +7,7 @@ export interface LiveIndicatorData {
 
 export interface GlobalIndicatorsResponse {
   data: LiveIndicatorData[];
+  /** "origin" = 원출처(연준 이사회·BLS·BEA), "fred" = FRED 경유 (미션 8) */
+  dataSource?: "origin" | "fred";
   fetchedAt: string;
 }

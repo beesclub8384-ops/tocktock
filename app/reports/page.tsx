@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { REPORT_SOURCES } from "@/lib/reports/sources";
+import { siteUsesOfficialSchedules } from "@/lib/site-source-config";
 import {
   getBlobBytes,
   getLastRun,
@@ -62,7 +63,8 @@ export default async function ReportsPage() {
         <h1 className="text-2xl sm:text-3xl font-bold text-zinc-900 dark:text-zinc-100">보고서 자동 수집</h1>
         <p className="text-sm text-zinc-500 mt-2">
           월가가 보는 보고서가 새로 나오면 하루 한 번 알아채서 원문을 모아 둡니다. 요약은 하지 않습니다.
-          출처: 연준, BLS, FRED, 오크트리캐피털.
+          {/* CPI 발표일은 BLS 공식 일정표에서 받는다 (미션 8). 되돌리면(SITE_DATA_SOURCE=fred) FRED 표기 */}
+          출처: 연준, BLS{siteUsesOfficialSchedules() ? "" : ", FRED"}, 오크트리캐피털.
         </p>
       </header>
 

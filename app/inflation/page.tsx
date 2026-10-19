@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import InflationChart from "./InflationChart";
 import { VixCard } from "@/components/vix-card";
+import { SiteSourceNotice } from "@/components/site-source-notice";
 import type { InflationData } from "@/app/api/inflation/data/route";
 
 export const metadata: Metadata = {
@@ -130,8 +131,17 @@ export default async function InflationPage() {
         </h1>
         <p className="text-sm text-zinc-500 mt-2">
           Headline CPI · Core CPI · Core PCE 의 전년 동월 대비 변화율(YoY)
-          추이입니다. 출처: FRED (Federal Reserve Bank of St. Louis).
+          추이입니다.{" "}
+          {data.source === "fred"
+            ? "출처: FRED (Federal Reserve Bank of St. Louis)."
+            : "출처: 미국 노동통계국(BLS, CPI·근원 CPI), 미국 경제분석국(BEA, 근원 PCE). 전년 동월 대비 변화율은 이 사이트가 지수로 계산했습니다."}
         </p>
+        {data.source === "fred" && (
+          <SiteSourceNotice
+            className="mt-1"
+            fredCitations={["U.S. Bureau of Labor Statistics via FRED (CPIAUCSL, CPILFESL)", "U.S. Bureau of Economic Analysis via FRED (PCEPILFE)"]}
+          />
+        )}
         <p className="text-xs text-zinc-400 mt-1">
           마지막 업데이트: {formatKstDate(data.lastUpdated)}
         </p>

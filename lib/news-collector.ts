@@ -1,6 +1,8 @@
 import Parser from "rss-parser";
 import fs from "fs";
 import path from "path";
+import { isSiteOriginSeries } from "@/lib/site-source-config";
+import { siteObservations } from "@/lib/site-origin";
 
 // ---------------------------------------------------------------------------
 // .env.local 로드 (Next.js 외부에서 실행 시)
@@ -58,7 +60,7 @@ const RATE_KEYWORDS = [
 ];
 
 // ---------------------------------------------------------------------------
-// FRED 설정
+// 금리 시리즈 설정 (FRED 시리즈 ID 로 부른다 — 원출처 전환은 lib/site-source-config.ts, 미션 8)
 // ---------------------------------------------------------------------------
 const FRED_BASE = "https://api.stlouisfed.org/fred/series/observations";
 
@@ -92,7 +94,10 @@ export interface FredSeries {
 
 export interface CollectorResult {
   news: NewsItem[];
+  /** 금리 시리즈 (필드 이름은 예전 파일·글 생성기와 맞추려고 그대로 둔다. 실제 출처는 source) */
   fred: FredSeries[];
+  /** "origin" = 연준 이사회 H.15 직접, "fred" = FRED 경유 (미션 8) */
+  source?: "origin" | "fred";
   collectedAt: string;
 }
 
@@ -179,18 +184,40 @@ async function fetchFredSeries(
   }
 }
 
+/**
+ * 원출처 수집 (미션 8): 연준 이사회 H.15 발표 묶음에서 FRED 와 같은 행(최근 14행, "." 제외)을 만든다.
+ * DFF = RIFSPFF_N.D(주말·휴일 포함 매일), DGS10 = RIFLGFCY10_N.B, DGS2 = RIFLGFCY02_N.B (FRED 와 전 기간 불일치 0).
+ * GitHub Actions 에는 Redis 비밀키가 없어 보관 없이 받는다(useStore: false). 새 비밀키는 필요 없다.
+ */
+async function fetchOriginSeries(seriesId: string, label: string): Promise<FredSeries> {
+  try {
+    const rows = await siteObservations(seriesId, { sortOrder: "desc", limit: 14, useStore: false });
+    // 값 문자열은 글 생성 프롬프트에 그대로 들어간다. H.15 는 "5.10" 처럼 끝자리 0 을 남기고 FRED 는 "5.1" 로 주므로
+    // 같은 수를 같은 글자로 쓰려고 끝자리 0 을 뺀다(수는 같다, 결정 로그 20-3)
+    const observations: FredObservation[] = rows
+      .filter((o) => o.value !== ".")
+      .map((o) => ({ date: o.date, value: String(Number(o.value)) }));
+    return { id: seriesId, label, observations };
+  } catch (err) {
+    console.error(`[news-collector] Failed to fetch H.15 ${seriesId}: ${err}`);
+    return { id: seriesId, label, observations: [] };
+  }
+}
+
 // ---------------------------------------------------------------------------
 // 메인 수집
 // ---------------------------------------------------------------------------
 export async function collectAll(): Promise<CollectorResult> {
+  // 기본은 원출처(연준 이사회 H.15). SITE_DATA_SOURCE=fred 일 때만 FRED 키가 필요하다
+  const useOrigin = FRED_SERIES.every((s) => isSiteOriginSeries(s.id));
   const apiKey = process.env.FRED_API_KEY;
-  if (!apiKey) {
+  if (!useOrigin && !apiKey) {
     throw new Error("FRED_API_KEY is not set in .env.local");
   }
 
   const [newsResults, ...fredResults] = await Promise.all([
     Promise.all(RSS_FEEDS.map((f) => fetchFeed(f.name, f.url))),
-    ...FRED_SERIES.map((s) => fetchFredSeries(s.id, s.label, apiKey)),
+    ...FRED_SERIES.map((s) => (useOrigin ? fetchOriginSeries(s.id, s.label) : fetchFredSeries(s.id, s.label, apiKey!))),
   ]);
 
   const news = newsResults
@@ -200,6 +227,7 @@ export async function collectAll(): Promise<CollectorResult> {
   return {
     news,
     fred: fredResults,
+    source: useOrigin ? "origin" : "fred",
     collectedAt: new Date().toISOString(),
   };
 }
@@ -216,7 +244,7 @@ export async function collectAndSave(outputPath?: string): Promise<CollectorResu
 
   fs.writeFileSync(outFile, JSON.stringify(result, null, 2), "utf8");
   console.log(
-    `[news-collector] Saved ${result.news.length} news articles + ${result.fred.length} FRED series to ${outFile}`
+    `[news-collector] Saved ${result.news.length} news articles + ${result.fred.length} rate series (${result.source}) to ${outFile}`
   );
 
   return result;

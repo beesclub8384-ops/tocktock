@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { SiteSourceNotice } from "@/components/site-source-notice";
 import {
   LineChart,
   Line,
@@ -71,6 +72,9 @@ interface BacktestData {
   periodStart: string;
   periodEnd: string;
   totalMonths: number;
+  /** FRED 로 받는 시리즈와 출처 표기 (미션 8) */
+  fredSeries?: string[];
+  fredCitations?: string[];
   fetchedAt: string;
 }
 
@@ -524,6 +528,18 @@ export default function BacktestPage() {
           <p className="mt-6 text-xs text-muted-foreground text-center">
             본 페이지의 모든 지표와 분석은 참고용이며, 투자 권유가 아닙니다.
           </p>
+
+          {/* 출처 표기 — 원출처로 받는 시리즈와 아직 FRED 로 받는 시리즈(NFCI·TED 스프레드) (미션 8) */}
+          <SiteSourceNotice
+            className="mt-4"
+            origin={
+              data.fredSeries?.includes("WALCL")
+                ? undefined
+                : "연준 이사회 H.4.1(대차대조표·재무부 계좌)·H.6(M2)·H.15(장단기 금리차는 10년물−2년물로 계산), 뉴욕 연방준비은행(역레포), 구리·금·QQQ 가격은 Yahoo Finance"
+            }
+            nyFed={!data.fredSeries?.includes("RRPONTSYD")}
+            fredCitations={data.fredCitations ?? []}
+          />
         </div>
       )}
     </main>

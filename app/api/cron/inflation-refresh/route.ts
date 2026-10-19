@@ -4,7 +4,8 @@ import { headers } from "next/headers";
 
 export const maxDuration = 60;
 
-const CACHE_KEY = "inflation:fred:v1";
+// app/api/inflation/data/route.ts 의 CACHE_KEY 와 같아야 한다 (미션 8에서 inflation:fred:v1 → inflation:v2)
+const CACHE_KEY = "inflation:v2";
 
 export async function GET(request: Request) {
   const authHeader = request.headers.get("authorization");
@@ -16,7 +17,7 @@ export async function GET(request: Request) {
     // 1) 캐시 무효화
     await redis.del(CACHE_KEY);
 
-    // 2) /api/inflation/data 호출 → FRED 새로 수집 + 캐시 저장
+    // 2) /api/inflation/data 호출 → 원출처(BLS·BEA)에서 새로 수집 + 캐시 저장
     const h = await headers();
     const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
     const proto = h.get("x-forwarded-proto") ?? "https";

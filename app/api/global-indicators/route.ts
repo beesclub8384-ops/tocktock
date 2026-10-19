@@ -2,12 +2,21 @@ import { NextResponse } from "next/server";
 import YahooFinance from "yahoo-finance2";
 import { fetchFredLatest, calcYoY, calcMoM } from "@/lib/fetch-fred";
 import type { LiveIndicatorData } from "@/lib/types/global-indicators";
+import { isSiteOriginSeries } from "@/lib/site-source-config";
 
-export const revalidate = 3600; // ISR: 1시간
+/** 이 API 가 쓰는 시리즈 (원출처: 연준 이사회 H.15·H.4.1, BLS, BEA — 미션 8) */
+const FRED_IDS = ["DGS2", "T10Y2Y", "DFII10", "WALCL", "CPIAUCSL", "PCEPI", "PAYEMS"];
+
+// 미션 8: 원출처 수집은 Redis(ETag 보관)와 no-store 요청을 써서 빌드 때 정적으로 만들 수 없다(만들면 원출처 7개가
+// null 로 굳는다 — 2026-10-19 빌드에서 확인). 그래서 요청 때 실행하고, 예전 ISR 1시간 캐시는 CDN 캐시 헤더로 대신한다.
+export const dynamic = "force-dynamic";
+// 원출처 묶음을 새로 받는 날(H.15 4.3MB·H.4.1 9MB·BEA 36.8MB, 로컬 각 2~3초)에도 넉넉하게 (미션 8 독립 검증 지적 7)
+export const maxDuration = 60;
+const CACHE_CONTROL = "public, s-maxage=3600, stale-while-revalidate=600";
 
 const yahooFinance = new YahooFinance();
 
-/* ── FRED fetchers ── */
+/* ── FRED fetchers (함수 이름은 그대로, 원출처 전환 시리즈는 lib/fetch-fred.ts 에서 원출처로 받는다) ── */
 
 async function fetchSimpleFred(
   id: string,
@@ -117,8 +126,10 @@ export async function GET() {
 
   return NextResponse.json({
     data,
+    // FRED 경유 여부 (미션 8: 기본은 원출처 — SITE_DATA_SOURCE=fred 로 되돌리면 "fred", 화면이 FRED 고지를 띄운다)
+    dataSource: FRED_IDS.some((id) => !isSiteOriginSeries(id)) ? "fred" : "origin",
     fetchedAt: new Date().toISOString(),
-  });
+  }, { headers: { "Cache-Control": CACHE_CONTROL } });
   } catch (error) {
     console.error("global-indicators API error:", error);
     return NextResponse.json(

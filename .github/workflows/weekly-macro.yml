@@ -22,7 +22,8 @@ jobs:
 
       - run: npm ci
 
-      - name: Collect news & FRED data
+      # 금리는 연준 이사회 H.15 에서 받는다(미션 8). FRED_API_KEY 는 SITE_DATA_SOURCE=fred 로 되돌릴 때만 쓴다
+      - name: Collect news & rate data (Fed H.15)
         run: npx tsx lib/news-collector.ts
         env:
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}

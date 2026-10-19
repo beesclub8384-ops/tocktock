@@ -32,7 +32,8 @@ export interface OriginObs {
   value: string;
 }
 
-export type FedRelease = "H41" | "H8" | "CHGDEL" | "H15" | "Z1" | "PRATES";
+/** H6(통화량)은 관측소가 쓰지 않고 사이트 다른 화면(미국 유동성)만 쓴다 (미션 8, lib/site-origin.ts) */
+export type FedRelease = "H41" | "H8" | "CHGDEL" | "H15" | "Z1" | "PRATES" | "H6";
 
 interface FedMapping {
   rel: FedRelease;
@@ -69,6 +70,7 @@ const RELEASE_ZIP: Record<FedRelease, string> = {
   H15: "https://www.federalreserve.gov/releases/h15/data/FRB_h15_xml.zip",
   Z1: "https://www.federalreserve.gov/releases/z1/data/FRB_Z1_xml.zip",
   PRATES: "https://www.federalreserve.gov/releases/prates/data/FRB_PRATES_xml.zip",
+  H6: "https://www.federalreserve.gov/releases/h6/data/FRB_H6_xml.zip",
 };
 
 /** 이 묶음에서 한 번 실행 동안 필요한 시리즈 (같은 cron 실행에서 묶음을 한 번만 받으려고 미리 모은다) */
@@ -178,8 +180,10 @@ function extractSeries(zip: Buffer, entryName: string, names: string[]): Promise
   });
 }
 
-/* 같은 cron 실행 안에서는 묶음을 한 번만 받는다 (예: H.8 은 예금 유출·NDFI 가 같이 쓴다) */
-const releaseCache = new Map<FedRelease, { at: number; p: Promise<Map<string, { t: string; v: string }[]>> }>();
+/* 같은 cron 실행 안에서는 묶음을 한 번만 받는다 (예: H.8 은 예금 유출·NDFI 가 같이 쓴다).
+ * 메모리 캐시는 보관 키별로 따로 둔다 — 사이트 다른 화면(lib/site-origin.ts)은 같은 묶음에서 다른 시리즈를 꺼내
+ * 다른 키에 보관하므로, 묶음 이름만으로 나누면 서로의 결과를 잘못 돌려준다(미션 8). */
+const releaseCache = new Map<string, { at: number; p: Promise<Map<string, { t: string; v: string }[]>> }>();
 const CACHE_MS = 10 * 60 * 1000;
 
 interface ReleaseCache {
@@ -195,16 +199,34 @@ export const originFetchLog: { rel: string; status: number; bytes: number; ms: n
 
 const cacheKey = (rel: FedRelease) => `observatory:origin-cache:${rel}`;
 
-async function loadRelease(rel: FedRelease): Promise<Map<string, { t: string; v: string }[]>> {
-  const hit = releaseCache.get(rel);
+export interface ReleaseLoadOptions {
+  /** Redis 보관 키. null 이면 Redis 를 쓰지 않는다(GitHub Actions 처럼 Redis 가 없는 곳) */
+  storeKey: string | null;
+  /** 이 날짜(기간 문자열) 이전 관측치는 보관·반환하지 않는다 (Redis 값 크기를 줄이려고) */
+  keepFrom?: string;
+  /** originFetchLog 에 남길지 (관측소 cron 응답용이라 사이트 화면 요청은 남기지 않는다) */
+  log?: boolean;
+}
+
+/**
+ * 발표 묶음에서 시리즈 몇 개를 꺼낸다. ETag 조건부 요청 + Redis 보관(미션 6)을 그대로 쓴다.
+ * 관측소는 loadRelease(아래)로, 사이트 다른 화면은 lib/site-origin.ts 에서 자기 보관 키로 부른다.
+ */
+export async function loadReleaseSeries(
+  rel: FedRelease,
+  names: string[],
+  opts: ReleaseLoadOptions
+): Promise<Map<string, { t: string; v: string }[]>> {
+  const memKey = opts.storeKey ?? `nostore:${rel}:${names.join(",")}`;
+  const log = opts.log ?? true;
+  const hit = releaseCache.get(memKey);
   if (hit && Date.now() - hit.at < CACHE_MS) {
-    originFetchLog.push({ rel, status: 0, bytes: 0, ms: 0 }); // status 0 = 같은 프로세스의 10분 메모리 캐시 (요청 없음)
+    if (log) originFetchLog.push({ rel, status: 0, bytes: 0, ms: 0 }); // status 0 = 같은 프로세스의 10분 메모리 캐시 (요청 없음)
     return hit.p;
   }
   const p = (async () => {
-    const names = namesFor(rel);
     // @upstash/redis 는 직렬화/역직렬화를 자동 처리한다 (JSON.parse 금지)
-    const cached = await redis.get<ReleaseCache>(cacheKey(rel));
+    const cached = opts.storeKey ? await redis.get<ReleaseCache>(opts.storeKey) : null;
     const usable = cached && names.every((n) => Array.isArray(cached.series?.[n]) && cached.series[n].length > 0);
     const headers: Record<string, string> = { "User-Agent": UA };
     if (usable && cached.etag) headers["If-None-Match"] = cached.etag;
@@ -212,29 +234,39 @@ async function loadRelease(rel: FedRelease): Promise<Map<string, { t: string; v:
     const t0 = Date.now();
     const res = await fetch(RELEASE_ZIP[rel], { cache: "no-store", signal: AbortSignal.timeout(40000), headers });
     if (res.status === 304 && usable) {
-      originFetchLog.push({ rel, status: 304, bytes: 0, ms: Date.now() - t0 });
+      if (log) originFetchLog.push({ rel, status: 304, bytes: 0, ms: Date.now() - t0 });
       return new Map(names.map((n) => [n, cached.series[n].map(([t, v]) => ({ t, v }))]));
     }
     if (!res.ok) throw new Error(`연준 ${rel} 묶음: ${res.status}`);
     const zip = Buffer.from(await res.arrayBuffer());
-    originFetchLog.push({ rel, status: res.status, bytes: zip.length, ms: Date.now() - t0 });
-    const out = await extractSeries(zip, `${rel}_data.xml`, names);
-    const save: ReleaseCache = {
-      etag: res.headers.get("etag"),
-      lastModified: res.headers.get("last-modified"),
-      savedAt: new Date().toISOString(),
-      series: Object.fromEntries([...out].map(([n, obs]) => [n, obs.map((o) => [o.t, o.v] as [string, string])])),
-    };
-    await redis.set(cacheKey(rel), save);
+    if (log) originFetchLog.push({ rel, status: res.status, bytes: zip.length, ms: Date.now() - t0 });
+    const extracted = await extractSeries(zip, `${rel}_data.xml`, names);
+    const out = opts.keepFrom
+      ? new Map([...extracted].map(([n, obs]) => [n, obs.filter((o) => o.t >= opts.keepFrom!)]))
+      : extracted;
+    if (opts.storeKey) {
+      const save: ReleaseCache = {
+        etag: res.headers.get("etag"),
+        lastModified: res.headers.get("last-modified"),
+        savedAt: new Date().toISOString(),
+        series: Object.fromEntries([...out].map(([n, obs]) => [n, obs.map((o) => [o.t, o.v] as [string, string])])),
+      };
+      await redis.set(opts.storeKey, save);
+    }
     return out;
   })();
-  releaseCache.set(rel, { at: Date.now(), p });
-  p.catch(() => releaseCache.delete(rel)); // 실패는 기억하지 않는다
+  releaseCache.set(memKey, { at: Date.now(), p });
+  p.catch(() => releaseCache.delete(memKey)); // 실패는 기억하지 않는다
   return p;
 }
 
+/** 관측소용 — FED_MAPPING 의 시리즈를 observatory:origin-cache:{REL} 에 보관 (미션 6 그대로) */
+function loadRelease(rel: FedRelease): Promise<Map<string, { t: string; v: string }[]>> {
+  return loadReleaseSeries(rel, namesFor(rel), { storeKey: cacheKey(rel) });
+}
+
 /** "2026-06-30" → "2026-04-01" */
-function toQuarterStart(d: string): string {
+export function toQuarterStart(d: string): string {
   const y = d.slice(0, 4);
   const m = Number(d.slice(5, 7));
   return `${y}-${String(Math.floor((m - 1) / 3) * 3 + 1).padStart(2, "0")}-01`;
@@ -255,7 +287,8 @@ export function shiftDecimal3(v: string): string {
  * 뉴욕 연은 SOFR
  * ──────────────────────────────────────────────────────────── */
 
-async function fetchSofr(observationStart: string): Promise<OriginObs[]> {
+/** log: originFetchLog(관측소 cron 응답)에 남길지 — 사이트 다른 화면(lib/site-origin.ts)은 false (미션 8) */
+export async function fetchSofr(observationStart: string, log = true): Promise<OriginObs[]> {
   const startYear = Number(observationStart.slice(0, 4));
   const endYear = new Date().getUTCFullYear();
   const out: OriginObs[] = [];
@@ -267,7 +300,7 @@ async function fetchSofr(observationStart: string): Promise<OriginObs[]> {
     );
     if (!res.ok) throw new Error(`뉴욕 연은 SOFR: ${res.status}`);
     const body = await res.text();
-    originFetchLog.push({ rel: `NYFED-SOFR(${y})`, status: res.status, bytes: Buffer.byteLength(body), ms: Date.now() - t0 });
+    if (log) originFetchLog.push({ rel: `NYFED-SOFR(${y})`, status: res.status, bytes: Buffer.byteLength(body), ms: Date.now() - t0 });
     const json = JSON.parse(body) as { refRates?: { effectiveDate: string; percentRate: number }[] }; // 외부 API 응답 (Redis 아님)
     for (const r of json.refRates ?? []) {
       if (r.effectiveDate >= observationStart && Number.isFinite(r.percentRate)) {
@@ -325,7 +358,8 @@ function* weekdays(from: string, to: string): Generator<string> {
 /** 운영일과 결제일이 다른 건(주말·휴일을 낀 익일물 등)을 놓치지 않으려고 앞당겨 받는 날수 */
 const RP_QUERY_LEAD_DAYS = 7;
 
-async function fetchNyFedRp(kind: "rrp" | "repo", observationStart: string): Promise<OriginObs[]> {
+/** log: fetchSofr 와 같다 (미션 8) */
+export async function fetchNyFedRp(kind: "rrp" | "repo", observationStart: string, log = true): Promise<OriginObs[]> {
   const today = new Date().toISOString().slice(0, 10);
   const lead = new Date(`${observationStart}T00:00:00Z`);
   lead.setUTCDate(lead.getUTCDate() - RP_QUERY_LEAD_DAYS);
@@ -337,7 +371,7 @@ async function fetchNyFedRp(kind: "rrp" | "repo", observationStart: string): Pro
   );
   if (!res.ok) throw new Error(`뉴욕 연은 RP: ${res.status}`);
   const text = await res.text();
-  originFetchLog.push({ rel: `NYFED-RP(${kind})`, status: res.status, bytes: Buffer.byteLength(text), ms: Date.now() - t0 });
+  if (log) originFetchLog.push({ rel: `NYFED-RP(${kind})`, status: res.status, bytes: Buffer.byteLength(text), ms: Date.now() - t0 });
   const json = JSON.parse(text) as { repo?: { operations?: RpOperation[] } }; // 외부 API 응답 파싱 (Redis 아님)
   const ops = json.repo?.operations ?? [];
   const sums = new Map<string, bigint>();

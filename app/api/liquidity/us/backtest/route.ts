@@ -1,11 +1,15 @@
 import { NextResponse } from "next/server";
 import { redis } from "@/lib/redis";
 import YahooFinance from "yahoo-finance2";
+import { isSiteOriginSeries } from "@/lib/site-source-config";
+import { siteObservations } from "@/lib/site-origin";
+import { liquiditySources } from "@/lib/liquidity-sources";
 
 export const maxDuration = 300;
 
 const FRED_BASE = "https://api.stlouisfed.org/fred/series/observations";
-const CACHE_KEY = "liquidity:us:backtest:v5";
+// v6 (미션 8): 원출처 전환 — v5 에는 FRED 로 받은 값이 들어 있어 키를 바꿨다(v5 는 TTL 24시간으로 저절로 사라진다)
+const CACHE_KEY = "liquidity:us:backtest:v6";
 const CACHE_TTL = 86400;
 
 /* ── Types ── */
@@ -66,6 +70,9 @@ export interface BacktestResponse {
   periodStart: string;
   periodEnd: string;
   totalMonths: number;
+  /** FRED 로 받는 시리즈와 FRED 경유 출처 표기 (미션 8) */
+  fredSeries: string[];
+  fredCitations: string[];
   fetchedAt: string;
 }
 
@@ -110,6 +117,23 @@ async function fetchFredMonthly(
       date: o.date.slice(0, 7),
       value: parseFloat(o.value),
     }));
+}
+
+/**
+ * 월별 시리즈 받기 (미션 8): 원출처로 전환한 시리즈는 원출처에서 FRED 의 frequency=m·aggregation_method=eop 와 같은 방식
+ * (달마다 마지막 유효값)으로 만들고, NFCI·TEDRATE 는 FRED 그대로다. 스위치: lib/site-source-config.ts
+ */
+async function fetchMonthly(seriesId: string, startDate: string): Promise<{ date: string; value: number }[]> {
+  if (!isSiteOriginSeries(seriesId)) return fetchFredMonthly(seriesId, startDate);
+  const rows = await siteObservations(seriesId, {
+    observationStart: startDate,
+    frequency: "m",
+    aggregation: "eop",
+    sortOrder: "asc",
+  });
+  return rows
+    .filter((o) => o.value !== ".")
+    .map((o) => ({ date: o.date.slice(0, 7), value: parseFloat(o.value) }));
 }
 
 function percentileRank(values: number[], current: number): number {
@@ -161,18 +185,18 @@ async function computeBacktest(): Promise<BacktestResponse> {
   // Fetch monthly FRED data
   const [walclData, rrpData, tgaData, m2Data, t10y2yData, nfciData] =
     await Promise.all([
-      fetchFredMonthly("WALCL", start),
-      fetchFredMonthly("RRPONTSYD", start),
-      fetchFredMonthly("WTREGEN", start),
-      fetchFredMonthly("M2SL", start),
-      fetchFredMonthly("T10Y2Y", start),
-      fetchFredMonthly("NFCI", start),
+      fetchMonthly("WALCL", start),
+      fetchMonthly("RRPONTSYD", start),
+      fetchMonthly("WTREGEN", start),
+      fetchMonthly("M2SL", start),
+      fetchMonthly("T10Y2Y", start),
+      fetchMonthly("NFCI", start),
     ]);
 
   // TEDRATE — may fail or have limited data
   let tedData: { date: string; value: number }[] = [];
   try {
-    tedData = await fetchFredMonthly("TEDRATE", start);
+    tedData = await fetchMonthly("TEDRATE", start);
   } catch {
     /* continue without */
   }
@@ -540,6 +564,7 @@ async function computeBacktest(): Promise<BacktestResponse> {
     periodStart: validPts[0]?.date ?? "",
     periodEnd: validPts[validPts.length - 1]?.date ?? "",
     totalMonths: validPts.length,
+    ...liquiditySources(["WALCL", "RRPONTSYD", "WTREGEN", "M2SL", "T10Y2Y", "NFCI", "TEDRATE"]),
     fetchedAt: new Date().toISOString(),
   };
 }

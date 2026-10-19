@@ -2,7 +2,8 @@
  * "이번 주 주요 일정" 통합 빌더.
  *
  * 3개 소스를 공통 스키마로 변환 → 기간 필터 → 날짜순 정렬:
- *   1) 미국 경제지표  : FRED release/dates (CPI/고용/GDP/PCE/PPI/소매판매)
+ *   1) 미국 경제지표  : 공식 발표 일정표 — BLS(CPI/고용/PPI)·BEA(GDP/PCE)·인구조사국(소매판매)
+ *                      (미션 8, lib/official-release-dates.ts. SITE_DATA_SOURCE=fred 면 예전처럼 FRED release/dates)
  *   2) FOMC 회의      : federalreserve.gov fomccalendars.htm (cheerio 파싱)
  *   3) 한·미 실적     : yahoo-finance2 quoteSummary calendarEvents.earnings
  *                      (isEarningsDateEstimate → 예정(추정)/확정)
@@ -13,6 +14,8 @@
 import * as cheerio from "cheerio";
 import YahooFinance from "yahoo-finance2";
 import { fetchAllListedStocks } from "@/lib/stock-universe";
+import { siteUsesOfficialSchedules } from "@/lib/site-source-config";
+import { fetchOfficialReleaseDates, type ReleaseKey } from "@/lib/official-release-dates";
 
 export interface EarningsDetail {
   /** % 단위 (Yahoo 소수값에 ×100). 발표 완료 항목만 */
@@ -189,14 +192,43 @@ async function pool<T, R>(
 }
 
 /* ── 1) FRED 경제지표 ──────────────────────────────────────── */
-const FRED_RELEASES: { id: number; name: string }[] = [
-  { id: 10, name: "소비자물가지수(CPI)" },
-  { id: 50, name: "고용보고서" },
-  { id: 53, name: "GDP" },
-  { id: 54, name: "PCE 물가(개인소득·지출)" },
-  { id: 46, name: "생산자물가지수(PPI)" },
-  { id: 9, name: "소매판매" },
+const FRED_RELEASES: { id: number; name: string; official: ReleaseKey }[] = [
+  { id: 10, name: "소비자물가지수(CPI)", official: "cpi" },
+  { id: 50, name: "고용보고서", official: "jobs" },
+  { id: 53, name: "GDP", official: "gdp" },
+  { id: 54, name: "PCE 물가(개인소득·지출)", official: "pce" },
+  { id: 46, name: "생산자물가지수(PPI)", official: "ppi" },
+  { id: 9, name: "소매판매", official: "retail" },
 ];
+
+/** 발표일 하나 → 일정 항목 (FRED·공식 일정표 공통. 시각은 두 출처 모두 오전 8:30 미 동부) */
+function indicatorEvent(name: string, date: string): CalendarEvent {
+  const [y, mo, d] = date.split("-").map(Number);
+  const inst = wallClockToUtc("America/New_York", y, mo, d, 8, 30);
+  return {
+    date,
+    market: "US",
+    category: "indicator",
+    name,
+    status: null,
+    detail: "미국 경제지표 발표",
+    timeLocal: "08:30 ET",
+    timeKst: kstKoreanLabel(inst, date),
+  };
+}
+
+/** 공식 일정표에서 (미션 8). 기관 하나가 실패하면 그 발표만 빠지고 콘솔에 남긴다(예전 FRED 경로와 같은 처리) */
+async function fetchOfficialIndicators(start: string, end: string): Promise<CalendarEvent[]> {
+  const { dates, errors } = await fetchOfficialReleaseDates();
+  for (const e of errors) console.error(`[weekly-calendar] ${e}`);
+  const events: CalendarEvent[] = [];
+  for (const rel of FRED_RELEASES) {
+    for (const d of dates[rel.official]) {
+      if (d >= start && d <= end) events.push(indicatorEvent(rel.name, d));
+    }
+  }
+  return events;
+}
 
 async function fetchFredIndicators(
   start: string,
@@ -218,20 +250,7 @@ async function fetchFredIndicators(
           release_dates?: { date: string }[];
         };
         for (const rd of json.release_dates ?? []) {
-          if (rd.date >= start && rd.date <= end) {
-            const [y, mo, d] = rd.date.split("-").map(Number);
-            const inst = wallClockToUtc("America/New_York", y, mo, d, 8, 30);
-            events.push({
-              date: rd.date,
-              market: "US",
-              category: "indicator",
-              name: rel.name,
-              status: null,
-              detail: "미국 경제지표 발표",
-              timeLocal: "08:30 ET",
-              timeKst: kstKoreanLabel(inst, rd.date),
-            });
-          }
+          if (rd.date >= start && rd.date <= end) events.push(indicatorEvent(rel.name, rd.date));
         }
       } catch {
         /* 개별 실패는 무시 */
@@ -522,7 +541,7 @@ export async function buildWeeklyCalendar(): Promise<WeeklyCalendarBlob> {
   const earningsStart = addDaysYmd(start, -7);
 
   const [fred, fomc, yahoo] = await Promise.all([
-    fetchFredIndicators(start, end),
+    siteUsesOfficialSchedules() ? fetchOfficialIndicators(start, end) : fetchFredIndicators(start, end),
     fetchFomcMeetings(start, end),
     fetchYahooEarnings(earningsStart, end),
   ]);

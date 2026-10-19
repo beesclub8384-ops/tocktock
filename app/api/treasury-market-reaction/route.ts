@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import YahooFinance from "yahoo-finance2";
 import { redis } from "@/lib/redis";
+import { isSiteOriginSeries } from "@/lib/site-source-config";
+import { siteObservations } from "@/lib/site-origin";
+import { nyFedAttribution, SOFR_NOTICE } from "@/app/observatory/source-notices";
 
 const yahooFinance = new YahooFinance();
 
@@ -83,6 +86,28 @@ async function fetchFredClose(seriesId: string, dates: string[]): Promise<Map<st
   return map;
 }
 
+/**
+ * SOFR (미션 8): 원출처(뉴욕 연은 Markets API)에서 FRED 와 같은 기간·같은 행으로 받는다. SITE_DATA_SOURCE=fred 면 FRED.
+ * 뉴욕 연은 약관이 요구하는 출처 표기와 SOFR 고지문은 응답의 attribution 에 싣는다.
+ */
+async function fetchSofrClose(dates: string[]): Promise<Map<string, number>> {
+  if (!isSiteOriginSeries("SOFR")) return fetchFredClose("SOFR", dates);
+  const map = new Map<string, number>();
+  try {
+    const minDate = dates.reduce((a, b) => (a < b ? a : b));
+    const maxDate = dates.reduce((a, b) => (a > b ? a : b));
+    const start = new Date(minDate);
+    start.setDate(start.getDate() - 5);
+    const rows = await siteObservations("SOFR", { observationStart: toDateStr(start), observationEnd: maxDate, sortOrder: "asc" });
+    for (const obs of rows) {
+      if (obs.value !== ".") map.set(obs.date, parseFloat(obs.value));
+    }
+  } catch (err) {
+    console.error("[market-reaction] NY Fed SOFR error:", err);
+  }
+  return map;
+}
+
 // 가장 가까운 이전 영업일의 종가 찾기
 function findClose(map: Map<string, number>, dateStr: string): number | null {
   // 정확히 해당 날짜
@@ -111,7 +136,8 @@ export async function GET(request: NextRequest) {
 
   try {
     // 캐시 확인
-    const cacheKey = `market-reaction:${date}`;
+    // v2 (미션 8): SOFR 를 뉴욕 연은에서 직접 받으며 키를 바꿨다 — 옛 키(market-reaction:{date})의 FRED 값은 TTL(최대 30일)로 사라진다
+    const cacheKey = `market-reaction:v2:${date}`;
     const cached = await redis.get(cacheKey);
     if (cached) {
       return NextResponse.json(cached);
@@ -130,7 +156,7 @@ export async function GET(request: NextRequest) {
       fetchYahooClose("DX-Y.NYB", allDates),
       fetchYahooClose("JPY=X", allDates),
       fetchYahooClose("GC=F", allDates),
-      fetchFredClose("SOFR", allDates),
+      fetchSofrClose(allDates),
     ]);
 
     function buildIndicator(name: string, result: PromiseSettledResult<Map<string, number>>): IndicatorResult {
@@ -155,6 +181,9 @@ export async function GET(request: NextRequest) {
         gold: buildIndicator("금", gold),
         sofr: buildIndicator("SOFR", sofr),
       },
+      attribution: isSiteOriginSeries("SOFR")
+        ? { sofr: `${nyFedAttribution()} ${SOFR_NOTICE}` }
+        : { sofr: "Federal Reserve Bank of New York, Secured Overnight Financing Rate [SOFR], retrieved from FRED. This product uses the FRED® API but is not endorsed or certified by the Federal Reserve Bank of St. Louis." },
     };
 
     // 캐시 저장 (7일 이전 데이터는 30일, 최근은 1시간)

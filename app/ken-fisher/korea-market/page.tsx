@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { SiteSourceNotice } from "@/components/site-source-notice";
 import { HelpCircle, X, ArrowRight, AlertTriangle, ExternalLink } from "lucide-react";
 import { useDraggable } from "@/hooks/useDraggable";
 import { useResizable } from "@/hooks/useResizable";
@@ -158,6 +159,14 @@ export default function KoreaMarketPage() {
           <li>모든 투자 판단의 책임은 투자자 본인에게 있습니다.</li>
         </ul>
       </section>
+
+      {/* FRED 고지 — 한국 10년물은 아직 FRED 로 받는다 (OECD 이용 조건 미확인, 미션 8 결정 로그 20장) */}
+      <SiteSourceNotice
+        className="mt-4"
+        fredCitations={[
+          "Organization for Economic Co-operation and Development, Interest Rates: Long-Term Government Bond Yields: 10-Year: Main (Including Benchmark) for Korea [IRLTLT01KRM156N], retrieved from FRED",
+        ]}
+      />
 
       {/* 보는 법 모달 */}
       {showGuide && <GuideModal onClose={() => setShowGuide(false)} />}

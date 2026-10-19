@@ -22,6 +22,8 @@ interface Indicator {
   status: Status;
   category: string;
   manual?: boolean;
+  /** 값을 화면에 싣지 않고 "준비 중"으로 보여 준다 (아래 PENDING_IDS) */
+  pending?: boolean;
 }
 
 const MANUAL_IDS = new Set([
@@ -29,6 +31,13 @@ const MANUAL_IDS = new Set([
   "crb", "cape", "buffett", "em_cape", "debt", "m2", "gold_reserve",
   "dollar_share", "jolts", "pmi", "sp200", "revision", "bdi",
 ]);
+
+/**
+ * 화면에 값을 싣지 않는 지표 (미션 8, 2026-10-19).
+ * hy: ICE BofA 하이일드 스프레드(FRED BAMLH0A0HYM2) — FRED 저작권 등급 "Copyrighted: Pre-approval required"(저작권자 ICE 의
+ * 사전 서면 승인 필요). 승인 없이 공개 화면에 실을 수 없어 값 연결을 끊고 숫자도 코드에서 비웠다(번들로 공개되므로). 지표 정의는 남겼다.
+ */
+const PENDING_IDS = new Set(["hy"]);
 
 interface ReadingGuide {
   icon: string;
@@ -104,7 +113,9 @@ const INITIAL_CATEGORIES: { name: string; items: Indicator[] }[] = [
   {
     name: "신용리스크",
     items: [
-      { id: "hy", ticker: "HY SPREAD", name: "하이일드 스프레드", value: "3.72", unit: "%", change: "▼ -0.08", stars: 5, size: "xl", status: "ok", category: "신용리스크" },
+      // 값·변화는 비웠다: 이 페이지는 브라우저 번들로 나가서 숫자를 코드에 두면 화면에 안 보여도 공개된다(미션 8 독립 검증 지적 1).
+      // 지표 정의(이름·중요도·크기·분류)는 남기고, 예전 고정값은 git 기록에만 있다. ICE 승인을 받으면 값을 다시 넣고 PENDING_IDS 에서 뺀다
+      { id: "hy", ticker: "HY SPREAD", name: "하이일드 스프레드", value: "", unit: "%", change: "", stars: 5, size: "xl", status: "neutral2", category: "신용리스크" },
       { id: "cds", ticker: "KR CDS", name: "한국 CDS", value: "38", unit: "bp", change: "▲ +2", stars: 4, size: "lg", status: "neutral", category: "신용리스크" },
       { id: "cc", ticker: "CC DEL", name: "신용카드 연체율", value: "3.2", unit: "%", change: "▲ 상승 중", stars: 3, size: "sm", status: "danger2", category: "신용리스크" },
       { id: "auto", ticker: "AUTO", name: "자동차 할부 연체율", value: "2.8", unit: "%", change: "▲ 상승 중", stars: 3, size: "sm", status: "warn", category: "신용리스크" },
@@ -165,6 +176,7 @@ const INITIAL_CATEGORIES: { name: string; items: Indicator[] }[] = [
 INITIAL_CATEGORIES.forEach((cat) =>
   cat.items.forEach((item) => {
     if (MANUAL_IDS.has(item.id)) item.manual = true;
+    if (PENDING_IDS.has(item.id)) item.pending = true;
   })
 );
 
@@ -196,7 +208,7 @@ const MODAL_CONTENTS: Record<string, ModalInfo> = {
       { icon: "◆", text: "2년물 > 10년물 → 장단기 역전 (경기침체 선행신호)", color: "#eab308" },
     ],
     sources: [
-      { name: "FRED — DGS2", url: "https://fred.stlouisfed.org/series/DGS2" },
+      { name: "연준 이사회 H.15", url: "https://www.federalreserve.gov/releases/h15/" },
       { name: "TradingView", url: "https://www.tradingview.com/symbols/TVC-US02Y/" },
     ],
   },
@@ -210,7 +222,7 @@ const MODAL_CONTENTS: Record<string, ModalInfo> = {
       { icon: "▼", text: "마이너스 → 경기침체 선행신호 (1~2년 후)", color: "#ef4444" },
     ],
     sources: [
-      { name: "FRED — T10Y2Y", url: "https://fred.stlouisfed.org/series/T10Y2Y" },
+      { name: "연준 이사회 H.15", url: "https://www.federalreserve.gov/releases/h15/" },
       { name: "TradingView", url: "https://www.tradingview.com/symbols/FRED-T10Y2Y/" },
     ],
   },
@@ -223,7 +235,7 @@ const MODAL_CONTENTS: Record<string, ModalInfo> = {
       { icon: "▲", text: "플러스 확대 → 금↓ 성장주↓", color: "#ef4444" },
     ],
     sources: [
-      { name: "FRED — DFII10", url: "https://fred.stlouisfed.org/series/DFII10" },
+      { name: "연준 이사회 H.15", url: "https://www.federalreserve.gov/releases/h15/" },
       { name: "TradingView", url: "https://www.tradingview.com/symbols/FRED-DFII10/" },
     ],
   },
@@ -236,7 +248,7 @@ const MODAL_CONTENTS: Record<string, ModalInfo> = {
       { icon: "▼", text: "감소 (QT) → 유동성 흡수 = 시장 부담", color: "#ef4444" },
     ],
     sources: [
-      { name: "FRED — WALCL", url: "https://fred.stlouisfed.org/series/WALCL" },
+      { name: "연준 이사회 H.4.1", url: "https://www.federalreserve.gov/releases/h41/" },
       { name: "연준 홈페이지", url: "https://www.federalreserve.gov/monetarypolicy/bst_recenttrends.htm" },
     ],
   },
@@ -361,7 +373,6 @@ const MODAL_CONTENTS: Record<string, ModalInfo> = {
       { icon: "▲", text: "8% 이상 = 위기", color: "#ef4444" },
     ],
     sources: [
-      { name: "FRED — BAMLH0A0HYM2", url: "https://fred.stlouisfed.org/series/BAMLH0A0HYM2" },
       { name: "Bloomberg", url: "https://www.bloomberg.com/markets/rates-bonds" },
     ],
   },
@@ -388,7 +399,7 @@ const MODAL_CONTENTS: Record<string, ModalInfo> = {
       { icon: "▲", text: "3% 이상 급등 = 소비 둔화 신호", color: "#ef4444" },
     ],
     sources: [
-      { name: "FRED — DRCCLACBS", url: "https://fred.stlouisfed.org/series/DRCCLACBS" },
+      { name: "연준 이사회 — 대출 상각·연체율", url: "https://www.federalreserve.gov/releases/chargeoff/" },
       { name: "뉴욕 연준", url: "https://www.newyorkfed.org/microeconomics/hhdc" },
     ],
   },
@@ -400,7 +411,7 @@ const MODAL_CONTENTS: Record<string, ModalInfo> = {
       { icon: "▲", text: "상승 추세 = 중산층 압박, 소비 위축 우려", color: "#ef4444" },
     ],
     sources: [
-      { name: "FRED", url: "https://fred.stlouisfed.org/series/DRALACBS" },
+      { name: "연준 이사회 — 대출 상각·연체율", url: "https://www.federalreserve.gov/releases/chargeoff/" },
       { name: "뉴욕 연준", url: "https://www.newyorkfed.org/microeconomics/hhdc" },
     ],
   },
@@ -484,7 +495,7 @@ const MODAL_CONTENTS: Record<string, ModalInfo> = {
       { icon: "▲", text: "140% 이상 = 버블 경고", color: "#ef4444" },
     ],
     sources: [
-      { name: "FRED — DDDM01USA156NWDB", url: "https://fred.stlouisfed.org/series/DDDM01USA156NWDB" },
+      { name: "세계은행", url: "https://data.worldbank.org/indicator/CM.MKT.LCAP.GD.ZS?locations=US" },
       { name: "currentmarketvaluation.com", url: "https://www.currentmarketvaluation.com/models/buffett-indicator.php" },
     ],
   },
@@ -509,7 +520,6 @@ const MODAL_CONTENTS: Record<string, ModalInfo> = {
     ],
     sources: [
       { name: "BIS", url: "https://www.bis.org/statistics/totcredit.htm" },
-      { name: "FRED — HDTGPDUSQ163N", url: "https://fred.stlouisfed.org/series/HDTGPDUSQ163N" },
       { name: "IMF", url: "https://www.imf.org/external/datamapper/datasets/GDD" },
     ],
   },
@@ -522,7 +532,7 @@ const MODAL_CONTENTS: Record<string, ModalInfo> = {
       { icon: "▼", text: "감소 → 자산가격 하락 경향", color: "#ef4444" },
     ],
     sources: [
-      { name: "FRED — WM2NS", url: "https://fred.stlouisfed.org/series/WM2NS" },
+      { name: "연준 이사회 H.6", url: "https://www.federalreserve.gov/releases/h6/" },
       { name: "한국은행 ECOS", url: "https://ecos.bok.or.kr/" },
     ],
   },
@@ -560,7 +570,6 @@ const MODAL_CONTENTS: Record<string, ModalInfo> = {
     ],
     sources: [
       { name: "BLS", url: "https://www.bls.gov/cpi/" },
-      { name: "FRED — CPIAUCSL", url: "https://fred.stlouisfed.org/series/CPIAUCSL" },
       { name: "Investing.com", url: "https://www.investing.com/economic-calendar/cpi-733" },
     ],
   },
@@ -574,7 +583,6 @@ const MODAL_CONTENTS: Record<string, ModalInfo> = {
     ],
     sources: [
       { name: "BEA", url: "https://www.bea.gov/data/personal-consumption-expenditures-price-index" },
-      { name: "FRED — PCEPI", url: "https://fred.stlouisfed.org/series/PCEPI" },
     ],
   },
   nfp: {
@@ -587,7 +595,6 @@ const MODAL_CONTENTS: Record<string, ModalInfo> = {
     ],
     sources: [
       { name: "BLS", url: "https://www.bls.gov/news.release/empsit.nr0.htm" },
-      { name: "FRED — PAYEMS", url: "https://fred.stlouisfed.org/series/PAYEMS" },
       { name: "Investing.com", url: "https://www.investing.com/economic-calendar/nonfarm-payrolls-227" },
     ],
   },
@@ -601,7 +608,6 @@ const MODAL_CONTENTS: Record<string, ModalInfo> = {
     ],
     sources: [
       { name: "BLS — JOLTS", url: "https://www.bls.gov/jlt/" },
-      { name: "FRED — JTSJOL", url: "https://fred.stlouisfed.org/series/JTSJOL" },
     ],
   },
   pmi: {
@@ -664,7 +670,8 @@ const MODAL_CONTENTS: Record<string, ModalInfo> = {
 /* ═══════════════════ 타일 컴포넌트 ═══════════════════ */
 
 function Tile({ item, onClick }: { item: Indicator; onClick: () => void }) {
-  const bg = STATUS_COLORS[item.status];
+  // 값을 싣지 않는 지표는 상태 색(정상·경고 등)도 판단처럼 보이므로 중립색으로 둔다 (미션 8)
+  const bg = item.pending ? STATUS_COLORS.neutral2 : STATUS_COLORS[item.status];
 
   const sizeStyle: React.CSSProperties =
     item.size === "xl"
@@ -686,12 +693,12 @@ function Tile({ item, onClick }: { item: Indicator; onClick: () => void }) {
         {item.ticker}
       </span>
       <span
-        style={{ fontSize: valueSize, fontFamily: "'DM Mono', monospace", lineHeight: 1.2 }}
+        style={{ fontSize: item.pending ? nameSize + 2 : valueSize, fontFamily: "'DM Mono', monospace", lineHeight: 1.2 }}
         className="text-white font-semibold"
       >
-        {item.value}
+        {item.pending ? "준비 중" : item.value}
       </span>
-      {item.unit && (
+      {item.unit && !item.pending && (
         <span style={{ fontSize: 8 }} className="text-white/40">
           {item.unit}
         </span>
@@ -699,12 +706,12 @@ function Tile({ item, onClick }: { item: Indicator; onClick: () => void }) {
       <span style={{ fontSize: nameSize, lineHeight: 1.2 }} className="text-white/80 mt-0.5">
         {item.name}
       </span>
-      {item.change && (
+      {item.change && !item.pending && (
         <span style={{ fontSize: 8 }} className="text-white/40 mt-0.5">
           {item.change}
         </span>
       )}
-      {item.manual && (
+      {item.manual && !item.pending && (
         <span style={{ fontSize: 7 }} className="text-white/30 mt-0.5">
           수동업데이트
         </span>
@@ -786,10 +793,11 @@ function IndicatorModal({ item, onClose }: { item: Indicator; onClose: () => voi
             <h2 className="text-xl font-bold text-white">{item.name}</h2>
             <div className="flex items-baseline gap-3 mt-1">
               <span style={{ fontFamily: "'DM Mono', monospace" }} className="text-3xl font-bold text-white">
-                {item.value}
+                {item.pending ? "준비 중" : item.value}
               </span>
-              <span className="text-white/40 text-sm">{item.unit}</span>
+              {!item.pending && <span className="text-white/40 text-sm">{item.unit}</span>}
             </div>
+            {item.pending && <p className="text-white/50 text-xs mt-1">이 지표의 값은 지금 준비 중입니다.</p>}
           </div>
           <button onClick={onClose} className="text-white/40 hover:text-white text-xl leading-none p-1">
             ✕
@@ -881,11 +889,13 @@ function deepCloneCategories() {
 export default function GlobalIndicatorsPage() {
   const [categories, setCategories] = useState(() => deepCloneCategories());
   const [selected, setSelected] = useState<Indicator | null>(null);
+  const [dataSource, setDataSource] = useState<"origin" | "fred">("origin");
 
   useEffect(() => {
     fetch("/api/global-indicators")
       .then((res) => res.json())
       .then((json: GlobalIndicatorsResponse) => {
+        if (json.dataSource === "fred") setDataSource("fred");
         const liveMap = new Map(json.data.map((d) => [d.id, d]));
         setCategories((prev) =>
           prev.map((cat) => ({
@@ -944,6 +954,19 @@ export default function GlobalIndicatorsPage() {
           <CategoryBlock name="글로벌교역" items={cat("글로벌교역").items} onTileClick={setSelected} />
         </div>
       </div>
+
+      {/* FRED 고지 — 출처를 FRED 로 되돌렸을 때만 (기본은 원출처, 미션 8). 영어 문장은 FRED API 이용 약관 문구 그대로 */}
+      {dataSource === "fred" && (
+        <div className="max-w-5xl mx-auto mt-6 text-xs leading-relaxed text-zinc-500">
+          <p>
+            This product uses the FRED® API but is not endorsed or certified by the Federal Reserve Bank of St. Louis.{" "}
+            <a href="https://fred.stlouisfed.org/docs/api/terms_of_use.html" className="underline" target="_blank" rel="noreferrer">
+              FRED® API Terms of Use
+            </a>
+          </p>
+          <p>지금 이 페이지의 일부 실시간 값은 미국 세인트루이스 연방준비은행의 FRED® API로 받고 있습니다.</p>
+        </div>
+      )}
 
       {/* 모달 */}
       {selected && <IndicatorModal item={selected} onClose={() => setSelected(null)} />}

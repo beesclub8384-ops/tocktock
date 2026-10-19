@@ -353,18 +353,18 @@
 9. ~~Redis에 남은 키 `observatory:hy-spread`, `observatory:ccc-spread`~~ → 미션 3에서 사용자 지시로 삭제했습니다(15장).
 10. **스테이블코인 지표(관측소 6-B)에 DefiLlama 자료를 쓸지**: 이용약관 8조가 "허락 없이 어떤 형태로든 데이터 재게시 금지"라 싣지 않았습니다. 쓰려면 DefiLlama의 허락을 받을지 사람이 정해야 합니다. 초안 코드와 회귀 결과(발행 잔액 발동 3.2%, 디페그 13.6%, 2023-03-11 USDC 경보)는 세션 임시 폴더에만 있어, 쓰기로 하면 다시 만들어야 합니다.
 11. **SEC 요청의 연락처**: SEC는 User-Agent에 연락처(이메일)를 넣으라고 권합니다. 개인 이메일을 저장소 코드에 넣지 않으려고 사이트 주소만 넣었습니다(2026-10-18 정상 응답). SEC가 막으면 연락처를 환경변수로 넣을지 사람이 정해야 합니다.
-12. **FRED 약관과 공개 사이트**(미션 3, 미션 4에서 원문 재확인 — 16-1): /legal 의 전체 이용 약관에 사전 서면 허락 없는 인터넷 재게시·저장(캐시) 금지 조항이 있고, API 약관도 /legal 을 포함하므로 API 사용에도 적용됩니다. 관측소는 미션 6부터 FRED 를 쓰지 않지만, 관측소 밖 화면은 지금도 FRED 값을 Redis 에 저장해 보여 줍니다(23번). 원출처로 옮길지, 허락을 구할지, 그대로 둘지 사람이 정해야 합니다(15장).
+12. **FRED 약관과 공개 사이트**(미션 3, 미션 4에서 원문 재확인 — 16-1): /legal 의 전체 이용 약관에 사전 서면 허락 없는 인터넷 재게시·저장(캐시) 금지 조항이 있고, API 약관도 /legal 을 포함하므로 API 사용에도 적용됩니다. 관측소는 미션 6부터 FRED 를 쓰지 않고, 미션 8에서 관측소 밖 화면도 대부분 원출처로 옮겼습니다(20장). **남은 FRED 사용은 NFCI·TED 스프레드(/liquidity/us, 백테스트)와 한국 10년물(/ken-fisher/korea-market) 셋**이고, 이 셋에 대해서만 서면 허락을 구할지, 화면에서 뺄지, 고지를 두고 그대로 쓸지 사람이 정합니다(23번).
 13. ~~S&P 500·나스닥 지수 겹쳐 그리기~~ → 미션 4에서 화면에서 빼고, 미션 5에서 수집을 끄고 배포 뒤 Redis 키를 지웠습니다(17-8). 다시 싣으려면 S&P·나스닥의 사전 승인이 필요합니다.
 14. **tocktock.kr 도메인 DNS 상태**(미션 3 지시): 이 PC에서 tocktock.kr 조회가 실패합니다(tocktock.vercel.app은 정상). 확인이 필요합니다.
 15. **lib/reports/fetcher.ts의 개인 이메일**(미션 3 지시): 관측소 밖 코드의 User-Agent에 개인 이메일이 들어 있습니다. 이번에는 고치지 않았습니다.
 16. **저장소 공개 여부**(미션 3 지시): 7번(커밋 기록의 도구 표기)과 함께 정해야 합니다.
 17. **관측소 밖 문구**(미션 3): 평서체·"AI 자동매매" 등 목록은 `docs/pre-launch-review.md` 5장. 수정 여부는 사람이 정합니다.
-18. **FRED 약관을 이 사이트가 어떻게 지키는지** — 관측소는 해소(미션 6, 18-5), **사이트 전체는 미해소**(미션 7 정정). 미션 6에서 이 항목에 줄을 그었지만 관측소 밖 화면과 이용 약관 페이지(19번)는 그대로입니다. 23번과 함께 봐야 합니다.
-19. **사이트 이용 약관 페이지**(미션 4): FRED API 약관은 "앱의 이용 약관에 사용자가 FRED API 약관에 동의한다는 내용을 명시하라"고 합니다. 이 사이트에는 이용 약관 페이지가 없습니다. 만들지, 무엇을 담을지는 법적 문서라 사람이 정합니다.
-20. **관측소 밖 FRED 사용 화면**(미션 4·5): `/global-indicators`, `/liquidity/us`, `/liquidity/us/backtest`, `/inflation` 등도 FRED API 를 씁니다(코드 기준 FRED 호출 파일: app/api/inflation, app/api/treasury-market-reaction, app/api/liquidity/us(+backtest), app/global-indicators, lib/fetch-fred, lib/weekly-calendar, lib/korea-market-engine, lib/news-collector, lib/reports/detectors/fredRelease). 원출처로 바꿀지, 서면 허락을 구할지, 고지를 둘지 정해야 합니다. 관측소 밖이라 이번에도 고치지 않았습니다.
+18. **FRED 약관을 이 사이트가 어떻게 지키는지** — 관측소는 해소(미션 6, 18-5). 사이트 전체는 미션 8에서 **세 시리즈만 남음**(23번). 남은 화면에는 FRED API 약관이 요구하는 고지 문장을 넣었습니다. 이용 약관 페이지(19번)는 그대로 없습니다.
+19. **사이트 이용 약관 페이지**(미션 4): FRED API 약관은 "앱의 이용 약관에 사용자가 FRED API 약관에 동의한다는 내용을 명시하라"고 합니다. 이 사이트에는 이용 약관 페이지가 없습니다. 만들지, 무엇을 담을지는 법적 문서라 사람이 정합니다. **미션 8: 남은 FRED 세 시리즈(23번)를 빼거나 다른 출처로 바꾸면 FRED 때문에 이 페이지가 필요한 이유는 사라질 수 있습니다**(다른 이유로 둘지는 별개).
+20. ~~관측소 밖 FRED 사용 화면~~ → 미션 8에서 원출처로 옮김(20장). 남은 것은 23번. (원래 내용: 미션 4·5: `/global-indicators`, `/liquidity/us`, `/liquidity/us/backtest`, `/inflation` 등도 FRED API 를 씁니다(코드 기준 FRED 호출 파일: app/api/inflation, app/api/treasury-market-reaction, app/api/liquidity/us(+backtest), app/global-indicators, lib/fetch-fred, lib/weekly-calendar, lib/korea-market-engine, lib/news-collector, lib/reports/detectors/fredRelease). 원출처로 바꿀지, 서면 허락을 구할지, 고지를 둘지 정해야 합니다.)
 21. ~~뉴욕 연은 시리즈~~ → SOFR(미션 5)·역레포·레포(미션 6) 모두 뉴욕 연은에서 직접 받습니다. 출처 표기·SOFR 고지문 유지.
 22. ~~연준 DDP 폐지 대비~~ → 미션 6에서 연준이 계속 제공한다고 밝힌 발표 페이지 XML 묶음으로 옮겼습니다(18-1). 연준이 그 경로도 바꾸면 수집 실패가 cron errors 에 남습니다.
-23. **관측소 밖 FRED 사용(저장·공개 표시)**(미션 7 전수 조사, 19-2): 관측소 밖 10곳이 FRED 를 씁니다. Redis 저장 + 공개 표시 5곳(`/liquidity/us`, `/liquidity/us/backtest`(점수), `/inflation`, `/ken-fisher/korea-market`, `/api/treasury-market-reaction`), 저장 없이 공개 표시 2곳(`/global-indicators` API 값과 고정값 — 사전 승인 등급 BAMLH0A0HYM2(ICE) 고정값 포함), 발표일만 2곳(`/calendar`, `/reports`), 화면 없음 1곳(CI 수집기·글 생성). 그 밖에 관측소의 휴면 FRED 경로가 있습니다(되돌릴 때만). 원출처 전환·서면 허락·고지·이용 약관 페이지 중 무엇을 할지 사람이 정합니다. 표는 `docs/pre-launch-review.md` 2장.
+23. **남은 FRED 사용 — 서면 허락 여부**(미션 7 조사 → 미션 8 전환 후): 관측소 밖 10곳 중 9곳을 원출처로 옮겼습니다(20장). 남은 것은 셋입니다. ① `/liquidity/us`·백테스트의 **NFCI**(시카고 연은 — 법적 고지가 재게시·배포에 서면 허락을 요구)와 **TED 스프레드**(FRED 가 ICE LIBOR 로 계산한 자체 시리즈, 2022년 중단), ② `/ken-fisher/korea-market` 의 **한국 10년물**(OECD — 이용 조건 원문 미확인, 원자료는 한국은행이고 ECOS 는 새 API 키 필요). 화면에는 FRED 고지와 FRED 경유 출처를 넣었습니다. 사람이 정할 것: 이 셋에 대해 FRED(및 시카고 연은·OECD)에 서면 허락을 구할지, 화면에서 뺄지(점수 계산이 바뀜), 한국은행 키를 발급할지. 사전 승인 등급 BAMLH0A0HYM2(ICE)는 화면에서 뺐습니다(20-7). TED 스프레드는 2022년에 멈춘 값(0.09)이 지금 점수에 들어가고, `/global-indicators` CPI 카드는 13개월 전 대비 값이 나옵니다(20-9) — 둘 다 고칠지 사람이 정합니다.
 
 ## 9. 공개 전 점검 체크리스트
 
@@ -380,7 +380,7 @@
 - [ ] 상시 경보 위험 지표 GZ 신용 스프레드(17.9%) 공개 여부 결정
 - [x] ~~상시 경보 위험 지표 AI 설비투자 공개 여부~~ → 미션 3 최소 표본 규칙으로 판정 보류
 - [ ] 상시 경보 위험 지표 헤지펀드 조달 조건(27.3%, 판정 22분기뿐) 공개 여부 결정
-- [ ] FRED 약관 결정(8장 12·18·19·23번, 관측소 밖 FRED 사용) — 공개 전 필수
+- [ ] FRED 약관 결정(8장 12·18·19·23번) — 미션 8 뒤 남은 것: NFCI·TED 스프레드·한국 10년물 세 시리즈의 서면 허락 여부와 이용 약관 페이지 — 공개 전 필수
 - [ ] cron 실행 시간·용량 확인: 발표 없는 날 원출처 약 0.38MB·로컬 6~9초, 연준 묶음 6개를 모두 다시 받는 날 60.2MB·로컬 10.8초(미션 7, 19-5). 45초 예산을 넘으면 무거운 수집을 건너뛰고 warnings 에 남김 — warnings 에 '시간 예산' 이 보이기 시작하면 라우트를 나눌 것
 
 ## 10. 남은 위험
@@ -1093,3 +1093,125 @@ FRED 약관은 notes 에 "Copyright" 가 있으면 저작권 시리즈라고 하
 - 커밋 376197a push → tocktock.vercel.app 배포 확인. 관측소 페이지 200, 배포 API 20개의 판정·발동 통계가 로컬 검증 값과 차이 0(RRP 1,615/3,263·SRF 146/1,363·지급준비금 604/940, 현재 판정 그대로).
 - 배포 cron: 인증 없이 401, 인증 200·errors 없음, **`redisMode: production`**. 1회 11.3초(응답 시간, 함수 내부 10.8초, 연준 묶음 304×5 — Z.1 은 맨 뒤 FHLB 에서 304), 2회 7.8초(내부 7.3초). maxDuration 60초·시간 예산 45초 대비 여유 있음. warnings 는 기존 NDFI 재분류 확인 1건뿐(시간 예산 건너뜀 없음).
 - 운영 쓰기 확인: 배포 cron 전후 운영 키 해시를 비교하니 `observatory:bigtech-capex` 가 운영 키 그대로 바뀌었고(덮개 키 수 25 그대로) — 운영은 덮개 모드가 아니라 원래 키에 씁니다. (같은 사이 `usd-krw:v1` 은 사이트 다른 기능의 캐시)
+
+## 20. 미션 8 — 사이트 전체의 FRED 의존 제거(원출처 직접 수집) · ICE 사전 승인 시리즈 공개 화면에서 제거 (2026-10-19)
+
+> 관측소 밖 파일을 이번 미션이 명시적으로 허용해 고쳤습니다. 범위는 FRED 사용 지점(값·발표일·출처 표기·고지)뿐이고, 화면 디자인·다른 기능은 건드리지 않았습니다. 이용 약관 페이지는 만들지 않았습니다(사람 결정). 새 계정·API 키·비용 연결은 없습니다. 관측소는 바뀌지 않았습니다(20-6).
+
+### 20-1. 대상 확정 (전수 grep)
+- `git grep -i fred`(app·lib·scripts·.github·components, 추적 파일)와 추적하지 않는 스크립트를 확인한 결과, 미션 7 표(pre-launch-review 2장)의 10곳 + 관측소 휴면 경로 외에 **빠진 곳 없음**. 환경변수는 `FRED_API_KEY` 하나(.env.local, Vercel, GitHub Actions 비밀키). 추적하지 않는 로컬 스크립트 `scripts/liquidity-correlation-analysis.mjs`(콘솔 출력만, 배포·CI 아님)는 그대로 둠(BAMLC0A0CM·UMCSENT 포함 — 화면 없음).
+- 기준값(바꾸기 전): 배포 사이트 API 9개 응답(전역 지표·유동성·백테스트·인플레이션·한국 시장·일정·시장 반응 3일)을 2026-10-19 15:3x(한국 시각)에 저장했고, 같은 날 FRED 와 원출처를 같은 인자로 받아 행 단위로 비교했습니다(20-3).
+
+### 20-2. 원출처와 이용 조건 (원문 한 줄)
+| 원출처 | 이용 조건 원문 | 출처 표기 |
+|---|---|---|
+| 연준 이사회 H.4.1·H.15·H.6 (발표 페이지 XML 묶음) | "Unless otherwise indicated, information on Board's website is in the public domain and may be copied and distributed without permission. Please cite to the Board as the source" (federalreserve.gov/disclaimer.htm) | "연준 이사회 H.4.1·H.6·H.15" |
+| BLS 시계열 파일 (download.bls.gov) | "everything that we publish, both in hard copy and electronically, is in the public domain … You are free to use our public domain material without specific permission, although we do ask that you cite the Bureau of Labor Statistics as the source." (bls.gov/opub/copyright-information.htm) | "미국 노동통계국(BLS)" |
+| BEA NIPA 월별 파일 | "unless stated otherwise, the information posted on the BEA Web site is in the public domain and may be used or reproduced without specific permission. A citation such as "Source: U.S. Bureau of Economic Analysis" would be appreciated." (bea.gov/about/policies-and-information/linking) | "미국 경제분석국(BEA)" |
+| 뉴욕 연은 Markets API (역레포·SOFR) | 약관(newyorkfed.org/privacy/termsofuse): 정해진 출처 표기 문장 + SOFR 고지문 (17-2) | "© 2026 Federal Reserve Bank of New York. Content from the New York Fed subject to the Terms of Use at newyorkfed.org." (+ SOFR 고지문은 API attribution) |
+| BLS·BEA·인구조사국 발표 일정표 | 미국 연방 기관 자료(위 BLS·BEA 문장과 같음). 발표 날짜만 씀 | 날짜만이라 화면 표기 없음(리포트 출처 줄의 "BLS") |
+| **시카고 연은 NFCI** — 전환 안 함 | "If you wish to utilize Federal Reserve Bank of Chicago copyrighted materials in any other way, such as republication or distribution, you must contact the Federal Reserve Bank of Chicago and obtain its written permission to do so." (chicagofed.org/utilities/legal-notices) — 허락 없이 재게시할 근거 없음 | FRED 경유 표기 유지 |
+| **OECD (한국 10년물 IRLTLT01KRM156N)** — 전환 안 함 | 이용 조건 페이지(oecd.org/en/about/terms-conditions.html 등)가 이 환경에서 403 으로 열리지 않아 원문을 확인하지 못함. 원자료는 한국은행 자료(제3자). 한국은행 ECOS 는 새 API 키가 필요(사람 결정) | FRED 경유 표기 유지 |
+| **TEDRATE** — 전환 안 함 | FRED 가 ICE LIBOR 로 계산한 자체 시리즈(2022-01-21 중단). 허락 없이 받을 원출처 없음 | FRED 경유 표기 유지 |
+
+- BLS 는 이름 없는 요청(브라우저 흉내 포함)을 403 으로 막고, 사이트 주소를 넣은 User-Agent(`TockTock/1.0 (https://tocktock.vercel.app)`)는 받습니다. 이메일은 넣지 않았습니다.
+- 재무부 수익률 곡선(장단기 금리차의 FRED 원천)은 이 PC 에서 요청마다 약 19초가 걸려 화면 요청 경로에 쓰지 않았습니다(20-3).
+
+### 20-3. 시리즈별 대조 (FRED 와 원출처, 겹치는 전 기간)
+| 시리즈 | 원출처 | 기간(겹치는 관측치) | 불일치 | 원인 |
+|---|---|---|---|---|
+| WALCL | H.4.1 RESPPMA_N.WW | 2002-12-18~2026-10-14 (1,244) | 0 | — |
+| WTREGEN | H.4.1 RESPPLLDT_XAW_N.WW | 1,244주 | 0 | FRED 는 1986년부터, H.4.1 XML 은 2002년부터(화면은 최근 530주만 씀) |
+| DGS2 | H.15 RIFLGFCY02_N.B | 1976-06-01~2026-10-15 (12,590) | 0 | — |
+| DFII10 | H.15 RIFLGFCY10_XII_N.B | 2003~2026 (5,951) | 0 | — |
+| DGS10 | H.15 RIFLGFCY10_N.B | 1962~2026 (16,182) | 0 | — |
+| DFF | H.15 RIFSPFF_N.D (주말 포함 매일) | 1954-07-01~2026-10-15 (26,405) | 0 | — |
+| M2SL | H.6 M2.M (월말 → 달 첫날) | 1959-01~2026-08 (812) | 0 | — |
+| T10Y2Y | H.15 10년물−2년물 직접 계산(소수 둘째 자리) | 1976-06-01~2026-10-15 (12,590) | 3일(1990-11-21 0.74/0.72, 1991-01-29 0.95/0.93, 1995-11-29 0.42/0.43) + 최신일 1일(2026-10-16 FRED 만) | 3일은 **FRED 자신의 DGS10−DGS2 와도 다름**(FRED DGS10 8.27·DGS2 7.55 → 0.72 인데 T10Y2Y 0.74). 재무부 수익률 곡선 원자료(1990~2025, 9,005일)도 H.15 와 같은 값 → FRED T10Y2Y 저장값의 문제. 화면은 최근 10년만 써서 영향 없음. 최신일: FRED T10Y2Y 는 재무부 자료로 바로 계산해 H.15 보다 하루 먼저 생김(H.15 묶음은 다음 날 오후 게시) |
+| CPIAUCSL | BLS CUSR0000SA0 | 1947-01~2026-09 (956) | 0 | 2025-10 은 둘 다 없음(BLS "-", 정부 업무 중단으로 미수집 → FRED ".") |
+| CPILFESL | BLS CUSR0000SA0L1E (cu.data.20) | 1957-01~2026-09 (836) | 0 | 위와 같음 |
+| PAYEMS | BLS CES0000000001 | 1939-01~2026-09 (1,053) | 0 | — |
+| PCEPI | BEA DPCERG | 1959-01~2026-08 (812) | 0 | — |
+| PCEPILFE | BEA DPCCRG | 1959-01~2026-08 (812) | 0 | — |
+| RRPONTSYD | 뉴욕 연은 역레포 운영 결과(미션 6 함수) | 화면 기간 2016-10-31~2026-10-16 | 5일 | 미션 6 표(18-3)와 같음: 영업일을 걸친 익일물 4일(2017-04-13·2018-03-29·2019-04-18 성금요일 전날, 2018-12-04 — FRED ".")과 같은 결제일 두 운영 합산 1일(2020-02-19 FRED 0.095 / 원출처 5.149) |
+| SOFR | 뉴욕 연은 | 표본 4구간(2024-03, 2025-12, 2026-07, 2026-09) | 0 | — |
+
+- **FRED API 동작 흉내**(lib/site-origin.ts): 날짜 격자의 빈 칸 "."(limit 이 이 행까지 셈 — 영업일 시리즈 행 수 = 평일 수, DFF 만 매일), units=pc1 = ((이번/12개월 전)−1)×100 을 소수 다섯째 자리 반올림(CPI·근원 CPI·근원 PCE 각 800개 전부 FRED 와 같음), frequency=m·eop = 달마다 마지막 유효값·값 없는 달은 행 없음·진행 중인 달은 "."·시작일이 든 달 전체 포함(백테스트 5개 시리즈 대조로 확인). 끝자리 0 같은 문자열 모양만 다른 행(예: "6755639" / "6755639.0")은 수가 같고, 소비 코드는 모두 parseFloat 로 읽습니다. 글 생성 프롬프트에 문자열이 그대로 들어가는 H.15 금리는 끝자리 0 을 빼서 FRED 와 같은 글자로 맞췄습니다.
+- 발표일(2025-01~2026-12): CPI·고용·PPI 각 23개가 FRED 와 같음. GDP·개인소득지출·소매판매는 **앞으로의 날짜(2026-10-19 이후)가 모두 같음**. 지난 날짜에서 FRED 에만 있는 2개(개인소득·지출 2025-12-23 — 그날 BEA 일정표에는 GDP 만 있음, 소매판매 2026-09-28 — 인구조사국 일정표에 없음)는 일정표 밖 자료 갱신일로 보이지만 확인하지 못했습니다. 화면은 오늘 이후만 써서 영향 없음. 공식 일정표에는 2027년 일정도 있어(FRED 는 2026-12 까지) 12월부터는 일정 화면에 1월 발표가 FRED 때보다 먼저 보일 수 있습니다.
+
+### 20-4. 바꾼 것
+| 곳 | 바꾼 내용 | 캐시 키 |
+|---|---|---|
+| `/api/global-indicators` (+ lib/fetch-fred.ts) | 7개 시리즈 원출처. 응답에 `dataSource`. maxDuration 60초. 빌드 때 정적 생성하면 원출처 7개가 null 로 굳어서(Redis·no-store 요청, 로컬 빌드에서 확인) **요청 때 실행 + CDN 캐시 헤더 1시간**(`s-maxage=3600`)으로 바꿈(예전 ISR 1시간 대신) | Redis 보관 `site-origin:fed:{H41,H15}`, `site-origin:file:*` |
+| `/global-indicators` | 하이일드 스프레드 타일 "준비 중"(값·단위·변화·수동업데이트 표시 숨김, 상태 색 중립), 모달에 "이 지표의 값은 지금 준비 중입니다." 지표 정의는 남기고, **고정 숫자(값·변화)는 코드에서 비움** — 이 페이지는 브라우저 번들로 나가 숫자가 코드에 있으면 화면에 안 보여도 공개되기 때문(독립 검증 지적 1). 예전 값은 git 기록에만 있음. "어디서 보는가" 링크의 FRED 를 원출처로(H.15·H.4.1·H.6·연준 대출 상각·연체율·세계은행), BLS·BEA·IMF 링크가 이미 있는 곳은 FRED 링크만 뺌. `dataSource=fred` 일 때만 FRED 고지 | — |
+| `/api/liquidity/us`, `/backtest` | WALCL·WTREGEN·M2SL·T10Y2Y·RRPONTSYD 원출처, NFCI·TEDRATE 는 FRED. 응답에 `fredSeries`·`fredCitations` | `liquidity:us:v6`, `liquidity:us:backtest:v6` (v5 는 24시간 TTL 로 사라짐) |
+| `/liquidity/us`, `/backtest` 화면 | 출처 줄(원출처) + 뉴욕 연은 출처 표기 + FRED 고지·FRED 경유 출처(NFCI·TED) | — |
+| `/api/inflation/data` + cron `inflation-refresh` | BLS·BEA 지수로 YoY 계산. 응답에 `source` | `inflation:v2` (옛 `inflation:fred:v1` 은 25시간 TTL) |
+| `/inflation` | 출처 문장 "미국 노동통계국(BLS, CPI·근원 CPI), 미국 경제분석국(BEA, 근원 PCE). 전년 동월 대비 변화율은 이 사이트가 지수로 계산했습니다." (되돌리면 FRED 문장 + 고지) | — |
+| `/ken-fisher/korea-market` | FRED 유지(OECD). FRED 고지 + OECD via FRED 출처 추가 | 그대로 |
+| `/api/treasury-market-reaction` | SOFR 뉴욕 연은. 응답 `attribution.sofr`(뉴욕 연은 표기 + SOFR 고지문) | `market-reaction:v2:{date}` (옛 키 최대 30일 TTL) |
+| `lib/weekly-calendar.ts` (일정 팝업·/calendar) | 발표일을 BLS·BEA·인구조사국 일정표에서 | `weekly-calendar:data` 그대로(cron 이 덮어씀) |
+| `lib/reports/detectors/fredRelease.ts`, `/reports` | CPI 발표일 BLS 일정표. 출처 줄에서 FRED 뺌(되돌리면 다시 표시) | 그대로 |
+| `lib/news-collector.ts`, `lib/article-writer.ts` (GitHub Actions) | DFF·DGS10·DGS2 를 H.15 에서(Redis 없이, 새 비밀키 없음). 프롬프트 제목 "금리 현황 — 출처: 연준 이사회 H.15". 워크플로 파일은 그대로(FRED_API_KEY 는 되돌리기용) | — |
+| `lib/observatory-origin.ts` | 발표 묶음 수집을 `loadReleaseSeries`(보관 키·보관 시작일·기록 여부를 인자로)로 일반화, H.6 주소 추가, SOFR·역레포 함수에 기록 여부 인자. **관측소 경로는 같은 시리즈·같은 키·같은 저장 형식**. 메모리 캐시는 보관 키별로 나눔(같은 묶음에서 다른 시리즈를 꺼내는 사이트 화면과 섞이지 않게). 사이트 화면 요청은 관측소 cron 의 `originFetches` 기록에 남기지 않음(로컬 시험에서 섞이는 것을 발견해 고침) | `observatory:origin-cache:*` 그대로 |
+| 스위치 | `lib/site-source-config.ts` — `SITE_DATA_SOURCE=fred` 하나로 사이트 전체 되돌리기(관측소는 따로 `OBSERVATORY_SOURCE`) | — |
+
+### 20-5. 전후 비교 (배포 = 바꾸기 전, 로컬 = 바꾼 뒤, 2026-10-19)
+| 곳 | 핵심 숫자 | 전 → 후 | 원인 |
+|---|---|---|---|
+| 전역 지표 | 2년물 4.77, 실질금리 2.78, 연준 자산 6.76조$, CPI 4.0%, PCE 3.4%, 고용 2.9만 명 | 같음 | — |
+| 전역 지표 | 장단기 금리차 | 0.35 → 0.33 | 날짜: FRED 값은 2026-10-16(재무부 자료), H.15 는 10-15 까지. 10-15 끼리는 같음(0.33) |
+| 유동성 | 순유동성 5.872조·M2 5.66%·NFCI·TED 와 각 점수 | 같음 | — |
+| 유동성 | 장단기 금리차 0.35→0.33, 그 점수 48.8→42.7, 최종 49.6→48.5, 3개월 변화 −10.5→−12.4(국면은 그대로 "하락 지속") | 다름 | 위 날짜 차이(2,600영업일 창이 하루 밀림). 구리/금 점수 33.4→33.0 은 Yahoo 가격 시각 차이(출처 전환과 무관) |
+| 백테스트 | 102개월 중 3개월 점수 ±0.1~0.4(2018-03 33.1→32.7, 2018-06 42.1→42.2, 2026-07 57.7→57.8), 정확도·기간·개월 수 같음 | 다름 | 2018-03-29(성금요일 전날) 역레포 운영을 원출처는 싣고 FRED 는 "." → 2018-03 월말값 17.898→32.631. 2018-06(3개월 모멘텀)과 2026-07(10년 창)이 그 값을 참조 |
+| 인플레이션 | 1960-01~2026-09 801개월 3개 시리즈와 최신값 | 완전히 같음 | — |
+| 시장 반응 | SOFR d1·d3·d5 (3개 날짜) | 같음 | — |
+| 한국 시장 | 4.454% (2026-09) | 같음(전환 안 함) | — |
+| 일정 | 지표 발표 9건(10-29 GDP·PCE … 11-25) | 같음 | — |
+| 리포트 | CPI 최신 2026-10-14, 다음 2026-11-10 | 같음 | — |
+| 글 생성 입력 | DFF·DGS10·DGS2 최근 14행 | 같음(JSON 동일), 프롬프트는 제목 한 줄만 다름(출처 표기) | 글 자체는 생성 결과라 매번 다르므로 입력 숫자로 확인. 생성은 돌리지 않음(비용·자동 커밋 발생) |
+
+- 되돌리지 않은 이유: 달라진 값은 모두 날짜(장단기 금리차 최신일)와 미션 6 에서 설명된 역레포 정의 차이로 설명됩니다.
+
+### 20-6. 관측소 불변
+- 로컬(바꾼 뒤) vs 배포(바꾸기 전) 20개 API 의 판정·발동 통계 차이 0. SRF 146/1,363(10.71%), RRP 1,615/3,263(49.49%), 지급준비금 604/940(64.26%). 불변값(베이시스 164/321/32/33, NDFI 208/300/88/18, 응찰 0.55%, 딜러 4.85%, 금리 변동성 11.61%, 해외 보유 12.0%)은 미션 3 기준과 같음.
+- 로컬 관측소 cron: 인증 없이 401, 인증 200, errors 없음, 8.0초, 연준 묶음 304(관측소 보관 키 그대로 사용).
+
+### 20-7. ICE 사전 승인 등급 정리
+| 시리즈 | 등급(FRED tags) | 있던 곳 | 처리 |
+|---|---|---|---|
+| BAMLH0A0HYM2 (ICE BofA 하이일드 OAS) | copyrighted: pre-approval required | `/global-indicators` 고정값과 FRED 링크 | 화면 값 연결 끊음("준비 중"), FRED 링크 뺌, 숫자는 번들에서도 빠지게 코드에서 비움(지표 정의는 남김) |
+| BAMLC0A0CM (ICE BofA 투자등급 OAS) | copyrighted: pre-approval required | 추적하지 않는 로컬 스크립트 `scripts/liquidity-correlation-analysis.mjs` 콘솔 출력만 | 화면·API 없음 — 그대로 |
+| (관측소) BAMLH0A0HYM2·BAMLH0A3HYC | 같음 | 미션 2·3 에서 이미 제거 | — |
+
+- 사이트 전체에서 쓰는 27개 시리즈의 등급을 FRED series/tags API 로 다시 확인했습니다. 사전 승인 등급은 위 둘뿐입니다(UMCSENT 는 citation required).
+
+### 20-8. 남은 FRED 사용 (SITE_DATA_SOURCE 를 설정하지 않은 기본 상태)
+| 곳 | 시리즈 | 이유 | 화면 고지 |
+|---|---|---|---|
+| `/liquidity/us`, `/liquidity/us/backtest` | NFCI, TEDRATE | 시카고 연은은 재게시에 서면 허락 필요 / TED 는 원출처 없음 | FRED 고지 + FRED 경유 출처 |
+| `/ken-fisher/korea-market` | IRLTLT01KRM156N | OECD 조건 원문 미확인, 한국은행 키 필요 | FRED 고지 + FRED 경유 출처 |
+| 관측소 휴면 경로 | — | `OBSERVATORY_SOURCE=fred` 일 때만 | FredNotice |
+
+### 20-9. 그 밖에 발견한 것 (범위 밖이라 고치지 않음)
+- `/global-indicators` CPI 카드: `fetchFredLatest("CPIAUCSL", 16)` 이 "." 행(2025-10)을 걸러낸 뒤 13번째 값을 "1년 전"으로 써서, 지금은 13개월 전 대비 변화율(4.0%)이 나옵니다(실제 전년 동월 대비 3.7%). FRED 때도 같았고 이번에도 값을 그대로 유지했습니다. 고칠지는 사람 결정(관측소 밖 기능).
+- 모바일 390px 가로 스크롤: `/liquidity/us/backtest`(706px)와 `/ken-fisher/korea-market`(557px)는 바꾸기 전 배포 사이트에서도 같은 폭 — 기존 문제.
+
+### 20-10. 독립 검증 (맥락 공유 없는 서브에이전트) 지적과 처리
+검증자는 코드·로컬 서버·배포 사이트·원출처만 받았습니다. 원출처에서 직접 받은 값으로 전역 지표 7개, 순유동성(6,755,639 − 100 − 883,373), M2 증가율, 인플레이션 3.71725, SOFR 3개 날짜를 다시 계산해 모두 같다고 확인했습니다. FRED 동작 흉내(격자 ".", limit, pc1 반올림, eop 집계)도 FRED API 와 같은 인자로 대조해 불일치 0, 관측소 20개 API 전체(판정·발동·시계열) 같음, ICE 값이 HTML·API 에 없음, GitHub Actions 환경(Redis·FRED 키 없음)에서 수집 정상을 확인했습니다.
+
+| # | 심각도 | 지적 | 처리 |
+|---|---|---|---|
+| 1 | 중간 | 하이일드 고정값(값·변화)이 공개 JS 번들에 남음 | **고침**: 값·변화를 코드에서 비움. 빌드 번들에서 `value:"",change:""` 확인 |
+| 2 | 중간 | `/global-indicators` CPI 4.0% 는 13개월 전 대비(2025-10 BLS 결측 때문), `/inflation` 은 3.72% | **고치지 않음(기록)**: FRED 때도 같은 값이고 미션이 다른 기능·값 변경을 금지. 20-9 에 적고 사람이 결정할 항목에 올림 |
+| 3 | 중간 | 주석의 "FRED 와 같은 행이라 결과가 같다"가 역레포 5일·T10Y2Y 최신일에서 사실과 다름 | **고침**: lib/fetch-fred.ts, lib/site-origin.ts, lib/site-source-config.ts 주석에 정해 둔 차이를 적음 |
+| 4 | 낮음~중간 | T10Y2Y 하루 늦음으로 유동성 점수가 49.6→48.5 | **설명으로 둠**: 날짜를 맞추면 2000년 이후 6,989행 모두 같음(검증자 확인). 재무부 자료는 이 PC 에서 요청마다 약 19초라 화면 요청 경로에 넣지 않음. 20-5 에 영향 기록 |
+| 5 | 중간 | 일정표 제목·HTML 이 바뀌면 발표일이 조용히 빠짐 | **고침**: 발표마다 날짜를 하나도 찾지 못하면 에러(BLS·BEA·인구조사국 각각). "오늘 이후 날짜" 기준은 연말에 다음 해 일정이 아직 없는 정상 상태를 오류로 만들어 쓰지 않음 |
+| 6 | 중간 | Vercel 에서 BLS·BEA 접근 미확인, 실패 시 inflation 캐시가 비어 화면이 빈다 | **고침 + 배포 확인**: BLS·BEA 받기 실패 시 Redis 보관값을 쓰고 콘솔에 남김(보관값도 없으면 에러). 배포 후 실제 받기를 확인(20-11) |
+| 7 | 낮음 | 요청 때 원출처 비용, `/api/global-indicators` 실행 한도 미지정, H.15 를 관측소와 사이트가 따로 받음 | **고침(일부)**: maxDuration 60초. 받는 양은 ETag 로 보통 304. 갱신일 두 번 받는 것은 보관 키를 분리한 대가로 남김 |
+| 8 | 낮음 | `site-origin:fed:H15` 642KB | **고침**: GitHub Actions 만 쓰는 DFF 를 보관에서 뺌(약 2/3 로 줄어듦). 2000년 시작은 백테스트(2005-10~)·여유 때문에 유지 |
+| 9 | 낮음 | 2000년보다 앞을 요구해도 limit 이 없으면 에러가 안 남 | **고침**: observationStart 가 보관 시작일보다 앞이면 에러 |
+| 10 | 낮음 | SOFR 원출처에는 2018-04-02 행이 더 있음(FRED 는 04-03 부터) | **기록**: 사이트 영향 없음(시장 반응 API 는 2018년 날짜를 쓰지 않음) |
+| 11 | 낮음 | 기존 가로 넘침 페이지(백테스트·한국 시장)에서 새 고지 오른쪽이 잘림 | **고침**: 고지 폭을 화면 폭 안으로 제한 — 390px 에서 16~374px 안에 줄바꿈 확인 |
+| 12 | 낮음 | auto 타일 링크(전체 대출 연체율), TEDRATE 2022년 값이 점수에 쓰임, NFCI 는 FRED 고지로 시카고 연은 조건이 풀리지 않음, 주석·워크플로 단계 이름 | **일부 고침**: 주석·워크플로 단계 이름 고침. auto 링크는 예전 FRED 링크(DRALACBS)의 원출처를 그대로 가리킴(카드 설명과의 불일치는 기존 문제). TEDRATE·NFCI 는 사람이 결정할 항목 23번에 적음 |
+

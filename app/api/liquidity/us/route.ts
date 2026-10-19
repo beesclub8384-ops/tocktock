@@ -1,11 +1,15 @@
 import { NextResponse } from "next/server";
 import { redis } from "@/lib/redis";
 import YahooFinance from "yahoo-finance2";
+import { isSiteOriginSeries } from "@/lib/site-source-config";
+import { siteObservations } from "@/lib/site-origin";
+import { liquiditySources } from "@/lib/liquidity-sources";
 
 export const maxDuration = 60;
 
 const FRED_BASE = "https://api.stlouisfed.org/fred/series/observations";
-const CACHE_KEY = "liquidity:us:v5";
+// v6 (미션 8): 원출처 전환 — v5 에는 FRED 로 받은 값이 들어 있어 키를 바꿨다(v5 는 TTL 24시간으로 저절로 사라진다)
+const CACHE_KEY = "liquidity:us:v6";
 const CACHE_TTL = 86400;
 
 interface FredObs {
@@ -24,6 +28,19 @@ async function fetchFredSeries(
   if (!res.ok) throw new Error(`FRED ${seriesId}: ${res.status}`);
   const json = await res.json();
   return (json.observations as FredObs[]).filter((o) => o.value !== ".");
+}
+
+/**
+ * 시리즈 받기 (미션 8): 원출처로 전환한 시리즈(WALCL·WTREGEN 연준 H.4.1, M2SL 연준 H.6, T10Y2Y 연준 H.15 계산,
+ * RRPONTSYD 뉴욕 연은)는 원출처에서 FRED 와 같은 행으로 받고, 나머지(NFCI·TEDRATE)는 FRED 그대로다.
+ * 스위치: lib/site-source-config.ts (SITE_DATA_SOURCE=fred 면 모두 FRED)
+ */
+async function fetchSeries(seriesId: string, limit: number): Promise<FredObs[]> {
+  if (isSiteOriginSeries(seriesId)) {
+    const rows = await siteObservations(seriesId, { sortOrder: "desc", limit });
+    return rows.filter((o) => o.value !== ".");
+  }
+  return fetchFredSeries(seriesId, limit);
 }
 
 function percentileRank(values: number[], current: number): number {
@@ -125,6 +142,9 @@ export interface LiquidityResponse {
   regimeColor: string;
   regimeSignal: string;
   scoreChange3m: number | null;
+  /** FRED 로 받는 시리즈와 FRED 경유 출처 표기 (미션 8 — 화면이 FRED 고지를 띄운다) */
+  fredSeries: string[];
+  fredCitations: string[];
   fetchedAt: string;
 }
 
@@ -134,19 +154,19 @@ async function computeLiquidity(): Promise<LiquidityResponse> {
   /* ── 1. Fetch FRED data (~10 years) ── */
   const [walclObs, rrpObs, tgaObs, m2Obs, t10y2yObs, nfciObs] =
     await Promise.all([
-      fetchFredSeries("WALCL", 530),
-      fetchFredSeries("RRPONTSYD", 2600),
-      fetchFredSeries("WTREGEN", 530),
-      fetchFredSeries("M2SL", 132),
-      fetchFredSeries("T10Y2Y", 2600),
-      fetchFredSeries("NFCI", 530),
+      fetchSeries("WALCL", 530),
+      fetchSeries("RRPONTSYD", 2600),
+      fetchSeries("WTREGEN", 530),
+      fetchSeries("M2SL", 132),
+      fetchSeries("T10Y2Y", 2600),
+      fetchSeries("NFCI", 530),
     ]);
 
   // TEDRATE may be discontinued — graceful fallback
   let tedObs: FredObs[] = [];
   let tedAvailable = false;
   try {
-    tedObs = await fetchFredSeries("TEDRATE", 2600);
+    tedObs = await fetchSeries("TEDRATE", 2600);
     tedAvailable = tedObs.length > 0;
   } catch {
     tedAvailable = false;
@@ -467,6 +487,7 @@ async function computeLiquidity(): Promise<LiquidityResponse> {
     regimeColor,
     regimeSignal,
     scoreChange3m,
+    ...liquiditySources(["WALCL", "RRPONTSYD", "WTREGEN", "M2SL", "T10Y2Y", "NFCI", "TEDRATE"]),
     fetchedAt: new Date().toISOString(),
   };
 }

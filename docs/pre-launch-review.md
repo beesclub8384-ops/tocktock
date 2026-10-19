@@ -61,7 +61,7 @@
 
 | 출처 | 이용 조건 URL | 재게시 | 조건·주의 | 확인 못한 것 |
 |---|---|---|---|---|
-| FRED(세인트루이스 연은) | https://fred.stlouisfed.org/docs/api/terms_of_use.html · https://fred.stlouisfed.org/legal | **제한적 — 허락 없는 재게시·저장 금지 조항이 API 사용에도 적용** | 미션 6부터 관측소는 FRED 를 쓰지 않음. 관측소 밖 화면은 아래 'FRED 상세' | 관측소 밖 화면의 FRED 사용 |
+| FRED(세인트루이스 연은) | https://fred.stlouisfed.org/docs/api/terms_of_use.html · https://fred.stlouisfed.org/legal | **제한적 — 허락 없는 재게시·저장 금지 조항이 API 사용에도 적용** | 관측소는 미션 6부터, 관측소 밖은 미션 8부터 대부분 FRED 를 쓰지 않음. 남은 3개 시리즈는 아래 '사이트 전체 FRED 사용처' | 남은 3개 시리즈의 서면 허락 |
 | FDIC | https://www.fdic.gov/about/website-policies | 아마 가능 | 재사용 문장은 없음. 미국 정부 저작물(저작권법 105조) | 명시적 재사용 문장 |
 | CFTC | https://www.cftc.gov/WebPolicy/index.htm | 가능 | 공공 영역, 출처 표기 요청 | — |
 | SEC | https://www.sec.gov/privacy | 가능(조건) | 공공 정보, 허락 없이 복사·배포 가능, 출처 표기 권장. 초당 10회 이하, User-Agent 필요 | — |
@@ -69,23 +69,48 @@
 | 재무부 Fiscal Data(입찰) | https://fiscaldata.treasury.gov/api-documentation/ | 가능 | 제한 없이 복사·재배포 가능 | — |
 | TreasuryDirect | https://www.treasurydirect.gov/legal-information/terms/ | 가능(조건) | 출처 표기 요청, 승인·보증을 암시하지 말 것. 관측소는 직접 쓰지 않음 | — |
 | 재무부 TIC | https://home.treasury.gov/data/treasury-international-capital-tic-system | 아마 가능 | 저작권 문장 없음, 정부 저작물 | 명시적 재사용 문장 |
+| BLS(시계열 파일·발표 일정표, 미션 8) | https://www.bls.gov/opub/copyright-information.htm | 가능 | "everything that we publish … is in the public domain … without specific permission, although we do ask that you cite the Bureau of Labor Statistics as the source." 이름 없는 요청은 403 — 사이트 주소를 넣은 User-Agent 로 받음 | — |
+| BEA(NIPA 월별 파일·발표 일정표, 미션 8) | https://www.bea.gov/about/policies-and-information/linking | 가능 | "the information posted on the BEA Web site is in the public domain and may be used or reproduced without specific permission. A citation such as "Source: U.S. Bureau of Economic Analysis" would be appreciated." | — |
+| 인구조사국(경제지표 일정표, 미션 8) | https://www.census.gov/economic-indicators/calendar-listview.html | 가능(날짜만) | 미국 정부 저작물, 발표 날짜(사실)만 씀 | 명시적 재사용 문장 |
+| 시카고 연은(NFCI, 미션 8 조사) | https://www.chicagofed.org/utilities/legal-notices | **서면 허락 필요** | "If you wish to utilize … copyrighted materials in any other way, such as republication or distribution, you must … obtain its written permission" → 원출처로 옮기지 않고 FRED 유지 | — |
+| OECD(한국 10년물, 미션 8 조사) | https://www.oecd.org/en/about/terms-conditions.html | 확인 못함 | 이 환경에서 403 으로 열리지 않음. 원자료는 한국은행 | 이용 조건 원문 |
 | 뉴욕 연은(사이트·Markets API·딜러 통계) | https://www.newyorkfed.org/privacy/termsofuse | 가능(조건) | 정해진 출처 표기("© [연도] Federal Reserve Bank of New York…")를 둬야 함. SOFR는 별도 고지문과 DTCC 문구 필수(FRED로 받아도 같음). 바꾼 내용 표시, 보증 암시 금지 → 관측소 모든 페이지 하단과 해당 API에 넣음 | — |
 
-### FRED 상세 (미션 6 기준)
+### FRED 상세 (미션 8 기준)
 
 **확인한 것**
 - FRED 약관: API 약관이 /legal 약관을 포함하고, /legal 에 허락 없는 인터넷 재게시·저장 금지 조항이 있습니다(결정 로그 16-1).
 - **관측소는 FRED 를 쓰지 않습니다.** 관측소가 쓰던 FRED 시리즈 18개 중 16개를 원출처로 바꿨습니다(미션 5: 연준 이사회 13·SOFR, 전 기간 불일치 0 / 미션 6: 역레포·레포, 차이 원인을 모두 설명하고 전환). 나머지 2개(SP500·NASDAQCOM)는 수집을 끄고 지웠습니다.
 - FRED 고지는 관측소 어디에도 나오지 않습니다(FRED 값이 없으므로).
 
+- **관측소 밖도 미션 8에서 원출처로 옮겼습니다.** 남은 FRED 사용은 NFCI·TED 스프레드(`/liquidity/us`, 백테스트)와 한국 10년물(`/ken-fisher/korea-market`) 세 시리즈이고, 그 화면에만 FRED 고지와 FRED 경유 출처를 둡니다(아래 표).
+
 **확인하지 못한 것**
-- 관측소 밖 화면의 FRED 사용이 약관에 맞는지(법적 판단). 사용처 목록은 아래 '사이트 전체 FRED 사용처'(미션 7).
+- 남은 세 시리즈를 지금처럼 고지만 두고 써도 되는지(법적 판단).
 
 **사람이 할 일**
-- 관측소 밖 FRED 사용 화면(`/global-indicators`, `/liquidity/us`, `/inflation` 등) 처리 결정.
-- 사이트 이용 약관 페이지 결정(관측소 밖에서 FRED 를 계속 쓰면 FRED API 약관 동의 문장 필요).
+- 남은 세 시리즈: 서면 허락을 구할지, 화면에서 뺄지(점수 계산이 바뀜), 한국은행 ECOS 키를 발급할지.
+- 사이트 이용 약관 페이지 결정. 세 시리즈를 빼거나 바꾸면 FRED 때문에 필요한 이유는 사라질 수 있습니다.
 
-### 사이트 전체 FRED 사용처 (미션 7 전수 조사, 2026-10-19)
+### 사이트 전체 FRED 사용처 — 미션 8 전환 결과 (2026-10-19)
+
+| # | 곳 | 시리즈 | 결과 | 원출처 / 남긴 이유 |
+|---|---|---|---|---|
+| 1 | `/api/global-indicators` | DGS2·DFII10·T10Y2Y, WALCL, CPIAUCSL·PAYEMS, PCEPI | **전환** | 연준 이사회 H.15(T10Y2Y 는 10년물−2년물 계산)·H.4.1, BLS 시계열 파일, BEA NIPA |
+| 2 | `/global-indicators` 고정값·링크 | BAMLH0A0HYM2 등 | **ICE 값 화면에서 제거("준비 중")**, FRED 링크는 원출처 링크로 | 나머지 고정값은 손으로 넣은 숫자(FRED API 아님) |
+| 3·4 | `/liquidity/us`, `/backtest` | WALCL·WTREGEN, M2SL, T10Y2Y, RRPONTSYD | **전환** | H.4.1·H.6·H.15, 뉴욕 연은 |
+| 3·4 | 같은 곳 | **NFCI, TEDRATE** | **미전환** | 시카고 연은 재게시 서면 허락 필요 / TED 는 원출처 없음 → FRED 고지 |
+| 5 | `/inflation` (+ cron) | CPIAUCSL·CPILFESL, PCEPILFE | **전환** | BLS, BEA |
+| 6 | `/ken-fisher/korea-market` | **IRLTLT01KRM156N** | **미전환** | OECD 조건 원문 미확인(403), 한국은행 키 필요 → FRED 고지 |
+| 7 | `/calendar`·일정 팝업 | 발표일 6종 | **전환** | BLS·BEA 일정표(ics), 인구조사국 일정표 |
+| 8 | `/reports` | CPI 발표일 | **전환** | BLS 일정표 |
+| 9 | `/api/treasury-market-reaction` | SOFR | **전환** | 뉴욕 연은(응답에 출처 표기·SOFR 고지문) |
+| 10 | GitHub Actions 수집·글 생성 | DFF·DGS10·DGS2 | **전환** | 연준 이사회 H.15(새 비밀키 없음, Redis 없이) |
+| 11 | 관측소 휴면 경로 | — | 그대로 | `OBSERVATORY_SOURCE=fred` 일 때만 |
+
+- 되돌리기: 환경변수 `SITE_DATA_SOURCE=fred` 하나(lib/site-source-config.ts). 대조·전후 비교는 결정 로그 20-3·20-5.
+
+### 사이트 전체 FRED 사용처 (미션 7 전수 조사, 2026-10-19 — 미션 8 전 상태, 기록용)
 
 > 미션 6 보고에서 "FRED 관련 사람 결정 항목을 해소"라고 한 것은 **관측소에 한해서**입니다. 사이트 전체로는 해소되지 않았습니다. 관측소 밖 화면 10곳이 지금도 FRED 를 부르거나 FRED 값을 보여 주고, 이 사이트에는 FRED API 약관이 요구하는 이용 약관 페이지가 없습니다. 아래 표는 코드를 전수 조사한 결과이고, 저작권 등급은 FRED series API 의 태그(`copyrighted: …`/`public domain: …`)와 notes 의 "Copyright" 문구로 확인했습니다. 관측소 밖 파일은 고치지 않았습니다.
 
@@ -126,7 +151,7 @@
 
 되돌릴 수 없거나 법·비용이 걸린 일이라 이번에도 하지 않았습니다.
 
-1. **관측소 밖 FRED 사용(저장·공개 표시)** — 미해소(미션 7 정정): 관측소는 미션 6부터 FRED 를 쓰지 않지만, 사이트 전체로는 관측소 밖 10곳이 FRED 를 씁니다. Redis 저장 + 공개 표시 5곳(`/liquidity/us`, `/liquidity/us/backtest`, `/inflation`, `/ken-fisher/korea-market`, `/api/treasury-market-reaction`), 저장 없이 공개 표시 2곳(`/global-indicators` API 값·고정값, 사전 승인 등급 BAMLH0A0HYM2 고정값 포함). 원출처로 바꿀지, 서면 허락을 구할지, 고지와 이용 약관 페이지를 둘지 정해야 합니다(2장 '사이트 전체 FRED 사용처').
+1. **남은 FRED 사용 세 시리즈의 서면 허락 여부**(미션 8): NFCI·TED 스프레드(`/liquidity/us`, 백테스트), 한국 10년물(`/ken-fisher/korea-market`). 나머지는 원출처로 옮겼고 ICE 하이일드 값은 화면에서 뺐습니다(2장 '미션 8 전환 결과'). 아래는 미션 7 때의 기록입니다 —  관측소는 미션 6부터 FRED 를 쓰지 않지만, 사이트 전체로는 관측소 밖 10곳이 FRED 를 씁니다. Redis 저장 + 공개 표시 5곳(`/liquidity/us`, `/liquidity/us/backtest`, `/inflation`, `/ken-fisher/korea-market`, `/api/treasury-market-reaction`), 저장 없이 공개 표시 2곳(`/global-indicators` API 값·고정값, 사전 승인 등급 BAMLH0A0HYM2 고정값 포함). 원출처로 바꿀지, 서면 허락을 구할지, 고지와 이용 약관 페이지를 둘지 정해야 합니다(2장 '사이트 전체 FRED 사용처').
 2. ~~S&P 500·나스닥 지수~~: 미션 4에서 화면에서 빼고, 미션 5에서 수집을 끄고 Redis 키를 지웠습니다.
 3. **사이트 공개 시점과 tocktock.kr 도메인**: 이 PC에서는 tocktock.kr의 DNS 조회가 실패합니다(vercel.app 주소는 정상). 도메인 상태를 확인해야 합니다.
 4. **저장소 공개 여부**: 공개하면 커밋 메시지의 도구 표기 줄이 보일 수 있습니다.
@@ -140,11 +165,12 @@
 ## 4. 공개 직전 체크리스트
 
 - [x] ~~관측소의 FRED 사용~~ (미션 6에서 없앰)
-- [ ] 관측소 밖 FRED 사용(저장·공개 표시) 처리 결정 — 2장 표의 1~10번
+- [x] ~~관측소 밖 FRED 사용 처리~~ (미션 8에서 원출처로 옮김)
+- [ ] 남은 FRED 세 시리즈(NFCI·TED·한국 10년물) 서면 허락·제거 결정
 - [x] ~~지수 수집 중단~~ (미션 5)
 - [x] ~~연준 DDP 폐지 대비~~ (미션 6에서 발표 페이지 XML 묶음으로 옮김 — 근거 2026-07-16 연준 공지)
 - [ ] 사이트 이용 약관 페이지(FRED API 약관 동의 문장) 결정
-- [ ] 관측소 밖 FRED 사용 화면의 고지 결정
+- [x] ~~관측소 밖 FRED 사용 화면의 고지~~ (미션 8: 남은 화면에 FRED API 약관 고지와 FRED 경유 출처)
 - [ ] tocktock.kr 도메인이 배포를 가리키는지 확인
 - [ ] 저장소 공개 여부와 커밋 기록 정리 결정
 - [ ] SEC 연락처, fetcher.ts 이메일 처리 결정
