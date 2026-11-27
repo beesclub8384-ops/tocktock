@@ -9,6 +9,8 @@
  *  - 고점 월: 최근 12개 월말 종가(이번 달 포함) 가운데 가장 높은 달. 같으면 앞선 달.
  *  - 최근 8주: 주(월~금)마다 마지막 거래일 종가로 끊는다. 기준점은 8주 전 주의 마지막 거래일 종가.
  *  - 판정 3개(선행 하락·최근 반등·지속성)는 아래 judge() 주석 참고.
+ *  - 긴 흐름 차트: 고정된 출발선(lib/rotation.ts 의 FLOW_BASE_DATE) 종가 = 100, 그 뒤 주마다 마지막 거래일 종가.
+ *    이것만 날짜가 고정돼 있다 — 이유는 FLOW_BASE_DATE 주석 참고.
  *
  * ⚠ 검증: scripts/verify-rotation.mjs 가 2026-11-26 기준 자료(가로 PDF 에 쓴 값)를 넣어
  *   파이썬으로 따로 계산한 기대값과 대조한다. 규칙을 바꾸면 그 스크립트의 기대값도 다시 만든다.
@@ -375,6 +377,69 @@ export function toCoreInput(series: Record<string, DailyPoint[]>, calendarKey: s
     recent[key] = days.map((d) => at(d));
   }
   return { months, monthEnd, days, recent };
+}
+
+/* ───────────────────────── 출발선부터 지금까지 (긴 흐름 차트) ───────────────────────── */
+
+export interface SinceChart {
+  /** 0% 로 삼은 날 — baseDate 이하 마지막 거래일. 자료가 baseDate 까지 닿지 않으면 null */
+  base: string | null;
+  /** 점의 날짜. 첫 점 = base, 그 뒤 주마다 마지막 거래일, 마지막 점 = 기준일 */
+  labels: string[];
+  /** base 종가 = 100. 소수 둘째 자리까지 */
+  series: ChartSeries[];
+}
+
+/**
+ * 출발선(baseDate)부터 기준일까지의 흐름. 출발선 종가 = 100.
+ *  - 거래일 달력은 calendarKey(코스피) 시리즈를 따른다.
+ *  - 출발선은 baseDate 이하 마지막 거래일. 달력의 첫 날이 baseDate 보다 뒤면(수집 기간이 못 미치면)
+ *    엉뚱한 날을 0% 로 삼지 않도록 base = null 로 돌려준다.
+ *  - 점: 출발선 → 그 뒤 주(월~금)마다 마지막 거래일 종가. 마지막 점은 기준일(이번 주의 지금까지 마지막 거래일).
+ *  - 어떤 날 값이 없으면 그 전 마지막 종가로 채운다(toCoreInput 과 같은 규칙).
+ *  - 출발선 날까지 종가가 한 번도 없던(그 뒤 상장한) 시리즈는 전부 null.
+ */
+export function buildSinceChart(
+  series: Record<string, DailyPoint[]>,
+  calendarKey: string,
+  baseDate: string,
+  asOf: string,
+  order: string[]
+): SinceChart {
+  const cal = (series[calendarKey] ?? []).filter((p) => p.date <= asOf).map((p) => p.date);
+  if (cal.length === 0 || cal[0] > baseDate) return { base: null, labels: [], series: [] };
+  let base = cal[0];
+  for (const d of cal) {
+    if (d <= baseDate) base = d;
+    else break;
+  }
+  const labels: string[] = [base];
+  let prevKey = "";
+  for (const d of cal) {
+    if (d <= base) continue;
+    const k = weekKey(d);
+    if (k === prevKey) labels[labels.length - 1] = d;
+    else {
+      labels.push(d);
+      prevKey = k;
+    }
+  }
+  const out: ChartSeries[] = order.map((key) => {
+    const pts = (series[key] ?? []).filter((p) => p.date <= asOf);
+    let j = -1;
+    const at = (date: string): Num => {
+      // labels 가 오름차순이라 앞으로만 움직인다
+      while (j + 1 < pts.length && pts[j + 1].date <= date) j += 1;
+      return j < 0 ? null : pts[j].close;
+    };
+    const b = at(base);
+    const values = labels.map((d, i) => {
+      const v = i === 0 ? b : at(d);
+      return v === null || b === null || b === 0 ? null : Math.round((v / b) * 10000) / 100;
+    });
+    return { key, values };
+  });
+  return { base, labels, series: out };
 }
 
 /* ───────────────────────── 수집 쪽 순수 도우미 (lib/rotation.ts 가 쓴다) ───────────────────────── */

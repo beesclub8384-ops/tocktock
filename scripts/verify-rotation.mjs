@@ -8,6 +8,8 @@
  *    기대값에는 가로 PDF 에 인쇄된 숫자(소수 첫째 자리)도 들어 있다.
  * 2) 일별 자료 → 월말·최근 거래일 표 변환(toCoreInput)을 작은 가짜 자료로 확인한다.
  * 3) 네이버 응답 해석, 장 마감 시각 판단(15:40 KST), 두 출처 대조 규칙을 확인한다.
+ * 4) 출발선부터의 긴 흐름(buildSinceChart)을 실제 코스피·코스닥 일별 종가(2024-09~2025-02)에 돌려,
+ *    파이썬으로 따로 계산한 기대값(index-daily-…expected.json)과 대조한다.
  *
  * Node 22.18 이상(타입 제거 기본 지원)에서 .ts 를 바로 읽는다.
  * 외부 접속·Redis 를 쓰지 않는다. 실패하면 종료 코드 1.
@@ -15,7 +17,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { closedThrough, computeRotation, crossCheck, kstDate, parseSiseJson, toCoreInput, weekKey } from "../lib/rotation-core.ts";
+import { buildSinceChart, closedThrough, computeRotation, crossCheck, kstDate, parseSiseJson, toCoreInput, weekKey } from "../lib/rotation-core.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const load = (f) => JSON.parse(readFileSync(join(here, "fixtures", f), "utf8"));
@@ -165,6 +167,43 @@ const gapA = mk(25, (i) => (i === 10 ? 2000 : 1000 + i));
 eq("대조: 한쪽에만 있는 날 건너뜀", crossCheck(gapA, gapB, "2026-10-20").status, "일치");
 eq("대조: 겹치는 날이 적으면 판단 안 함", crossCheck(mk(10, (i) => i + 1), mk(10, (i) => i + 1), "2026-10-01").status, "대조 못 함");
 eq("대조: 한쪽이 비면 판단 안 함", crossCheck(mk(25, (i) => i + 1), [], "2026-10-01").status, "대조 못 함");
+
+// ── 4) 출발선부터의 긴 흐름 ──
+const ix = load("index-daily-2024-09_2025-02.json");
+const ixe = load("index-daily-2024-09_2025-02.expected.json");
+const dropped = new Set(ixe.gappyDropped);
+const sinceSeries = {
+  kospi: ix.kospi,
+  kosdaq: ix.kosdaq,
+  // 거래일 몇 개가 빠진 시리즈(출발선 당일 포함) — 앞 종가로 채워야 한다
+  gappy: ix.kosdaq.filter((p) => !dropped.has(p.date)),
+  // 출발선 뒤에 시작하는 시리즈 — 전부 null 이어야 한다
+  late: ix.kosdaq.filter((p) => p.date >= ixe.lateFrom),
+};
+const sc = buildSinceChart(sinceSeries, "kospi", ixe.base, ixe.asOf, ["kospi", "kosdaq", "gappy", "late"]);
+eq("긴 흐름 출발선", sc.base, ixe.base);
+eq("긴 흐름 점 개수", sc.labels.length, ixe.labels.length);
+ixe.labels.forEach((d, i) => eq(`긴 흐름 날짜[${i}]`, sc.labels[i], d));
+eq("긴 흐름 마지막 점 = 기준일", sc.labels.at(-1), ixe.asOf);
+for (const k of ["kospi", "kosdaq", "gappy", "late"]) {
+  const got = sc.series.find((x) => x.key === k).values;
+  eq(`긴 흐름 ${k} 길이`, got.length, ixe.labels.length);
+  // 소수 둘째 자리 반올림 방식 차이(파이썬·자바스크립트)만큼 허용
+  ixe[k].forEach((v, i) => eq(`긴 흐름 ${k}[${i}]`, got[i], v, 0.0051));
+}
+eq("긴 흐름 첫 값 100", sc.series[0].values[0], 100);
+// 손으로 확인: 2025-01-31 코스피 2517.37 / 2024-10-31 2556.15 = 98.48
+eq("긴 흐름 코스피 2025-01-31", sc.series[0].values[sc.labels.indexOf("2025-01-31")], 98.48, 0.0051);
+// 기준일을 주 중간(2025-02-26 수)으로 당기면 마지막 점이 그날이고, 그 뒤 값은 쓰지 않는다
+const mid = buildSinceChart(sinceSeries, "kospi", ixe.base, "2025-02-26", ["kospi"]);
+eq("긴 흐름 주 중간 기준일", mid.labels.at(-1), "2025-02-26");
+eq("긴 흐름 주 중간 값", mid.series[0].values.at(-1), (2641.09 / 2556.15) * 100, 0.0051);
+// 출발선이 휴일이면 그 전 마지막 거래일(2024-10-03 개천절 → 10-02)
+eq("긴 흐름 휴일 출발선", buildSinceChart(sinceSeries, "kospi", "2024-10-03", ixe.asOf, ["kospi"]).base, "2024-10-02");
+// 자료가 출발선까지 닿지 않으면 엉뚱한 날을 0% 로 삼지 않는다
+const short = buildSinceChart({ kospi: ix.kospi.filter((p) => p.date >= "2024-11-04") }, "kospi", ixe.base, ixe.asOf, ["kospi"]);
+eq("긴 흐름 자료 부족 → 출발선 없음", short.base, null);
+eq("긴 흐름 자료 부족 → 점 없음", short.labels.length, 0);
 
 if (fails.length) {
   console.error(`실패 ${fails.length}건 / 확인 ${checks}건`);

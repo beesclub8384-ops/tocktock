@@ -20,6 +20,7 @@
 import YahooFinance from "yahoo-finance2";
 import { redis } from "@/lib/redis";
 import {
+  buildSinceChart,
   closedThrough,
   computeRotation,
   crossCheck,
@@ -31,14 +32,35 @@ import {
   type CrossCheckResult,
   type DailyPoint,
   type RotationResult,
+  type SinceChart,
 } from "@/lib/rotation-core";
 
 export { kstDate };
 export type { CheckStatus };
 
 export const ROTATION_KEY = "rotation:data";
-// 저장 형식·대조 기준이 바뀌면 올린다 → 이전 저장값을 무시하고 새로 만든다 (4: 업종 20개·묶음 추가)
-export const ROTATION_VERSION = 4;
+// 저장 형식·대조 기준이 바뀌면 올린다 → 이전 저장값을 무시하고 새로 만든다 (5: 출발선부터의 긴 흐름 추가)
+export const ROTATION_VERSION = 5;
+
+/**
+ * 긴 흐름 차트의 출발선(0%). 날짜를 고정한다 — 매일 움직이면 볼 때마다 숫자가 달라지기 때문이다.
+ *
+ * 고른 기준 (2026-11-27 사용자와 정함): "불장이 오기 전, 시장이 가장 조용했던 때".
+ * 조용함은 세 숫자로 봤다 — 거래대금, 하루 등락 크기, 예탁금.
+ *  - 거래대금(코스피+코스닥 일평균, 한국거래소): 2024-07 19.5조원 → 09 16.7조원 → 10 15.8조원.
+ *    11월 17.7조원, 12월 15.3조원(계엄 급락 포함), 2025-01 16.6조원, 02 21.1조원으로 깨어남.
+ *  - 예탁금(금융투자협회): 2024-10-30 에 49.6조원 — 그해 1월 26일 이후 최저.
+ *  - 하루 등락 크기(일간 등락률 표준편차, 일별 종가로 직접 계산): 2024-09~2025-02 의 20거래일 구간 가운데
+ *    2024-10-02~10-31 이 코스피 0.86%·코스닥 1.11% 로 두 지수 평균이 가장 낮았다.
+ * 세 숫자가 함께 바닥이던 달이 2024년 10월이라 그 달의 마지막 거래일을 출발선으로 삼았다.
+ *
+ * 견줘 본 다른 날: 2024-12-30(2024년 마지막 거래일 — 12월 하순~1월도 등락은 0.85% 로 조용했지만
+ * 계엄 급락 뒤이고, 조선 ETF 가 11~12월에 이미 28% 오른 구간이 잘린다), 2025-05(대체거래소를 합치면
+ * 거래대금 20.5조원으로 덜 조용했다).
+ *
+ * 바꿀 때는 근거 숫자를 다시 확인하고 화면(app/sector-flow/page.tsx)의 설명도 같이 고친다.
+ */
+export const FLOW_BASE_DATE = "2024-10-31";
 
 const yf = new YahooFinance({ suppressNotices: ["yahooSurvey", "ripHistorical"] });
 
@@ -152,6 +174,8 @@ export interface RotationSnapshot {
   asOf: string;
   result: RotationResult;
   instruments: InstrumentInfo[];
+  /** 출발선(FLOW_BASE_DATE)부터의 긴 흐름. 출발선 자료를 못 받았으면 base = null */
+  since: SinceChart;
   /** 수집 중 생긴 문제(받지 못한 후보 등) */
   notes: string[];
 }
@@ -159,6 +183,7 @@ export interface RotationSnapshot {
 /* ───────────────────────── 수집 ───────────────────────── */
 
 const HISTORY_DAYS = 1160; // 약 38개월 (36개 월말 + 여유)
+const BASE_MARGIN_DAYS = 14; // 출발선 앞으로 더 받는 날 수 (출발선 당일 종가를 확실히 포함하려고)
 const MIN_ROWS = 40;
 
 function ymd(d: string): string {
@@ -261,7 +286,10 @@ function daysBetween(a: string, b: string): number {
 /** 가격을 받아 계산한다. 저장은 하지 않는다. */
 export async function buildRotationSnapshot(now: Date = new Date()): Promise<RotationSnapshot> {
   const limit = closedThrough(now);
-  const start = new Date(Date.parse(`${limit}T00:00:00Z`) - HISTORY_DAYS * 86400000).toISOString().slice(0, 10);
+  const byHistory = new Date(Date.parse(`${limit}T00:00:00Z`) - HISTORY_DAYS * 86400000).toISOString().slice(0, 10);
+  const byBase = new Date(Date.parse(`${FLOW_BASE_DATE}T00:00:00Z`) - BASE_MARGIN_DAYS * 86400000).toISOString().slice(0, 10);
+  // 출발선은 고정이라 시간이 지나면 38개월 밖으로 밀려난다 — 그때도 출발선까지는 항상 받는다
+  const start = byHistory < byBase ? byHistory : byBase;
   const notes: string[] = [];
 
   const fetched = await mapLimit(ROTATION_SERIES, 4, (cfg) => fetchSeries(cfg, start, limit, notes));
@@ -292,6 +320,19 @@ export async function buildRotationSnapshot(now: Date = new Date()): Promise<Rot
     order,
   });
 
+  // ── 출발선부터의 긴 흐름 ──
+  const since = buildSinceChart(series, ROTATION_MARKET_KEY, FLOW_BASE_DATE, asOf, order);
+  if (since.base === null) {
+    notes.push(`출발선(${FLOW_BASE_DATE}) 자료를 받지 못해 긴 흐름 차트를 뺐습니다`);
+  } else {
+    if (since.base !== FLOW_BASE_DATE) notes.push(`출발선 ${FLOW_BASE_DATE} 이 거래일이 아니어서 ${since.base} 종가를 0% 로 삼았습니다`);
+    for (const s of since.series) {
+      if (s.values[0] !== null) continue;
+      const f = byKey.get(s.key);
+      if (f) notes.push(`${f.cfg.label}: 출발선(${since.base}) 뒤에 자료가 시작돼(${f.pts[0].date}) 긴 흐름 차트에서 빠집니다`);
+    }
+  }
+
   // 화면에 "최근 8주 안"으로 표시하므로 8주 창의 기준점부터 센다 (60거래일 전체가 아님)
   const recentFrom = result.windowBase ?? input.days[0];
   const instruments: InstrumentInfo[] = ok.map((f) => {
@@ -316,7 +357,7 @@ export async function buildRotationSnapshot(now: Date = new Date()): Promise<Rot
     };
   });
 
-  return { version: ROTATION_VERSION, builtAt: now.toISOString(), asOf, result, instruments, notes };
+  return { version: ROTATION_VERSION, builtAt: now.toISOString(), asOf, result, instruments, since, notes };
 }
 
 export async function getRotationSnapshot(): Promise<RotationSnapshot | null> {

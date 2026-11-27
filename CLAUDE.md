@@ -341,6 +341,7 @@ Cron(8개): refresh-credit(평일 01:00 UTC), virtual-trading-scan(평일 07:00)
 - 계산 규칙을 바꾸면 `node scripts/verify-rotation.mjs` 를 반드시 돌린다(2026-11-26 기준 자료와 따로 계산한 기대값 대조). 기대값도 같이 다시 만든다.
 - 업종 목록은 `lib/rotation.ts` 의 ROTATION_SERIES. 고르는 기준(최근 3년 주도 업종 + 시총 큰 업종, 20개 안팎)도 거기 주석에 있다.
 - 15:40 KST 전에는 당일 값을 쓰지 않는다(장중 값을 종가처럼 쓰지 않기 위해).
+- 긴 흐름 차트의 0%(출발선)는 `lib/rotation.ts` 의 FLOW_BASE_DATE(2024-10-31)로 고정한다. 고른 근거(거래대금·예탁금·하루 등락 크기가 함께 가장 낮았던 달의 마지막 거래일)는 그 상수 주석에 있다. 날짜를 바꾸면 화면(`app/sector-flow/page.tsx`)의 "왜 이 날이 0%인가요" 설명도 같이 고친다.
 - 네이버 siseJson 의 ETF 종가는 분배금 반영 수정주가다. 야후와 대조할 때는 `close` 가 아니라 `adjclose` 와 비교한다(2026-11-27 미리보기에서 확인).
 
 ---

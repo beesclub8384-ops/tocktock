@@ -128,7 +128,7 @@ export default async function SectorFlowPage() {
     );
   }
 
-  const { result: res, instruments } = snap;
+  const { result: res, instruments, since } = snap;
   const inst = new Map<string, InstrumentInfo>(instruments.map((i) => [i.key, i]));
   /** 화면 이름 — ETF 대신 대표 종목을 썼으면 "엔터(하이브)" 처럼 밝힌다 */
   const label = (k: string): string => {
@@ -193,21 +193,34 @@ export default async function SectorFlowPage() {
       })
       .filter((x): x is NonNullable<typeof x> => x !== null);
   const marketOf = (src: { key: string; values: Num[] }[]) => src.find((x) => x.key === ROTATION_MARKET_KEY)?.values ?? [];
-  const m12 = res.chart12m.labels;
-  const monthLabel = (m: string) => `${Number(m.slice(5))}월`;
   const weekEndSet = new Map(res.weeks.map((w, j) => [w.end, j]));
   const d8 = res.chart8w.labels;
+  // ── 출발선부터: 주마다 한 점 ──
+  /** '2025-04-11' → '25.4.11' */
+  const ymdShort = (d: string) => `${d.slice(2, 4)}.${Number(d.slice(5, 7))}.${Number(d.slice(8, 10))}`;
+  const sinceLabels = since.labels;
+  /** 달이 바뀌는 첫 점에, 정한 달일 때만 '25.4' 처럼 적는다 */
+  const monthTicks = (monthsOn: number[], first: string) =>
+    sinceLabels.map((d, i) => {
+      if (i === 0) return first;
+      const m = Number(d.slice(5, 7));
+      return d.slice(0, 7) !== sinceLabels[i - 1].slice(0, 7) && monthsOn.includes(m) ? `${d.slice(2, 4)}.${m}` : "";
+    });
+  const sincePeriod: OverlayPeriod | null = since.base
+    ? {
+        id: "base",
+        tab: `${ymdShort(since.base)}부터`,
+        basis: `${since.base} 종가 대비 (주마다 마지막 거래일 종가, 마지막 점은 ${md(res.asOf)})`,
+        pointLabels: sinceLabels.map(ymdShort),
+        ticks: monthTicks([1, 4, 7, 10], ymdShort(since.base)),
+        ticksMobile: monthTicks([1, 7], ""),
+        // 출발선 뒤에 상장한 업종은 0% 로 맞출 수 없어 이 탭에서 뺀다 (수집 메모에 남는다)
+        series: overlaySeries(since.series).filter((sv) => sv.values[0] !== null),
+        market: marketOf(since.series),
+      }
+    : null;
   const overlayPeriods: OverlayPeriod[] = [
-    {
-      id: "12m",
-      tab: "12개월",
-      basis: `${monthName(months.length - m12.length)} 말 종가 대비 (월말 종가, 마지막 점은 ${md(res.asOf)})`,
-      pointLabels: m12.map((m, i) => (i === 0 || m.endsWith("-01") ? `${m.slice(0, 4)}년 ${monthLabel(m)}` : monthLabel(m))),
-      ticks: m12.map((m, i) => (i === 0 ? `${m.slice(2, 4)}.${Number(m.slice(5))}` : monthLabel(m))),
-      ticksMobile: m12.map((m, i) => ((m12.length - 1 - i) % 2 === 0 ? monthLabel(m) : "")),
-      series: overlaySeries(res.chart12m.series),
-      market: marketOf(res.chart12m.series),
-    },
+    ...(sincePeriod ? [sincePeriod] : []),
     {
       id: "8w",
       tab: "8주",
@@ -222,13 +235,15 @@ export default async function SectorFlowPage() {
       market: marketOf(res.chart8w.series),
     },
   ];
-  // 처음에 색으로 띄울 업종: 12개월 동안 가장 많이 오른 2개·가장 많이 내린 2개 (지수 제외)
-  const by12m = overlayPeriods[0].series
+  // 처음에 색으로 띄울 업종: 첫 탭(출발선부터) 기간에 가장 많이 오른 2개·가장 많이 내린 2개 (지수 제외)
+  const byFirst = overlayPeriods[0].series
     .filter((sv) => !isIndex(sv.key))
     .map((sv) => ({ key: sv.key, v: sv.values[sv.values.length - 1] }))
     .filter((x): x is { key: string; v: number } => x.v !== null && x.v !== undefined)
     .sort((a, b) => b.v - a.v);
-  const defaultKeys = [...new Set([...by12m.slice(0, 2), ...by12m.slice(-2)].map((x) => x.key))];
+  const defaultKeys = [...new Set([...byFirst.slice(0, 2), ...byFirst.slice(-2)].map((x) => x.key))];
+  /** '2024-10-31' → '2024년 10월 31일' */
+  const baseDateText = since.base ? `${since.base.slice(0, 4)}년 ${Number(since.base.slice(5, 7))}월 ${Number(since.base.slice(8, 10))}일` : "";
 
   /** 주간 표의 열 순서: 가장 최근 주부터 */
   const weekOrder = res.weeks.map((_, j) => j).reverse();
@@ -351,12 +366,43 @@ export default async function SectorFlowPage() {
       {/* ── 1. 겹쳐 보기 ── */}
       <Section
         title="1. 업종별 주가 흐름 겹쳐 보기"
-        sub="모든 업종을 한 차트에 겹쳤습니다. 옅은 회색 선이 전체 업종이고, 고른 업종만 색으로 보입니다. 처음에는 12개월 동안 가장 많이 오른 2개와 가장 많이 내린 2개가 켜져 있습니다."
+        sub={`모든 업종을 한 차트에 겹쳤습니다. 옅은 회색 선이 전체 업종이고, 고른 업종만 색으로 보입니다. ${
+          since.base ? `0%는 ${baseDateText} 종가입니다. 처음에는 그날 이후` : "처음에는 최근 8주 동안"
+        } 가장 많이 오른 2개와 가장 많이 내린 2개가 켜져 있습니다.`}
       >
         <OverlayChart periods={overlayPeriods} groupOrder={[...SECTOR_CATEGORIES]} defaultKeys={defaultKeys} />
         <p className="mt-2 text-xs text-muted-foreground">
           점선은 코스피입니다. 차트 위에 손가락이나 마우스를 올리면 그 시점의 값이 위쪽 줄에 나옵니다. 가격은 대표 ETF 기준입니다.
         </p>
+
+        {since.base && (
+          <details className="mt-4 rounded-lg border border-border">
+            <summary className="cursor-pointer px-3 py-2 text-sm font-semibold">왜 {baseDateText}이 0%인가요</summary>
+            <div className="space-y-2 border-t border-border px-3 py-3 text-sm">
+              <p>
+                큰 상승장이 오기 전, <b>시장이 가장 조용했던 달의 마지막 거래일</b>입니다. 조용했는지는 숫자 세 가지로 봤습니다.
+              </p>
+              <ul className="list-disc space-y-1 pl-5">
+                <li>
+                  <b>거래대금</b>: 코스피와 코스닥을 합친 하루 평균이 2024년 7월 19.5조 원에서 10월 15.8조 원까지 줄었습니다. 2025년 2월에는 21.1조 원으로 다시 늘었습니다.
+                </li>
+                <li>
+                  <b>예탁금</b>: 2024년 10월 30일에 49.6조 원이었습니다. 그해 1월 이후 가장 적은 금액입니다.
+                </li>
+                <li>
+                  <b>하루 등락 크기</b>: 2024년 10월 2~31일의 일간 등락률 표준편차가 코스피 0.86%, 코스닥 1.11%였습니다. 2024년 9월부터 2025년 2월 사이의 20거래일 구간 가운데 두 지수 평균이 가장
+                  낮았습니다.
+                </li>
+              </ul>
+              <p>
+                알아 둘 점이 있습니다. 그 뒤 11~12월에 시장이 한 번 더 내렸습니다. 그래서 많은 선이 처음 두 달은 0% 아래로 내려갔다가 올라옵니다. 이 날짜는 고정이라 매일 바뀌지 않습니다.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                거래대금은 한국거래소, 예탁금은 금융투자협회 집계입니다(언론 보도 인용). 하루 등락 크기는 일별 종가로 직접 계산했습니다.
+              </p>
+            </div>
+          </details>
+        )}
 
         <details className="mt-4 rounded-lg border border-border">
           <summary className="cursor-pointer px-3 py-2 text-sm font-semibold">월별 숫자 자세히 보기 (최근 3년 월간 등락률 표)</summary>
