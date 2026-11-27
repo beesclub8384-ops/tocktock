@@ -37,8 +37,8 @@ export { kstDate };
 export type { CheckStatus };
 
 export const ROTATION_KEY = "rotation:data";
-// 저장 형식·대조 기준이 바뀌면 올린다 → 이전 저장값을 무시하고 새로 만든다 (3: 하루 등락률로 대조)
-export const ROTATION_VERSION = 3;
+// 저장 형식·대조 기준이 바뀌면 올린다 → 이전 저장값을 무시하고 새로 만든다 (4: 업종 20개·묶음 추가)
+export const ROTATION_VERSION = 4;
 
 const yf = new YahooFinance({ suppressNotices: ["yahooSurvey", "ripHistorical"] });
 
@@ -60,39 +60,65 @@ interface Candidate {
   kind: InstrumentKind;
 }
 
+/** 업종 묶음 — 화면에서 표를 이 순서로 나눠 보여 준다 */
+export const SECTOR_CATEGORIES = ["지수", "기술·성장", "산업재", "금융", "소비·콘텐츠"] as const;
+export type SectorCategory = (typeof SECTOR_CATEGORIES)[number];
+
 export interface SeriesConfig {
   key: string;
   /** 화면에 쓰는 업종 이름 */
   label: string;
   group: "지수" | "업종";
+  category: SectorCategory;
   candidates: Candidate[];
 }
 
 const etf = (code: string, name: string): Candidate => ({ naver: code, yahoo: `${code}.KS`, name, kind: "ETF" });
-const stock = (code: string, name: string): Candidate => ({ naver: code, yahoo: `${code}.KS`, name, kind: "종목" });
+/** 대표 종목. 코스닥 종목은 야후 심볼 끝이 .KQ 라 market 으로 구분한다 */
+const stock = (code: string, name: string, market: "KS" | "KQ" = "KS"): Candidate => ({
+  naver: code,
+  yahoo: `${code}.${market}`,
+  name,
+  kind: "종목",
+});
 
 /**
  * 시리즈 목록. 업종은 대표 ETF 가격으로 본다(업종지수가 아니다).
- * 뒤 6개 업종은 ETF 를 먼저 받고, 안 되면 대표 종목 한 개로 대신한다.
- * ETF 코드는 2026-11-27 에 운용사·ETF 정보 사이트로 이름을 확인했다.
+ * ETF 를 먼저 받고, 안 되면 대표 종목 한 개로 대신한다(후보가 둘인 업종).
+ * ETF 코드는 2026-11-27 에 운용사 공지·ETF 정보 사이트로 이름을 확인했다.
+ *
+ * 업종 고르는 기준 (2026-11-27 사용자와 정함):
+ *  1) 최근 3년 사이 한 번이라도 주도 업종으로 꼽혔던 업종은 넣는다 (원전·운송·로봇 추가)
+ *  2) 시가총액이 큰 업종은 빠짐없이 넣는다 (인터넷·통신, 철강, 화학 추가)
+ *  3) 휴대폰에서 읽을 수 있게 업종은 20개 안팎으로 둔다
  */
 export const ROTATION_SERIES: SeriesConfig[] = [
-  { key: "kospi", label: "코스피", group: "지수", candidates: [{ naver: "KOSPI", yahoo: "^KS11", name: "코스피 지수", kind: "지수" }] },
-  { key: "kosdaq", label: "코스닥", group: "지수", candidates: [{ naver: "KOSDAQ", yahoo: "^KQ11", name: "코스닥 지수", kind: "지수" }] },
-  { key: "semi", label: "반도체", group: "업종", candidates: [etf("091160", "KODEX 반도체")] },
-  { key: "ship", label: "조선", group: "업종", candidates: [etf("466920", "SOL 조선TOP3플러스")] },
-  { key: "defense", label: "방산", group: "업종", candidates: [etf("463250", "TIGER K방산&우주")] },
-  { key: "power", label: "전력기기", group: "업종", candidates: [etf("487240", "KODEX AI전력핵심설비")] },
-  { key: "battery", label: "2차전지", group: "업종", candidates: [etf("305720", "KODEX 2차전지산업")] },
-  { key: "broker", label: "증권", group: "업종", candidates: [etf("102970", "KODEX 증권")] },
-  { key: "build", label: "건설", group: "업종", candidates: [etf("117700", "KODEX 건설")] },
-  { key: "insure", label: "보험", group: "업종", candidates: [etf("140700", "KODEX 보험")] },
-  { key: "bank", label: "은행", group: "업종", candidates: [etf("091170", "KODEX 은행"), stock("105560", "KB금융")] },
-  { key: "auto", label: "자동차", group: "업종", candidates: [etf("091180", "KODEX 자동차"), stock("005380", "현대차")] },
-  { key: "bio", label: "바이오", group: "업종", candidates: [etf("244580", "KODEX 바이오"), stock("068270", "셀트리온")] },
-  { key: "beauty", label: "화장품", group: "업종", candidates: [etf("228790", "TIGER 화장품"), stock("278470", "에이피알")] },
-  { key: "ent", label: "엔터", group: "업종", candidates: [etf("475050", "ACE KPOP포커스"), stock("352820", "하이브")] },
-  { key: "staples", label: "필수소비재", group: "업종", candidates: [etf("266410", "KODEX 필수소비재"), stock("033780", "KT&G")] },
+  { key: "kospi", label: "코스피", group: "지수", category: "지수", candidates: [{ naver: "KOSPI", yahoo: "^KS11", name: "코스피 지수", kind: "지수" }] },
+  { key: "kosdaq", label: "코스닥", group: "지수", category: "지수", candidates: [{ naver: "KOSDAQ", yahoo: "^KQ11", name: "코스닥 지수", kind: "지수" }] },
+  // 기술·성장
+  { key: "semi", label: "반도체", group: "업종", category: "기술·성장", candidates: [etf("091160", "KODEX 반도체")] },
+  { key: "battery", label: "2차전지", group: "업종", category: "기술·성장", candidates: [etf("305720", "KODEX 2차전지산업")] },
+  { key: "power", label: "전력기기", group: "업종", category: "기술·성장", candidates: [etf("487240", "KODEX AI전력핵심설비")] },
+  { key: "nuclear", label: "원전", group: "업종", category: "기술·성장", candidates: [etf("434730", "HANARO 원자력iSelect"), stock("034020", "두산에너빌리티")] },
+  { key: "robot", label: "로봇", group: "업종", category: "기술·성장", candidates: [etf("445290", "KODEX 로봇액티브"), stock("277810", "레인보우로보틱스", "KQ")] },
+  { key: "internet", label: "인터넷·통신", group: "업종", category: "기술·성장", candidates: [etf("315270", "TIGER 200커뮤니케이션서비스"), stock("035420", "NAVER")] },
+  { key: "bio", label: "바이오", group: "업종", category: "기술·성장", candidates: [etf("244580", "KODEX 바이오"), stock("068270", "셀트리온")] },
+  // 산업재
+  { key: "ship", label: "조선", group: "업종", category: "산업재", candidates: [etf("466920", "SOL 조선TOP3플러스")] },
+  { key: "defense", label: "방산", group: "업종", category: "산업재", candidates: [etf("463250", "TIGER K방산&우주")] },
+  { key: "build", label: "건설", group: "업종", category: "산업재", candidates: [etf("117700", "KODEX 건설")] },
+  { key: "transport", label: "운송", group: "업종", category: "산업재", candidates: [etf("140710", "KODEX 운송"), stock("011200", "HMM")] },
+  { key: "auto", label: "자동차", group: "업종", category: "산업재", candidates: [etf("091180", "KODEX 자동차"), stock("005380", "현대차")] },
+  { key: "steel", label: "철강", group: "업종", category: "산업재", candidates: [etf("117680", "KODEX 철강"), stock("005490", "POSCO홀딩스")] },
+  { key: "chem", label: "화학·정유", group: "업종", category: "산업재", candidates: [etf("117460", "KODEX 에너지화학"), stock("051910", "LG화학")] },
+  // 금융
+  { key: "bank", label: "은행", group: "업종", category: "금융", candidates: [etf("091170", "KODEX 은행"), stock("105560", "KB금융")] },
+  { key: "broker", label: "증권", group: "업종", category: "금융", candidates: [etf("102970", "KODEX 증권")] },
+  { key: "insure", label: "보험", group: "업종", category: "금융", candidates: [etf("140700", "KODEX 보험")] },
+  // 소비·콘텐츠
+  { key: "beauty", label: "화장품", group: "업종", category: "소비·콘텐츠", candidates: [etf("228790", "TIGER 화장품"), stock("278470", "에이피알")] },
+  { key: "ent", label: "엔터", group: "업종", category: "소비·콘텐츠", candidates: [etf("475050", "ACE KPOP포커스"), stock("352820", "하이브")] },
+  { key: "staples", label: "필수소비재", group: "업종", category: "소비·콘텐츠", candidates: [etf("266410", "KODEX 필수소비재"), stock("033780", "KT&G")] },
 ];
 
 export const ROTATION_BASE_KEY = "semi";
@@ -103,6 +129,7 @@ export interface InstrumentInfo {
   key: string;
   label: string;
   group: "지수" | "업종";
+  category: SectorCategory;
   kind: InstrumentKind;
   /** 실제로 받은 상품·종목 이름 */
   name: string;
@@ -273,6 +300,7 @@ export async function buildRotationSnapshot(now: Date = new Date()): Promise<Rot
       key: f.cfg.key,
       label: f.cfg.label,
       group: f.cfg.group,
+      category: f.cfg.category,
       kind: f.cand.kind,
       name: f.cand.name,
       code: f.cand.naver,
