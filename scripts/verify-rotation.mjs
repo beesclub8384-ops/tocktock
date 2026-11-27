@@ -142,10 +142,11 @@ eq("토 10:00 → 토(자료 없음, 자연히 금)", closedThrough(kst("2026-11
 eq("월 00:10 → 일(자료 없음, 자연히 금)", closedThrough(kst("2026-11-30T00:10:00")), "2026-11-29");
 
 const mk = (n, f) => Array.from({ length: n }, (_, i) => ({ date: `2026-10-${String(i + 1).padStart(2, "0")}`, close: f(i) }));
-const same = crossCheck(mk(25, (i) => 1000 + i), mk(25, (i) => 1000 + i + 0.0004), "2026-10-20");
+// 0.1% 이내(반올림 차이)는 일치, 넘으면 불일치
+const same = crossCheck(mk(25, (i) => 1000 + i), mk(25, (i) => (1000 + i) * 1.0009), "2026-10-20");
 eq("대조: 같으면 일치", same.status, "일치");
 eq("대조: 비교한 날 수", same.compared, 25);
-const diff = crossCheck(mk(25, (i) => 1000 + i), mk(25, (i) => (i === 3 || i === 22 ? 1010 + i : 1000 + i)), "2026-10-20");
+const diff = crossCheck(mk(25, (i) => 1000 + i), mk(25, (i) => (i === 3 || i === 22 ? (1000 + i) * 1.0011 : 1000 + i)), "2026-10-20");
 eq("대조: 다르면 불일치", diff.status, "불일치");
 eq("대조: 다른 날 수", diff.mismatched, 2);
 eq("대조: 최근 구간에서 다른 날 수", diff.recentMismatched, 1);

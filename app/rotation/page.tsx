@@ -497,6 +497,7 @@ export default async function RotationPage() {
             <h3 className="font-bold">한계</h3>
             <ul className="mt-2 list-disc space-y-1 pl-5">
               <li>업종지수가 아니라 대표 ETF 가격입니다. ETF에 담긴 종목과 비중에 따라 실제 업종 흐름과 다를 수 있습니다.</li>
+              <li>ETF 가격은 분배금을 받은 것으로 친 수정주가입니다. 배당이 많은 업종(은행·보험·증권 등)은 거래소 종가로 계산한 등락률보다 조금 높게 나옵니다.</li>
               {fallbacks.length > 0 && (
                 <li>
                   ETF 자료를 받지 못해 대표 종목 한 개로 대신한 업종이 있습니다: {fallbacks.map((i) => `${i.label}(${i.name})`).join(", ")}. 한 종목의 사정이 섞입니다.
@@ -546,7 +547,7 @@ export default async function RotationPage() {
           </table>
         </div>
         <p className="mt-2 text-xs text-muted-foreground">
-          대조는 두 출처에 모두 있는 날짜의 종가를 비교합니다. 0.05% 넘게 다르면 불일치로 셉니다. 오래전 값만 다른 경우는 주식 배당·분할을 반영하는 방식 차이일 수 있습니다.
+          가격은 분배금(ETF 배당)을 반영한 수정주가입니다. 그래서 오래전 값은 그날 실제 거래 가격보다 조금 낮게 나옵니다. 대조는 야후의 수정종가와 두 출처에 모두 있는 날짜끼리 하며, 0.1% 넘게 다르면 불일치로 셉니다.
         </p>
         {snap.notes.length > 0 && (
           <details className="mt-2 text-xs text-muted-foreground">

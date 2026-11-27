@@ -431,7 +431,7 @@ export interface CrossCheckResult {
   status: CheckStatus;
   /** 두 출처에 모두 있는 날짜 수 */
   compared: number;
-  /** 종가가 0.05% 넘게 다른 날짜 수 */
+  /** 종가가 MISMATCH_PCT 넘게 다른 날짜 수 */
   mismatched: number;
   /** 가장 큰 차이(%) */
   maxDiffPct: number | null;
@@ -439,7 +439,13 @@ export interface CrossCheckResult {
   recentMismatched: number;
 }
 
-/** 두 출처의 날짜별 종가를 대조한다. 0.05% 넘게 다르면 불일치로 센다. */
+/**
+ * 불일치 기준(%). 두 출처 모두 분배금 반영 수정주가라, 조정 계수의 반올림 차이(원 단위 절사 등)만큼은 허용한다.
+ * 예: 7,000원짜리 ETF 에서 1원 차이 = 0.014%.
+ */
+export const MISMATCH_PCT = 0.1;
+
+/** 두 출처의 날짜별 종가를 대조한다. MISMATCH_PCT(0.1%) 넘게 다르면 불일치로 센다. */
 export function crossCheck(a: DailyPoint[], b: DailyPoint[], recentFrom: string): CrossCheckResult {
   const bm = new Map(b.map((p) => [p.date, p.close]));
   let compared = 0;
@@ -452,7 +458,7 @@ export function crossCheck(a: DailyPoint[], b: DailyPoint[], recentFrom: string)
     compared += 1;
     const diff = Math.abs(p.close / other - 1) * 100;
     if (diff > maxDiff) maxDiff = diff;
-    if (diff > 0.05) {
+    if (diff > MISMATCH_PCT) {
       mismatched += 1;
       if (p.date >= recentFrom) recentMismatched += 1;
     }

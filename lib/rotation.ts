@@ -37,7 +37,8 @@ export { kstDate };
 export type { CheckStatus };
 
 export const ROTATION_KEY = "rotation:data";
-export const ROTATION_VERSION = 1;
+// 저장 형식·대조 기준이 바뀌면 올린다 → 이전 저장값을 무시하고 새로 만든다 (2: 야후 수정종가로 대조)
+export const ROTATION_VERSION = 2;
 
 const yf = new YahooFinance({ suppressNotices: ["yahooSurvey", "ripHistorical"] });
 
@@ -144,15 +145,25 @@ async function fetchNaver(symbol: string, start: string, end: string): Promise<D
   return parseSiseJson(await res.text());
 }
 
-async function fetchYahoo(symbol: string, start: string): Promise<DailyPoint[]> {
+/**
+ * 야후 일봉.
+ *  adjusted=true  → 분배금·배당을 반영한 수정종가(adjclose). 네이버 siseJson 과 같은 기준이라 대조에 쓴다.
+ *  adjusted=false → 거래소 종가 그대로(close).
+ *
+ * ⚠ 2026-11-27 미리보기 배포에서 확인: 네이버 siseJson 의 ETF 종가는 분배금을 반영한 수정주가다.
+ *   (KODEX 보험: 네이버가 야후 close 와 최대 12.90% 달랐고, 야후 adjclose 와 close 의 차이도 2023-12 기준 12.9%)
+ *   그래서 대조는 야후 adjclose 와 해야 한다. close 와 비교하면 분배금이 있는 ETF 는 전부 "불일치"가 된다.
+ */
+async function fetchYahoo(symbol: string, start: string, adjusted: boolean): Promise<DailyPoint[]> {
   const r = (await yf.chart(symbol, { period1: new Date(`${start}T00:00:00Z`), interval: "1d" })) as {
-    quotes?: { date: Date; close: number | null }[];
+    quotes?: { date: Date; close: number | null; adjclose?: number | null }[];
   };
   const out: DailyPoint[] = [];
   for (const q of r.quotes ?? []) {
-    if (q.close === null || q.close === undefined || !Number.isFinite(q.close) || q.close <= 0) continue;
+    const v = adjusted ? (q.adjclose ?? q.close) : q.close;
+    if (v === null || v === undefined || !Number.isFinite(v) || v <= 0) continue;
     // 야후의 한국 일봉 시각은 장 시작(KST 09:00 = UTC 00:00). KST 날짜로 바꾼다.
-    out.push({ date: kstDate(new Date(q.date)), close: q.close });
+    out.push({ date: kstDate(new Date(q.date)), close: v });
   }
   return dedupeSorted(out);
 }
@@ -183,7 +194,7 @@ async function fetchSeries(cfg: SeriesConfig, start: string, limit: string, note
     const r = await tryFetch(() => fetchNaver(c.naver, start, limit));
     const pts = clip(r.pts);
     if (pts.length >= MIN_ROWS) {
-      const y = await tryFetch(() => fetchYahoo(c.yahoo, start));
+      const y = await tryFetch(() => fetchYahoo(c.yahoo, start, true));
       if (y.error) notes.push(`${cfg.label}: 야후 대조 실패 (${c.name})`);
       return { cfg, cand: c, candIdx: i, source: "네이버", pts, other: clip(y.pts) };
     }
@@ -192,7 +203,8 @@ async function fetchSeries(cfg: SeriesConfig, start: string, limit: string, note
   // 3) 야후로 후보 순서대로
   for (let i = 0; i < cfg.candidates.length; i++) {
     const c = cfg.candidates[i];
-    const r = await tryFetch(() => fetchYahoo(c.yahoo, start));
+    // 네이버와 같은 기준(분배금 반영)으로 맞추려고 수정종가를 쓴다
+    const r = await tryFetch(() => fetchYahoo(c.yahoo, start, true));
     const pts = clip(r.pts);
     if (pts.length >= MIN_ROWS) return { cfg, cand: c, candIdx: i, source: "야후", pts, other: [] };
     notes.push(`${cfg.label}: 야후에서도 ${c.name}(${c.yahoo})을 받지 못했습니다`);
@@ -253,7 +265,8 @@ export async function buildRotationSnapshot(now: Date = new Date()): Promise<Rot
     order,
   });
 
-  const recentFrom = input.days[0];
+  // 화면에 "최근 8주 안"으로 표시하므로 8주 창의 기준점부터 센다 (60거래일 전체가 아님)
+  const recentFrom = result.windowBase ?? input.days[0];
   const instruments: InstrumentInfo[] = ok.map((f) => {
     const lastDate = f.pts[f.pts.length - 1].date;
     return {

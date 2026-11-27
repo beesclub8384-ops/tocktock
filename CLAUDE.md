@@ -340,6 +340,7 @@ Cron(8개): refresh-credit(평일 01:00 UTC), virtual-trading-scan(평일 07:00)
 - 계산 규칙은 `lib/rotation-core.ts`(순수 함수), 수집은 `lib/rotation.ts`(네이버 일별 시세가 주, 야후로 날짜별 대조, ETF 를 못 받으면 대표 종목으로 대신).
 - 계산 규칙을 바꾸면 `node scripts/verify-rotation.mjs` 를 반드시 돌린다(2026-11-26 기준 자료와 따로 계산한 기대값 대조). 기대값도 같이 다시 만든다.
 - 15:40 KST 전에는 당일 값을 쓰지 않는다(장중 값을 종가처럼 쓰지 않기 위해).
+- 네이버 siseJson 의 ETF 종가는 분배금 반영 수정주가다. 야후와 대조할 때는 `close` 가 아니라 `adjclose` 와 비교한다(2026-11-27 미리보기에서 확인).
 
 ---
 
