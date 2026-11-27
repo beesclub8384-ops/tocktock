@@ -425,44 +425,77 @@ export function dedupeSorted(pts: DailyPoint[]): DailyPoint[] {
   return [...m.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1)).map(([date, close]) => ({ date, close }));
 }
 
-export type CheckStatus = "일치" | "불일치" | "대조 못 함";
+export type CheckStatus = "일치" | "조정 차이" | "불일치" | "대조 못 함";
 
 export interface CrossCheckResult {
   status: CheckStatus;
   /** 두 출처에 모두 있는 날짜 수 */
   compared: number;
-  /** 종가가 MISMATCH_PCT 넘게 다른 날짜 수 */
+  /** 종가 수준이 MISMATCH_PCT 넘게 다른 날짜 수 (분배금 조정 방식 차이도 여기 잡힌다) */
   mismatched: number;
-  /** 가장 큰 차이(%) */
+  /** 종가 수준의 가장 큰 차이(%) */
   maxDiffPct: number | null;
-  /** recentFrom 이후(최근 구간)에서 다른 날짜 수 */
+  /** 하루 등락률이 RETURN_MISMATCH_PP 넘게 다른 날짜 수 — 실제 가격이 틀린 날 */
+  returnMismatched: number;
+  /** recentFrom 이후(최근 8주)에서 하루 등락률이 다른 날짜 수 */
   recentMismatched: number;
 }
 
 /**
- * 불일치 기준(%). 두 출처 모두 분배금 반영 수정주가라, 조정 계수의 반올림 차이(원 단위 절사 등)만큼은 허용한다.
+ * 종가 수준 비교 기준(%). 두 출처 모두 분배금 반영 수정주가라 반올림 차이만큼은 허용한다.
  * 예: 7,000원짜리 ETF 에서 1원 차이 = 0.014%.
  */
 export const MISMATCH_PCT = 0.1;
 
-/** 두 출처의 날짜별 종가를 대조한다. MISMATCH_PCT(0.1%) 넘게 다르면 불일치로 센다. */
+/**
+ * 하루 등락률 비교 기준(%p).
+ * 네이버와 야후는 분배금 조정 계산이 조금 달라(또는 한쪽이 최근 분배금을 늦게 반영해) 오래전 종가 수준이
+ * 0.1~0.7% 어긋날 수 있다(2026-11-27 미리보기: 화장품 0.70%, 엔터 0.62%, 은행 0.45%). 이 차이는
+ * 분배금 기준일 하루의 등락률에만 나타나고, 크기는 분배금 크기(대개 1% 미만)를 넘지 않는다.
+ * 그래서 하루 등락률이 1%p 넘게 다른 날만 "가격이 틀린 날"로 본다.
+ */
+export const RETURN_MISMATCH_PP = 1;
+
+/**
+ * 두 출처의 날짜별 종가를 대조한다.
+ *  - 일치: 모든 날의 종가 수준이 0.1% 안
+ *  - 조정 차이: 수준은 어긋나지만 하루 등락률은 모든 날 1%p 안 (분배금 조정 방식 차이 — 등락 계산에 사실상 영향 없음)
+ *  - 불일치: 하루 등락률이 1%p 넘게 다른 날이 있다 (한쪽 가격이 틀렸을 가능성)
+ */
 export function crossCheck(a: DailyPoint[], b: DailyPoint[], recentFrom: string): CrossCheckResult {
   const bm = new Map(b.map((p) => [p.date, p.close]));
   let compared = 0;
   let mismatched = 0;
+  let returnMismatched = 0;
   let recentMismatched = 0;
   let maxDiff = 0;
+  let prevA: number | null = null;
+  let prevB: number | null = null;
   for (const p of a) {
     const other = bm.get(p.date);
-    if (other === undefined) continue;
+    if (other === undefined) {
+      // 한쪽에만 있는 날을 건너뛰면 다음 날 등락이 이틀치가 되므로 연결을 끊는다
+      prevA = null;
+      prevB = null;
+      continue;
+    }
     compared += 1;
     const diff = Math.abs(p.close / other - 1) * 100;
     if (diff > maxDiff) maxDiff = diff;
-    if (diff > MISMATCH_PCT) {
-      mismatched += 1;
-      if (p.date >= recentFrom) recentMismatched += 1;
+    if (diff > MISMATCH_PCT) mismatched += 1;
+    if (prevA !== null && prevB !== null) {
+      const ra = (p.close / prevA - 1) * 100;
+      const rb = (other / prevB - 1) * 100;
+      if (Math.abs(ra - rb) > RETURN_MISMATCH_PP) {
+        returnMismatched += 1;
+        if (p.date >= recentFrom) recentMismatched += 1;
+      }
     }
+    prevA = p.close;
+    prevB = other;
   }
-  if (compared < 20) return { status: "대조 못 함", compared, mismatched, maxDiffPct: compared ? maxDiff : null, recentMismatched };
-  return { status: mismatched === 0 ? "일치" : "불일치", compared, mismatched, maxDiffPct: maxDiff, recentMismatched };
+  const base = { compared, mismatched, maxDiffPct: compared ? maxDiff : null, returnMismatched, recentMismatched };
+  if (compared < 20) return { status: "대조 못 함", ...base };
+  const status: CheckStatus = returnMismatched > 0 ? "불일치" : mismatched > 0 ? "조정 차이" : "일치";
+  return { status, ...base };
 }

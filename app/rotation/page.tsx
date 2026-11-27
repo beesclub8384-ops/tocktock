@@ -531,9 +531,15 @@ export default async function RotationPage() {
                   <td className="border-t border-border px-2 py-1.5 whitespace-nowrap">{i.source}</td>
                   <td className="border-t border-border px-2 py-1.5 whitespace-nowrap">
                     {i.check.status === "일치" && `일치 (${i.check.compared}일)`}
+                    {i.check.status === "조정 차이" && (
+                      <>
+                        일치 ({i.check.compared}일){" "}
+                        <span className="text-muted-foreground">· 분배금 조정 차이 최대 {i.check.maxDiffPct?.toFixed(2)}%</span>
+                      </>
+                    )}
                     {i.check.status === "불일치" && (
                       <b>
-                        불일치 {i.check.mismatched}일 / {i.check.compared}일 (최대 {i.check.maxDiffPct?.toFixed(2)}%, 최근 8주 안 {i.check.recentMismatched}일)
+                        불일치 {i.check.returnMismatched}일 / {i.check.compared}일 (최근 8주 안 {i.check.recentMismatched}일)
                       </b>
                     )}
                     {i.check.status === "대조 못 함" && <span className="text-muted-foreground">대조 못 함 (한 출처)</span>}
@@ -547,7 +553,7 @@ export default async function RotationPage() {
           </table>
         </div>
         <p className="mt-2 text-xs text-muted-foreground">
-          가격은 분배금(ETF 배당)을 반영한 수정주가입니다. 그래서 오래전 값은 그날 실제 거래 가격보다 조금 낮게 나옵니다. 대조는 야후의 수정종가와 두 출처에 모두 있는 날짜끼리 하며, 0.1% 넘게 다르면 불일치로 셉니다.
+          가격은 분배금(ETF 배당)을 반영한 수정주가입니다. 그래서 오래전 값은 그날 실제 거래 가격보다 조금 낮게 나옵니다. 대조는 야후의 수정종가와 두 출처에 모두 있는 날짜끼리 합니다. 하루 등락률이 1%p 넘게 다른 날이 있으면 &ldquo;불일치&rdquo;입니다. 등락률은 같은데 분배금을 반영하는 계산 방식 차이로 가격 수준만 조금 어긋나면 &ldquo;분배금 조정 차이&rdquo;로 따로 적습니다.
         </p>
         {snap.notes.length > 0 && (
           <details className="mt-2 text-xs text-muted-foreground">

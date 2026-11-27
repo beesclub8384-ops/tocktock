@@ -37,8 +37,8 @@ export { kstDate };
 export type { CheckStatus };
 
 export const ROTATION_KEY = "rotation:data";
-// 저장 형식·대조 기준이 바뀌면 올린다 → 이전 저장값을 무시하고 새로 만든다 (2: 야후 수정종가로 대조)
-export const ROTATION_VERSION = 2;
+// 저장 형식·대조 기준이 바뀌면 올린다 → 이전 저장값을 무시하고 새로 만든다 (3: 하루 등락률로 대조)
+export const ROTATION_VERSION = 3;
 
 const yf = new YahooFinance({ suppressNotices: ["yahooSurvey", "ripHistorical"] });
 
@@ -284,7 +284,7 @@ export async function buildRotationSnapshot(now: Date = new Date()): Promise<Rot
       check:
         f.source === "네이버"
           ? crossCheck(f.pts, f.other, recentFrom)
-          : { status: "대조 못 함", compared: 0, mismatched: 0, maxDiffPct: null, recentMismatched: 0 },
+          : { status: "대조 못 함", compared: 0, mismatched: 0, maxDiffPct: null, returnMismatched: 0, recentMismatched: 0 },
     };
   });
 

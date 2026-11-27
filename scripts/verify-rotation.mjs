@@ -147,9 +147,22 @@ const same = crossCheck(mk(25, (i) => 1000 + i), mk(25, (i) => (1000 + i) * 1.00
 eq("대조: 같으면 일치", same.status, "일치");
 eq("대조: 비교한 날 수", same.compared, 25);
 const diff = crossCheck(mk(25, (i) => 1000 + i), mk(25, (i) => (i === 3 || i === 22 ? (1000 + i) * 1.0011 : 1000 + i)), "2026-10-20");
-eq("대조: 다르면 불일치", diff.status, "불일치");
-eq("대조: 다른 날 수", diff.mismatched, 2);
-eq("대조: 최근 구간에서 다른 날 수", diff.recentMismatched, 1);
+eq("대조: 하루만 0.11% 다르면 조정 차이", diff.status, "조정 차이");
+eq("대조: 수준이 다른 날 수", diff.mismatched, 2);
+eq("대조: 등락이 다른 날 수", diff.returnMismatched, 0);
+// 분배금 조정: 기준일(10/10) 전 값이 모두 0.5% 낮다 → 수준은 다르지만 등락은 기준일 하루만 0.5%p 차이
+const adj = crossCheck(mk(25, (i) => 1000 + i), mk(25, (i) => (i < 9 ? (1000 + i) * 0.995 : 1000 + i)), "2026-10-20");
+eq("대조: 분배금 조정 차이", adj.status, "조정 차이");
+eq("대조: 분배금 조정 최대 차이", adj.maxDiffPct, 0.5025125628140703, 1e-9);
+// 하루 가격이 3% 틀림 → 그날과 다음 날 등락이 둘 다 어긋난다
+const bad = crossCheck(mk(25, (i) => 1000 + i), mk(25, (i) => (i === 21 ? (1000 + i) * 1.03 : 1000 + i)), "2026-10-20");
+eq("대조: 가격이 틀린 날 → 불일치", bad.status, "불일치");
+eq("대조: 등락이 다른 날 수", bad.returnMismatched, 2);
+eq("대조: 최근 구간에서 등락이 다른 날 수", bad.recentMismatched, 2);
+// 한쪽에만 있는 날은 건너뛰고 연결을 끊는다(이틀치 등락을 하루로 비교하지 않게)
+const gapB = mk(25, (i) => 1000 + i).filter((_, i) => i !== 10);
+const gapA = mk(25, (i) => (i === 10 ? 2000 : 1000 + i));
+eq("대조: 한쪽에만 있는 날 건너뜀", crossCheck(gapA, gapB, "2026-10-20").status, "일치");
 eq("대조: 겹치는 날이 적으면 판단 안 함", crossCheck(mk(10, (i) => i + 1), mk(10, (i) => i + 1), "2026-10-01").status, "대조 못 함");
 eq("대조: 한쪽이 비면 판단 안 함", crossCheck(mk(25, (i) => i + 1), [], "2026-10-01").status, "대조 못 함");
 
