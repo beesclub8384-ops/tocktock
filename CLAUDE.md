@@ -336,6 +336,11 @@ Cron(8개): refresh-credit(평일 01:00 UTC), virtual-trading-scan(평일 07:00)
 
 사이드바 위젯: 성장성점수, VIX, USD/KRW, 달러인덱스, 미국10년물, 국제유가
 
+순환매 점검(/rotation): 반도체가 빠질 때 조선·방산이 돌아오는지 보는 화면. cron `/api/cron/rotation`(평일 07:30 UTC = 16:30 KST, Redis 키 `rotation:data`).
+- 계산 규칙은 `lib/rotation-core.ts`(순수 함수), 수집은 `lib/rotation.ts`(네이버 일별 시세가 주, 야후로 날짜별 대조, ETF 를 못 받으면 대표 종목으로 대신).
+- 계산 규칙을 바꾸면 `node scripts/verify-rotation.mjs` 를 반드시 돌린다(2026-11-26 기준 자료와 따로 계산한 기대값 대조). 기대값도 같이 다시 만든다.
+- 15:40 KST 전에는 당일 값을 쓰지 않는다(장중 값을 종가처럼 쓰지 않기 위해).
+
 ---
 
 ## 🔁 Git 복구 패턴
