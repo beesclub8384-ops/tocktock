@@ -13,8 +13,7 @@ import {
   type RotationSnapshot,
 } from "@/lib/rotation";
 import type { Num, RotationRow, Verdict } from "@/lib/rotation-core";
-import { RotationLineChart, type LineSeries } from "./line-chart";
-import { MiniCharts, type MiniGroup } from "./mini-charts";
+import { OverlayChart, type OverlayPeriod } from "./overlay-chart";
 import { ScrollEnd } from "./scroll-end";
 
 export const dynamic = "force-dynamic";
@@ -104,9 +103,6 @@ function Section({ title, sub, children }: { title: string; sub?: ReactNode; chi
   );
 }
 
-/** 4가지 선 색 — 라이트·다크에서 색각 이상 구분 검사를 통과한 조합, 선 끝에 이름을 직접 적어 색에만 기대지 않는다 */
-const LINE_COLORS = ["#0072B2", "#D55E00", "#009E73", "#CC79A7"];
-
 /* ───────────────────────── 페이지 ───────────────────────── */
 
 export default async function SectorFlowPage() {
@@ -187,48 +183,52 @@ export default async function SectorFlowPage() {
   const fallbacks = instruments.filter((i) => i.fallback);
   const staleSeries = instruments.filter((i) => i.stale);
 
-  // ── 차트: 코스피 + 최근 8주 가장 많이 오른 2개·내린 2개 업종 ──
-  const chartPick = [...by8w.slice(0, 2), ...by8w.slice(-2)].map((x) => x.key);
-  const chartKeys: { key: string; role?: "market"; color?: string }[] = [
-    { key: ROTATION_MARKET_KEY, role: "market" },
-    ...chartPick.map((k, i) => ({ key: k, color: LINE_COLORS[i] })),
-  ];
-  const seriesFor = (src: { key: string; values: Num[] }[], keys = chartKeys): LineSeries[] =>
-    keys
-      .map((c) => {
-        const s = src.find((x) => x.key === c.key);
-        // 차트 끝 이름은 짧게(업종 이름만) — 대표 종목 이름까지 붙이면 휴대폰에서 잘린다
-        return s ? { name: inst.get(c.key)?.label ?? c.key, values: s.values, role: c.role, color: c.color } : null;
+  // ── 겹쳐 보기 차트: 전 업종 + 코스닥을 한 차트에, 코스피는 점선 ──
+  const overlayRows = res.rows.filter((r) => r.key !== ROTATION_MARKET_KEY);
+  const overlaySeries = (src: { key: string; values: Num[] }[]) =>
+    overlayRows
+      .map((r) => {
+        const sv = src.find((x) => x.key === r.key);
+        return sv ? { key: r.key, name: inst.get(r.key)?.label ?? r.key, group: inst.get(r.key)?.category ?? "", values: sv.values } : null;
       })
-      .filter((s): s is NonNullable<typeof s> => s !== null);
-
+      .filter((x): x is NonNullable<typeof x> => x !== null);
+  const marketOf = (src: { key: string; values: Num[] }[]) => src.find((x) => x.key === ROTATION_MARKET_KEY)?.values ?? [];
   const m12 = res.chart12m.labels;
-  // ── 작은 차트 모음: 업종 묶음별, 지수는 코스닥만(코스피는 모든 칸에 점선으로 들어간다) ──
-  const miniOffset = months.length - m12.length;
-  const miniMarket = res.chart12m.series.find((x) => x.key === ROTATION_MARKET_KEY)?.values ?? [];
-  const miniGroups: MiniGroup[] = grouped
-    .map((g) => ({
-      title: g.cat,
-      items: g.rows
-        .filter((r) => r.key !== ROTATION_MARKET_KEY)
-        .map((r) => ({
-          key: r.key,
-          name: label(r.key),
-          values: res.chart12m.series.find((x) => x.key === r.key)?.values ?? [],
-          peakPos: r.peakIdx === null ? null : r.peakIdx - miniOffset,
-          peakLabel: monthName(r.peakIdx),
-        })),
-    }))
-    .filter((g) => g.items.length > 0);
-  const x12 = m12.map((m, i) => (i === 0 ? `${m.slice(2, 4)}.${Number(m.slice(5))}` : `${Number(m.slice(5))}월`));
-  const x12m = x12.map((l, i) => ((m12.length - 1 - i) % 2 === 0 ? l : ""));
+  const monthLabel = (m: string) => `${Number(m.slice(5))}월`;
   const weekEndSet = new Map(res.weeks.map((w, j) => [w.end, j]));
   const d8 = res.chart8w.labels;
-  const x8 = d8.map((d, i) => (i === 0 || weekEndSet.has(d) ? md(d) : ""));
-  const x8m = d8.map((d) => {
-    const j = weekEndSet.get(d);
-    return j !== undefined && (res.weeks.length - 1 - j) % 2 === 0 ? md(d) : "";
-  });
+  const overlayPeriods: OverlayPeriod[] = [
+    {
+      id: "12m",
+      tab: "12개월",
+      basis: `${monthName(months.length - m12.length)} 말 종가 대비 (월말 종가, 마지막 점은 ${md(res.asOf)})`,
+      pointLabels: m12.map((m, i) => (i === 0 || m.endsWith("-01") ? `${m.slice(0, 4)}년 ${monthLabel(m)}` : monthLabel(m))),
+      ticks: m12.map((m, i) => (i === 0 ? `${m.slice(2, 4)}.${Number(m.slice(5))}` : monthLabel(m))),
+      ticksMobile: m12.map((m, i) => ((m12.length - 1 - i) % 2 === 0 ? monthLabel(m) : "")),
+      series: overlaySeries(res.chart12m.series),
+      market: marketOf(res.chart12m.series),
+    },
+    {
+      id: "8w",
+      tab: "8주",
+      basis: `${res.windowBase ? md(res.windowBase) : "–"} 종가 대비 (일별 종가)`,
+      pointLabels: d8.map((d) => md(d)),
+      ticks: d8.map((d, i) => (i === 0 || weekEndSet.has(d) ? md(d) : "")),
+      ticksMobile: d8.map((d) => {
+        const j = weekEndSet.get(d);
+        return j !== undefined && (res.weeks.length - 1 - j) % 2 === 0 ? md(d) : "";
+      }),
+      series: overlaySeries(res.chart8w.series),
+      market: marketOf(res.chart8w.series),
+    },
+  ];
+  // 처음에 색으로 띄울 업종: 12개월 동안 가장 많이 오른 2개·가장 많이 내린 2개 (지수 제외)
+  const by12m = overlayPeriods[0].series
+    .filter((sv) => !isIndex(sv.key))
+    .map((sv) => ({ key: sv.key, v: sv.values[sv.values.length - 1] }))
+    .filter((x): x is { key: string; v: number } => x.v !== null && x.v !== undefined)
+    .sort((a, b) => b.v - a.v);
+  const defaultKeys = [...new Set([...by12m.slice(0, 2), ...by12m.slice(-2)].map((x) => x.key))];
 
   /** 주간 표의 열 순서: 가장 최근 주부터 */
   const weekOrder = res.weeks.map((_, j) => j).reverse();
@@ -348,32 +348,14 @@ export default async function SectorFlowPage() {
         </div>
       </div>
 
-      {/* ── 1. 업종마다 작은 차트 ── */}
+      {/* ── 1. 겹쳐 보기 ── */}
       <Section
-        title="1. 업종별 최근 12개월 흐름"
-        sub={`업종마다 차트 하나입니다. ${monthName(miniOffset)} 말 종가를 100으로 놓았고, 모든 칸의 세로 눈금이 같아서 서로 비교할 수 있습니다.`}
+        title="1. 업종별 주가 흐름 겹쳐 보기"
+        sub="모든 업종을 한 차트에 겹쳤습니다. 옅은 회색 선이 전체 업종이고, 고른 업종만 색으로 보입니다. 처음에는 12개월 동안 가장 많이 오른 2개와 가장 많이 내린 2개가 켜져 있습니다."
       >
-        <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-          <span className="flex items-center gap-1.5">
-            <span className="inline-block h-0.5 w-4 bg-foreground" />그 업종
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="inline-block w-4 border-t-2 border-dashed" style={{ borderColor: "#8a8a84" }} />
-            코스피
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="inline-block h-2 w-2 rounded-full border-[1.5px] border-foreground" />
-            고점
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="inline-block h-2 w-2 rounded-full bg-foreground" />
-            지금 ({md(res.asOf)})
-          </span>
-          <span>오른쪽 숫자 = 12개월 전 대비</span>
-        </div>
-        <MiniCharts groups={miniGroups} market={miniMarket} firstLabel={`${Number(m12[0].slice(5))}월`} lastLabel={`${Number(m12[m12.length - 1].slice(5))}월`} />
+        <OverlayChart periods={overlayPeriods} groupOrder={[...SECTOR_CATEGORIES]} defaultKeys={defaultKeys} />
         <p className="mt-2 text-xs text-muted-foreground">
-          월말 종가를 이은 선이고, 마지막 점은 {md(res.asOf)} 종가입니다. 점선보다 위에 있으면 12개월 동안 코스피보다 많이 오른 업종입니다.
+          점선은 코스피입니다. 차트 위에 손가락이나 마우스를 올리면 그 시점의 값이 위쪽 줄에 나옵니다. 가격은 대표 ETF 기준입니다.
         </p>
 
         <details className="mt-4 rounded-lg border border-border">
@@ -424,20 +406,8 @@ export default async function SectorFlowPage() {
         </details>
       </Section>
 
-      {/* ── 2·3. 차트 ── */}
-      <Section
-        title="2. 겹쳐 보기: 최근 12개월"
-        sub={`최근 8주 동안 가장 많이 오른 2개·가장 많이 내린 2개 업종과 코스피입니다. ${monthName(months.length - res.chart12m.labels.length)} 말 종가를 100으로 놓았습니다.`}
-      >
-        <RotationLineChart series={seriesFor(res.chart12m.series)} xLabels={x12} xLabelsMobile={x12m} note="첫 달 말 = 100, 월말 종가, 세로축은 비율 눈금" />
-      </Section>
-
-      <Section title="3. 겹쳐 보기: 최근 8주" sub={`같은 업종을 ${res.windowBase ? md(res.windowBase) : "–"} 종가를 100으로 놓고 일별로 봅니다.`}>
-        <RotationLineChart series={seriesFor(res.chart8w.series)} xLabels={x8} xLabelsMobile={x8m} note="8주 전 주의 마지막 종가 = 100, 세로축은 비율 눈금" />
-      </Section>
-
-      {/* ── 4. 고점 표 ── */}
-      <Section title="4. 업종별 고점과 그 뒤 흐름" sub="최근 12개월 중 월말 종가가 가장 높았던 달과, 그 뒤 얼마나 움직였는지입니다.">
+      {/* ── 2. 고점 표 ── */}
+      <Section title="2. 업종별 고점과 그 뒤 흐름" sub="최근 12개월 중 월말 종가가 가장 높았던 달과, 그 뒤 얼마나 움직였는지입니다.">
         <div className="overflow-x-auto rounded-lg border border-border">
           <table className="w-full border-separate border-spacing-0 text-xs sm:text-sm">
             <thead>
@@ -487,8 +457,8 @@ export default async function SectorFlowPage() {
         </p>
       </Section>
 
-      {/* ── 5. 주간 표 ── */}
-      <Section title="5. 최근 8주, 주마다" sub="각 칸은 그 주 마지막 거래일 종가를 전주 마지막 거래일 종가와 비교한 값입니다. 왼쪽이 가장 최근 주입니다.">
+      {/* ── 3. 주간 표 ── */}
+      <Section title="3. 최근 8주, 주마다" sub="각 칸은 그 주 마지막 거래일 종가를 전주 마지막 거래일 종가와 비교한 값입니다. 왼쪽이 가장 최근 주입니다.">
         <div className="overflow-x-auto rounded-lg border border-border">
           <table className="w-full border-separate border-spacing-0 text-xs sm:text-sm">
             <thead>
@@ -529,19 +499,19 @@ export default async function SectorFlowPage() {
         <p className="mt-2 text-xs text-muted-foreground">단위 %. 날짜 아래 (3일)은 그 주 거래일 수입니다.</p>
       </Section>
 
-      {/* ── 6. 보는 법 예시 ── */}
+      {/* ── 4. 보는 법 예시 ── */}
       <Section
-        title={`6. 보는 법 예시: ${baseLabel}가 빠질 때 ${targetNames}이 돌아오고 있나`}
+        title={`4. 보는 법 예시: ${baseLabel}가 빠질 때 ${targetNames}이 돌아오고 있나`}
         sub="이 페이지의 숫자로 '순환매(돈이 한 업종에서 다른 업종으로 옮겨 가는 것)'를 직접 확인하는 방법입니다. 판정이 아니라 데이터를 읽는 순서입니다."
       >
         <div className="rounded-lg border border-border bg-muted/30 p-4 text-sm">
           <p className="font-bold">확인 순서</p>
           <ol className="mt-1 list-decimal space-y-1 pl-5">
             <li>
-              <b>먼저 꺾였나</b>: 4번 표에서 {targetNames}의 고점 월이 {baseLabel}보다 앞인지 봅니다.
+              <b>먼저 꺾였나</b>: 2번 표에서 {targetNames}의 고점 월이 {baseLabel}보다 앞인지 봅니다.
             </li>
             <li>
-              <b>최근에 올랐나</b>: 4번 표 &ldquo;최근 8주&rdquo; 칸이 플러스인지, 아니면 적어도 코스피보다 나은지 봅니다.
+              <b>최근에 올랐나</b>: 2번 표 &ldquo;최근 8주&rdquo; 칸이 플러스인지, 아니면 적어도 코스피보다 나은지 봅니다.
             </li>
             <li>
               <b>이어지고 있나</b>: 아래 표에서 &ldquo;{baseLabel}↓&rdquo; 주에 {targetNames} 칸이 빨간 주가 2주 이상 이어지는지 봅니다.
@@ -614,12 +584,12 @@ export default async function SectorFlowPage() {
           </table>
         </div>
         <p className="mt-2 text-xs text-muted-foreground">
-          다른 업종도 같은 방법으로 볼 수 있습니다. 예를 들어 5번 표에서 {baseLabel} 줄이 파란 주에 어느 업종 줄이 빨간지 찾아보세요. 오른 이유가 돈의 이동인지, 그 업종만의 재료(정책·뉴스) 때문인지는 숫자만으로 가릴 수 없습니다.
+          다른 업종도 같은 방법으로 볼 수 있습니다. 예를 들어 3번 표에서 {baseLabel} 줄이 파란 주에 어느 업종 줄이 빨간지 찾아보세요. 오른 이유가 돈의 이동인지, 그 업종만의 재료(정책·뉴스) 때문인지는 숫자만으로 가릴 수 없습니다.
         </p>
       </Section>
 
-      {/* ── 7. 자료·한계 ── */}
-      <Section title="7. 자료와 한계">
+      {/* ── 5. 자료·한계 ── */}
+      <Section title="5. 자료와 한계">
         <ul className="list-disc space-y-1 pl-5 text-sm">
           <li>업종지수가 아니라 대표 ETF 가격입니다. ETF에 담긴 종목과 비중에 따라 실제 업종 흐름과 다를 수 있습니다.</li>
           <li>ETF 가격은 분배금을 받은 것으로 친 수정주가입니다. 배당이 많은 업종(은행·보험·증권 등)은 거래소 종가로 계산한 등락률보다 조금 높게 나옵니다.</li>
