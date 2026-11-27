@@ -14,6 +14,7 @@ import {
 } from "@/lib/rotation";
 import type { Num, RotationRow, Verdict } from "@/lib/rotation-core";
 import { RotationLineChart, type LineSeries } from "./line-chart";
+import { MiniCharts, type MiniGroup } from "./mini-charts";
 import { ScrollEnd } from "./scroll-end";
 
 export const dynamic = "force-dynamic";
@@ -202,6 +203,23 @@ export default async function SectorFlowPage() {
       .filter((s): s is NonNullable<typeof s> => s !== null);
 
   const m12 = res.chart12m.labels;
+  // ── 작은 차트 모음: 업종 묶음별, 지수는 코스닥만(코스피는 모든 칸에 점선으로 들어간다) ──
+  const miniOffset = months.length - m12.length;
+  const miniMarket = res.chart12m.series.find((x) => x.key === ROTATION_MARKET_KEY)?.values ?? [];
+  const miniGroups: MiniGroup[] = grouped
+    .map((g) => ({
+      title: g.cat,
+      items: g.rows
+        .filter((r) => r.key !== ROTATION_MARKET_KEY)
+        .map((r) => ({
+          key: r.key,
+          name: label(r.key),
+          values: res.chart12m.series.find((x) => x.key === r.key)?.values ?? [],
+          peakPos: r.peakIdx === null ? null : r.peakIdx - miniOffset,
+          peakLabel: monthName(r.peakIdx),
+        })),
+    }))
+    .filter((g) => g.items.length > 0);
   const x12 = m12.map((m, i) => (i === 0 ? `${m.slice(2, 4)}.${Number(m.slice(5))}` : `${Number(m.slice(5))}월`));
   const x12m = x12.map((l, i) => ((m12.length - 1 - i) % 2 === 0 ? l : ""));
   const weekEndSet = new Map(res.weeks.map((w, j) => [w.end, j]));
@@ -330,12 +348,40 @@ export default async function SectorFlowPage() {
         </div>
       </div>
 
-      {/* ── 1. 히트맵 ── */}
+      {/* ── 1. 업종마다 작은 차트 ── */}
       <Section
-        title="1. 업종별 월간 등락률"
-        sub="빨강은 상승, 파랑은 하락입니다. 진할수록 폭이 큽니다(±30%에서 가장 진함). 굵은 테두리는 최근 12개월 중 월말 종가가 가장 높았던 달입니다."
+        title="1. 업종별 최근 12개월 흐름"
+        sub={`업종마다 차트 하나입니다. ${monthName(miniOffset)} 말 종가를 100으로 놓았고, 모든 칸의 세로 눈금이 같아서 서로 비교할 수 있습니다.`}
       >
-        <ScrollEnd className="rounded-lg border border-border">
+        <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block h-0.5 w-4 bg-foreground" />그 업종
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block w-4 border-t-2 border-dashed" style={{ borderColor: "#8a8a84" }} />
+            코스피
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block h-2 w-2 rounded-full border-[1.5px] border-foreground" />
+            고점
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block h-2 w-2 rounded-full bg-foreground" />
+            지금 ({md(res.asOf)})
+          </span>
+          <span>오른쪽 숫자 = 12개월 전 대비</span>
+        </div>
+        <MiniCharts groups={miniGroups} market={miniMarket} firstLabel={`${Number(m12[0].slice(5))}월`} lastLabel={`${Number(m12[m12.length - 1].slice(5))}월`} />
+        <p className="mt-2 text-xs text-muted-foreground">
+          월말 종가를 이은 선이고, 마지막 점은 {md(res.asOf)} 종가입니다. 점선보다 위에 있으면 12개월 동안 코스피보다 많이 오른 업종입니다.
+        </p>
+
+        <details className="mt-4 rounded-lg border border-border">
+          <summary className="cursor-pointer px-3 py-2 text-sm font-semibold">월별 숫자 자세히 보기 (최근 3년 월간 등락률 표)</summary>
+          <p className="px-3 pb-2 text-xs text-muted-foreground">
+            빨강은 상승, 파랑은 하락입니다. 진할수록 폭이 큽니다(±30%에서 가장 진함). 굵은 테두리는 최근 12개월 중 월말 종가가 가장 높았던 달입니다.
+          </p>
+        <ScrollEnd className="border-t border-border">
           <table className="border-separate border-spacing-0 text-[11px]">
             <thead>
               <tr>
@@ -374,18 +420,19 @@ export default async function SectorFlowPage() {
             </tbody>
           </table>
         </ScrollEnd>
-        <p className="mt-2 text-xs text-muted-foreground">마지막 칸은 {md(res.asOf)}까지입니다. 빈칸은 상장 전이라 자료가 없는 달입니다. 표는 옆으로 밀어 볼 수 있습니다.</p>
+          <p className="px-3 py-2 text-xs text-muted-foreground">마지막 칸은 {md(res.asOf)}까지입니다. 빈칸은 상장 전이라 자료가 없는 달입니다. 표는 옆으로 밀어 볼 수 있습니다.</p>
+        </details>
       </Section>
 
       {/* ── 2·3. 차트 ── */}
       <Section
-        title="2. 최근 12개월 흐름"
+        title="2. 겹쳐 보기: 최근 12개월"
         sub={`최근 8주 동안 가장 많이 오른 2개·가장 많이 내린 2개 업종과 코스피입니다. ${monthName(months.length - res.chart12m.labels.length)} 말 종가를 100으로 놓았습니다.`}
       >
         <RotationLineChart series={seriesFor(res.chart12m.series)} xLabels={x12} xLabelsMobile={x12m} note="첫 달 말 = 100, 월말 종가, 세로축은 비율 눈금" />
       </Section>
 
-      <Section title="3. 최근 8주 흐름" sub={`같은 업종을 ${res.windowBase ? md(res.windowBase) : "–"} 종가를 100으로 놓고 일별로 봅니다.`}>
+      <Section title="3. 겹쳐 보기: 최근 8주" sub={`같은 업종을 ${res.windowBase ? md(res.windowBase) : "–"} 종가를 100으로 놓고 일별로 봅니다.`}>
         <RotationLineChart series={seriesFor(res.chart8w.series)} xLabels={x8} xLabelsMobile={x8m} note="8주 전 주의 마지막 종가 = 100, 세로축은 비율 눈금" />
       </Section>
 
