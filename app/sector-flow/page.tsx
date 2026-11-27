@@ -175,7 +175,9 @@ export default async function SectorFlowPage() {
     if (r.peakIdx === null) continue;
     peakGroups.set(r.peakIdx, [...(peakGroups.get(r.peakIdx) ?? []), label(r.key)]);
   }
-  const peakList = [...peakGroups.entries()].sort((a, b) => a[0] - b[0]);
+  // 최근 12개월을 모두 적는다 — 고점 업종이 없는 달도 "없음"으로 보여 줘야 빠진 달로 오해하지 않는다
+  const peakList: [number, string[]][] = [];
+  for (let i = Math.max(0, months.length - 12); i < months.length; i++) peakList.push([i, peakGroups.get(i) ?? []]);
 
   // ── 경고 ──
   const today = kstDate(new Date());
@@ -316,12 +318,12 @@ export default async function SectorFlowPage() {
         ))}
         <div className="rounded-lg border border-border bg-card p-4 text-sm">
           <p className="font-bold">최근 12개월 월말 종가 고점</p>
-          <p className="mt-1 text-xs text-muted-foreground">어느 달에 가장 높았나 (업종 {sectorRows.length}개)</p>
+          <p className="mt-1 text-xs text-muted-foreground">업종 {sectorRows.length}개가 각각 어느 달에 가장 높았나 (&ldquo;없음&rdquo; = 그 달에 고점을 찍은 업종이 없음)</p>
           <ul className="mt-2 space-y-1">
             {peakList.map(([idx, names]) => (
               <li key={idx} className="flex gap-2">
-                <span className="w-16 shrink-0 font-semibold">{monthName(idx)}</span>
-                <span className="text-muted-foreground">{names.join(", ")}</span>
+                <span className="w-20 shrink-0 font-semibold whitespace-nowrap">{monthName(idx).replace(/^20(\d\d)년 /, "$1년 ")}</span>
+                <span className="text-muted-foreground">{names.length ? names.join(", ") : "없음"}</span>
               </li>
             ))}
           </ul>
