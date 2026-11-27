@@ -17,7 +17,7 @@ const navLinks = [
   // 고르게 한다 (3층 구조: 목록 → 관측소 → 지표).
   { href: "/observatory", label: "관측소" },
   { href: "/sectors", label: "섹터별 현황" },
-  { href: "/rotation", label: "순환매 점검" },
+  { href: "/sector-flow", label: "업종별 주가 흐름" },
   { href: "/market/tradevalue", label: "거래대금" },
   { href: "/daytrading", label: "실전 단타 기록" },
   { href: "/news", label: "뉴스" },
@@ -90,7 +90,7 @@ const pcNavItems: NavItem[] = [
     items: buildObservatoryItems(),
   },
   { type: "link", href: "/sectors", label: "섹터별 현황" },
-  { type: "link", href: "/rotation", label: "순환매 점검" },
+  { type: "link", href: "/sector-flow", label: "업종별 주가 흐름" },
   { type: "link", href: "/market/tradevalue", label: "거래대금" },
   { type: "link", href: "/daytrading", label: "실전 단타 기록" },
   { type: "link", href: "/news", label: "뉴스" },

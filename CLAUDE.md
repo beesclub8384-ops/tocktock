@@ -336,9 +336,10 @@ Cron(8개): refresh-credit(평일 01:00 UTC), virtual-trading-scan(평일 07:00)
 
 사이드바 위젯: 성장성점수, VIX, USD/KRW, 달러인덱스, 미국10년물, 국제유가
 
-순환매 점검(/rotation): 반도체가 빠질 때 조선·방산이 돌아오는지 보는 화면. cron `/api/cron/rotation`(평일 07:30 UTC = 16:30 KST, Redis 키 `rotation:data`).
+업종별 주가 흐름(/sector-flow, 예전 /rotation 은 이쪽으로 이동): 업종 20개의 몇 달 흐름을 사실만 보여 주는 화면(판단은 보는 사람이). 순환매(반도체↔조선·방산) 확인은 아래쪽 "보는 법 예시"로만 둔다. 섹터별 현황(/sectors)은 오늘 하루 전광판, 이 화면은 몇 달 흐름. cron `/api/cron/rotation`(평일 07:30 UTC = 16:30 KST, Redis 키 `rotation:data`).
 - 계산 규칙은 `lib/rotation-core.ts`(순수 함수), 수집은 `lib/rotation.ts`(네이버 일별 시세가 주, 야후로 날짜별 대조, ETF 를 못 받으면 대표 종목으로 대신).
 - 계산 규칙을 바꾸면 `node scripts/verify-rotation.mjs` 를 반드시 돌린다(2026-11-26 기준 자료와 따로 계산한 기대값 대조). 기대값도 같이 다시 만든다.
+- 업종 목록은 `lib/rotation.ts` 의 ROTATION_SERIES. 고르는 기준(최근 3년 주도 업종 + 시총 큰 업종, 20개 안팎)도 거기 주석에 있다.
 - 15:40 KST 전에는 당일 값을 쓰지 않는다(장중 값을 종가처럼 쓰지 않기 위해).
 - 네이버 siseJson 의 ETF 종가는 분배금 반영 수정주가다. 야후와 대조할 때는 `close` 가 아니라 `adjclose` 와 비교한다(2026-11-27 미리보기에서 확인).
 
